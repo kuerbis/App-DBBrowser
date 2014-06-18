@@ -1,0 +1,346 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use 5.010001;
+no warnings 'utf8';
+
+our $VERSION = '0.034';
+
+use Encode::Locale qw();
+
+use App::DBBrowser::Browser;
+
+binmode STDIN,  ':encoding(console_in)';
+binmode STDOUT, ':encoding(console_out)';
+binmode STDERR, ':encoding(console_out)';
+
+my $db_browser = App::DBBrowser::Browser->new();
+$db_browser->run();
+
+
+
+__END__
+
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables interactively.
+
+=head1 VERSION
+
+Version 0.034
+
+=cut
+
+=head1 SYNOPSIS
+
+=head2 SQLite/MySQL/PostgreSQL
+
+    db-browser
+
+    db-browser -h|--help
+
+When the C<db-browser> is called with the argument C<-h|--help>, it shows a menu - see L</OPTIONS>.
+
+=head2 SQLite
+
+    db-browser [-s|--search] [directories to be searched]
+
+If no directories are passed, the home directory is searched for SQLite databases.
+
+C<db-browser> called with C<-s|--search> causes a new search of SQLite databases instead of using the cached data.
+
+=head1 DESCRIPTION
+
+Search and read in SQLite/MySQL/PostgreSQL databases. With the C<db-browser> one can browse databases and their tables
+interactively. The available DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
+
+To be able to browse database-, schema- and table-lists and the content of tables one needs to have the database
+privileges required for fetching the respective data.
+
+The C<db-browser> expects an existing home directory with read and write permissions for the user of the C<db-browser>.
+
+It is recommended to work with an UTF encoding. Non mappable characters might break the output.
+
+It is required a terminal with a width of at least 40 print columns.
+
+Before the output leading and trailing spaces are removed from the elements and spaces are squashed to a single
+white-space.
+
+The elements in a column are right-justified if one or more elements of that column do not look like a number, else they
+are left-justified.
+
+See L<Term::TablePrint|Term::TablePrint/DESCRIPTION> for more details.
+
+=head1 USAGE
+
+The best way to find out how C<db-browser> works is calling C<db-browser>.
+
+To be able to use all the features of the C<db-browser> some basic SQL knowledge is required.
+
+=head3 SQL menu
+
+The SQL menu is the menu which opens after a table was selected.
+
+If C<AGGREGATE> or C<GROUP BY> is set, the C<SELECT> statement is automatically formed; a previous user defined
+C<SELECT> statement is reset. A user defined C<SELECT> resets a previous set C<AGGREGATE> or C<GROUP BY> statement.
+
+To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu entry and choose C<'- OK -'>.
+
+Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
+
+=head3 Keys to move around
+
+=over
+
+=item *
+
+the C<Arrow> keys (or C<h,j,k,l>) to move up and down and to move to the right and to the left,
+
+=item *
+
+the C<PageUp> key (or C<Ctrl-B>) to go back one page, the C<PageDown> key (or C<Ctrl-F>) to go forward one page.
+
+=item *
+
+the C<Home> key (or C<Ctrl-A>) to jump to the beginning of the menu, the C<End> key (or C<Ctrl-E>) to jump to the end
+of the menu.
+
+=back
+
+With the option I<mouse> enabled it can be used the mouse with the left mouse key to navigate through the menus.
+
+To confirm a chosen menu item use the C<Return> key.
+
+When choosing columns for the C<SELECT> and C<GROUP BY> statement, it is possible to select items with the C<SpaceBar>
+key before C<Return> is pressed. Then the list of items marked with the C<SpaceBar> including the highlighted
+item are added to the chosen items. If a mouse mode is enabled, it can be used the right mouse key instead of the
+C<SpaceBar>. C<Ctrl-SpaceBar> (or C<Ctrl-@>) inverts the made choices - marked items are unmarked and unmarked items are
+marked.
+
+To move backwards in the menu hierarchy one can press the C<q> key . When prompted for a string, use C<Ctrl-D> instead
+of C<q>.
+
+=head2 OPTIONS
+
+=head3 HELP
+
+Show this Info.
+
+=head3 Path
+
+Shows the version and the path of the running C<db-browser> and the path of the application directory.
+
+=head3 Colwidth
+
+Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
+all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
+
+=head3 DB Defaults
+
+Set Database defaults.
+
+The I<DB Defaults> can be overwritten for each Database with the Database menu entry "Database settings".
+
+=head4 See if it's a number
+
+If set to "YES", C<DBD::SQLite> tries to see if the bind values are numbers or not, and does not quote if they are
+numbers.
+
+See L<DBD::SQLite> for details. This is a SQLite-only option.
+
+=head4 Enable utf8
+
+If I<Enable utf8> is enabled, the utf8 flag will be turned on for character data coming from the database.
+
+For a more driver specific explanation see the documentation of the respective Perl DBI driver.
+
+With the C<Pg> driver in use it is available - apart from the "YES/NO" choices - also an "AUTO" choice. If the
+L<DBD::Pg> version is less than 3.0.0, "AUTO" is mapped to "YES". For the meaning of "AUTO" look in
+L<pg_enable_utf8|https://metacpan.org/pod/DBD::Pg#pg_enable_utf8-integer> for the value C<-1>.
+
+=head4 "Binary Filter"
+
+Print "BNRY" instead of arbitrary binary data.
+
+If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
+
+Printing arbitrary binary data could break the output.
+
+=head4 RESET
+
+I<RESET> resets the values of the database back to the "Database defaults".
+
+=head3 DB Drivers
+
+Choose the required database drivers.
+
+=head3 DB Login
+
+Determine when C<db-browser> asks for the login data:
+
+=over
+
+=item
+
+per-DB
+
+log in data is asked once per database.
+
+=item
+
+once
+
+log in data is asked only once and then used for all connections.
+
+=back
+
+This option has no meaning if the SQLite driver is in use.
+
+=head3 Enchant
+
+Set the behavior of different menus.
+
+For the menus "Choose Database", "Choose Schema" and "Choose Table" setting I<Enchant> to "Memory" means: save the menu
+position.
+
+For "Print Table" setting I<Enchant> to "Expand" means: enable printing the chosen table row.
+
+For "Table Header" setting I<Enchant> to "Each page" means: print the Table Header on top of each page.
+
+=head3 ENV DBI
+
+- use C<DBI_USER> as username for all database logins.
+
+- use C<DBI_PASS> as password for all database logins.
+
+This option has no meaning if the SQLite driver is in use.
+
+=head3 Lock
+
+Set the default I<lock> value:
+
+- Lk0: Reset the SQL-statement after each "PrintTable".
+
+- Lk1: Reset the SQL-statement only when a table is selected.
+
+=head3 Max Rows
+
+Set the maximum number of fetched table rows. This can be overwritten by setting a SQL C<LIMIT> statement.
+
+The fetched table rows are kept in memory.
+
+To disable the automatic limit set I<Max Rows> to 0.
+
+=head3 Metadata
+
+If I<Metadata> is enabled, system tables/schemas/databases are appended to the respective list.
+
+=head3 Mouse Mode
+
+Set the I<mouse mode> (see L<Term::Choose/mouse>).
+
+=head3 Operators
+
+Choose the required operators.
+
+With this menu entry it is possible to mark items with the C<SpaceBar> key.
+
+=head3 Parentheses
+
+Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
+
+- C<(YES>: the position of "(" in the menu is before the column names.
+
+- C<YES(>: the position of "(" in the menu is after the column names.
+
+=head3 ProgressBar
+
+Set the progress bar threshold. If the number of fields (rows x columns) is higher than the threshold, a progress bar is
+shown while preparing the data for the output.
+
+=head3 Regexp Case
+
+If I<Regexp Case> is enabled, C<REGEXP> will match case sensitive.
+
+With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
+
+=head3 Sssc Mode
+
+With the I<Sssc> mode "compat" enabled back-arrows are offered in the SQL menus entries. In the "simple" mode it can
+be used the C<q> key instead of the back-arrows.
+
+=head3 Tabwidth
+
+Set the number of spaces between columns.
+
+=head3 Undef
+
+Set the string that will be shown on the screen instead of an undefined field.
+
+=head2 HINTS
+
+=head3 Scalar functions
+
+There is a hidden menu entry: selecting the prompt line in the SQL menu - I<Customize:> - makes available some scalar
+functions.
+
+=head4 Epoch_to_DateTime
+
+=head4 Epoch_to_Date
+
+=head4 Truncate
+
+With SQLite the function C<TRUNCATE> is a user-defined function which returns stringified values.
+
+    return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
+
+When comparing in C<WHERE> or C<HAVING TO> clauses with numbers, take the non-truncated (original) value for the
+comparison if C<sqlite_see_if_its_a_number> is enabled (default).
+
+Also to get a numeric comparison in an C<ORDER BY> clause use the non-truncated (original) values for the ordering.
+
+=head4 Bit_Length
+
+With SQLite the function C<Bit_Length> is a user-defined function which uses the Perl builtin C<length>. To make
+C<length> return the number of bytes the C<bytes> pragma is C<use>d.
+
+=head4 Char_Length
+
+With SQLite the function C<Char_Length> is a user-defined function which uses the Perl builtin C<length> to get the
+number of characters.
+
+To remove a chosen scalar function from a column select the column with the function a second time.
+
+=head1 REQUIREMENTS
+
+See L<Term::TablePrint/REQUIREMENTS>.
+
+=head2 Perl version
+
+Requires Perl version 5.10.1 or greater.
+
+=head1 SEE ALSO
+
+L<DBI>, L<DBD::SQLite>, L<DBD::mysql>, L<DBD::Pg>.
+
+=head1 CREDITS
+
+Thanks to the L<Perl-Community.de|http://www.perl-community.de> and the people form
+L<stackoverflow|http://stackoverflow.com> for the help.
+
+=head1 AUTHOR
+
+Matthäus Kiem <cuer2s@gmail.com>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2012-2014 Matthäus Kiem.
+
+This program is free software; you can redistribute it and/or modify it under the same terms as Perl 5.10.0. For
+details, see the full text of the licenses in the file LICENSE.
+
+=cut
