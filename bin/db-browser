@@ -4,7 +4,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.034';
+our $VERSION = '0.035';
 
 use Encode::Locale qw();
 
@@ -31,7 +31,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.034
+Version 0.035
 
 =cut
 
@@ -169,6 +169,17 @@ Print "BNRY" instead of arbitrary binary data.
 If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
 
 Printing arbitrary binary data could break the output.
+
+=head4 Default DB dirs
+
+Sets the default directories where C<db-browser> searches for SQLite databases. This is a SQLite-only option.
+
+To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
+"C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
+entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
+any. If the list of chosen directories is empty, then "C< < >" goes back without changing anything.
+
+This setting can not be overwritten in a single database.
 
 =head4 RESET
 

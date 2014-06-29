@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.035   2014-06-29
+        - Required minimum version of "Term::Choose::Util" is now "0.008".
+        - New option to set the default directories where "db-browser" searches for SQLite databases.
+        - Update documentation.
+
 0.034   2014-06-18
         - Bugfix in LIMIT-submenu.
         - Update documentation.

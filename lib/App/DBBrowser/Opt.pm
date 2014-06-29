@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.034';
+our $VERSION = '0.035';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -17,7 +17,7 @@ use Clone              qw( clone );
 use Encode::Locale     qw();
 use JSON::XS           qw( decode_json );
 use Term::Choose       qw( choose );
-use Term::Choose::Util qw( insert_sep print_hash util_readline choose_a_number choose_a_subset choose_multi );
+use Term::Choose::Util qw( insert_sep print_hash util_readline choose_a_number choose_a_subset choose_multi choose_dirs );
 
 sub new {
     my ( $class, $info, $opt ) = @_;
@@ -230,6 +230,7 @@ sub __opt_choose_a_list {
     # Choose_list
     my $list = choose_a_subset( $available, { current => $current } );
     return if ! defined $list;
+    return if ! @$list;
     $self->{opt}{$key} = $list;
     $self->{info}{write_config}++;
     return;
@@ -325,6 +326,7 @@ sub database_setting {
     }
     else {
         $prompt = 'Driver: ' . $db_driver;
+        push @{$menus->{SQLite}}, [ '_sqlite_search_dir', "- Default DB dirs" ];
     }
     my @pre = ( undef, $self->{info}{_confirm} );
     my @real = map { $_->[1] } @{$menus->{$db_driver}};
@@ -352,7 +354,7 @@ sub database_setting {
         else {
             $idx -= @pre;
             $key = $menus->{$db_driver}[$idx][0];
-            die if ! exists $self->{opt}{$db_driver}{$key};
+            die $key if ! exists $self->{opt}{$db_driver}{$key};
         }
         if ( ! defined $key ) {
             if ( $self->{info}{write_config} ) {
@@ -383,6 +385,9 @@ sub database_setting {
                 my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+            }
+            elsif ( $key eq '_sqlite_search_dir' ) {
+                $self->__db_opt_choose_dirs( $section, $key, $prompt );
             }
             else { die "Unknown key: $key" }
         }
@@ -445,6 +450,19 @@ sub __db_opt_choose_index {
     return if $idx == 0;
     $idx--;
     $self->{opt}{$section}{$key} = $idx;
+    $self->{info}{write_config}++;
+    return;
+}
+
+
+sub __db_opt_choose_dirs {
+    my ( $self, $section, $key ) = @_;
+    my $current = $self->{opt}{$section}{$key};
+    # Choose_dirs
+    my $dirs = choose_dirs( { mouse => $self->{opt}{mouse}, current => $current } );
+    return if ! defined $dirs;
+    return if ! @$dirs;
+    $self->{opt}{$section}{$key} = $dirs;
     $self->{info}{write_config}++;
     return;
 }

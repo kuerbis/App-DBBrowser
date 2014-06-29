@@ -6,7 +6,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.034';
+our $VERSION = '0.035';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -15,7 +15,7 @@ use Getopt::Long          qw( GetOptions );
 
 use Clone               qw( clone );
 use Encode::Locale      qw( decode_argv );
-use File::HomeDir       qw( my_home );
+use File::HomeDir       qw();
 use List::MoreUtils     qw( any first_index );
 use Term::Choose        qw();
 use Term::Choose::Util  qw( choose_a_number insert_sep term_size util_readline );
@@ -110,6 +110,7 @@ sub new {
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
             _binary_filter             => 0,
+            _sqlite_search_dir         => undef,
         },
         mysql => {
             host                => '',
@@ -147,6 +148,7 @@ sub __init {
     $self->{info}{app_dir}       = $app_dir;
     $self->{info}{config_file}   = catfile $app_dir, 'config.json';
     $self->{info}{db_cache_file} = catfile $app_dir, 'cache_db_search.json';
+    $self->{info}{defaults}{SQLite}{_sqlite_search_dir} = [ $home ];
 
     my $opt = $self->{info}{defaults};
     if ( ! eval {
@@ -189,7 +191,7 @@ sub __init {
     $self->{info}{sqlite_search} = 0;
     $self->{info}{sqlite_search} = 1 if @ARGV || $self->{opt}{SQLite}{_reset_cache_cmdline_only};
     $self->{info}{sqlite_search} = 0 if @{$self->{opt}{db_drivers}} == 1 && $self->{opt}{db_drivers}[0] eq 'SQLite';
-    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : [ $home ];
+    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{_sqlite_search_dir};
 }
 
 

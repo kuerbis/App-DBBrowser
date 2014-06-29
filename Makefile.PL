@@ -50,7 +50,7 @@ WriteMakefile(
         'Pod::Usage'            => 0,
         'Scalar::Util'          => 0,
         'Term::Choose'          => '1.105',
-        'Term::Choose::Util'    => '0.007',
+        'Term::Choose::Util'    => '0.008',
         'Term::TablePrint'      => '0.012',
         'Text::LineFold'        => 0,
         %prereqs_os_specific,
