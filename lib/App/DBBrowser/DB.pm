@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035';
+our $VERSION = '0.035_01';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
@@ -26,60 +26,81 @@ sub new {
 }
 
 
-sub __get_username {
+sub __get_connect_data {
+    my ( $self, $db, $key ) = @_;
+    my $db_driver = $self->{info}{db_driver};
+    my $db_key = $db_driver . '_' . $db;
+    my $prompt = ucfirst( $key ) . ' :';
+    my $env_key = 'DBI_' . uc( $key );
+    return '' if $db_driver eq 'SQLite';
+    if ( $self->{opt}{db_host_port} ) {
+        return $self->{info}{login}{$db_driver}{$db}{$key} if defined $self->{info}{login}{$db_driver}{$db}{$key};
+        if ( length $self->{opt}{$db_key}{$key} ) {
+            say $prompt . $self->{opt}{$db_key}{$key};
+            return $self->{opt}{$db_key}{$key};
+        }
+        # Readline
+        my $new = util_readline( $prompt, { default => $self->{opt}{$db_driver}{$key} } ); #
+        $self->{info}{login}{$db_driver}{$db}{$key} = $new;
+        return $new;
+    }
+    else {
+        return $ENV{$env_key}                 if $self->{opt}{'env_dbi_' . $key} && exists $ENV{$env_key};
+        return $self->{opt}{$db_driver}{$key} if exists $self->{opt}{$db_driver}{$key} && length $self->{opt}{$db_driver}{$key};
+    }
+    return;
+}
+
+
+sub __get_user {
     my ( $self, $db ) = @_;
     my $db_driver = $self->{info}{db_driver};
+    my $db_key = $db_driver . '_' . $db;
     return '' if $db_driver eq 'SQLite';
-    return $ENV{DBI_USER} if $self->{opt}{env_dbi_user};
-    my ( $user );
-    if ( $self->{opt}{db_login_once} ) {
-        $user = $self->{info}{login}{$db_driver}{user};
+    if ( $self->{opt}{db_user_pass} ) {
+        return $self->{info}{login}{$db_driver}{$db}{user} if defined $self->{info}{login}{$db_driver}{$db}{user};
+        if ( length $self->{opt}{$db_key}{user} ) {
+            say 'User :' . $self->{opt}{$db_key}{user};
+            return $self->{opt}{$db_key}{user};
+        }
+        # Readline
+        my $new = util_readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
+        $self->{info}{login}{$db_driver}{$db}{user} = $new;
+        return $new;
     }
     else {
-        $user = $self->{info}{login}{$db_driver}{$db}{user};
+        return $self->{info}{login}{$db_driver}{user} if defined $self->{info}{login}{$db_driver}{user};
+        return $ENV{DBI_USER}                         if $self->{opt}{env_dbi_user} && exists $ENV{DBI_USER};
+        #return $self->{opt}{$db_key}{user}            if length $self->{opt}{$db_key}{user};
+        return $self->{opt}{$db_driver}{user}         if exists $self->{opt}{$db_driver}{user} && length $self->{opt}{$db_driver}{user};
+        # Readline
+        my $new = util_readline( 'User: ' );
+        $self->{info}{login}{$db_driver}{user} = $new;
+        return $new;
     }
-    # Readline
-    if ( ! defined $user ) {
-        print CLEAR_SCREEN;
-        print "DB: $db\n";
-        $user = util_readline( 'User: ' );
-    }
-
-    if ( $self->{opt}{db_login_once} ) {
-        $self->{info}{login}{$db_driver}{user} = $user;
-    }
-    else {
-        $self->{info}{login}{$db_driver}{$db}{user} = $user;
-    }
-    return $user;
 }
 
 
 sub __get_password {
     my ( $self, $db, $user ) = @_;
     my $db_driver = $self->{info}{db_driver};
+    my $db_key = $db_driver . '_' . $db;
     return '' if $db_driver eq 'SQLite';
-    return $ENV{DBI_PASS} if $self->{opt}{env_dbi_pass};
-    my ( $passwd );
-    if ( $self->{opt}{db_login_once} ) {
-        $passwd = $self->{info}{login}{$db_driver}{passwd};
+    if ( $self->{opt}{db_user_pass} ) {
+        return $self->{info}{login}{$db_driver}{$db}{$user}{passwd} if defined $self->{info}{login}{$db_driver}{$db}{$user}{passwd};
+        # Readline
+        my $passwd = util_readline( 'Password: ', { no_echo => 1 } );
+        $self->{info}{login}{$db_driver}{$db}{$user}{passwd} = $passwd;
+        return $passwd;
     }
     else {
-        $passwd = $self->{info}{login}{$db_driver}{$db}{passwd};
+        return $self->{info}{login}{$db_driver}{$user}{passwd} if defined $self->{info}{login}{$db_driver}{$user}{passwd};
+        return $ENV{DBI_PASS}                                  if $self->{opt}{env_dbi_pass} && exists $ENV{DBI_PASS};
+        # Readline
+        my $passwd = util_readline( 'Password: ', { no_echo => 1 }  );
+        $self->{info}{login}{$db_driver}{$user}{passwd} = $passwd;
+        return $passwd;
     }
-    # Readline
-    if ( ! defined $passwd ) {
-        print CLEAR_SCREEN;
-        print "DB: $db\nUser: $user\n";
-        $passwd = util_readline( 'Password: ', { no_echo => 1 } );
-    }
-    if ( $self->{opt}{db_login_once} ) {
-        $self->{info}{login}{$db_driver}{passwd} = $passwd;
-    }
-    else {
-        $self->{info}{login}{$db_driver}{$db}{passwd} = $passwd;
-    }
-    return $passwd;
 }
 
 
@@ -90,15 +111,17 @@ sub get_db_handle {
     my $db_key = $db_driver . '_' . $db;
     my $db_arg = {};
     for my $option ( @{$self->{info}{$db_driver}{options}} ) {
-        next if $option =~ /^_/;
+        next if $option !~ /^\Q$self->{info}{connect_opt_pre}{$db_driver}\E/;
         $db_arg->{$option} = $self->{opt}{$db_key}{$option} // $self->{opt}{$db_driver}{$option};
     }
+    print CLEAR_SCREEN;
+    print "DB: $db\n";
+    my $host = $self->__get_connect_data( $db, 'host' );
+    my $port = $self->__get_connect_data( $db, 'port' );
     my $dsn = 'dbi:' . $db_driver . ':dbname=' . $db;
-    $dsn .= ';host=' . $db_arg->{host} if $db_arg->{host};
-    $dsn .= ';port=' . $db_arg->{port} if $db_arg->{port};
-    delete $db_arg->{host};
-    delete $db_arg->{port};
-    my $user   = $self->__get_username( $db );
+    $dsn .= ';host=' . $host if length $host;
+    $dsn .= ';port=' . $port if length $port;
+    my $user   = $self->__get_user( $db );
     my $passwd = $self->__get_password( $db, $user );
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,

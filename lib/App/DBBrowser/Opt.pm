@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035';
+our $VERSION = '0.035_01';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -28,9 +28,9 @@ sub new {
 sub options {
     my ( $self ) = @_;
     my $menus = [
-        [ 'db_defaults',    "- DB Defaults" ],
+        [ '_db_defaults',   "- DB Defaults" ],
         [ 'db_drivers',     "- DB Drivers" ],
-        [ 'db_login_once',  "- DB Login" ],
+        [ '_db_connect',    "- DB Login" ],
         [ '_env_dbi',       "- ENV DBI" ],
         [ '_enchant',       "- Enchant" ],
         [ 'lock_stmt',      "- Lock" ],
@@ -48,20 +48,27 @@ sub options {
     ];
     my $sub_menus = {
        _enchant      => [
-            [ 'keep_db_choice',     "- Choose Database", [ 'Simple', 'Memory' ] ],
-            [ 'keep_schema_choice', "- Choose Schema",   [ 'Simple', 'Memory' ] ],
-            [ 'keep_table_choice',  "- Choose Table",    [ 'Simple', 'Memory' ] ],
-            [ 'table_expand',       "- Print  Table",    [ 'Simple', 'Expand' ] ],
-            [ 'keep_header',        "- Table Header",    [ 'Simple', 'Each page' ] ],
+            #[ 'keep_db_choice',     "- Choose Database", [ 'Simple', 'Memory' ] ],
+            #[ 'keep_schema_choice', "- Choose Schema",   [ 'Simple', 'Memory' ] ],
+            #[ 'keep_table_choice',  "- Choose Table",    [ 'Simple', 'Memory' ] ],
+            [ 'menus_memory',  "- Menus",        [ 'Simple', 'Memory' ] ],
+            [ 'table_expand',  "- Print  Table", [ 'Simple', 'Expand' ] ],
+            [ 'keep_header',   "- Table Header", [ 'Simple', 'Each page' ] ],
         ],
         _parentheses => [
-            [ 'w_parentheses', "- Parentheses in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
-            [ 'h_parentheses', "- Parentheses in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
+            [ 'parentheses_w', "- Parentheses in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
+            [ 'parentheses_h', "- Parentheses in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
         ],
         _env_dbi     => [
             [ 'env_dbi_user', "- Use DBI_USER", [ 'NO', 'YES' ] ],
             [ 'env_dbi_pass', "- Use DBI_PASS", [ 'NO', 'YES' ] ],
+            [ 'env_dbi_host', "- Use DBI_HOST", [ 'NO', 'YES' ] ],
+            [ 'env_dbi_port', "- Use DBI_PORT", [ 'NO', 'YES' ] ],
         ],
+        _db_connect  => [
+            [ 'db_host_port', "- Ask host/port", [ 'No',    'per DB' ] ],
+            [ 'db_user_pass', "- Ask user/pass", [ 'Once',  'per DB' ] ],
+        ]
     };
     my $path = '  Path';
     my @pre = ( undef, $self->{info}{_continue}, $self->{info}{_help}, $path );
@@ -86,14 +93,14 @@ sub options {
         }
         if ( ! defined $key ) {
             if ( $self->{info}{write_config} ) {
-                $self->__write_config_file( $self->{info}{config_file} );
+                $self->__write_config_files();
                 delete $self->{info}{write_config};
             }
             exit();
         }
         elsif ( $key eq $self->{info}{_continue} ) {
             if ( $self->{info}{write_config} ) {
-                $self->__write_config_file( $self->{info}{config_file} );
+                $self->__write_config_files();
                 delete $self->{info}{write_config};
             }
             return $self->{opt};
@@ -160,16 +167,15 @@ sub options {
             my $sub_menu = $sub_menus->{$key};
             $self->__opt_choose_multi( $sub_menu );
         }
-        elsif ( $key eq 'db_login_once' ) {
-            my $list = [ 'per-DB', 'once' ];
-            my $prompt = 'Ask for credentials';
-            $self->__opt_choose_index( $key, $prompt, $list );
+        elsif ( $key eq '_db_connect' ) {
+            my $sub_menu = $sub_menus->{$key};
+            $self->__opt_choose_multi( $sub_menu );
         }
         elsif ( $key eq '_env_dbi' ) {
             my $sub_menu = $sub_menus->{$key};
             $self->__opt_choose_multi( $sub_menu );
         }
-        elsif ( $key eq 'db_defaults' ) {
+        elsif ( $key eq '_db_defaults' ) {
             $self->database_setting();
         }
         elsif ( $key eq 'sssc_mode' ) {
@@ -193,6 +199,16 @@ sub options {
         elsif ( $key eq '_enchant' ) {
             my $sub_menu = $sub_menus->{$key};
             $self->__opt_choose_multi( $sub_menu );
+            if ( $self->{opt}{menus_memory} ) { # ###
+                $self->{opt}{keep_db_choice}     = 1;
+                $self->{opt}{keep_schema_choice} = 1;
+                $self->{opt}{keep_table_choice}  = 1;
+            }
+            else {
+                $self->{opt}{keep_db_choice}     = 0;
+                $self->{opt}{keep_schema_choice} = 0;
+                $self->{opt}{keep_table_choice}  = 0;
+            }
         }
         else { die "Unknown option: $key" }
     }
@@ -296,6 +312,8 @@ sub database_setting {
         $db_driver = $self->{info}{db_driver};
         $section   = $db_driver . '_' . $db;
         for my $key ( keys %{$self->{opt}{$db_driver}} ) {
+            next if $key =~ /^(?:host|port|user)\z/; #
+            next if $key eq 'dirs_sqlite_search';
             $self->{opt}{$section}{$key} //= $self->{opt}{$db_driver}{$key};
         }
     }
@@ -305,33 +323,31 @@ sub database_setting {
         SQLite => [
             [ 'sqlite_unicode',             "- Unicode" ],
             [ 'sqlite_see_if_its_a_number', "- See if its a number" ],
-            [ '_binary_filter',             "- Binary Filter" ],
         ],
         mysql => [
-            [ 'host',              "- Host" ],
-            [ 'port',              "- Port" ],
             [ 'mysql_enable_utf8', "- Enable utf8" ],
-            [ '_binary_filter',    "- Binary Filter" ],
         ],
         Pg => [
-            [ 'host',           "- Host" ],
-            [ 'port',           "- Port" ],
             [ 'pg_enable_utf8', "- Enable utf8" ],
-            [ '_binary_filter', "- Binary Filter" ],
         ],
     };
+    if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) { # ! $db &&
+        unshift @{$menus->{$db_driver}}, [ 'user', "- User" ], [ 'host', "- Host" ], [ 'port', "- Port" ];
+    }
+    if ( ! $db && $db_driver eq 'SQLite' ) {
+        push @{$menus->{$db_driver}}, [ 'dirs_sqlite_search', "- Default DB dirs" ];
+    }
+    push @{$menus->{$db_driver}}, [ 'binary_filter', "- Binary Filter" ], [ '_reset', "  RESET" ];
     my $prompt;
     if ( defined $db ) {
         $prompt = 'DB: "' . ( $db_driver eq 'SQLite' ? basename( $db ) : $db ) . '"';
     }
     else {
         $prompt = 'Driver: ' . $db_driver;
-        push @{$menus->{SQLite}}, [ '_sqlite_search_dir', "- Default DB dirs" ];
     }
     my @pre = ( undef, $self->{info}{_confirm} );
     my @real = map { $_->[1] } @{$menus->{$db_driver}};
     my $choices = [ @pre, @real ];
-    push @$choices, "  RESET" if defined $db;
 
     DB_OPTION: while ( 1 ) {
         # Choose
@@ -344,13 +360,6 @@ sub database_setting {
         if ( $idx <= $#pre ) {
             $key = $pre[$idx];
         }
-        elsif ( $idx == @pre + @real ) {
-            for my $key ( keys %{$self->{opt}{$section}} ) {
-                $self->{opt}{$section}{$key} = undef;
-            }
-            $self->{info}{write_config}++;
-            next;
-        }
         else {
             $idx -= @pre;
             $key = $menus->{$db_driver}[$idx][0];
@@ -362,14 +371,44 @@ sub database_setting {
             }
             return;
         }
+        if ( $key eq '_reset' ) {
+            if ( $db ) {
+                delete $self->{opt}{$section};
+            }
+            else {
+                my @dbs = ();
+                for my $section ( keys %{$self->{opt}} ) {
+                    if ( $section =~ /^\Q$db_driver\E_(.+)\z/ ) {
+                        push @dbs, $1;
+                    }
+                }
+                if ( ! @dbs ) {
+                    choose( [ 'No entries to reset' ], { prompt => 'Close with "Enter"' } );
+                    next;
+                }
+                my @del = choose(
+                    [ undef, $self->{info}{confirm}, sort @dbs ],
+                    { no_spacebar => [ 0, 1 ], prompt => 'Reset:', layout => 3, undef => $self->{info}{back} }
+                );
+                next if ! @del;
+                next if ! defined $del[0];
+                for my $db ( @del ) {
+                    my $section = $db_driver . '_' . $db;
+                    delete $self->{opt}{$section};
+                }
+            }
+            $self->{info}{write_config}++;
+            next;
+        }
         if ( $key eq $self->{info}{_confirm} ) {
             if ( $self->{info}{write_config} ) {
-                $self->__write_config_file( $self->{info}{config_file} );
+                $self->__write_config_files();
                 delete $self->{info}{write_config};
                 return 1;
             }
             return;
         }
+
         if ( $db_driver eq "SQLite" ) {
             if ( $key eq 'sqlite_unicode' ) {
                 my $list = $self->{info}{yes_no};
@@ -381,12 +420,12 @@ sub database_setting {
                 my $prompt = 'See if its a number';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
             }
-            elsif ( $key eq '_binary_filter' ) {
+            elsif ( $key eq 'binary_filter' ) {
                 my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
             }
-            elsif ( $key eq '_sqlite_search_dir' ) {
+            elsif ( $key eq 'dirs_sqlite_search' ) {
                 $self->__db_opt_choose_dirs( $section, $key, $prompt );
             }
             else { die "Unknown key: $key" }
@@ -397,6 +436,10 @@ sub database_setting {
                 my $prompt = 'Enable utf8';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
             }
+            elsif ( $key eq 'user' ) {
+                my $prompt = 'User';
+                $self->__db_opt_readline( $section, $key, $prompt );
+            }
             elsif ( $key eq 'host' ) {
                 my $prompt = 'Host';
                 $self->__db_opt_readline( $section, $key, $prompt );
@@ -405,7 +448,7 @@ sub database_setting {
                 my $prompt = 'Port';
                 $self->__db_opt_readline( $section, $key, $prompt );
             }
-            elsif ( $key eq '_binary_filter' ) {
+            elsif ( $key eq 'binary_filter' ) {
                 my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
@@ -419,6 +462,10 @@ sub database_setting {
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
                 $self->{opt}{$section}{$key} = -1 if $self->{opt}{$section}{$key} == 2;
             }
+            elsif ( $key eq 'user' ) {
+                my $prompt = 'User';
+                $self->__db_opt_readline( $section, $key, $prompt );
+            }
             elsif ( $key eq 'host' ) {
                 my $prompt = 'Host';
                 $self->__db_opt_readline( $section, $key, $prompt );
@@ -427,7 +474,7 @@ sub database_setting {
                 my $prompt = 'Port';
                 $self->__db_opt_readline( $section, $key, $prompt );
             }
-            elsif ( $key eq '_binary_filter' ) {
+            elsif ( $key eq 'binary_filter' ) {
                 my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
@@ -471,46 +518,81 @@ sub __db_opt_choose_dirs {
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
     my $current = $self->{opt}{$section}{$key};
-    $prompt .= ' ["' . $current . '"]: ';
+    #$prompt .= ' ["' . ( $current // '' ) . '"]: ';
+    $prompt .= length $current ? ' ["' . $current . '"]: ' : ': ';
     # Readline
     my $choice = util_readline( $prompt );
-    return if ! defined $choice;
+    return if $choice eq '';
+    #return if ! defined $choice;
     $self->{opt}{$section}{$key} = $choice;
     $self->{info}{write_config}++;
     return;
 }
 
 
-sub __write_config_file {
-    my ( $self, $file ) = @_;
-    my $tmp = {};
-    for my $section ( sort keys %{$self->{opt}} ) {
-        if ( ref( $self->{opt}{$section} ) eq 'HASH' ) {
-            for my $key ( keys %{$self->{opt}{$section}} ) {
-                $tmp->{$section}{$key} = $self->{opt}{$section}{$key};
-            }
-        }
-        else {
-            my $key = $section;
-            my $section = $self->{info}{sect_generic};
-            $tmp->{$section}{$key} = $self->{opt}{$key};
-        }
-    }
-    $self->write_json( $file, $tmp );
+sub __db_opt_number_range {
+    my ( $self, $section, $key, $prompt, $digits ) = @_;
+    my $current = $self->{opt}{$section}{$key};
+    $current = insert_sep( $current, $self->{opt}{thsd_sep} );
+    # Choose_a_number
+    my $choice = choose_a_number( $digits, { name => $prompt, current => $current } );
+    return if ! defined $choice;
+    $self->{opt}{$section}{$key} = $choice eq '--' ? undef : $choice;
+    $self->{info}{write_config}++;
+    return;
 }
 
 
-sub read_config_file {
-    my ( $self, $file ) = @_;
-    my $tmp = $self->read_json( $file );
-    for my $section ( keys %$tmp ) {
-        for my $key ( keys %{$tmp->{$section}} ) {
-            if ( $section eq $self->{info}{sect_generic} ) {
-                $self->{opt}{$key} = $tmp->{$section}{$key};
+sub __write_config_files {
+    my ( $self ) = @_;
+    my $regexp_drivers = join '|', map quotemeta, @{$self->{info}{defaults}{db_drivers}};
+    my $fmt = $self->{info}{conf_file_fmt};
+    my $tmp = {};
+    for my $section ( sort keys %{$self->{opt}} ) {
+        if ( $section =~ /^($regexp_drivers)(?:_(.+))?\z/ ) {
+            die $section if ref( $self->{opt}{$section} ) ne 'HASH';
+            my ( $db_driver, $conf_sect ) = ( $1, $2 );
+            $conf_sect //= '*' . $db_driver;
+            for my $key ( keys %{$self->{opt}{$section}} ) {
+                next if $key =~ /^_/;
+                $tmp->{$db_driver}{$conf_sect}{$key} = $self->{opt}{$section}{$key};
             }
-            else {
-                $self->{opt}{$section}{$key} = $tmp->{$section}{$key};
+        }
+        else {
+            die $section if ref( $self->{opt}{$section} ) eq 'HASH';
+            my $generic = $self->{info}{sect_generic};
+            my $key = $section;
+            next if $key =~ /^_/;
+            $tmp->{$generic}{$key} = $self->{opt}{$key};
+        }
+    }
+    for my $name ( keys %$tmp ) {
+        $self->write_json( sprintf( $fmt, $name ), $tmp->{$name}  );
+    }
+
+}
+
+
+sub read_config_files {
+    my ( $self ) = @_;
+    my $fmt = $self->{info}{conf_file_fmt};
+    for my $db_driver ( @{$self->{info}{defaults}{db_drivers}}  ) {
+        my $file = sprintf( $fmt, $db_driver );
+        if ( -f $file && -s $file ) {
+            my $tmp = $self->read_json( $file );
+            for my $conf_sect ( keys %$tmp ) {
+                my $section = $db_driver . ( $conf_sect =~ /^\*(?:$db_driver)\z/ ? '' : '_' . $conf_sect );
+                for my $key ( keys %{$tmp->{$conf_sect}} ) {
+                    $self->{opt}{$section}{$key} = $tmp->{$conf_sect}{$key} if exists $self->{opt}{$db_driver}{$key};
+                }
             }
+        }
+    }
+    my $file =  sprintf( $fmt, $self->{info}{sect_generic} );
+    if ( -f $file && -s $file ) {
+        my $tmp = $self->read_json( $file );
+        for my $key ( keys %$tmp ) {
+            $self->{opt}{$key} = $tmp->{$key} if exists $self->{opt}{$key};
         }
     }
     return $self->{opt};
@@ -533,7 +615,12 @@ sub read_json {
     my $json = do { local $/; <$fh> };
     close $fh;
     my $h_ref = {};
-    $h_ref = decode_json( $json ) if $json;
+    if ( ! eval {
+        $h_ref = decode_json( $json ) if $json;
+        1 }
+    ) {
+        die "In '$file':\n$@";
+    }
     return $h_ref;
 }
 

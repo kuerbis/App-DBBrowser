@@ -4,7 +4,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035';
+our $VERSION = '0.035_01';
 
 use Encode::Locale qw();
 
@@ -31,7 +31,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.035
+Version 0.035_01
 
 =cut
 
@@ -143,7 +143,7 @@ all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
 
 Set Database defaults.
 
-The I<DB Defaults> can be overwritten for each Database with the Database menu entry "Database settings".
+The I<DB Defaults> can be overwritten for each database with the database menu entry "Database settings".
 
 =head4 See if it's a number
 
@@ -177,13 +177,15 @@ Sets the default directories where C<db-browser> searches for SQLite databases. 
 To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
 "C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
 entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
-any. If the list of chosen directories is empty, then "C< < >" goes back without changing anything.
+any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
 
 This setting can not be overwritten in a single database.
 
 =head4 RESET
 
-I<RESET> resets the values of the database back to the "Database defaults".
+On database level I<RESET> resets the values of the database back to the "Database defaults".
+
+On the global driver level I<RESET> restores the settings to the state before a configuration file was created.
 
 =head3 DB Drivers
 
@@ -213,22 +215,30 @@ This option has no meaning if the SQLite driver is in use.
 
 =head3 Enchant
 
-Set the behavior of different menus.
+Set the behavior of different interactive menus:
 
-For the menus "Choose Database", "Choose Schema" and "Choose Table" setting I<Enchant> to "Memory" means: save the menu
-position.
+- setting I<Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
+entering in a sub menu.
 
-For "Print Table" setting I<Enchant> to "Expand" means: enable printing the chosen table row.
+- setting I<Print Table> to "Expand" means: enable printing the chosen table row.
 
-For "Table Header" setting I<Enchant> to "Each page" means: print the Table Header on top of each page.
+- setting I<Table Header> to "Each page" means: print the table header on top of each page.
 
 =head3 ENV DBI
 
-- use C<DBI_USER> as username for all database logins.
+- use C<DBI_USER> as username for all database logins if the environment variable exists and I<Ask user/pass> is set to
+"Once".
 
-- use C<DBI_PASS> as password for all database logins.
+- use C<DBI_PASS> as password for all database logins if the environment variable exists and I<Ask user/pass> is set to
+"Once".
 
-This option has no meaning if the SQLite driver is in use.
+- use C<DBI_USER> as host for all database connections if the environment variable exists and I<Ask host/port> is set to
+"No".
+
+- use C<DBI_PORT> as port for all database connections if the environment variable exists and I<Ask host/port> is set to
+"No".
+
+This options have no meaning if the SQLite driver is in use.
 
 =head3 Lock
 

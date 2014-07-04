@@ -6,7 +6,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035';
+our $VERSION = '0.035_01';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -57,7 +57,7 @@ sub new {
         _reset    => '  RESET',
         yes_no            => [ 'NO', 'YES' ],
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
-        sect_generic      => 'AAA_generic',
+        sect_generic      => 'Generic',
         stmt_init_tab     => 4,
         tbl_info_width    => 140,
         avail_aggregate   => [ "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" ],
@@ -71,19 +71,24 @@ sub new {
         hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                                Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
+        connect_opt_pre   => {  SQLite => 'sqlite_', mysql => 'mysql_', Pg => 'pg_' },
     };
 
     $info->{defaults} = {
-        db_defaults          => 'Dummy',
+        #_db_defaults         => 'dummy',
         db_drivers           => [ 'SQLite', 'mysql', 'Pg' ],
-        db_login_once        => 0,
-        _env_dbi             => 1,
+        #_db_connect          => 'dummy',
+        db_host_port         => 1,
+        db_user_pass         => 1,
+        #_env_dbi             => 'dummy',
         env_dbi_user         => 0,
         env_dbi_pass         => 0,
-        _enchant             => 'Dummy',
-        keep_db_choice       => 0,
-        keep_schema_choice   => 0,
-        keep_table_choice    => 0,
+        env_dbi_host         => 0,
+        env_dbi_port         => 0,
+        #_enchant             => 'dummy',
+        keep_db_choice       => 0,#
+        keep_schema_choice   => 0,#
+        keep_table_choice    => 0,#
         table_expand         => 1,
         keep_header          => 0,
         lock_stmt            => 0,
@@ -92,9 +97,9 @@ sub new {
         mouse                => 0,
         min_col_width        => 30,
         operators            => [ "REGEXP", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
-        _parentheses         => 'Dummy',
-        w_parentheses        => 0,
-        h_parentheses        => 0,
+        #_parentheses         => 'dummy',
+        parentheses_w        => 0,
+        parentheses_h        => 0,
         progress_bar         => 20_000,
         regexp_case          => 0,
         sssc_mode            => 0,
@@ -102,33 +107,41 @@ sub new {
         undef                => '',
         binary_string        => 'BNRY',
         thsd_sep             => ',',
-        header_row           => 1,
-        choose_columns       => 0,
-        db_browser_mode      => 1,
+        #add_header           => 0,
+        #choose_columns       => 0,
+        _db_browser_mode     => 1,
         SQLite => {
             _reset_cache_cmdline_only  => 0,
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
-            _binary_filter             => 0,
-            _sqlite_search_dir         => undef,
+            binary_filter              => 0,
+            dirs_sqlite_search         => undef,
+            #_reset                     => 'dummy',
         },
         mysql => {
-            host                => '',
-            port                => '',
-            mysql_enable_utf8   => 1,
-            _binary_filter      => 0,
+            user              => undef,
+            host              => undef,
+            port              => undef,
+            mysql_enable_utf8 => 1,
+            binary_filter     => 0,
+            #_reset            => 'dummy',
         },
         Pg => {
-            host                => '',
-            port                => '',
-            pg_enable_utf8      => 1,
-            _binary_filter      => 0,
+            user           => undef,
+            host           => undef,
+            port           => undef,
+            pg_enable_utf8 => 1,
+            binary_filter  => 0,
+            #_reset         => 'dummy',
         },
+        # _key : not saved in config files
     };
 
-    $info->{SQLite}{options} = [ qw( sqlite_unicode sqlite_see_if_its_a_number _binary_filter ) ];
-    $info->{mysql}{options}  = [ qw( mysql_enable_utf8 _binary_filter host port ) ];
-    $info->{Pg}{options}     = [ qw( pg_enable_utf8 _binary_filter host port ) ];
+
+
+    $info->{SQLite}{options} = [ qw( sqlite_unicode sqlite_see_if_its_a_number binary_filter ) ];
+    $info->{mysql}{options}  = [ qw( mysql_enable_utf8 binary_filter user host port ) ];
+    $info->{Pg}{options}     = [ qw( pg_enable_utf8 binary_filter user host port ) ];
 
     return bless { info => $info }, $class;
 }
@@ -146,14 +159,15 @@ sub __init {
     my $app_dir = $my_data ? catdir( $my_data, 'db_browser_conf' ) : catdir( $home, '.db_browser_conf' );
     mkdir $app_dir or die $! if ! -d $app_dir;
     $self->{info}{app_dir}       = $app_dir;
-    $self->{info}{config_file}   = catfile $app_dir, 'config.json';
+    $self->{info}{conf_file_fmt} = catfile $app_dir, 'config_%s.json';
     $self->{info}{db_cache_file} = catfile $app_dir, 'cache_db_search.json';
-    $self->{info}{defaults}{SQLite}{_sqlite_search_dir} = [ $home ];
+    $self->{info}{defaults}{SQLite}{dirs_sqlite_search} = [ $home ];
+    #my $opt = $self->{info}{defaults};
+    my $opt = clone( $self->{info}{defaults} );
 
-    my $opt = $self->{info}{defaults};
     if ( ! eval {
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $opt );
-        $opt = $obj_opt->read_config_file( $self->{info}{config_file} );
+        $opt = $obj_opt->read_config_files( $self->{info}{conf_file_fmt} );
         my $help;
         GetOptions (
             'h|?|help' => \$help,
@@ -191,7 +205,7 @@ sub __init {
     $self->{info}{sqlite_search} = 0;
     $self->{info}{sqlite_search} = 1 if @ARGV || $self->{opt}{SQLite}{_reset_cache_cmdline_only};
     $self->{info}{sqlite_search} = 0 if @{$self->{opt}{db_drivers}} == 1 && $self->{opt}{db_drivers}[0] eq 'SQLite';
-    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{_sqlite_search_dir};
+    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search};
 }
 
 
@@ -505,8 +519,8 @@ sub run {
                                 push @$pr_columns, $col;
                             }
                         }
-                        $self->{opt}{binary_filter} =    $self->{opt}{$db_driver . '_' . $db}{_binary_filter}
-                                                      || $self->{opt}{$db_driver}{_binary_filter};
+                        $self->{opt}{binary_filter} =    $self->{opt}{$db_driver . '_' . $db}{binary_filter}
+                                                      || $self->{opt}{$db_driver}{binary_filter};
 
                         PRINT_TABLE: while ( 1 ) {
                             my $all_arrayref = $self->__read_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
@@ -1279,10 +1293,10 @@ sub __read_table {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my @choices = @cols;
-                if ( $self->{opt}{w_parentheses} == 1 ) {
+                if ( $self->{opt}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
-                elsif ( $self->{opt}{w_parentheses} == 2 ) {
+                elsif ( $self->{opt}{parentheses_w} == 2 ) {
                     push @choices, $unclosed ? ')' : '(';
                 }
                 $self->__print_select_statement( $sql, $table );
@@ -1438,10 +1452,10 @@ sub __read_table {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my @choices = ( @{$self->{info}{avail_aggregate}}, map( '@' . $_, @{$sql->{print}{aggr_cols}} ) );
-                if ( $self->{opt}{h_parentheses} == 1 ) {
+                if ( $self->{opt}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
-                elsif ( $self->{opt}{h_parentheses} == 2 ) {
+                elsif ( $self->{opt}{parentheses_h} == 2 ) {
                     push @choices, $unclosed ? ')' : '(';
                 }
                 $self->__print_select_statement( $sql, $table );

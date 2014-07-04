@@ -1,6 +1,14 @@
 Revision history for App-DBBrowser
 
 
+0.035_01   2014-07-04
+        - New configuration file format: each database driver has now its own file.
+        - One option ("Menus") instead of three to set table/schema/database menu memory behavior.
+        - The fetching of the required data for connecting to databases has changed.
+        - Changed "Reset" option.
+        - Required minimum version of "Term::TablePrint" is now "0.013".
+        - Required minimum version of "Term::Choose::Util" is now "0.009".
+
 0.035   2014-06-29
         - Required minimum version of "Term::Choose::Util" is now "0.008".
         - New option to set the default directories where "db-browser" searches for SQLite databases.
