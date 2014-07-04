@@ -167,7 +167,7 @@ sub __init {
 
     if ( ! eval {
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $opt );
-        $opt = $obj_opt->read_config_files( $self->{info}{conf_file_fmt} );
+        $opt = $obj_opt->read_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,

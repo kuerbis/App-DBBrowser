@@ -183,9 +183,7 @@ This setting can not be overwritten in a single database.
 
 =head4 RESET
 
-On database level I<RESET> resets the values of the database back to the "Database defaults".
-
-On the global driver level I<RESET> restores the settings to the state before a configuration file was created.
+I<RESET> resets the database settings.
 
 =head3 DB Drivers
 
