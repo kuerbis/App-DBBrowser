@@ -6,7 +6,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_01';
+our $VERSION = '0.035_02';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -65,83 +65,13 @@ sub new {
         avail_operators   => [ "REGEXP", "NOT REGEXP", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL", "IN", "NOT IN",
                             "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ", "LIKE col",
                             "NOT LIKE col", "LIKE %col%", "NOT LIKE %col%", " = col", " != col", " <> col", " < col",
-                            " > col", " >= col", " <= col" ],
-                            # "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col",
+                            " > col", " >= col", " <= col" ], # "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col"
         avail_db_drivers  => [ 'SQLite', 'mysql', 'Pg' ],
         hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                                Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
         connect_opt_pre   => {  SQLite => 'sqlite_', mysql => 'mysql_', Pg => 'pg_' },
     };
-
-    $info->{defaults} = {
-        #_db_defaults         => 'dummy',
-        db_drivers           => [ 'SQLite', 'mysql', 'Pg' ],
-        #_db_connect          => 'dummy',
-        db_host_port         => 1,
-        db_user_pass         => 1,
-        #_env_dbi             => 'dummy',
-        env_dbi_user         => 0,
-        env_dbi_pass         => 0,
-        env_dbi_host         => 0,
-        env_dbi_port         => 0,
-        #_enchant             => 'dummy',
-        keep_db_choice       => 0,#
-        keep_schema_choice   => 0,#
-        keep_table_choice    => 0,#
-        table_expand         => 1,
-        keep_header          => 0,
-        lock_stmt            => 0,
-        max_rows             => 50_000,
-        metadata             => 0,
-        mouse                => 0,
-        min_col_width        => 30,
-        operators            => [ "REGEXP", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
-        #_parentheses         => 'dummy',
-        parentheses_w        => 0,
-        parentheses_h        => 0,
-        progress_bar         => 20_000,
-        regexp_case          => 0,
-        sssc_mode            => 0,
-        tab_width            => 2,
-        undef                => '',
-        binary_string        => 'BNRY',
-        thsd_sep             => ',',
-        #add_header           => 0,
-        #choose_columns       => 0,
-        _db_browser_mode     => 1,
-        SQLite => {
-            _reset_cache_cmdline_only  => 0,
-            sqlite_unicode             => 1,
-            sqlite_see_if_its_a_number => 1,
-            binary_filter              => 0,
-            dirs_sqlite_search         => undef,
-            #_reset                     => 'dummy',
-        },
-        mysql => {
-            user              => undef,
-            host              => undef,
-            port              => undef,
-            mysql_enable_utf8 => 1,
-            binary_filter     => 0,
-            #_reset            => 'dummy',
-        },
-        Pg => {
-            user           => undef,
-            host           => undef,
-            port           => undef,
-            pg_enable_utf8 => 1,
-            binary_filter  => 0,
-            #_reset         => 'dummy',
-        },
-        # _key : not saved in config files
-    };
-
-
-
-    $info->{SQLite}{options} = [ qw( sqlite_unicode sqlite_see_if_its_a_number binary_filter ) ];
-    $info->{mysql}{options}  = [ qw( mysql_enable_utf8 binary_filter user host port ) ];
-    $info->{Pg}{options}     = [ qw( pg_enable_utf8 binary_filter user host port ) ];
 
     return bless { info => $info }, $class;
 }
@@ -161,30 +91,27 @@ sub __init {
     $self->{info}{app_dir}       = $app_dir;
     $self->{info}{conf_file_fmt} = catfile $app_dir, 'config_%s.json';
     $self->{info}{db_cache_file} = catfile $app_dir, 'cache_db_search.json';
-    $self->{info}{defaults}{SQLite}{dirs_sqlite_search} = [ $home ];
-    #my $opt = $self->{info}{defaults};
-    my $opt = clone( $self->{info}{defaults} );
 
     if ( ! eval {
-        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $opt );
-        $opt = $obj_opt->read_config_files();
+        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
+        $self->{opt} = $obj_opt->read_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,
-            's|search' => \$opt->{SQLite}{_reset_cache_cmdline_only},
+            's|search' => \$self->{info}{sqlite_search},
         );
         if ( $help ) {
-            if ( $opt->{mouse} ) {
+            if ( $self->{opt}{mouse} ) {
                 for my $key ( keys %{$self->{info}} ) {
                     next if $key !~ /^lyt_/;
-                    $self->{info}{$key}{mouse} = $opt->{mouse};
+                    $self->{info}{$key}{mouse} = $self->{opt}{mouse};
                 }
             }
-            $opt = $obj_opt->options( $opt );
-            if ( defined $opt->{mouse} ) {
+            $self->{opt} = $obj_opt->set_options();
+            if ( defined $self->{opt}{mouse} ) {
                 for my $key ( keys %{$self->{info}} ) {
                     next if $key !~ /^lyt_/;
-                    $self->{info}{$key}{mouse} = $opt->{mouse};
+                    $self->{info}{$key}{mouse} = $self->{opt}{mouse};
                 }
             }
         }
@@ -192,9 +119,9 @@ sub __init {
     ) {
         say 'Configfile/Options:';
         $self->__print_error_message( $@ );
-        $opt = $self->{info}{defaults};
+        my $obj_opt = App::DBBrowser::Opt->new( $self->{info} );
+        $self->{opt} = $obj_opt->defaults();
     }
-    $self->{opt} = $opt;
     if ( $self->{opt}{mouse} ) {
         for my $key ( keys %{$self->{info}} ) {
             next if $key !~ /^lyt_/;
@@ -202,10 +129,8 @@ sub __init {
         }
     }
     $self->{info}{ok} = '<OK>' if $self->{opt}{sssc_mode};
-    $self->{info}{sqlite_search} = 0;
-    $self->{info}{sqlite_search} = 1 if @ARGV || $self->{opt}{SQLite}{_reset_cache_cmdline_only};
-    $self->{info}{sqlite_search} = 0 if @{$self->{opt}{db_drivers}} == 1 && $self->{opt}{db_drivers}[0] eq 'SQLite';
-    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search};
+    $self->{info}{argv} = @ARGV ? 1 : 0;
+    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search} // [ $home ];
 }
 
 
@@ -217,9 +142,9 @@ sub run {
 
     DB_DRIVER: while ( 1 ) {
 
-        if ( $self->{info}{sqlite_search} ) {
+        if ( $self->{info}{sqlite_search} || $self->{info}{argv} ) {
             $db_driver = 'SQLite';
-            $self->{info}{sqlite_search} = 0;
+            $self->{info}{argv} = 0;
         }
         else {
             if ( @{$self->{opt}{db_drivers}} == 1 ) {
@@ -259,6 +184,7 @@ sub run {
         }
         if ( ! @$databases ) {
             $self->__print_error_message( "no $db_driver-databases found\n" );
+            exit if @{$self->{opt}{db_drivers}} == 1;
             next DB_DRIVER;
         }
         my $regexp_system;
@@ -313,7 +239,7 @@ sub run {
                     last DB_DRIVER if   $self->{info}{one_db_driver};
                     next DB_DRIVER if ! $self->{info}{one_db_driver};
                 }
-                if ( $self->{opt}{keep_db_choice} ) {
+                if ( $self->{opt}{menus_memory} ) {
                     if ( $old_idx_db == $idx_db ) {
                         $old_idx_db = 0;
                         next DATABASE;
@@ -375,7 +301,7 @@ sub run {
                     );
                     $schema = $choices->[$idx_sch] if defined $idx_sch;
                     next DATABASE if ! defined $schema;
-                    if ( $self->{opt}{keep_schema_choice} ) {
+                    if ( $self->{opt}{menus_memory} ) {
                         if ( $old_idx_sch == $idx_sch ) {
                             $old_idx_sch = 0;
                             next SCHEMA;
@@ -439,7 +365,7 @@ sub run {
                         next SCHEMA if defined $data->{$db}{schemas} && @{$data->{$db}{schemas}} > 1;
                         next DATABASE;
                     }
-                    if ( $self->{opt}{keep_table_choice} ) {
+                    if ( $self->{opt}{menus_memory} ) {
                         if ( $old_idx_tbl == $idx_tbl ) {
                             $old_idx_tbl = 0;
                             next TABLE;
@@ -519,8 +445,10 @@ sub run {
                                 push @$pr_columns, $col;
                             }
                         }
-                        $self->{opt}{binary_filter} =    $self->{opt}{$db_driver . '_' . $db}{binary_filter}
-                                                      || $self->{opt}{$db_driver}{binary_filter};
+
+                        $self->{opt}{_db_browser_mode} = 1;
+                        $self->{opt}{binary_filter}    =    $self->{opt}{$db_driver . '_' . $db}{binary_filter}
+                                                         || $self->{opt}{$db_driver}{binary_filter};
 
                         PRINT_TABLE: while ( 1 ) {
                             my $all_arrayref = $self->__read_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
@@ -560,8 +488,9 @@ sub __available_databases_cached {
     my $cache_key = $db_driver . '_' . join ' ', @{$self->{info}{sqlite_dirs}};
     my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
     $self->{info}{cache} = $obj_opt->read_json( $self->{info}{db_cache_file} );
-    if ( $self->{opt}{$db_driver}{_reset_cache_cmdline_only} ) {
+    if ( $self->{info}{sqlite_search} ) {
         delete $self->{info}{cache}{$cache_key};
+        $self->{info}{sqlite_search} = 0;
     }
     if ( $self->{info}{cache}{$cache_key} ) {
         $self->{info}{cached} = ' (cached)';

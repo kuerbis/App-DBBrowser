@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.035_02   2014-07-05
+        - Code refactoring.
+        - Fixed option "HELP".
+
 0.035_01   2014-07-04
         - New configuration file format: each database driver has now its own file.
         - One option ("Menus") instead of three to set table/schema/database menu memory behavior.

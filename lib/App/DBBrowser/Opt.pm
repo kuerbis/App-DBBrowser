@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_01';
+our $VERSION = '0.035_02';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -25,8 +25,67 @@ sub new {
 }
 
 
-sub options {
-    my ( $self ) = @_;
+sub defaults {
+    my ( $self, @keys ) = @_;
+    my $defaults = {
+        db_drivers           => [ 'SQLite', 'mysql', 'Pg' ],
+        db_host_port         => 1,
+        db_user_pass         => 1,
+        env_dbi_user         => 0,
+        env_dbi_pass         => 0,
+        env_dbi_host         => 0,
+        env_dbi_port         => 0,
+        menus_memory         => 0,
+        table_expand         => 1,
+        keep_header          => 0,
+        lock_stmt            => 0,
+        max_rows             => 50_000,
+        metadata             => 0,
+        mouse                => 0,
+        min_col_width        => 30,
+        operators            => [ "REGEXP", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
+        parentheses_w        => 0,
+        parentheses_h        => 0,
+        progress_bar         => 20_000,
+        regexp_case          => 0,
+        sssc_mode            => 0,
+        tab_width            => 2,
+        undef                => '',
+        binary_string        => 'BNRY',
+        thsd_sep             => ',',
+        #add_header           => 0,
+        #choose_columns       => 0,
+        SQLite => {
+            _reset_cache_cmdline_only  => 0,
+            sqlite_unicode             => 1,
+            sqlite_see_if_its_a_number => 1,
+            binary_filter              => 0,
+            dirs_sqlite_search         => undef,
+        },
+        mysql => {
+            user              => undef,
+            host              => undef,
+            port              => undef,
+            mysql_enable_utf8 => 1,
+            binary_filter     => 0,
+        },
+        Pg => {
+            user           => undef,
+            host           => undef,
+            port           => undef,
+            pg_enable_utf8 => 1,
+            binary_filter  => 0,
+        },
+    };
+    die "To many keys: @keys"              if @keys >  2;
+    return $defaults->{$keys[0]}           if @keys == 1;
+    return $defaults->{$keys[0]}{$keys[1]} if @keys == 2;
+    return $defaults;
+}
+
+
+sub set_options {
+    my ( $self, $opt ) = @_;
     my $menus = [
         [ '_db_defaults',   "- DB Defaults" ],
         [ 'db_drivers',     "- DB Drivers" ],
@@ -48,9 +107,6 @@ sub options {
     ];
     my $sub_menus = {
        _enchant      => [
-            #[ 'keep_db_choice',     "- Choose Database", [ 'Simple', 'Memory' ] ],
-            #[ 'keep_schema_choice', "- Choose Schema",   [ 'Simple', 'Memory' ] ],
-            #[ 'keep_table_choice',  "- Choose Table",    [ 'Simple', 'Memory' ] ],
             [ 'menus_memory',  "- Menus",        [ 'Simple', 'Memory' ] ],
             [ 'table_expand',  "- Print  Table", [ 'Simple', 'Expand' ] ],
             [ 'keep_header',   "- Table Header", [ 'Simple', 'Each page' ] ],
@@ -108,7 +164,6 @@ sub options {
         elsif ( $key eq $self->{info}{_help} ) {
             require Pod::Usage;
             Pod::Usage::pod2usage( {
-                -input => 'bin/db-browser',
                 -exitval => 'NOEXIT',
                 -verbose => 2 } );
         }
@@ -199,16 +254,6 @@ sub options {
         elsif ( $key eq '_enchant' ) {
             my $sub_menu = $sub_menus->{$key};
             $self->__opt_choose_multi( $sub_menu );
-            if ( $self->{opt}{menus_memory} ) { # ###
-                $self->{opt}{keep_db_choice}     = 1;
-                $self->{opt}{keep_schema_choice} = 1;
-                $self->{opt}{keep_table_choice}  = 1;
-            }
-            else {
-                $self->{opt}{keep_db_choice}     = 0;
-                $self->{opt}{keep_schema_choice} = 0;
-                $self->{opt}{keep_table_choice}  = 0;
-            }
         }
         else { die "Unknown option: $key" }
     }
@@ -281,9 +326,8 @@ sub __opt_number_range {
 sub __opt_readline {
     my ( $self, $key, $prompt ) = @_;
     my $current = $self->{opt}{$key};
-    $prompt .= ' ["' . $current . '"]: ';
     # Readline
-    my $choice = util_readline( $prompt );
+    my $choice = util_readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
     $self->{opt}{$key} = $choice;
     $self->{info}{write_config}++;
@@ -331,8 +375,9 @@ sub database_setting {
             [ 'pg_enable_utf8', "- Enable utf8" ],
         ],
     };
-    if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) { # ! $db &&
-        unshift @{$menus->{$db_driver}}, [ 'user', "- User" ], [ 'host', "- Host" ], [ 'port', "- Port" ];
+    if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) {
+        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ], [ 'port', "- Port" ] if $self->{opt}{db_host_port};
+        unshift @{$menus->{$db_driver}}, [ 'user', "- User" ];
     }
     if ( ! $db && $db_driver eq 'SQLite' ) {
         push @{$menus->{$db_driver}}, [ 'dirs_sqlite_search', "- Default DB dirs" ];
@@ -363,12 +408,9 @@ sub database_setting {
         else {
             $idx -= @pre;
             $key = $menus->{$db_driver}[$idx][0];
-            die $key if ! exists $self->{opt}{$db_driver}{$key};
         }
         if ( ! defined $key ) {
-            if ( $self->{info}{write_config} ) {
-                $self->{opt} = clone( $orig );
-            }
+            $self->{opt} = clone( $orig ) if $self->{info}{write_config};
             return;
         }
         if ( $key eq '_reset' ) {
@@ -378,12 +420,10 @@ sub database_setting {
             else {
                 my @dbs = ();
                 for my $section ( keys %{$self->{opt}} ) {
-                    if ( $section =~ /^\Q$db_driver\E_(.+)\z/ ) {
-                        push @dbs, $1;
-                    }
+                    push @dbs, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
                 if ( ! @dbs ) {
-                    choose( [ 'No entries to reset' ], { prompt => 'Close with "Enter"' } );
+                    choose( [ 'No entries to reset to reset' ], { prompt => 'Close with "Enter"' } );
                     next;
                 }
                 my @del = choose(
@@ -518,11 +558,7 @@ sub __db_opt_choose_dirs {
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
     my $current = $self->{opt}{$section}{$key};
-    #$prompt .= ' ["' . ( $current // '' ) . '"]: ';
-    $prompt .= length $current ? ' ["' . $current . '"]: ' : ': ';
-    # Readline
-    my $choice = util_readline( $prompt );
-    return if $choice eq '';
+    my $choice = util_readline( $prompt . ': ', { default => $current } );
     #return if ! defined $choice;
     $self->{opt}{$section}{$key} = $choice;
     $self->{info}{write_config}++;
@@ -530,22 +566,9 @@ sub __db_opt_readline {
 }
 
 
-sub __db_opt_number_range {
-    my ( $self, $section, $key, $prompt, $digits ) = @_;
-    my $current = $self->{opt}{$section}{$key};
-    $current = insert_sep( $current, $self->{opt}{thsd_sep} );
-    # Choose_a_number
-    my $choice = choose_a_number( $digits, { name => $prompt, current => $current } );
-    return if ! defined $choice;
-    $self->{opt}{$section}{$key} = $choice eq '--' ? undef : $choice;
-    $self->{info}{write_config}++;
-    return;
-}
-
-
 sub __write_config_files {
     my ( $self ) = @_;
-    my $regexp_drivers = join '|', map quotemeta, @{$self->{info}{defaults}{db_drivers}};
+    my $regexp_drivers = join '|', map quotemeta, @{$self->defaults( qw( db_drivers ) )};
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
     for my $section ( sort keys %{$self->{opt}} ) {
@@ -575,8 +598,9 @@ sub __write_config_files {
 
 sub read_config_files {
     my ( $self ) = @_;
+    $self->{opt} = $self->defaults();
     my $fmt = $self->{info}{conf_file_fmt};
-    for my $db_driver ( @{$self->{info}{defaults}{db_drivers}}  ) {
+    for my $db_driver ( @{$self->defaults( qw( db_drivers ) )} ) {
         my $file = sprintf( $fmt, $db_driver );
         if ( -f $file && -s $file ) {
             my $tmp = $self->read_json( $file );

@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_01';
+our $VERSION = '0.035_02';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
@@ -21,7 +21,6 @@ sub CLEAR_SCREEN () { "\e[1;1H\e[0J" }
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    #return $class if ref $class eq 'App::DBBrowser::DB';
     bless { info => $info, opt => $opt }, $class;
 }
 
@@ -110,7 +109,7 @@ sub get_db_handle {
     return if ! defined $db && $db_driver eq 'SQLite';
     my $db_key = $db_driver . '_' . $db;
     my $db_arg = {};
-    for my $option ( @{$self->{info}{$db_driver}{options}} ) {
+    for my $option ( sort keys %{$self->{opt}{$db_driver}} ) {
         next if $option !~ /^\Q$self->{info}{connect_opt_pre}{$db_driver}\E/;
         $db_arg->{$option} = $self->{opt}{$db_key}{$option} // $self->{opt}{$db_driver}{$option};
     }
