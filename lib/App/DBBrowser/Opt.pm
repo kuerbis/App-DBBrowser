@@ -423,7 +423,7 @@ sub database_setting {
                     push @dbs, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
                 if ( ! @dbs ) {
-                    choose( [ 'No entries to reset to reset' ], { prompt => 'Close with "Enter"' } );
+                    choose( [ 'No entries to reset' ], { prompt => 'Close with "Enter"' } );
                     next;
                 }
                 my @del = choose(

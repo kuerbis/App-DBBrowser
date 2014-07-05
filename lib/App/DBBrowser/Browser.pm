@@ -119,7 +119,7 @@ sub __init {
     ) {
         say 'Configfile/Options:';
         $self->__print_error_message( $@ );
-        my $obj_opt = App::DBBrowser::Opt->new( $self->{info} );
+        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
         $self->{opt} = $obj_opt->defaults();
     }
     if ( $self->{opt}{mouse} ) {
