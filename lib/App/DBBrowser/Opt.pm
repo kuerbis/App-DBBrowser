@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_02';
+our $VERSION = '0.035_03';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -73,7 +73,7 @@ sub defaults {
             user           => undef,
             host           => undef,
             port           => undef,
-            pg_enable_utf8 => 1,
+            pg_enable_utf8 => -1,
             binary_filter  => 0,
         },
     };
@@ -122,8 +122,8 @@ sub set_options {
             [ 'env_dbi_port', "- Use DBI_PORT", [ 'NO', 'YES' ] ],
         ],
         _db_connect  => [
-            [ 'db_host_port', "- Ask host/port", [ 'No',    'per DB' ] ],
-            [ 'db_user_pass', "- Ask user/pass", [ 'Once',  'per DB' ] ],
+            [ 'db_host_port', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
+            [ 'db_user_pass', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
         ]
     };
     my $path = '  Path';
@@ -209,12 +209,12 @@ sub set_options {
             $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'metadata' ) {
-            my $list = $self->{info}{yes_no};
+            my $list = [ 'NO', 'YES' ];
             my $prompt = 'Enable Metadata';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'regexp_case' ) {
-            my $list = $self->{info}{yes_no};
+            my $list = [ 'YES', 'NO' ];
             my $prompt = 'REGEXP case sensitiv';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
@@ -422,23 +422,21 @@ sub database_setting {
                 for my $section ( keys %{$self->{opt}} ) {
                     push @dbs, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
-                if ( ! @dbs ) {
-                    choose( [ 'No entries to reset' ], { prompt => 'Close with "Enter"' } );
-                    next;
-                }
-                my @del = choose(
-                    [ undef, $self->{info}{confirm}, sort @dbs ],
-                    { no_spacebar => [ 0, 1 ], prompt => 'Reset:', layout => 3, undef => $self->{info}{back} }
-                );
-                next if ! @del;
-                next if ! defined $del[0];
-                for my $db ( @del ) {
-                    my $section = $db_driver . '_' . $db;
-                    delete $self->{opt}{$section};
+                my $dlt = choose_a_subset( [ '*' . $db_driver, sort @dbs ] ); # , { new => 'Del: ' }
+                next DB_OPTION if ! defined $dlt;
+                next DB_OPTION if ! defined $dlt->[0];
+                for my $db ( @$dlt ) {
+                    if ( $db eq '*' . $db_driver ) {
+                        $self->{opt}{$db_driver} = $self->defaults( $db_driver );
+                    }
+                    else {
+                        my $section = $db_driver . '_' . $db;
+                        delete $self->{opt}{$section};
+                    }
                 }
             }
             $self->{info}{write_config}++;
-            next;
+            next DB_OPTION;
         }
         if ( $key eq $self->{info}{_confirm} ) {
             if ( $self->{info}{write_config} ) {
@@ -448,22 +446,20 @@ sub database_setting {
             }
             return;
         }
+        my $yes_no = [ 'NO', 'YES' ];
 
         if ( $db_driver eq "SQLite" ) {
             if ( $key eq 'sqlite_unicode' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'Unicode';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             elsif ( $key eq 'sqlite_see_if_its_a_number' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'See if its a number';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             elsif ( $key eq 'binary_filter' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             elsif ( $key eq 'dirs_sqlite_search' ) {
                 $self->__db_opt_choose_dirs( $section, $key, $prompt );
@@ -472,9 +468,8 @@ sub database_setting {
         }
         elsif ( $db_driver eq "mysql" ) {
             if ( $key eq 'mysql_enable_utf8' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable utf8';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             elsif ( $key eq 'user' ) {
                 my $prompt = 'User';
@@ -489,16 +484,15 @@ sub database_setting {
                 $self->__db_opt_readline( $section, $key, $prompt );
             }
             elsif ( $key eq 'binary_filter' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             else { die "Unknown key: $key" }
         }
         elsif ( $db_driver eq "Pg" ) {
             if ( $key eq 'pg_enable_utf8' ) {
                 my $prompt = 'Enable utf8';
-                my $list = [ @{$self->{info}{yes_no}}, 'AUTO' ];
+                my $list = [ @{$yes_no}, 'AUTO' ];
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
                 $self->{opt}{$section}{$key} = -1 if $self->{opt}{$section}{$key} == 2;
             }
@@ -515,9 +509,8 @@ sub database_setting {
                 $self->__db_opt_readline( $section, $key, $prompt );
             }
             elsif ( $key eq 'binary_filter' ) {
-                my $list = $self->{info}{yes_no};
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $list );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
             }
             else { die "Unknown key: $key" }
         }
@@ -625,7 +618,7 @@ sub read_config_files {
 
 sub write_json {
     my ( $self, $file, $h_ref ) = @_;
-    my $json = JSON::XS->new->pretty->canonical->encode( $h_ref );
+    my $json = JSON::XS->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
     open my $fh, '>', encode( 'locale_fs', $file ) or die $!;
     print $fh $json;
     close $fh;

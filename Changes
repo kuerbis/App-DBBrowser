@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+0.035_03   2014-07-08
+        - Bugfix in JSON encoding.
+        - Update "Reset".
+        - Code refactoring.
+        - Update documentation.
+
 0.035_02   2014-07-05
         - Code refactoring.
         - Fixed option "HELP".

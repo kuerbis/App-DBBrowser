@@ -6,7 +6,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_02';
+our $VERSION = '0.035_03';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -55,7 +55,6 @@ sub new {
         _continue => '  CONTINUE',
         _info     => '  INFO',
         _reset    => '  RESET',
-        yes_no            => [ 'NO', 'YES' ],
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
         sect_generic      => 'Generic',
         stmt_init_tab     => 4,
@@ -121,6 +120,7 @@ sub __init {
         $self->__print_error_message( $@ );
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
         $self->{opt} = $obj_opt->defaults();
+        shift @ARGV while $ARGV[0] =~ /^-/;
     }
     if ( $self->{opt}{mouse} ) {
         for my $key ( keys %{$self->{info}} ) {

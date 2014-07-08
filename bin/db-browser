@@ -4,7 +4,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_02';
+our $VERSION = '0.035_03';
 
 use Encode::Locale qw();
 
@@ -31,7 +31,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.035_02
+Version 0.035_03
 
 =cut
 
@@ -197,15 +197,15 @@ Determine when C<db-browser> asks for the login data:
 
 =item
 
-per-DB
+Ask host/port per DB
 
-log in data is asked once per database.
+If set to "YES" host and port data is asked once per database else the global settings are used if any.
 
 =item
 
-once
+Ask user/pass per DB
 
-log in data is asked only once and then used for all connections.
+If set to "YES" username and password data is asked once per database else only once.
 
 =back
 
@@ -333,6 +333,49 @@ With SQLite the function C<Char_Length> is a user-defined function which uses th
 number of characters.
 
 To remove a chosen scalar function from a column select the column with the function a second time.
+
+
+=head2 CONFIG FILE
+
+The syntax of the configuration file names is C<"conf_${driver_name}.json">. To find out the location of the
+configuration files call C<db-browser -h> and choose I<Path>.
+
+The data is saved in JSON format.
+
+The global settings are placed in the member called C<"*$db_driver">. This settings are used if I<ask per DB> in
+I<DB Login> is not enabled. If I<ask per DB> is enabled each database uses is own member named like the database. With
+the C<SQLite> driver "database name" means the absolute path to the database file.
+
+Sub-members (keys):
+
+    SQLite: sqlite_unicode              (0,1)           mysql:  user                                 Pg:  user
+            sqlite_see_if_its_a_number  (0,1)                   host                                      host
+            binary_filter               (0,1)                   port                                      port
+            dirs_sqlite_search ¹                                mysql_enable_utf8  (0,1)                  pg_enable_utf8  (0,1,-1)
+                                                                binary_filter      (0,1)                  binary_filter   (0,1)
+
+¹ only in C<"*SQLite">: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
+directories passed with C<dirs_sqlite_search>.
+
+Examples
+
+    conf_SQLite.json:                                           conf_mysql.json:
+
+    {                                                           {
+        "*SQLite" : {                                               "*mysql" : {
+            "binary_filter" : 0,                                        "binary_filter" : 0,
+            "dirs_sqlite_search" : [                                    "host" : "localhost",
+                "/home/my/Documents",                                   "mysql_enable_utf8" : 1,
+                "/home/my/databases"                                    "port" : null,
+            ],                                                          "user" : "name"
+            "sqlite_see_if_its_a_number" : 1,                       },
+            "sqlite_unicode" : 1                                    "database1" : {
+        },                                                              "mysql_enable_utf8" : 0,
+        "/home/my/databases/db1.sqlite" : {                             "host" : "my_host",
+            "binary_filter" : 1,                                        "user" : "user_5"
+            "sqlite_unicode" : 0                                    },
+        }                                                           "database2" : {
+    }                                                                   "binary_filter" : 1
 
 =head1 REQUIREMENTS
 

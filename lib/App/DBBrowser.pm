@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_02';
+our $VERSION = '0.035_03';
 
 
 1;
@@ -22,7 +22,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.035_02
+Version 0.035_03
 
 =head1 DESCRIPTION
 

@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_02';
+our $VERSION = '0.035_03';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
