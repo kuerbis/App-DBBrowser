@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_03';
+our $VERSION = '0.035_04';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -422,7 +422,7 @@ sub database_setting {
                 for my $section ( keys %{$self->{opt}} ) {
                     push @dbs, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
-                my $dlt = choose_a_subset( [ '*' . $db_driver, sort @dbs ] ); # , { new => 'Del: ' }
+                my $dlt = choose_a_subset( [ '*' . $db_driver, sort @dbs ], { p_new => 'Reset: ' } );
                 next DB_OPTION if ! defined $dlt;
                 next DB_OPTION if ! defined $dlt->[0];
                 for my $db ( @$dlt ) {
@@ -551,8 +551,9 @@ sub __db_opt_choose_dirs {
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
     my $current = $self->{opt}{$section}{$key};
+    # Readline
     my $choice = util_readline( $prompt . ': ', { default => $current } );
-    #return if ! defined $choice;
+    return if ! defined $choice;
     $self->{opt}{$section}{$key} = $choice;
     $self->{info}{write_config}++;
     return;

@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.035_04   2014-07-09
+        - Required minimum version of "Term::Choose::Util" is now "0.010".
+        - Some read line changes.
+        - Update documentation.
+
 0.035_03   2014-07-08
         - Bugfix in JSON encoding.
         - Update "Reset".

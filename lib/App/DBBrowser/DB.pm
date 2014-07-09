@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.035_03';
+our $VERSION = '0.035_04';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
@@ -15,6 +15,7 @@ use DBI                qw();
 use Encode::Locale     qw();
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( util_readline );
+use Term::ReadKey      qw( ReadMode );
 
 sub CLEAR_SCREEN () { "\e[1;1H\e[0J" }
 
@@ -33,14 +34,14 @@ sub __get_connect_data {
     my $env_key = 'DBI_' . uc( $key );
     return '' if $db_driver eq 'SQLite';
     if ( $self->{opt}{db_host_port} ) {
-        return $self->{info}{login}{$db_driver}{$db}{$key} if defined $self->{info}{login}{$db_driver}{$db}{$key};
+        return $self->{info}{login}{$db_key}{$key} if defined $self->{info}{login}{$db_key}{$key};
         if ( length $self->{opt}{$db_key}{$key} ) {
             say $prompt . $self->{opt}{$db_key}{$key};
             return $self->{opt}{$db_key}{$key};
         }
         # Readline
         my $new = util_readline( $prompt, { default => $self->{opt}{$db_driver}{$key} } ); #
-        $self->{info}{login}{$db_driver}{$db}{$key} = $new;
+        $self->{info}{login}{$db_key}{$key} = $new;
         return $new;
     }
     else {
@@ -57,14 +58,24 @@ sub __get_user {
     my $db_key = $db_driver . '_' . $db;
     return '' if $db_driver eq 'SQLite';
     if ( $self->{opt}{db_user_pass} ) {
-        return $self->{info}{login}{$db_driver}{$db}{user} if defined $self->{info}{login}{$db_driver}{$db}{user};
+        return $self->{info}{login}{$db_key}{user} if defined $self->{info}{login}{$db_key}{user};
         if ( length $self->{opt}{$db_key}{user} ) {
             say 'User :' . $self->{opt}{$db_key}{user};
             return $self->{opt}{$db_key}{user};
         }
         # Readline
-        my $new = util_readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
-        $self->{info}{login}{$db_driver}{$db}{user} = $new;
+        my $new;
+        if ( $^O eq 'MSWin32' ) {
+            print 'User: ';
+            ReadMode 1;
+            $new = <STDIN>;
+            ReadMode 0;
+            chomp $new;
+        }
+        else {
+            $new = util_readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
+        }
+        $self->{info}{login}{$db_key}{user} = $new;
         return $new;
     }
     else {
@@ -86,10 +97,10 @@ sub __get_password {
     my $db_key = $db_driver . '_' . $db;
     return '' if $db_driver eq 'SQLite';
     if ( $self->{opt}{db_user_pass} ) {
-        return $self->{info}{login}{$db_driver}{$db}{$user}{passwd} if defined $self->{info}{login}{$db_driver}{$db}{$user}{passwd};
+        return $self->{info}{login}{$db_key}{$user}{passwd} if defined $self->{info}{login}{$db_key}{$user}{passwd};
         # Readline
         my $passwd = util_readline( 'Password: ', { no_echo => 1 } );
-        $self->{info}{login}{$db_driver}{$db}{$user}{passwd} = $passwd;
+        $self->{info}{login}{$db_key}{$user}{passwd} = $passwd;
         return $passwd;
     }
     else {

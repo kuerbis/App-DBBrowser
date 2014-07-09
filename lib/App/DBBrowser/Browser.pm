@@ -6,7 +6,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_03';
+our $VERSION = '0.035_04';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -259,7 +259,7 @@ sub run {
                 1 }
             ) {
                 say 'Get database handle and schema names:';
-                delete $self->{info}{login}{$db_driver}{$db};
+                delete $self->{info}{login}{$db_driver . '_' . $db};
                 $self->__print_error_message( $@ );
                 # remove database from @databases
                 next DATABASE;

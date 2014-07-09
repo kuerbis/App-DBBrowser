@@ -4,7 +4,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_03';
+our $VERSION = '0.035_04';
 
 use Encode::Locale qw();
 
@@ -31,7 +31,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.035_03
+Version 0.035_04
 
 =cut
 
@@ -121,8 +121,7 @@ item are added to the chosen items. If a mouse mode is enabled, it can be used t
 C<SpaceBar>. C<Ctrl-SpaceBar> (or C<Ctrl-@>) inverts the made choices - marked items are unmarked and unmarked items are
 marked.
 
-To move backwards in the menu hierarchy one can press the C<q> key . When prompted for a string, use C<Ctrl-D> instead
-of C<q>.
+To move backwards in the menu hierarchy one can press the C<q> key.
 
 =head2 OPTIONS
 
@@ -300,6 +299,9 @@ Set the number of spaces between columns.
 
 Set the string that will be shown on the screen instead of an undefined field.
 
+On MSWin32 only ASCII characters are supported when setting for I<Undef>, I<user>, I<host> or I<port> with the
+C<db-browser>. Edit the configuration files directly if non-ASCII characters string are required on 'MSWin32' OS.
+
 =head2 HINTS
 
 =head3 Scalar functions
@@ -343,8 +345,8 @@ configuration files call C<db-browser -h> and choose I<Path>.
 The data is saved in JSON format.
 
 The global settings are placed in the member called C<"*$db_driver">. This settings are used if I<ask per DB> in
-I<DB Login> is not enabled. If I<ask per DB> is enabled each database uses is own member named like the database. With
-the C<SQLite> driver "database name" means the absolute path to the database file.
+I<DB Login> is not enabled. If I<ask per DB> is enabled each database uses is own member named like the database itself.
+With the C<SQLite> driver "database name" means the absolute path to the database file.
 
 Sub-members (keys):
 
@@ -376,6 +378,8 @@ Examples
             "sqlite_unicode" : 0                                    },
         }                                                           "database2" : {
     }                                                                   "binary_filter" : 1
+                                                                    }
+                                                                }
 
 =head1 REQUIREMENTS
 
