@@ -121,7 +121,8 @@ item are added to the chosen items. If a mouse mode is enabled, it can be used t
 C<SpaceBar>. C<Ctrl-SpaceBar> (or C<Ctrl-@>) inverts the made choices - marked items are unmarked and unmarked items are
 marked.
 
-To move backwards in the menu hierarchy one can press the C<q> key.
+To move backwards in the menu hierarchy one can press the C<q> key. When prompted for a string, try C<Ctrl-D> instead
+of C<q>.
 
 =head2 OPTIONS
 
