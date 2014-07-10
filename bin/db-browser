@@ -4,7 +4,7 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.035_04';
+our $VERSION = '0.036';
 
 use Encode::Locale qw();
 
@@ -31,7 +31,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.035_04
+Version 0.036
 
 =cut
 
@@ -299,8 +299,9 @@ Set the number of spaces between columns.
 
 Set the string that will be shown on the screen instead of an undefined field.
 
-On MSWin32 only ASCII characters are supported when setting for I<Undef>, I<user>, I<host> or I<port> with the
-C<db-browser>. Edit the configuration files directly if non-ASCII characters string are required on 'MSWin32' OS.
+On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
+C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
+a machine with 'MSWin32' OS.
 
 =head2 HINTS
 
@@ -337,7 +338,7 @@ number of characters.
 To remove a chosen scalar function from a column select the column with the function a second time.
 
 
-=head2 CONFIG FILE
+=head2 CONFIGURATION FILES
 
 The syntax of the configuration file names is C<"conf_${driver_name}.json">. To find out the location of the
 configuration files call C<db-browser -h> and choose I<Path>.
@@ -350,14 +351,15 @@ With the C<SQLite> driver "database name" means the absolute path to the databas
 
 Sub-members (keys):
 
-    SQLite: sqlite_unicode              (0,1)           mysql:  user                                 Pg:  user
-            sqlite_see_if_its_a_number  (0,1)                   host                                      host
-            binary_filter               (0,1)                   port                                      port
-            dirs_sqlite_search ¹                                mysql_enable_utf8  (0,1)                  pg_enable_utf8  (0,1,-1)
-                                                                binary_filter      (0,1)                  binary_filter   (0,1)
+    SQLlite:                                    mysql:                             Pg:
+        sqlite_unicode              (0,1)           user                              user
+        sqlite_see_if_its_a_number  (0,1)           host                              host
+        binary_filter               (0,1)           port                              port
+        dirs_sqlite_search ¹                        mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
+                                                    binary_filter      (0,1)          binary_filter   (0,1)
 
 ¹ only in C<"*SQLite">: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
-directories passed with C<dirs_sqlite_search>.
+directories passed with this array-reference.
 
 Examples
 
