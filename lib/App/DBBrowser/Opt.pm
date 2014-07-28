@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -13,11 +13,12 @@ use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );             # "require"-d in options/help
 
-use Clone              qw( clone );
-use Encode::Locale     qw();
-use JSON::XS           qw( decode_json );
-use Term::Choose       qw( choose );
-use Term::Choose::Util qw( insert_sep print_hash util_readline choose_a_number choose_a_subset choose_multi choose_dirs );
+use Clone                qw( clone );
+use Encode::Locale       qw();
+use JSON                 qw( decode_json );
+use Term::Choose         qw( choose );
+use Term::Choose::Util   qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
+use Term::ReadLine::Tiny qw();
 
 sub new {
     my ( $class, $info, $opt ) = @_;
@@ -29,12 +30,12 @@ sub defaults {
     my ( $self, @keys ) = @_;
     my $defaults = {
         db_drivers           => [ 'SQLite', 'mysql', 'Pg' ],
-        db_host_port         => 1,
-        db_user_pass         => 1,
-        env_dbi_user         => 0,
-        env_dbi_pass         => 0,
-        env_dbi_host         => 0,
-        env_dbi_port         => 0,
+        ask_host_port_per_db => 1,
+        ask_user_pass_per_db => 1,
+        use_env_dbi_user     => 0,
+        use_env_dbi_pass     => 0,
+        use_env_dbi_host     => 0,
+        use_env_dbi_port     => 0,
         menus_memory         => 0,
         table_expand         => 1,
         keep_header          => 0,
@@ -56,7 +57,6 @@ sub defaults {
         #add_header           => 0,
         #choose_columns       => 0,
         SQLite => {
-            _reset_cache_cmdline_only  => 0,
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
             binary_filter              => 0,
@@ -116,16 +116,17 @@ sub set_options {
             [ 'parentheses_h', "- Parentheses in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
         ],
         _env_dbi     => [
-            [ 'env_dbi_user', "- Use DBI_USER", [ 'NO', 'YES' ] ],
-            [ 'env_dbi_pass', "- Use DBI_PASS", [ 'NO', 'YES' ] ],
-            [ 'env_dbi_host', "- Use DBI_HOST", [ 'NO', 'YES' ] ],
-            [ 'env_dbi_port', "- Use DBI_PORT", [ 'NO', 'YES' ] ],
+            [ 'use_env_dbi_user', "- Use DBI_USER", [ 'NO', 'YES' ] ],
+            [ 'use_env_dbi_pass', "- Use DBI_PASS", [ 'NO', 'YES' ] ],
+            [ 'use_env_dbi_host', "- Use DBI_HOST", [ 'NO', 'YES' ] ],
+            [ 'use_env_dbi_port', "- Use DBI_PORT", [ 'NO', 'YES' ] ],
         ],
         _db_connect  => [
-            [ 'db_host_port', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
-            [ 'db_user_pass', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
+            [ 'ask_host_port_per_db', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
+            [ 'ask_user_pass_per_db', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
         ]
     };
+    my $no_yes = [ 'NO', 'YES' ];
     my $path = '  Path';
     my @pre = ( undef, $self->{info}{_continue}, $self->{info}{_help}, $path );
     my @real = map( $_->[1], @$menus );
@@ -209,12 +210,12 @@ sub set_options {
             $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'metadata' ) {
-            my $list = [ 'NO', 'YES' ];
+            my $list = $no_yes;
             my $prompt = 'Enable Metadata';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'regexp_case' ) {
-            my $list = [ 'YES', 'NO' ];
+            my $list = $no_yes;
             my $prompt = 'REGEXP case sensitiv';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
@@ -326,8 +327,9 @@ sub __opt_number_range {
 sub __opt_readline {
     my ( $self, $key, $prompt ) = @_;
     my $current = $self->{opt}{$key};
+    my $tiny = Term::ReadLine::Tiny->new();
     # Readline
-    my $choice = util_readline( $prompt . ': ', { default => $current } );
+    my $choice = $tiny->readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
     $self->{opt}{$key} = $choice;
     $self->{info}{write_config}++;
@@ -376,7 +378,7 @@ sub database_setting {
         ],
     };
     if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) {
-        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ], [ 'port', "- Port" ] if $self->{opt}{db_host_port};
+        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ], [ 'port', "- Port" ] if $self->{opt}{ask_host_port_per_db};
         unshift @{$menus->{$db_driver}}, [ 'user', "- User" ];
     }
     if ( ! $db && $db_driver eq 'SQLite' ) {
@@ -446,20 +448,20 @@ sub database_setting {
             }
             return;
         }
-        my $yes_no = [ 'NO', 'YES' ];
+        my $no_yes = [ 'NO', 'YES' ];
 
         if ( $db_driver eq "SQLite" ) {
             if ( $key eq 'sqlite_unicode' ) {
                 my $prompt = 'Unicode';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             elsif ( $key eq 'sqlite_see_if_its_a_number' ) {
                 my $prompt = 'See if its a number';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             elsif ( $key eq 'binary_filter' ) {
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             elsif ( $key eq 'dirs_sqlite_search' ) {
                 $self->__db_opt_choose_dirs( $section, $key, $prompt );
@@ -469,7 +471,7 @@ sub database_setting {
         elsif ( $db_driver eq "mysql" ) {
             if ( $key eq 'mysql_enable_utf8' ) {
                 my $prompt = 'Enable utf8';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             elsif ( $key eq 'user' ) {
                 my $prompt = 'User';
@@ -485,14 +487,14 @@ sub database_setting {
             }
             elsif ( $key eq 'binary_filter' ) {
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             else { die "Unknown key: $key" }
         }
         elsif ( $db_driver eq "Pg" ) {
             if ( $key eq 'pg_enable_utf8' ) {
                 my $prompt = 'Enable utf8';
-                my $list = [ @{$yes_no}, 'AUTO' ];
+                my $list = [ @{$no_yes}, 'AUTO' ];
                 $self->__db_opt_choose_index( $section, $key, $prompt, $list );
                 $self->{opt}{$section}{$key} = -1 if $self->{opt}{$section}{$key} == 2;
             }
@@ -510,7 +512,7 @@ sub database_setting {
             }
             elsif ( $key eq 'binary_filter' ) {
                 my $prompt = 'Enable Binary Filter';
-                $self->__db_opt_choose_index( $section, $key, $prompt, $yes_no );
+                $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
             else { die "Unknown key: $key" }
         }
@@ -551,8 +553,9 @@ sub __db_opt_choose_dirs {
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
     my $current = $self->{opt}{$section}{$key};
+    my $tiny = Term::ReadLine::Tiny->new();
     # Readline
-    my $choice = util_readline( $prompt . ': ', { default => $current } );
+    my $choice = $tiny->readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
     $self->{opt}{$section}{$key} = $choice;
     $self->{info}{write_config}++;

@@ -6,21 +6,22 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 use Getopt::Long          qw( GetOptions );
 
-use Clone               qw( clone );
-use Encode::Locale      qw( decode_argv );
-use File::HomeDir       qw();
-use List::MoreUtils     qw( any first_index );
-use Term::Choose        qw();
-use Term::Choose::Util  qw( choose_a_number insert_sep term_size util_readline );
-use Term::TablePrint    qw( print_table );
-use Text::LineFold      qw();
+use Clone                qw( clone );
+use Encode::Locale       qw( decode_argv );
+use File::HomeDir        qw();
+use List::MoreUtils      qw( any first_index );
+use Term::Choose         qw();
+use Term::Choose::Util   qw( choose_a_number insert_sep term_size );
+use Term::ReadLine::Tiny qw();
+use Term::TablePrint     qw( print_table );
+use Text::LineFold       qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -120,7 +121,10 @@ sub __init {
         $self->__print_error_message( $@ );
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
         $self->{opt} = $obj_opt->defaults();
-        shift @ARGV while $ARGV[0] =~ /^-/;
+        while ( $ARGV[0] =~ /^-/ ) {
+            my $arg = shift @ARGV;
+            last if $arg eq '--';
+        }
     }
     if ( $self->{opt}{mouse} ) {
         for my $key ( keys %{$self->{info}} ) {
@@ -1809,6 +1813,7 @@ sub __set_operator_sql {
     }
     $operator =~ s/^\s+|\s+\z//g;
     if ( $operator !~ /\s%?col%?\z/ ) {
+        my $tiny = Term::ReadLine::Tiny->new();
         if ( $operator !~ /REGEXP\z/ ) {
             $sql->{quote}{$stmt} .= ' ' . $operator;
             $sql->{print}{$stmt} .= ' ' . $operator;
@@ -1824,7 +1829,7 @@ sub __set_operator_sql {
             IN: while ( 1 ) {
                 $self->__print_select_statement( $sql, $table );
                 # Readline
-                my $value = util_readline( 'Value: ' );
+                my $value = $tiny->readline( 'Value: ' );
                 if ( ! defined $value ) {
                     $sql->{quote}{$args} = [];
                     $sql->{quote}{$stmt} = '';
@@ -1851,7 +1856,7 @@ sub __set_operator_sql {
         elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value_1 = util_readline( 'Value: ' );
+            my $value_1 = $tiny->readline( 'Value: ' );
             if ( ! defined $value_1 ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1863,7 +1868,7 @@ sub __set_operator_sql {
             push @{$sql->{quote}{$args}}, $value_1;
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value_2 = util_readline( 'Value: ' );
+            my $value_2 = $tiny->readline( 'Value: ' );
             if ( ! defined $value_2 ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1878,7 +1883,7 @@ sub __set_operator_sql {
             $sql->{print}{$stmt} .= ' ' . $operator;
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value = util_readline( 'Pattern: ' );
+            my $value = $tiny->readline( 'Pattern: ' );
             if ( ! defined $value ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1900,7 +1905,7 @@ sub __set_operator_sql {
             $self->__print_select_statement( $sql, $table );
             my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
             # Readline
-            my $value = util_readline( $prompt );
+            my $value = $tiny->readline( $prompt );
             if ( ! defined $value ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';

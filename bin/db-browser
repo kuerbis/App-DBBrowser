@@ -4,15 +4,21 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 use Encode::Locale qw();
 
 use App::DBBrowser::Browser;
 
+use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
+
+print "\e(U" if $^O eq 'MSWin32';
+
 binmode STDIN,  ':encoding(console_in)';
 binmode STDOUT, ':encoding(console_out)';
 binmode STDERR, ':encoding(console_out)';
+
+
 
 my $db_browser = App::DBBrowser::Browser->new();
 $db_browser->run();
@@ -31,7 +37,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.036
+Version 0.037
 
 =cut
 
@@ -63,10 +69,6 @@ privileges required for fetching the respective data.
 
 The C<db-browser> expects an existing home directory with read and write permissions for the user of the C<db-browser>.
 
-It is recommended to work with an UTF encoding. Non mappable characters might break the output.
-
-It is required a terminal with a width of at least 40 print columns.
-
 Before the output leading and trailing spaces are removed from the elements and spaces are squashed to a single
 white-space.
 
@@ -74,6 +76,10 @@ The elements in a column are right-justified if one or more elements of that col
 are left-justified.
 
 See L<Term::TablePrint|Term::TablePrint/DESCRIPTION> for more details.
+
+=head3 Legacy encodings
+
+Non mappable characters will break the output.
 
 =head1 USAGE
 
@@ -391,6 +397,20 @@ See L<Term::TablePrint/REQUIREMENTS>.
 =head2 Perl version
 
 Requires Perl version 5.10.1 or greater.
+
+=head2 Decoded strings
+
+C<db-browser> expects decoded strings.
+
+=head2 Encoding layer for STDOUT
+
+For a correct output it is required an appropriate encoding layer for STDOUT matching the terminal's character set.
+
+=head2 Monospaced font
+
+It is required a terminal that uses a monospaced font which supports the printed characters.
+
+The terminal should have a width of at least 40 print columns.
 
 =head1 SEE ALSO
 

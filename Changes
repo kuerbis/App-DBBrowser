@@ -1,6 +1,14 @@
 Revision history for App-DBBrowser
 
 
+0.037   2014-07-28
+        - Bugfix: regex case sensitivity setting.
+        - New dependency: "Term::ReadLine::Tiny".
+        - "use JSON" instead of "use JSON::XS".
+        - Update Makefile.PL.
+        - Code refactoring.
+        - Update documentation.
+
 0.036   2014-07-10
         - Required minimum version of "Term::Choose::Util" is now "0.011".
         - Update documentation.
