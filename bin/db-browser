@@ -406,9 +406,11 @@ C<db-browser> expects decoded strings.
 
 For a correct output it is required an appropriate encoding layer for STDOUT matching the terminal's character set.
 
-=head2 Monospaced font
+=head2 Terminal
 
-It is required a terminal that uses a monospaced font which supports the printed characters.
+It is required a terminal that uses a monospaced font which supports the printed characters. Also the terminal has to
+understand ANSI escape sequences. If the OS is MSWin32 C<App::DBBrowser> uses L<Win32::Console::ANSI> which emulates an
+ANSI console for the C<db-browser>.
 
 The terminal should have a width of at least 40 print columns.
 
