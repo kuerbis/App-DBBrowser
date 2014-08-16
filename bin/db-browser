@@ -4,14 +4,13 @@ use strict;
 use 5.010001;
 no warnings 'utf8';
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 use Encode::Locale qw();
 
 use App::DBBrowser::Browser;
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
-
 print "\e(U" if $^O eq 'MSWin32';
 
 binmode STDIN,  ':encoding(console_in)';
@@ -37,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.037
+Version 0.038
 
 =cut
 
@@ -62,7 +61,7 @@ C<db-browser> called with C<-s|--search> causes a new search of SQLite databases
 =head1 DESCRIPTION
 
 Search and read in SQLite/MySQL/PostgreSQL databases. With the C<db-browser> one can browse databases and their tables
-interactively. The available DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
+interactively. The supported DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
 
 To be able to browse database-, schema- and table-lists and the content of tables one needs to have the database
 privileges required for fetching the respective data.
@@ -408,9 +407,10 @@ For a correct output it is required an appropriate encoding layer for STDOUT mat
 
 =head2 Terminal
 
-It is required a terminal that uses a monospaced font which supports the printed characters. Also the terminal has to
-understand ANSI escape sequences. If the OS is MSWin32 C<App::DBBrowser> uses L<Win32::Console::ANSI> which emulates an
-ANSI console for the C<db-browser>.
+It is required a terminal that uses a monospaced font which supports the printed characters.
+
+Also the terminal has to understand ANSI escape sequences. If the OS is MSWin32 C<App::DBBrowser> uses
+L<Win32::Console::ANSI> which emulates an ANSI console for the C<db-browser>.
 
 The terminal should have a width of at least 40 print columns.
 

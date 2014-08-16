@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+0.038   2014-08-16
+        - Improved documentation.
+
 0.037   2014-07-28
         - Bugfix: regex case sensitivity setting.
         - New dependency: "Term::ReadLine::Tiny".
