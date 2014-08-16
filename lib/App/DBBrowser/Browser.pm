@@ -3,10 +3,10 @@ App::DBBrowser::Browser;
 
 use warnings;
 use strict;
-use 5.010001;
+use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.038';
+our $VERSION = '0.039';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );

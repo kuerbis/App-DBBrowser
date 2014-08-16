@@ -3,9 +3,9 @@ App::DBBrowser::DB;
 
 use warnings;
 use strict;
-use 5.010001;
+use 5.010000;
 
-our $VERSION = '0.038';
+our $VERSION = '0.039';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
