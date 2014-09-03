@@ -25,7 +25,7 @@ sub new {
 }
 
 
-sub __get_host_and_port {
+sub __get_host_or_port {
     my ( $self, $db, $key ) = @_;
     my $db_driver = $self->{info}{db_driver};
     my $db_key = $db_driver . '_' . $db;
@@ -120,8 +120,8 @@ sub get_db_handle {
     }
     print CLEAR_SCREEN;
     print "DB: $db\n";
-    my $host = $self->__get_host_and_port( $db, 'host' );
-    my $port = $self->__get_host_and_port( $db, 'port' );
+    my $host = $self->__get_host_or_port( $db, 'host' );
+    my $port = $self->__get_host_or_port( $db, 'port' );
     my $dsn = 'dbi:' . $db_driver . ':dbname=' . $db;
     $dsn .= ';host=' . $host if length $host;
     $dsn .= ';port=' . $port if length $port;

@@ -2,7 +2,8 @@ Revision history for App-DBBrowser
 
 
 0.040   2014-09-03
-        - Menu memory for config and sql menus.
+        - Menu memory for config and SQL menus.
+        - Replaced "Term::ReadLine::Tiny" with "Term::ReadLine::Simple".
         - Update documentation.
 
 0.039   2014-08-16
