@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.040   2014-09-03
+        - Menu memory for config and sql menus.
+        - Update documentation.
+
 0.039   2014-08-16
         - Perl minimum version from "5.10.1" to "5.10.0".
 

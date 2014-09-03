@@ -6,22 +6,22 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 use Getopt::Long          qw( GetOptions );
 
-use Clone                qw( clone );
-use Encode::Locale       qw( decode_argv );
-use File::HomeDir        qw();
-use List::MoreUtils      qw( any first_index );
-use Term::Choose         qw();
-use Term::Choose::Util   qw( choose_a_number insert_sep term_size );
-use Term::ReadLine::Tiny qw();
-use Term::TablePrint     qw( print_table );
-use Text::LineFold       qw();
+use Clone                  qw( clone );
+use Encode::Locale         qw( decode_argv );
+use File::HomeDir          qw();
+use List::MoreUtils        qw( any first_index );
+use Term::Choose           qw();
+use Term::Choose::Util     qw( choose_a_number insert_sep term_size );
+use Term::ReadLine::Simple qw();
+use Term::TablePrint       qw( print_table );
+use Text::LineFold         qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -243,7 +243,7 @@ sub run {
                     last DB_DRIVER if   $self->{info}{one_db_driver};
                     next DB_DRIVER if ! $self->{info}{one_db_driver};
                 }
-                if ( $self->{opt}{menus_memory} ) {
+                if ( $self->{opt}{menus_db_memory} ) {
                     if ( $old_idx_db == $idx_db ) {
                         $old_idx_db = 0;
                         next DATABASE;
@@ -305,7 +305,7 @@ sub run {
                     );
                     $schema = $choices->[$idx_sch] if defined $idx_sch;
                     next DATABASE if ! defined $schema;
-                    if ( $self->{opt}{menus_memory} ) {
+                    if ( $self->{opt}{menus_db_memory} ) {
                         if ( $old_idx_sch == $idx_sch ) {
                             $old_idx_sch = 0;
                             next SCHEMA;
@@ -369,7 +369,7 @@ sub run {
                         next SCHEMA if defined $data->{$db}{schemas} && @{$data->{$db}{schemas}} > 1;
                         next DATABASE;
                     }
-                    if ( $self->{opt}{menus_memory} ) {
+                    if ( $self->{opt}{menus_db_memory} ) {
                         if ( $old_idx_tbl == $idx_tbl ) {
                             $old_idx_tbl = 0;
                             next TABLE;
@@ -1024,19 +1024,31 @@ sub __read_table {
     if ( $self->{info}{lock} == 0 ) {
         $self->__reset_sql( $sql, $qt_columns );
     }
+    my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
         my $backup_sql = clone( $sql );
         $self->__print_select_statement( $sql, $table );
+        my $choices = [ $customize{hidden}, undef, @customize{@keys} ];
         # Choose
-        my $custom = $stmt_h->choose(
-            [ $customize{hidden}, undef, @customize{@keys} ],
-            { %{$self->{info}{lyt_stmt_v}}, prompt => '', default => 1, undef => $self->{info}{back} }
+        my $idx = $stmt_h->choose(
+            $choices,
+            { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx, undef => $self->{info}{back} }
         );
-        if ( ! defined $custom ) {
-            last CUSTOMIZE;
+        last CUSTOMIZE if ! defined $idx;
+        my $custom = $choices->[$idx];
+        last CUSTOMIZE if ! defined $custom;
+        if ( $self->{opt}{menu_sql_memory} ) {
+            if ( $old_idx == $idx ) {
+                $old_idx = 1;
+                next CUSTOMIZE;
+            }
+            else {
+                $old_idx = $idx;
+            }
         }
-        elsif ( $custom eq $customize{'lock'} ) {
+
+        if ( $custom eq $customize{'lock'} ) {
             if ( $self->{info}{lock} == 1 ) {
                 $self->{info}{lock} = 0;
                 $customize{lock} = $lk->[0];
@@ -1813,7 +1825,7 @@ sub __set_operator_sql {
     }
     $operator =~ s/^\s+|\s+\z//g;
     if ( $operator !~ /\s%?col%?\z/ ) {
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         if ( $operator !~ /REGEXP\z/ ) {
             $sql->{quote}{$stmt} .= ' ' . $operator;
             $sql->{print}{$stmt} .= ' ' . $operator;
@@ -1829,7 +1841,7 @@ sub __set_operator_sql {
             IN: while ( 1 ) {
                 $self->__print_select_statement( $sql, $table );
                 # Readline
-                my $value = $tiny->readline( 'Value: ' );
+                my $value = $trs->readline( 'Value: ' );
                 if ( ! defined $value ) {
                     $sql->{quote}{$args} = [];
                     $sql->{quote}{$stmt} = '';
@@ -1856,7 +1868,7 @@ sub __set_operator_sql {
         elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value_1 = $tiny->readline( 'Value: ' );
+            my $value_1 = $trs->readline( 'Value: ' );
             if ( ! defined $value_1 ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1868,7 +1880,7 @@ sub __set_operator_sql {
             push @{$sql->{quote}{$args}}, $value_1;
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value_2 = $tiny->readline( 'Value: ' );
+            my $value_2 = $trs->readline( 'Value: ' );
             if ( ! defined $value_2 ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1883,7 +1895,7 @@ sub __set_operator_sql {
             $sql->{print}{$stmt} .= ' ' . $operator;
             $self->__print_select_statement( $sql, $table );
             # Readline
-            my $value = $tiny->readline( 'Pattern: ' );
+            my $value = $trs->readline( 'Pattern: ' );
             if ( ! defined $value ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
@@ -1905,7 +1917,7 @@ sub __set_operator_sql {
             $self->__print_select_statement( $sql, $table );
             my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
             # Readline
-            my $value = $tiny->readline( $prompt );
+            my $value = $trs->readline( $prompt );
             if ( ! defined $value ) {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';

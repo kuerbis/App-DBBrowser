@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -13,12 +13,12 @@ use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );             # "require"-d in options/help
 
-use Clone                qw( clone );
-use Encode::Locale       qw();
-use JSON                 qw( decode_json );
-use Term::Choose         qw( choose );
-use Term::Choose::Util   qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
-use Term::ReadLine::Tiny qw();
+use Clone                  qw( clone );
+use Encode::Locale         qw();
+use JSON                   qw( decode_json );
+use Term::Choose           qw( choose );
+use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
+use Term::ReadLine::Simple qw();
 
 sub new {
     my ( $class, $info, $opt ) = @_;
@@ -36,7 +36,9 @@ sub defaults {
         use_env_dbi_pass     => 0,
         use_env_dbi_host     => 0,
         use_env_dbi_port     => 0,
-        menus_memory         => 0,
+        menus_config_memory  => 0,
+        menu_sql_memory      => 0,
+        menus_db_memory      => 0,
         table_expand         => 1,
         keep_header          => 0,
         lock_stmt            => 0,
@@ -107,9 +109,11 @@ sub set_options {
     ];
     my $sub_menus = {
        _enchant      => [
-            [ 'menus_memory',  "- Menus",        [ 'Simple', 'Memory' ] ],
-            [ 'table_expand',  "- Print  Table", [ 'Simple', 'Expand' ] ],
-            [ 'keep_header',   "- Table Header", [ 'Simple', 'Each page' ] ],
+            [ 'menus_config_memory', "- Menus config", [ 'Simple', 'Memory' ] ],
+            [ 'menu_sql_memory',     "- Menu  sql",    [ 'Simple', 'Memory' ] ],
+            [ 'menus_db_memory',     "- Menus db",     [ 'Simple', 'Memory' ] ],
+            [ 'table_expand',        "- Print  Table", [ 'Simple', 'Expand' ] ],
+            [ 'keep_header',         "- Table Header", [ 'Simple', 'Each page' ] ],
         ],
         _parentheses => [
             [ 'parentheses_w', "- Parentheses in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
@@ -130,24 +134,16 @@ sub set_options {
     my $path = '  Path';
     my @pre = ( undef, $self->{info}{_continue}, $self->{info}{_help}, $path );
     my @real = map( $_->[1], @$menus );
-    my $choices = [ @pre, @real ];
+    my $old_idx = 0;
 
     OPTION: while ( 1 ) {
         # Choose
         my $idx = choose(
-            $choices,
-            { %{$self->{info}{lyt_3}}, index => 1, undef => $self->{info}{_exit} }
+            [ @pre, @real ],
+            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_exit} }
         );
         exit if ! defined $idx;
-        my $key;
-        if ( $idx <= $#pre ) {
-            $key = $pre[$idx];
-        }
-        else {
-            $idx -= @pre;
-            $key = $menus->[$idx][0];
-            die if $key !~ /^_/ && ! exists $self->{opt}{$key};
-        }
+        my $key = $idx <= $#pre ? $pre[$idx] : $menus->[$idx - @pre][0];
         if ( ! defined $key ) {
             if ( $self->{info}{write_config} ) {
                 $self->__write_config_files();
@@ -155,7 +151,23 @@ sub set_options {
             }
             exit();
         }
-        elsif ( $key eq $self->{info}{_continue} ) {
+        if ( $self->{opt}{menus_config_memory} ) {
+            if ( $old_idx == $idx ) {
+                $old_idx = 0;
+                next OPTION;
+            }
+            else {
+                $old_idx = $idx;
+            }
+        }
+        else {
+            if ( $old_idx != 0 ) {
+                $old_idx = 0;
+                next OPTION;
+            }
+        }
+
+        if ( $key eq $self->{info}{_continue} ) {
             if ( $self->{info}{write_config} ) {
                 $self->__write_config_files();
                 delete $self->{info}{write_config};
@@ -327,9 +339,9 @@ sub __opt_number_range {
 sub __opt_readline {
     my ( $self, $key, $prompt ) = @_;
     my $current = $self->{opt}{$key};
-    my $tiny = Term::ReadLine::Tiny->new();
+    my $trs = Term::ReadLine::Simple->new();
     # Readline
-    my $choice = $tiny->readline( $prompt . ': ', { default => $current } );
+    my $choice = $trs->readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
     $self->{opt}{$key} = $choice;
     $self->{info}{write_config}++;
@@ -394,27 +406,30 @@ sub database_setting {
     }
     my @pre = ( undef, $self->{info}{_confirm} );
     my @real = map { $_->[1] } @{$menus->{$db_driver}};
-    my $choices = [ @pre, @real ];
+    my $old_idx = 0;
 
     DB_OPTION: while ( 1 ) {
         # Choose
         my $idx = choose(
-            $choices,
-            { %{$self->{info}{lyt_3}}, index => 1, prompt => $prompt  }
+            [ @pre, @real ],
+            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, prompt => $prompt }
         );
         exit if ! defined $idx;
-        my $key;
-        if ( $idx <= $#pre ) {
-            $key = $pre[$idx];
-        }
-        else {
-            $idx -= @pre;
-            $key = $menus->{$db_driver}[$idx][0];
-        }
+        my $key = $idx <= $#pre ? $pre[$idx] : $menus->{$db_driver}[$idx - @pre][0];
         if ( ! defined $key ) {
             $self->{opt} = clone( $orig ) if $self->{info}{write_config};
             return;
         }
+        if ( $self->{opt}{menus_config_memory} ) {
+            if ( $old_idx == $idx ) {
+                $old_idx = 0;
+                next DB_OPTION;
+            }
+            else {
+                $old_idx = $idx;
+            }
+        }
+
         if ( $key eq '_reset' ) {
             if ( $db ) {
                 delete $self->{opt}{$section};
@@ -553,9 +568,9 @@ sub __db_opt_choose_dirs {
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
     my $current = $self->{opt}{$section}{$key};
-    my $tiny = Term::ReadLine::Tiny->new();
+    my $trs = Term::ReadLine::Simple->new();
     # Readline
-    my $choice = $tiny->readline( $prompt . ': ', { default => $current } );
+    my $choice = $trs->readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
     $self->{opt}{$section}{$key} = $choice;
     $self->{info}{write_config}++;

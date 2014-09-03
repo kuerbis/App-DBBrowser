@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.039
+Version 0.040
 
 =cut
 
@@ -220,7 +220,12 @@ This option has no meaning if the SQLite driver is in use.
 
 Set the behavior of different interactive menus:
 
-- setting I<Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
+- setting I<Menus config> to "Memory" means: save the selected configuration menu position while entering in a config
+sub menu.
+
+- setting I<Menu sql> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
+
+- setting I<Menus db> to "Memory" means: save the selected menu position in the database/schema/table menus while
 entering in a sub menu.
 
 - setting I<Print Table> to "Expand" means: enable printing the chosen table row.

@@ -5,16 +5,16 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use Encode       qw( encode decode );
 use File::Find   qw( find );
 use Scalar::Util qw( looks_like_number );
 
-use DBI                  qw();
-use Encode::Locale       qw();
-use Term::Choose         qw( choose );
-use Term::ReadLine::Tiny qw();
+use DBI                    qw();
+use Encode::Locale         qw();
+use Term::Choose           qw( choose );
+use Term::ReadLine::Simple qw();
 
 sub CLEAR_SCREEN () { "\e[1;1H\e[0J" }
 
@@ -25,7 +25,7 @@ sub new {
 }
 
 
-sub __get_connect_data {
+sub __get_host_and_port {
     my ( $self, $db, $key ) = @_;
     my $db_driver = $self->{info}{db_driver};
     my $db_key = $db_driver . '_' . $db;
@@ -38,9 +38,9 @@ sub __get_connect_data {
             say $prompt . $self->{opt}{$db_key}{$key};
             return $self->{opt}{$db_key}{$key};
         }
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $new = $tiny->readline( $prompt, { default => $self->{opt}{$db_driver}{$key} } ); #
+        my $new = $trs->readline( $prompt, { default => $self->{opt}{$db_driver}{$key} } ); #
         $self->{info}{login}{$db_key}{$key} = $new;
         return $new;
     }
@@ -63,9 +63,9 @@ sub __get_user {
             say 'User :' . $self->{opt}{$db_key}{user};
             return $self->{opt}{$db_key}{user};
         }
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $new = $tiny->readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
+        my $new = $trs->readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
         $self->{info}{login}{$db_key}{user} = $new;
         return $new;
     }
@@ -74,9 +74,9 @@ sub __get_user {
         return $ENV{DBI_USER}                         if $self->{opt}{use_env_dbi_user} && exists $ENV{DBI_USER};
         #return $self->{opt}{$db_key}{user}            if length $self->{opt}{$db_key}{user};
         return $self->{opt}{$db_driver}{user}         if exists $self->{opt}{$db_driver}{user} && length $self->{opt}{$db_driver}{user};
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $new = $tiny->readline( 'User: ' );
+        my $new = $trs->readline( 'User: ' );
         $self->{info}{login}{$db_driver}{user} = $new;
         return $new;
     }
@@ -90,18 +90,18 @@ sub __get_password {
     return '' if $db_driver eq 'SQLite';
     if ( $self->{opt}{ask_user_pass_per_db} ) {
         return $self->{info}{login}{$db_key}{$user}{passwd} if defined $self->{info}{login}{$db_key}{$user}{passwd};
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $passwd = $tiny->readline( 'Password: ', { no_echo => 1 } );
+        my $passwd = $trs->readline( 'Password: ', { no_echo => 1 } );
         $self->{info}{login}{$db_key}{$user}{passwd} = $passwd;
         return $passwd;
     }
     else {
         return $self->{info}{login}{$db_driver}{$user}{passwd} if defined $self->{info}{login}{$db_driver}{$user}{passwd};
         return $ENV{DBI_PASS}                                  if $self->{opt}{use_env_dbi_pass} && exists $ENV{DBI_PASS};
-        my $tiny = Term::ReadLine::Tiny->new();
+        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $passwd = $tiny->readline( 'Password: ', { no_echo => 1 }  );
+        my $passwd = $trs->readline( 'Password: ', { no_echo => 1 }  );
         $self->{info}{login}{$db_driver}{$user}{passwd} = $passwd;
         return $passwd;
     }
@@ -120,8 +120,8 @@ sub get_db_handle {
     }
     print CLEAR_SCREEN;
     print "DB: $db\n";
-    my $host = $self->__get_connect_data( $db, 'host' );
-    my $port = $self->__get_connect_data( $db, 'port' );
+    my $host = $self->__get_host_and_port( $db, 'host' );
+    my $port = $self->__get_host_and_port( $db, 'port' );
     my $dsn = 'dbi:' . $db_driver . ':dbname=' . $db;
     $dsn .= ';host=' . $host if length $host;
     $dsn .= ';port=' . $port if length $port;
