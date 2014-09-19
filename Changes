@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.040_01   2014-09-19
+        - Added experimental sql features (update, delete, insert into).
+        - Update documentation.
+
 0.040   2014-09-03
         - Menu memory for config and SQL menus.
         - Replaced "Term::ReadLine::Tiny" with "Term::ReadLine::Simple".

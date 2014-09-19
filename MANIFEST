@@ -3,7 +3,10 @@ Changes
 lib/App/DBBrowser.pm
 lib/App/DBBrowser/Browser.pm
 lib/App/DBBrowser/DB.pm
+lib/App/DBBrowser/Join_Union.pm
 lib/App/DBBrowser/Opt.pm
+lib/App/DBBrowser/Table.pm
+lib/App/DBBrowser/Util.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files

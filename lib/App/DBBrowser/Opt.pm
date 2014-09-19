@@ -4,14 +4,15 @@ App::DBBrowser::Opt;
 use warnings;
 use strict;
 use 5.010000;
+no warnings 'utf8';
 
-our $VERSION = '0.040';
+our $VERSION = '0.040_01';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
-#use Pod::Usage            qw( pod2usage );             # "require"-d in options/help
+#use Pod::Usage            qw( pod2usage );  # "require"-d
 
 use Clone                  qw( clone );
 use Encode::Locale         qw();
@@ -20,9 +21,11 @@ use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
 use Term::ReadLine::Simple qw();
 
+
+
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class, $info ) = @_;
+    bless { info => $info }, $class;
 }
 
 
@@ -40,24 +43,35 @@ sub defaults {
         menu_sql_memory      => 0,
         menus_db_memory      => 0,
         table_expand         => 1,
-        keep_header          => 0,
+        sssc_mode            => 0,
         lock_stmt            => 0,
-        max_rows             => 50_000,
-        metadata             => 0,
         mouse                => 0,
-        min_col_width        => 30,
+        thsd_sep             => ',',
+        metadata             => 0,
+        max_rows             => 50_000,
         operators            => [ "REGEXP", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
         parentheses_w        => 0,
         parentheses_h        => 0,
-        progress_bar         => 20_000,
         regexp_case          => 0,
-        sssc_mode            => 0,
+        keep_header          => 0,
+        progress_bar         => 20_000,
+        min_col_width        => 30,
         tab_width            => 2,
         undef                => '',
         binary_string        => 'BNRY',
-        thsd_sep             => ',',
-        #add_header           => 0,
-        #choose_columns       => 0,
+        insert_mode          => 1,
+        encoding_csv_file    => 'UTF-8',
+        sep_char             => ',',
+        quote_char           => '"',
+        escape_char          => '"',
+        eol                  => $/,
+        allow_loose_escapes  => 0,
+        allow_loose_quotes   => 0,
+        allow_whitespace     => 0,
+        auto_diag            => 1,
+        blank_is_undef       => 1,
+        binary               => 1,
+        empty_is_undef       => 0,
         SQLite => {
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
@@ -86,28 +100,9 @@ sub defaults {
 }
 
 
-sub set_options {
-    my ( $self, $opt ) = @_;
-    my $menus = [
-        [ '_db_defaults',   "- DB Defaults" ],
-        [ 'db_drivers',     "- DB Drivers" ],
-        [ '_db_connect',    "- DB Login" ],
-        [ '_env_dbi',       "- ENV DBI" ],
-        [ '_enchant',       "- Enchant" ],
-        [ 'lock_stmt',      "- Lock" ],
-        [ 'max_rows',       "- Max Rows" ],
-        [ 'metadata',       "- Metadata" ],
-        [ 'mouse',          "- Mouse Mode" ],
-        [ 'min_col_width',  "- Colwidth" ],
-        [ 'operators',      "- Operators" ],
-        [ '_parentheses',   "- Parentheses" ],
-        [ 'progress_bar',   "- ProgressBar" ],
-        [ 'regexp_case',    "- Regexp Case" ],
-        [ 'sssc_mode',      "- Sssc Mode" ],
-        [ 'tab_width',      "- Tabwidth" ],
-        [ 'undef',          "- Undef" ],
-    ];
-    my $sub_menus = {
+sub __multi_choose {
+    my ( $self, $key ) = @_;
+    my $multi_choose = {
        _enchant      => [
             [ 'menus_config_memory', "- Menus config", [ 'Simple', 'Memory' ] ],
             [ 'menu_sql_memory',     "- Menu  sql",    [ 'Simple', 'Memory' ] ],
@@ -128,150 +123,257 @@ sub set_options {
         _db_connect  => [
             [ 'ask_host_port_per_db', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
             [ 'ask_user_pass_per_db', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
-        ]
+        ],
+        _options_csv => [
+            [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
+            [ 'allow_loose_quotes',  "- allow_loose_quotes",  [ 'NO', 'YES' ] ],
+            [ 'allow_whitespace',    "- allow_whitespace",    [ 'NO', 'YES' ] ],
+            [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
+            [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
+        ],
     };
-    my $no_yes = [ 'NO', 'YES' ];
-    my $path = '  Path';
-    my @pre = ( undef, $self->{info}{_continue}, $self->{info}{_help}, $path );
-    my @real = map( $_->[1], @$menus );
-    my $old_idx = 0;
-
-    OPTION: while ( 1 ) {
-        # Choose
-        my $idx = choose(
-            [ @pre, @real ],
-            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_exit} }
-        );
-        exit if ! defined $idx;
-        my $key = $idx <= $#pre ? $pre[$idx] : $menus->[$idx - @pre][0];
-        if ( ! defined $key ) {
-            if ( $self->{info}{write_config} ) {
-                $self->__write_config_files();
-                delete $self->{info}{write_config};
-            }
-            exit();
-        }
-        if ( $self->{opt}{menus_config_memory} ) {
-            if ( $old_idx == $idx ) {
-                $old_idx = 0;
-                next OPTION;
-            }
-            else {
-                $old_idx = $idx;
-            }
-        }
-        else {
-            if ( $old_idx != 0 ) {
-                $old_idx = 0;
-                next OPTION;
-            }
-        }
-
-        if ( $key eq $self->{info}{_continue} ) {
-            if ( $self->{info}{write_config} ) {
-                $self->__write_config_files();
-                delete $self->{info}{write_config};
-            }
-            return $self->{opt};
-        }
-        elsif ( $key eq $self->{info}{_help} ) {
-            require Pod::Usage;
-            Pod::Usage::pod2usage( {
-                -exitval => 'NOEXIT',
-                -verbose => 2 } );
-        }
-        elsif ( $key eq $path ) {
-            my $version = 'version';
-            my $bin     = '  bin  ';
-            my $app_dir = 'app-dir';
-            my $path = {
-                $version => $main::VERSION,
-                $bin     => catfile( $RealBin, $RealScript ),
-                $app_dir => $self->{info}{app_dir},
-            };
-            my $keys = [ $version, $bin, $app_dir ];
-            print_hash( $path, { keys => $keys, preface => ' Close with ENTER' } );
-        }
-        elsif ( $key eq 'tab_width' ) {
-            my $digits = 3;
-            my $prompt = 'Tab width';
-            $self->__opt_number_range( $key, $prompt, $digits );
-        }
-        elsif ( $key eq 'min_col_width' ) {
-            my $digits = 3;
-            my $prompt = 'Minimum Column width';
-            $self->__opt_number_range( $key, $prompt, $digits );
-        }
-        elsif ( $key eq 'undef' ) {
-            my $prompt = 'Print replacement for undefined table vales';
-            $self->__opt_readline( $key, $prompt );
-        }
-        elsif ( $key eq 'progress_bar' ) {
-            my $digits = 7;
-            my $prompt = '"Threshold ProgressBar"';
-            $self->__opt_number_range( $key, $prompt, $digits );
-        }
-        elsif ( $key eq 'max_rows' ) {
-            my $digits = 7;
-            my $prompt = '"Max rows"';
-            $self->__opt_number_range( $key, $prompt, $digits );
-        }
-        elsif ( $key eq 'lock_stmt' ) {
-            my $list = [ 'Lk0', 'Lk1' ];
-            my $prompt = 'Keep statement';
-            $self->__opt_choose_index( $key, $prompt, $list );
-        }
-        elsif ( $key eq 'metadata' ) {
-            my $list = $no_yes;
-            my $prompt = 'Enable Metadata';
-            $self->__opt_choose_index( $key, $prompt, $list );
-        }
-        elsif ( $key eq 'regexp_case' ) {
-            my $list = $no_yes;
-            my $prompt = 'REGEXP case sensitiv';
-            $self->__opt_choose_index( $key, $prompt, $list );
-        }
-        elsif ( $key eq '_parentheses' ) {
-            my $sub_menu = $sub_menus->{$key};
-            $self->__opt_choose_multi( $sub_menu );
-        }
-        elsif ( $key eq '_db_connect' ) {
-            my $sub_menu = $sub_menus->{$key};
-            $self->__opt_choose_multi( $sub_menu );
-        }
-        elsif ( $key eq '_env_dbi' ) {
-            my $sub_menu = $sub_menus->{$key};
-            $self->__opt_choose_multi( $sub_menu );
-        }
-        elsif ( $key eq '_db_defaults' ) {
-            $self->database_setting();
-        }
-        elsif ( $key eq 'sssc_mode' ) {
-            my $list = [ 'simple', 'compat' ];
-            my $prompt = 'Sssc mode';
-            $self->__opt_choose_index( $key, $prompt, $list );
-        }
-        elsif ( $key eq 'operators' ) {
-            my $available = $self->{info}{avail_operators};
-            $self->__opt_choose_a_list( $key, $available );
-        }
-        elsif ( $key eq 'db_drivers' ) {
-            my $available = $self->{info}{avail_db_drivers};
-            $self->__opt_choose_a_list( $key, $available );
-        }
-        elsif ( $key eq 'mouse' ) {
-            my $max = 4;
-            my $prompt = 'Mouse mode';
-            $self->__opt_number( $key, $prompt, $max );
-        }
-        elsif ( $key eq '_enchant' ) {
-            my $sub_menu = $sub_menus->{$key};
-            $self->__opt_choose_multi( $sub_menu );
-        }
-        else { die "Unknown option: $key" }
-    }
+    return $multi_choose->{$key};
 }
 
+
+sub __menus {
+    my ( $self, $group ) = @_;
+    my $menus = {
+        main => [
+            [ 'help',            "  HELP" ],
+            [ 'path',            "  Path" ],
+            [ 'config_output',   "- Output" ],
+            [ 'config_menu',     "- Menu" ],
+            [ 'config_sql',      "- SQL" ],
+            [ 'config_database', "- Database" ],
+            [ 'config_insert',   "- Insert" ],
+        ],
+        config_output => [
+            [ 'min_col_width', "- Colwidth" ],
+            [ 'progress_bar',  "- ProgressBar" ],
+            [ 'tab_width',     "- Tabwidth" ],
+            [ 'undef',         "- Undef" ],
+        ],
+        config_menu => [
+            [ '_enchant',  "- Enchant" ],
+            [ 'lock_stmt', "- Lock" ],
+            [ 'mouse',     "- Mouse Mode" ],
+            [ 'sssc_mode', "- Sssc Mode" ],
+        ],
+        config_sql => [
+            [ 'max_rows',     "- Max Rows" ],
+            [ 'metadata',     "- Metadata" ],
+            [ 'operators',    "- Operators" ],
+            [ '_parentheses', "- Parentheses" ],
+            [ 'regexp_case',  "- Regexp Case" ],
+
+        ],
+        config_database => [
+            [ '_db_defaults', "- DB Defaults" ],
+            [ 'db_drivers',   "- DB Drivers" ],
+            [ '_db_connect',  "- DB Login" ],
+            [ '_env_dbi',     "- ENV DBI" ],
+        ],
+        config_insert => [
+            [ 'insert_mode',       "- Insert mode" ],
+            #[ 'encoding_csv_file', "- Encoding csv file" ],
+            [ 'sep_char',          "- csv sep_char" ],
+            [ 'quote_char',        "- csv quote_char" ],
+            [ 'escape_char',       "- csv escape_char" ],
+            [ '_options_csv',      "- Options csv" ],
+        ],
+    };
+    return $menus->{$group};
+}
+
+
+sub set_options {
+    my ( $self ) = @_;
+    my $no_yes = [ 'NO', 'YES' ];
+    my $group = 'main';
+    my $backup_old_idx;
+    my $old_idx = 0;
+
+    GROUP: while ( 1 ) {
+        my @pre = ( undef, $self->{info}{$group eq 'main' ? '_continue' : '_confirm'} );
+        my $menu = $self->__menus( $group );
+        my @real = map( $_->[1], @$menu );
+
+        OPTION: while ( 1 ) {
+            my $back = $self->{info}{$group eq 'main' ? '_exit' : '_back'};
+            # Choose
+            my $idx = choose(
+                [ @pre, @real ],
+                { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $back }
+            );
+            exit if ! defined $idx;
+            my $key = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre][0];
+            if ( ! defined $key ) {
+                if ( $group =~ /^config_/ ) {
+                    $old_idx = $backup_old_idx;
+                    $group = 'main';
+                    redo GROUP;
+                }
+                exit();
+            }
+            if ( $self->{opt}{menus_config_memory} ) {
+                if ( $old_idx == $idx ) {
+                    $old_idx = 0;
+                    next OPTION;
+                }
+                $old_idx = $idx;
+            }
+            else {
+                if ( $old_idx != 0 ) {
+                    $old_idx = 0;
+                    next OPTION;
+                }
+            }
+            if ( $key =~ /^config_/ ) {
+                $backup_old_idx = $old_idx;
+                $old_idx = 0;
+                $group = $key;
+                redo GROUP;
+            }
+            if ( $key eq $self->{info}{_continue} ) {
+                return $self->{opt}; #
+            }
+            elsif ( $key eq $self->{info}{_confirm} ) {
+                if ( $self->{info}{write_config} ) {
+                    $self->__write_config_files();
+                    delete $self->{info}{write_config};
+                }
+                $old_idx = $backup_old_idx;
+                $group = 'main';
+                redo GROUP;
+            }
+            elsif ( $key eq 'help' ) {
+                require Pod::Usage;
+                Pod::Usage::pod2usage( {
+                    -exitval => 'NOEXIT',
+                    -verbose => 2 } );
+            }
+            elsif ( $key eq 'path' ) {
+                my $version = 'version';
+                my $bin     = '  bin  ';
+                my $app_dir = 'app-dir';
+                my $path = {
+                    $version => $main::VERSION,
+                    $bin     => catfile( $RealBin, $RealScript ),
+                    $app_dir => $self->{info}{app_dir},
+                };
+                my $keys = [ $version, $bin, $app_dir ];
+                print_hash( $path, { keys => $keys, preface => ' Close with ENTER' } );
+            }
+            elsif ( $key eq 'tab_width' ) {
+                my $digits = 3;
+                my $prompt = 'Tab width';
+                $self->__opt_number_range( $key, $prompt, $digits );
+            }
+            elsif ( $key eq 'min_col_width' ) {
+                my $digits = 3;
+                my $prompt = 'Minimum Column width';
+                $self->__opt_number_range( $key, $prompt, $digits );
+            }
+            elsif ( $key eq 'undef' ) {
+                my $prompt = 'Print replacement for undefined table vales';
+                $self->__opt_readline( $key, $prompt );
+            }
+            elsif ( $key eq 'progress_bar' ) {
+                my $digits = 7;
+                my $prompt = '"Threshold ProgressBar"';
+                $self->__opt_number_range( $key, $prompt, $digits );
+            }
+            elsif ( $key eq 'max_rows' ) {
+                my $digits = 7;
+                my $prompt = '"Max rows"';
+                $self->__opt_number_range( $key, $prompt, $digits );
+            }
+            elsif ( $key eq 'lock_stmt' ) {
+                my $list = [ 'Lk0', 'Lk1' ];
+                my $prompt = 'Keep statement';
+                $self->__opt_choose_index( $key, $prompt, $list );
+            }
+            elsif ( $key eq 'metadata' ) {
+                my $list = $no_yes;
+                my $prompt = 'Enable Metadata';
+                $self->__opt_choose_index( $key, $prompt, $list );
+            }
+            elsif ( $key eq 'regexp_case' ) {
+                my $list = $no_yes;
+                my $prompt = 'REGEXP case sensitiv';
+                $self->__opt_choose_index( $key, $prompt, $list );
+            }
+            elsif ( $key eq '_parentheses' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            elsif ( $key eq '_db_connect' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            elsif ( $key eq '_env_dbi' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            elsif ( $key eq '_db_defaults' ) {
+                $self->database_setting();
+            }
+            elsif ( $key eq 'sssc_mode' ) {
+                my $list = [ 'simple', 'compat' ];
+                my $prompt = 'Sssc mode';
+                $self->__opt_choose_index( $key, $prompt, $list );
+            }
+            elsif ( $key eq 'operators' ) {
+                my $available = $self->{info}{avail_operators};
+                $self->__opt_choose_a_list( $key, $available );
+            }
+            elsif ( $key eq 'db_drivers' ) {
+                my $available = $self->{info}{avail_db_drivers};
+                $self->__opt_choose_a_list( $key, $available );
+            }
+            elsif ( $key eq 'mouse' ) {
+                my $max = 4;
+                my $prompt = 'Mouse mode';
+                $self->__opt_number( $key, $prompt, $max );
+            }
+            elsif ( $key eq '_enchant' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            elsif ( $key eq 'insert_mode' ) {
+                my $list = [ '--', 'Cols', 'Rows', 'Multirow' ]; # , 'File'
+                my $prompt = 'Insert mode';
+                $self->__opt_choose_index( $key, $prompt, $list );
+            }
+            elsif ( $key eq 'encoding_csv_file' ) {
+                my $prompt = 'Encoding csv file';
+                $self->__opt_readline( $key, $prompt );
+            }
+            elsif ( $key eq 'sep_char' ) {
+                my $prompt = 'csv sep_char';
+                $self->__opt_readline( $key, $prompt );
+            }
+            elsif ( $key eq 'quote_char' ) {
+                my $prompt = 'csv quote_char';
+                $self->__opt_readline( $key, $prompt );
+            }
+            elsif ( $key eq 'escape_char' ) {
+                my $prompt = 'csv escape_char';
+                $self->__opt_readline( $key, $prompt );
+            }
+            #elsif ( $key eq 'eol' ) {
+            #    my $prompt = 'csv eol';
+            #    $self->__opt_readline( $key, $prompt );
+            #}
+            elsif ( $key eq '_options_csv' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            else { die "Unknown option: $key" }
+        }
+    }
+}
 
 sub __opt_choose_multi {
     my ( $self, $sub_menu ) = @_;
@@ -279,7 +381,6 @@ sub __opt_choose_multi {
     return if ! $changed;
     $self->{info}{write_config}++;
 }
-
 
 sub __opt_choose_index {
     my ( $self, $key, $prompt, $list ) = @_;
@@ -534,7 +635,6 @@ sub database_setting {
     }
 }
 
-
 sub __db_opt_choose_index {
     my ( $self, $section, $key, $prompt, $list ) = @_;
     my $current = $list->[$self->{opt}{$section}{$key}];
@@ -551,7 +651,6 @@ sub __db_opt_choose_index {
     return;
 }
 
-
 sub __db_opt_choose_dirs {
     my ( $self, $section, $key ) = @_;
     my $current = $self->{opt}{$section}{$key};
@@ -563,7 +662,6 @@ sub __db_opt_choose_dirs {
     $self->{info}{write_config}++;
     return;
 }
-
 
 sub __db_opt_readline {
     my ( $self, $section, $key, $prompt ) = @_;
@@ -580,11 +678,11 @@ sub __db_opt_readline {
 
 sub __write_config_files {
     my ( $self ) = @_;
-    my $regexp_drivers = join '|', map quotemeta, @{$self->defaults( qw( db_drivers ) )};
+    my $regexp_db_drivers = join '|', map quotemeta, @{$self->defaults( qw( db_drivers ) )};
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
     for my $section ( sort keys %{$self->{opt}} ) {
-        if ( $section =~ /^($regexp_drivers)(?:_(.+))?\z/ ) {
+        if ( $section =~ /^($regexp_db_drivers)(?:_(.+))?\z/ ) {
             die $section if ref( $self->{opt}{$section} ) ne 'HASH';
             my ( $db_driver, $conf_sect ) = ( $1, $2 );
             $conf_sect //= '*' . $db_driver;

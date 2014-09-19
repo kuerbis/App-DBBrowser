@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040';
+our $VERSION = '0.040_01';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.040
+Version 0.040_01
 
 =cut
 
@@ -129,197 +129,18 @@ marked.
 To move backwards in the menu hierarchy one can press the C<q> key. When prompted for a string, try C<Ctrl-D> instead
 of C<q>.
 
-=head2 OPTIONS
+=head3 Delete, Update and Insert
 
-=head3 HELP
+These features are experimental. Things may change or be removed.
 
-Show this Info.
-
-=head3 Path
-
-Shows the version and the path of the running C<db-browser> and the path of the application directory.
-
-=head3 Colwidth
-
-Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
-all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
-
-=head3 DB Defaults
-
-Set Database defaults.
-
-The I<DB Defaults> can be overwritten for each database with the database menu entry "Database settings".
-
-=head4 See if it's a number
-
-If set to "YES", C<DBD::SQLite> tries to see if the bind values are numbers or not, and does not quote if they are
-numbers.
-
-See L<DBD::SQLite> for details. This is a SQLite-only option.
-
-=head4 Enable utf8
-
-If I<Enable utf8> is enabled, the utf8 flag will be turned on for character data coming from the database.
-
-For a more driver specific explanation see the documentation of the respective Perl DBI driver.
-
-With the C<Pg> driver in use it is available - apart from the "YES/NO" choices - also an "AUTO" choice. If the
-L<DBD::Pg> version is less than 3.0.0, "AUTO" is mapped to "YES". For the meaning of "AUTO" look in
-L<pg_enable_utf8|https://metacpan.org/pod/DBD::Pg#pg_enable_utf8-integer> for the value C<-1>.
-
-=head4 "Binary Filter"
-
-Print "BNRY" instead of arbitrary binary data.
-
-If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
-
-Printing arbitrary binary data could break the output.
-
-=head4 Default DB dirs
-
-Sets the default directories where C<db-browser> searches for SQLite databases. This is a SQLite-only option.
-
-To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
-"C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
-entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
-any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
-
-This setting can not be overwritten in a single database.
-
-=head4 RESET
-
-I<RESET> resets the database settings.
-
-=head3 DB Drivers
-
-Choose the required database drivers.
-
-=head3 DB Login
-
-Determine when C<db-browser> asks for the login data:
-
-=over
-
-=item
-
-Ask host/port per DB
-
-If set to "YES" host and port data is asked once per database else the global settings are used if any.
-
-=item
-
-Ask user/pass per DB
-
-If set to "YES" username and password data is asked once per database else only once.
-
-=back
-
-This option has no meaning if the SQLite driver is in use.
-
-=head3 Enchant
-
-Set the behavior of different interactive menus:
-
-- setting I<Menus config> to "Memory" means: save the selected configuration menu position while entering in a config
-sub menu.
-
-- setting I<Menu sql> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
-
-- setting I<Menus db> to "Memory" means: save the selected menu position in the database/schema/table menus while
-entering in a sub menu.
-
-- setting I<Print Table> to "Expand" means: enable printing the chosen table row.
-
-- setting I<Table Header> to "Each page" means: print the table header on top of each page.
-
-=head3 ENV DBI
-
-- use C<DBI_USER> as username for all database logins if the environment variable exists and I<Ask user/pass> is set to
-"Once".
-
-- use C<DBI_PASS> as password for all database logins if the environment variable exists and I<Ask user/pass> is set to
-"Once".
-
-- use C<DBI_USER> as host for all database connections if the environment variable exists and I<Ask host/port> is set to
-"No".
-
-- use C<DBI_PORT> as port for all database connections if the environment variable exists and I<Ask host/port> is set to
-"No".
-
-This options have no meaning if the SQLite driver is in use.
-
-=head3 Lock
-
-Set the default I<lock> value:
-
-- Lk0: Reset the SQL-statement after each "PrintTable".
-
-- Lk1: Reset the SQL-statement only when a table is selected.
-
-=head3 Max Rows
-
-Set the maximum number of fetched table rows. This can be overwritten by setting a SQL C<LIMIT> statement.
-
-The fetched table rows are kept in memory.
-
-To disable the automatic limit set I<Max Rows> to 0.
-
-=head3 Metadata
-
-If I<Metadata> is enabled, system tables/schemas/databases are appended to the respective list.
-
-=head3 Mouse Mode
-
-Set the I<mouse mode> (see L<Term::Choose/mouse>).
-
-=head3 Operators
-
-Choose the required operators.
-
-With this menu entry it is possible to mark items with the C<SpaceBar> key.
-
-=head3 Parentheses
-
-Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
-
-- C<(YES>: the position of "(" in the menu is before the column names.
-
-- C<YES(>: the position of "(" in the menu is after the column names.
-
-=head3 ProgressBar
-
-Set the progress bar threshold. If the number of fields (rows x columns) is higher than the threshold, a progress bar is
-shown while preparing the data for the output.
-
-=head3 Regexp Case
-
-If I<Regexp Case> is enabled, C<REGEXP> will match case sensitive.
-
-With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
-
-=head3 Sssc Mode
-
-With the I<Sssc> mode "compat" enabled back-arrows are offered in the SQL menus entries. In the "simple" mode it can
-be used the C<q> key instead of the back-arrows.
-
-=head3 Tabwidth
-
-Set the number of spaces between columns.
-
-=head3 Undef
-
-Set the string that will be shown on the screen instead of an undefined field.
-
-On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
-C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
-a machine with 'MSWin32' OS.
-
-=head2 HINTS
+To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL menu and then
+select the prompt "I<Choose:>".
 
 =head3 Scalar functions
 
-There is a hidden menu entry: selecting the prompt line in the SQL menu - I<Customize:> - makes available some scalar
-functions.
+The scalar functions can be reached by selecting the prompt "I<Customize:>" in the SQL menu.
+
+The available functions are:
 
 =head4 Epoch_to_DateTime
 
@@ -348,6 +169,256 @@ number of characters.
 
 To remove a chosen scalar function from a column select the column with the function a second time.
 
+=head2 OPTIONS
+
+=head3 HELP
+
+Show this Info.
+
+=head3 Path
+
+Shows the version and the path of the running C<db-browser> and the path of the application directory.
+
+=head3 Output
+
+=head4 Colwidth
+
+Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
+all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
+
+=head4 ProgressBar
+
+Set the progress bar threshold. If the number of fields (rows x columns) is higher than the threshold, a progress bar is
+shown while preparing the data for the output.
+
+=head4 Tabwidth
+
+Set the number of spaces between columns.
+
+=head4 Undef
+
+Set the string that will be shown on the screen instead of an undefined field.
+
+On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
+C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
+a machine with 'MSWin32' OS.
+
+=head3 Menu
+
+=head4 Enchant
+
+Set the behavior of different interactive menus:
+
+- setting I<Menus config> to "Memory" means: save the selected configuration menu position while entering in a config
+sub menu.
+
+- setting I<Menu sql> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
+
+- setting I<Menus db> to "Memory" means: save the selected menu position in the database/schema/table menus while
+entering in a sub menu.
+
+- setting I<Print Table> to "Expand" means: enable printing the chosen table row.
+
+- setting I<Table Header> to "Each page" means: print the table header on top of each page.
+
+=head4 Lock
+
+Set the default I<lock> value:
+
+- Lk0: Reset the SQL-statement after each "PrintTable".
+
+- Lk1: Reset the SQL-statement only when a table is selected.
+
+=head4 Mouse Mode
+
+Set the I<mouse mode> (see L<Term::Choose/mouse>).
+
+=head4 Sssc Mode
+
+With the I<Sssc> mode "compat" enabled back-arrows are offered in the SQL menus entries. In the "simple" mode it can
+be used the C<q> key instead of the back-arrows.
+
+=head3 SQL
+
+=head4 Max Rows
+
+Set the maximum number of fetched table rows. This can be overwritten by setting a SQL C<LIMIT> statement.
+
+The fetched table rows are kept in memory.
+
+To disable the automatic limit set I<Max Rows> to 0.
+
+=head4 Metadata
+
+If I<Metadata> is enabled, system tables/schemas/databases are appended to the respective list.
+
+=head4 Operators
+
+Choose the required operators.
+
+With this menu entry it is possible to mark items with the C<SpaceBar> key.
+
+=head4 Parentheses
+
+Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
+
+- C<(YES>: the position of "(" in the menu is before the column names.
+
+- C<YES(>: the position of "(" in the menu is after the column names.
+
+=head4 Regexp Case
+
+If I<Regexp Case> is enabled, C<REGEXP> will match case sensitive.
+
+With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
+
+=head3 Database
+
+=head4 DB Defaults
+
+Set Database defaults.
+
+The I<DB Defaults> can be overwritten for each database with the database menu entry "Database settings".
+
+=over
+
+=item Enable utf8
+
+If I<Enable utf8> is enabled, the utf8 flag will be turned on for character data coming from the database.
+
+For a more driver specific explanation see the documentation of the respective Perl DBI driver.
+
+With the C<Pg> driver in use it is available - apart from the "YES/NO" choices - also an "AUTO" choice. If the
+L<DBD::Pg> version is less than 3.0.0, "AUTO" is mapped to "YES". For the meaning of "AUTO" look in
+L<pg_enable_utf8|https://metacpan.org/pod/DBD::Pg#pg_enable_utf8-integer> for the value C<-1>.
+
+=item See if it's a number
+
+If set to "YES", C<DBD::SQLite> tries to see if the bind values are numbers or not, and does not quote if they are
+numbers.
+
+See L<DBD::SQLite> for details. This is a SQLite-only option.
+
+=item Default DB directories
+
+Sets the default directories where C<db-browser> searches for SQLite databases. This is a SQLite-only option.
+
+To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
+"C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
+entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
+any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
+
+This setting can not be overwritten in a single database.
+
+=item "Binary Filter"
+
+Print "BNRY" instead of arbitrary binary data.
+
+If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
+
+Printing arbitrary binary data could break the output.
+
+=item RESET
+
+I<RESET> resets the database settings.
+
+=back
+
+=head4 DB Drivers
+
+Choose the required database drivers.
+
+=head4 DB Login
+
+Determine when C<db-browser> asks for the login data:
+
+=over
+
+=item
+
+Ask host/port per DB
+
+If set to "YES" host and port data is asked once per database else the global settings are used if any.
+
+=item
+
+Ask user/pass per DB
+
+If set to "YES" username and password data is asked once per database else only once.
+
+=back
+
+This option has no meaning if the SQLite driver is in use.
+
+=head4 ENV DBI
+
+- use C<DBI_USER> as username for all database logins if the environment variable exists and I<Ask user/pass> is set to
+"Once".
+
+- use C<DBI_PASS> as password for all database logins if the environment variable exists and I<Ask user/pass> is set to
+"Once".
+
+- use C<DBI_HOST> as host for all database connections if the environment variable exists and I<Ask host/port> is set to
+"No".
+
+- use C<DBI_PORT> as port for all database connections if the environment variable exists and I<Ask host/port> is set to
+"No".
+
+This options have no meaning if the SQLite driver is in use.
+
+=head3 Insert
+
+=head4 Insert mode
+
+Choose how to enter the data, when inserting into a table.
+
+=over
+
+=item
+
+"--"
+
+Choose the input mode before inserting.
+
+=item
+
+Cols
+
+It is prompted for each column.
+
+=item
+
+Rows
+
+Enter a row at a time.
+
+=item
+
+Multirow
+
+Enter all rows at once.
+
+=back
+
+It is used L<Text::CSV> to parse the input, if the input is entered with the input mode "Rows" or "Multirow".
+
+See also the following csv options.
+
+=head4 csv sep_char
+
+Set the csv sep_char.
+
+=head4 csv quote_char
+
+Set the csv quote_char.
+
+=head4 csv escape_char
+
+Set the csv escape_char.
+
+=head4 Options csv
+
+Set different csv options.
 
 =head2 CONFIGURATION FILES
 

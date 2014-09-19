@@ -4,11 +4,12 @@ App::DBBrowser::DB;
 use warnings;
 use strict;
 use 5.010000;
+no warnings 'utf8';
 
-our $VERSION = '0.040';
+our $VERSION = '0.040_01';
 
 use Encode       qw( encode decode );
-use File::Find   qw( find );
+#use File::Find   qw( find );  # "require"-d
 use Scalar::Util qw( looks_like_number );
 
 use DBI                    qw();
@@ -16,7 +17,8 @@ use Encode::Locale         qw();
 use Term::Choose           qw( choose );
 use Term::ReadLine::Simple qw();
 
-sub CLEAR_SCREEN () { "\e[1;1H\e[0J" }
+sub CLEAR_SCREEN () { "\e[H\e[J" }
+
 
 
 sub new {
@@ -166,15 +168,16 @@ sub available_databases {
     my ( $self, $dbh ) = @_;
     my $databases = [];
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
+        require File::Find;
         say 'Searching...';
         for my $dir ( @{$self->{info}{sqlite_dirs}} ) {
-            find( {
+            File::Find::find( {
                 wanted     => sub {
                     my $file = $File::Find::name;
                     return if ! -f $file;
-                    return if ! -s $file;
-                    return if ! -r $file;
-                    #say $file;
+                    return if ! -s $file; #
+                    return if ! -r $file; #
+                    say $file;
                     if ( ! eval {
                         open my $fh, '<:raw', $file or die "$file: $!";
                         defined( read $fh, my $string, 13 ) or die "$file: $!";

@@ -28,3 +28,7 @@ repexp
 stackoverflow
 ENV
 Pg
+Cols
+Multirow
+csv
+sql
