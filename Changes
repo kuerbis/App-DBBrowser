@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+0.040_02   2014-09-20
+        - Bugfix "print_error_message".
+
 0.040_01   2014-09-19
         - Added experimental sql features (update, delete, insert into).
         - Update documentation.

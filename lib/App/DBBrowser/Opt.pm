@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_01';
+our $VERSION = '0.040_02';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -54,7 +54,7 @@ sub defaults {
         parentheses_h        => 0,
         regexp_case          => 0,
         keep_header          => 0,
-        progress_bar         => 20_000,
+        progress_bar         => 40_000,
         min_col_width        => 30,
         tab_width            => 2,
         undef                => '',

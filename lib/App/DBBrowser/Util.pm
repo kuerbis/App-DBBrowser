@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.040_01';
+our $VERSION = '0.040_02';
 use Exporter 'import';
 our @EXPORT_OK = qw( print_error_message reset_sql );
 

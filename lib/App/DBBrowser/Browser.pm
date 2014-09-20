@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_01';
+our $VERSION = '0.040_02';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -182,7 +182,7 @@ sub run {
             next DB_DRIVER;
         }
         if ( ! @$databases ) {
-            $self->__print_error_message( "no $db_driver-databases found\n" );
+            print_error_message( $self->{info}, "no $db_driver-databases found\n" );
             exit if @{$self->{opt}{db_drivers}} == 1;
             next DB_DRIVER;
         }
