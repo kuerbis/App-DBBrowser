@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_04';
+our $VERSION = '0.040_05';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -41,7 +41,7 @@ sub __on_table {
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
-    my $sql_types = [ 'Delete', 'Update', 'Insert' ]; # 'Select',
+    my $sql_types = [ 'Delete', 'Update', 'Insert' ];
     my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
     my %customize = (
@@ -64,10 +64,11 @@ sub __on_table {
     if ( $self->{info}{lock} == 0 ) {
         $util->__reset_sql( $sql );
     }
+    my $backup_sql = clone( $sql );
     my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
-        my $backup_sql = clone( $sql );
+        $backup_sql = clone( $sql ) if $sql_type eq 'Select';
         $util->__print_sql_statement( $sql, $table, $sql_type );
         my $choices = [ $customize{hidden}, undef, @customize{@{$sub_stmts->{$sql_type}}} ];
         # Choose
@@ -77,7 +78,7 @@ sub __on_table {
         );
         last CUSTOMIZE if ! defined $idx;
         my $custom = $choices->[$idx];
-        last CUSTOMIZE if ! defined $custom; ##
+        last CUSTOMIZE if ! defined $custom;
         #if ( ! defined $custom ) {
         #    last CUSTOMIZE if $sql_type eq 'Select';
         #    $sql_type = 'Select';
@@ -105,9 +106,10 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'insert'} ) {
+
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
-            $sql = $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns, $backup_sql );
+            $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns, $backup_sql );
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
@@ -769,7 +771,7 @@ sub __on_table {
         elsif ( $custom eq $customize{'hidden'} ) {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
-                $obj_opt->__config_insert();
+                $obj_opt->__config_insert( 0 );
                 next CUSTOMIZE;
             }
             my @functions = @{$self->{info}{keys_hidd_func_pr}};
@@ -803,12 +805,11 @@ sub __on_table {
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
                 my @pre = ( undef, $self->{info}{_confirm} );
                 my $prompt = 'Choose:';
-                #my $choose_type = '  SQL write';
                 my $choose_type = 'Your choice:';
                 my $default = 0;
                 if ( $sql_type eq 'Select' ) {
                     unshift @pre, $choose_type;
-                    $prompt = ''; #
+                    $prompt = '';
                     $default = 1;
                 }
                 my $choices = [ @pre, map( "- $_", @cols ) ];
@@ -1038,8 +1039,9 @@ sub __on_table {
                 }
             }
             $util->__reset_sql( $sql );
-            $sql_type = 'Select'; ##
-            $old_idx = 1;         ##
+            $sql_type = 'Select';
+            $old_idx = 1;
+            $sql = clone $backup_sql;
             next CUSTOMIZE;
         }
         else {

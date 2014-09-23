@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_04';
+our $VERSION = '0.040_05';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -190,7 +190,7 @@ sub __menus {
 
 
 sub __config_insert {
-    my ( $self ) = @_;
+    my ( $self, $write_to_file ) = @_;
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $no_yes = [ 'NO', 'YES' ];
     my $group = 'config_insert';
@@ -203,7 +203,7 @@ sub __config_insert {
         # Choose
         my $idx = choose(
             [ @pre, @real ],
-            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_back}, clear_screen => 0 } #
+            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx }
         );
         exit if ! defined $idx;
         my $key = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre][0];
@@ -225,7 +225,7 @@ sub __config_insert {
         }
         if ( $key eq $self->{info}{_confirm} ) {
             if ( $self->{info}{write_config} ) {
-                $self->__write_config_files();
+                $self->__write_config_files() if $write_to_file;
                 delete $self->{info}{write_config};
             }
             return;
@@ -312,7 +312,7 @@ sub set_options {
                 }
             }
             if ( $key eq 'config_insert' ) {
-                $self->__config_insert();
+                $self->__config_insert( 1 );
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;

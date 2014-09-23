@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.040_05   2014-09-23
+        - Bugfix write csv config.
+        - Bugfix row-col filter.
+        - Update menu navigation.
+
 0.040_04   2014-09-23
         - Update menu navigation.
         - Update documentation.

@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_04';
+our $VERSION = '0.040_05';
 
 use File::Temp qw( tempfile );
 
@@ -64,7 +64,7 @@ sub __insert_into {
             }
             else {
                 $sql = clone( $backup_sql );
-                return $sql;
+                return;
             }
         }
         if ( $print_col[0] eq $self->{info}{ok} ) {
@@ -98,7 +98,7 @@ sub __insert_into {
             );
             if ( ! $insert_mode ) {
                 $sql = clone( $backup_sql );
-                return $sql;
+                return;
             }
         }
         else {
@@ -156,7 +156,7 @@ sub __insert_into {
                     next INSERT;
                 }
                 elsif ( $add_row eq $last ) {
-                    last INSERT;
+                    return;
                 }
             }
         }
@@ -188,10 +188,9 @@ sub __insert_into {
                 $self->__filter_input( $sql, $table, $sql_type, $fh );
             }
             close $fh;
-            last INSERT;
+            return;
         }
     }
-    return $sql;
 }
 
 
@@ -240,11 +239,11 @@ sub __filter_input {
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', @col_idx if @col_idx;
                 # Choose
-                my @choices = $stmt_h->choose(
+                my @col_nr = $stmt_h->choose(
                     $choices,
                     { prompt => $prompt, no_spacebar => [ 0 .. $#pre ] }
                 );
-                if ( ! defined $choices[0] ) {
+                if ( ! defined $col_nr[0] ) {
                     if ( @col_idx ) {
                         @col_idx = ();
                         next COLS;
@@ -253,13 +252,13 @@ sub __filter_input {
                         next FILTER;
                     }
                 }
-                if ( $choices[0] eq $self->{info}{ok} ) {
-                    shift @choices;
-                    if ( @$choices ) {
-                        for my $col ( @choices ) {
-                            $col =~ s/^col_//;
-                            push @col_idx, $col;
-                        }
+                if ( $col_nr[0] eq $self->{info}{ok} ) {
+                    shift @col_nr;
+                    for my $col ( @col_nr ) {
+                        $col =~ s/^col_//;
+                        push @col_idx, $col;
+                    }
+                    if ( @col_idx ) {
                         my $tmp = [];
                         for my $row ( @$aoa ) {
                             push @$tmp, [ @{$row}[@col_idx] ];
@@ -268,7 +267,7 @@ sub __filter_input {
                     }
                     next FILTER;
                 }
-                for my $col ( @choices ) {
+                for my $col ( @col_nr ) {
                     $col =~ s/^col_//;
                     push @col_idx, $col;
                 }

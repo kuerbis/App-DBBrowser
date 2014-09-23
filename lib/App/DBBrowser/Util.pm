@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.040_04';
+our $VERSION = '0.040_05';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
@@ -42,21 +42,6 @@ sub __print_sql_statement {
         }
         $str .= "  )\n";
     }
-#    if ( $sql_type eq 'Insert' ) {
-#        $str .= ' ' . $table;
-#        if ( @{$sql->{print}{chosen_cols}} ) {
-#            $str .= " ( " . join( ', ', @{$sql->{print}{chosen_cols}} ) . " )\n";
-#            $str .= "  VALUES(\n";
-#            for my $insert_row ( @{$sql->{quote}{insert_into_args}} ) {
-#                $str .= ( ' ' x 4 ) . join( ', ', map { defined $_ ? $_ : '' } @$insert_row ) . "\n" if defined $insert_row; #
-#            }
-#            $str .= "  )";
-#        }
-#        else {
-#            $str .= "\n\n";
-#        }
-#        $str .= "\n";
-#    }
     else {
         my $cols_sql;
         if ( $sql_type eq 'Select' ) {
