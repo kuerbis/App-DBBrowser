@@ -4,21 +4,23 @@ use warnings;
 
 use File::Basename qw(basename);
 use Time::Piece;
-use Test::More tests => 11;
+use Test::More;
 
 
-my $v_changes    = -1;
-my $v_lib        = -1;
-my $v_lib_pod    = -1;
-my $v_bin        = -1;
-my $v_browser    = -1;
-my $v_opt        = -1;
-my $v_db         = -1;
-my $v_tbl        = -1;
-my $v_ju         = -1;
-my $v_ut         = -1;
-my $v_bin_pod    = -1;
-my $release_date = -1;
+my $v_changes     = -1;
+my $v_lib         = -1;
+my $v_lib_pod     = -1;
+my $v_bin         = -1;
+my $v_browser     = -1;
+my $v_opt         = -1;
+my $v_db          = -1;
+my $v_tbl         = -1;
+my $v_ju          = -1;
+my $v_ut          = -1;
+my $v_insert      = -1;
+my $v_bin_pod     = -1;
+my $v_browser_pod = -1;
+my $release_date  = -1;
 
 
 my $lib = 'lib/App/DBBrowser.pm';
@@ -58,11 +60,16 @@ while ( my $line = <$fh2> ) {
 close $fh2;
 
 
-my $browser = 'lib/App/DBBrowser/Browser.pm';
+my $browser = 'lib/App/DBBrowser.pm';
 open my $fh3, '<', $browser or die $!;
 while ( my $line = <$fh3> ) {
     if ( $line =~ /^our\ \$VERSION\ =\ '(\d\.\d\d\d(?:_\d\d)?)';/ ) {
         $v_browser = $1;
+    }
+    if ( $line =~ /^=pod/ .. $line =~ /\A=cut/ ) {
+        if ( $line =~ /^\s*Version\s+(\S+)/ ) {
+            $v_browser_pod = $1;
+        }
     }
 }
 close $fh3;
@@ -76,7 +83,7 @@ while ( my $line = <$fh4> ) {
 }
 close $fh4;
 
-my $db = 'lib/App/DBBrowser/Browser.pm';
+my $db = 'lib/App/DBBrowser/DB.pm';
 open my $fh5, '<', $db or die $!;
 while ( my $line = <$fh5> ) {
     if ( $line =~ /^our\ \$VERSION\ =\ '(\d\.\d\d\d(?:_\d\d)?)';/ ) {
@@ -112,6 +119,15 @@ while ( my $line = <$fh8> ) {
 }
 close $fh8;
 
+my $insert = 'lib/App/DBBrowser/Table/Insert.pm';
+open my $fh9, '<', $insert or die $!;
+while ( my $line = <$fh9> ) {
+    if ( $line =~ /^our\ \$VERSION\ =\ '(\d\.\d\d\d(?:_\d\d)?)';/ ) {
+        $v_insert = $1;
+    }
+}
+close $fh9;
+
 open my $fh_ch, '<', 'Changes' or die $!;
 while ( my $line = <$fh_ch> ) {
     if ( $line =~ /^\s*(\d\.\d\d\d(?:_\d\d)?)\s+(\d\d\d\d-\d\d-\d\d)\s*\Z/ ) {
@@ -127,14 +143,20 @@ my $t = localtime;
 my $today = $t->ymd;
 
 
-is( $v_lib,        $v_changes, 'Version in "Changes" OK' );
-is( $v_lib,        $v_lib_pod, 'Version in "' . basename( $lib ) . '" POD OK' );
-is( $v_lib,        $v_bin,     'Version in "' . basename( $bin ) . '" OK'     );
-is( $v_lib,        $v_bin_pod, 'Version in "' . basename( $bin ) . '" POD OK' );
-is( $v_lib,        $v_browser, 'Version in "App::DBBrowser::Browser"    OK');
-is( $v_lib,        $v_opt,     'Version in "App::DBBrowser::Opt"        OK');
-is( $v_lib,        $v_db,      'Version in "App::DBBrowser::DB"         OK');
-is( $v_lib,        $v_tbl,     'Version in "App::DBBrowser::Table"      OK');
-is( $v_lib,        $v_ju,      'Version in "App::DBBrowser::Join_Union" OK');
-is( $v_lib,        $v_ut,      'Version in "App::DBBrowser::Util"       OK');
-is( $release_date, $today,     'Release date in Changes is date from today'   );
+is( $v_lib,        $v_changes,     'Version in "Changes" OK' );
+is( $v_lib,        $v_lib_pod,     'Version in "' . basename( $lib ) .   '" POD OK');
+is( $v_lib,        $v_bin,         'Version in "' . basename( $bin ) .       '" OK');
+is( $v_lib,        $v_bin_pod,     'Version in "' . basename( $bin ) .   '" POD OK');
+is( $v_lib,        $v_browser,     'Version in "App::DBBrowser::Browser"        OK');
+is( $v_lib,        $v_browser_pod, 'Version in "App::DBBrowser::Browser"    POD OK');
+is( $v_lib,        $v_opt,         'Version in "App::DBBrowser::Opt"            OK');
+is( $v_lib,        $v_db,          'Version in "App::DBBrowser::DB"             OK');
+is( $v_lib,        $v_tbl,         'Version in "App::DBBrowser::Table"          OK');
+is( $v_lib,        $v_ju,          'Version in "App::DBBrowser::Join_Union"     OK');
+is( $v_lib,        $v_ut,          'Version in "App::DBBrowser::Util"           OK');
+is( $v_lib,        $v_insert,      'Version in "App::DBBrowser::Table::Insert"  OK');
+is( $release_date, $today,         'Release date in Changes is date from today'   );
+
+
+
+done_testing();

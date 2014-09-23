@@ -4,11 +4,11 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_02';
+our $VERSION = '0.040_03';
 
 use Encode::Locale qw();
 
-use App::DBBrowser::Browser;
+use App::DBBrowser;
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 print "\e(U" if $^O eq 'MSWin32';
@@ -19,7 +19,7 @@ binmode STDERR, ':encoding(console_out)';
 
 
 
-my $db_browser = App::DBBrowser::Browser->new();
+my $db_browser = App::DBBrowser->new();
 $db_browser->run();
 
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.040_02
+Version 0.040_03
 
 =cut
 
@@ -368,6 +368,8 @@ This options have no meaning if the SQLite driver is in use.
 
 =head3 Insert
 
+These I<Insert> settings can also set temporarily in the C<INSERT INTO> sub-menu by selecting the "I<Customize:>" prompt.
+
 =head4 Insert mode
 
 Choose how to enter the data, when inserting into a table.
@@ -378,7 +380,7 @@ Choose how to enter the data, when inserting into a table.
 
 "--"
 
-Choose the input mode before inserting.
+Offer the I<Insert mode> menu each time when inserting into a table.
 
 =item
 
@@ -398,11 +400,26 @@ Multirow
 
 Enter all rows at once.
 
+=item
+
+File
+
+Read the input from am CSV file.
+
 =back
 
-It is used L<Text::CSV> to parse the input, if the input is entered with the input mode "Rows" or "Multirow".
+=head4 Encoding input file
 
-See also the following csv options.
+When the input is read from a CSV file, this option determines how to decode the file.
+
+=head4 Col-Row input filter
+
+Enable the col-row input filter. If this filter is enabled and the input mode is set to "Multirow" or "File", the user
+can choose which columns/rows from the input to use as insert values.
+
+=head4 CSV settings
+
+It is used L<Text::CSV> to parse the input, if the input is entered with the input mode "Rows", "Multirow" or "File".
 
 =head4 csv sep_char
 

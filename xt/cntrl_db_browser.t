@@ -2,10 +2,11 @@ use 5.010000;
 use strict;
 use warnings;
 use File::Basename qw( basename );
-use Test::More tests => 12;
+use Test::More;
 
 
-for my $file ( 'bin/db-browser', 'lib/App/DBBrowser/Browser.pm', 'lib/App/DBBrowser/Opt.pm', 'lib/App/DBBrowser/DB.pm' ) {
+for my $file ( 'bin/db-browser', 'lib/App/DBBrowser.pm', 'lib/App/DBBrowser/Opt.pm', 'lib/App/DBBrowser/DB.pm',
+               'lib/App/DBBrowser/Table.pm', 'lib/App/DBBrowser/Table/Insert.pm' ) {
     my $data_dumper = 0;
     my $warnings    = 0;
     my $use_lib     = 0;
@@ -28,3 +29,6 @@ for my $file ( 'bin/db-browser', 'lib/App/DBBrowser/Browser.pm', 'lib/App/DBBrow
     is( $warnings,    0, 'OK - warnings FATAL in "' . basename( $file ) . '" disabled.' );
     is( $use_lib,     0, 'OK - no "use lib" in "'   . basename( $file ) . '"' );
 }
+
+
+done_testing();

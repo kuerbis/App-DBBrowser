@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_02';
+our $VERSION = '0.040_03';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -24,8 +24,8 @@ use Term::ReadLine::Simple qw();
 
 
 sub new {
-    my ( $class, $info ) = @_;
-    bless { info => $info }, $class;
+    my ( $class, $info, $opt ) = @_;
+    bless { info => $info, opt => $opt }, $class;
 }
 
 
@@ -60,6 +60,7 @@ sub defaults {
         undef                => '',
         binary_string        => 'BNRY',
         insert_mode          => 1,
+        row_col_filter       => 0,
         encoding_csv_file    => 'UTF-8',
         sep_char             => ',',
         quote_char           => '"',
@@ -176,7 +177,8 @@ sub __menus {
         ],
         config_insert => [
             [ 'insert_mode',       "- Insert mode" ],
-            #[ 'encoding_csv_file', "- Encoding csv file" ],
+            [ 'row_col_filter',    "- Col-Row input filter" ],
+            [ 'encoding_csv_file', "- Encoding csv file" ],
             [ 'sep_char',          "- csv sep_char" ],
             [ 'quote_char',        "- csv quote_char" ],
             [ 'escape_char',       "- csv escape_char" ],
@@ -184,6 +186,89 @@ sub __menus {
         ],
     };
     return $menus->{$group};
+}
+
+
+
+
+
+sub __config_insert {
+    my ( $self ) = @_;
+    my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
+    my $no_yes = [ 'NO', 'YES' ];
+    my $group = 'config_insert';
+    my @pre = ( undef, $self->{info}{_confirm} );
+    my $menu = $self->__menus( $group );
+    my @real = map( $_->[1], @$menu );
+    my $old_idx = 0;
+
+    OPTION_INSERT: while ( 1 ) {
+        # Choose
+        my $idx = choose(
+            [ @pre, @real ],
+            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_back} }
+        );
+        exit if ! defined $idx;
+        my $key = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre][0];
+        if ( ! defined $key ) {
+            return;
+        }
+        if ( $self->{opt}{menus_config_memory} ) {
+            if ( $old_idx == $idx ) {
+                $old_idx = 0;
+                next OPTION_INSERT;
+            }
+            $old_idx = $idx;
+        }
+        else {
+            if ( $old_idx != 0 ) {
+                $old_idx = 0;
+                next OPTION_INSERT;
+            }
+        }
+        if ( $key eq $self->{info}{_confirm} ) {
+            if ( $self->{info}{write_config} ) {
+                $self->__write_config_files();
+                delete $self->{info}{write_config};
+            }
+            return;
+        }
+        elsif ( $key eq 'insert_mode' ) {
+            my $list = [ '--', 'Cols', 'Rows', 'Multirow', 'File' ];
+            my $prompt = 'Insert mode';
+            $self->__opt_choose_index( $key, $prompt, $list );
+        }
+        elsif ( $key eq 'row_col_filter' ) {
+            my $list = $no_yes;
+            my $prompt = 'Enable col-row input filter';
+            $self->__opt_choose_index( $key, $prompt, $list );
+        }
+        elsif ( $key eq 'encoding_csv_file' ) {
+            my $prompt = 'Encoding csv file';
+            $self->__opt_readline( $key, $prompt );
+        }
+        elsif ( $key eq 'sep_char' ) {
+            my $prompt = 'csv sep_char';
+            $self->__opt_readline( $key, $prompt );
+        }
+        elsif ( $key eq 'quote_char' ) {
+            my $prompt = 'csv quote_char';
+            $self->__opt_readline( $key, $prompt );
+        }
+        elsif ( $key eq 'escape_char' ) {
+            my $prompt = 'csv escape_char';
+            $self->__opt_readline( $key, $prompt );
+        }
+        #elsif ( $key eq 'eol' ) {
+        #    my $prompt = 'csv eol';
+        #    $self->__opt_readline( $key, $prompt );
+        #}
+        elsif ( $key eq '_options_csv' ) {
+            my $sub_menu = $self->__multi_choose( $key );
+            $self->__opt_choose_multi( $sub_menu );
+        }
+        else { die "Unknown option: $key" }
+    }
 }
 
 
@@ -228,6 +313,12 @@ sub set_options {
                     $old_idx = 0;
                     next OPTION;
                 }
+            }
+            if ( $key eq 'config_insert' ) {
+                $self->__config_insert();
+                $old_idx = $backup_old_idx;
+                $group = 'main';
+                redo GROUP;
             }
             if ( $key =~ /^config_/ ) {
                 $backup_old_idx = $old_idx;
@@ -338,35 +429,6 @@ sub set_options {
                 $self->__opt_number( $key, $prompt, $max );
             }
             elsif ( $key eq '_enchant' ) {
-                my $sub_menu = $self->__multi_choose( $key );
-                $self->__opt_choose_multi( $sub_menu );
-            }
-            elsif ( $key eq 'insert_mode' ) {
-                my $list = [ '--', 'Cols', 'Rows', 'Multirow' ]; # , 'File'
-                my $prompt = 'Insert mode';
-                $self->__opt_choose_index( $key, $prompt, $list );
-            }
-            elsif ( $key eq 'encoding_csv_file' ) {
-                my $prompt = 'Encoding csv file';
-                $self->__opt_readline( $key, $prompt );
-            }
-            elsif ( $key eq 'sep_char' ) {
-                my $prompt = 'csv sep_char';
-                $self->__opt_readline( $key, $prompt );
-            }
-            elsif ( $key eq 'quote_char' ) {
-                my $prompt = 'csv quote_char';
-                $self->__opt_readline( $key, $prompt );
-            }
-            elsif ( $key eq 'escape_char' ) {
-                my $prompt = 'csv escape_char';
-                $self->__opt_readline( $key, $prompt );
-            }
-            #elsif ( $key eq 'eol' ) {
-            #    my $prompt = 'csv eol';
-            #    $self->__opt_readline( $key, $prompt );
-            #}
-            elsif ( $key eq '_options_csv' ) {
                 my $sub_menu = $self->__multi_choose( $key );
                 $self->__opt_choose_multi( $sub_menu );
             }
