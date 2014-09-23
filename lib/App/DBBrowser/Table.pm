@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_03';
+our $VERSION = '0.040_04';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -41,7 +41,7 @@ sub __on_table {
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
-    my $sql_types = [ 'Select', 'Delete', 'Update', 'Insert' ];
+    my $sql_types = [ 'Delete', 'Update', 'Insert' ]; # 'Select',
     my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
     my %customize = (
@@ -801,13 +801,22 @@ sub __on_table {
                 my @cols = $stmt_key eq 'chosen_cols'
                     ? ( @{$sql->{print}{$stmt_key}}                                  )
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
-                my @pre = ( 'Choose:', undef, $self->{info}{_confirm} );
+                my @pre = ( undef, $self->{info}{_confirm} );
+                my $prompt = 'Choose:';
+                #my $choose_type = '  SQL write';
+                my $choose_type = 'Your choice:';
+                my $default = 0;
+                if ( $sql_type eq 'Select' ) {
+                    unshift @pre, $choose_type;
+                    $prompt = ''; #
+                    $default = 1;
+                }
                 my $choices = [ @pre, map( "- $_", @cols ) ];
                 $util->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $i = $stmt_h->choose(
                     $choices,
-                    { %{$self->{info}{lyt_stmt_v}}, index => 1, default => 1, prompt => '' }
+                    { %{$self->{info}{lyt_stmt_v}}, index => 1, default => $default, prompt => $prompt }
                 );
                 if ( ! defined $i ) {
                     $sql = clone( $backup_sql );
@@ -818,13 +827,13 @@ sub __on_table {
                     $sql = clone( $backup_sql );
                     last HIDDEN;
                 }
-                if ( $print_col eq $pre[0] ) {
+                if ( $print_col eq $choose_type ) {
                     my $choices = [ undef, map( "- $_", @$sql_types ) ];
                     $util->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $st = $stmt_h->choose(
                         $choices,
-                        { %{$self->{info}{lyt_stmt_v}}, prompt => '' }
+                        { %{$self->{info}{lyt_stmt_v}}, prompt => '', default => 0 }
                     );
                     if ( defined $st ) {
                         $st =~ s/^-\ //;

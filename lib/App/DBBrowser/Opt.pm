@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_03';
+our $VERSION = '0.040_04';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -189,9 +189,6 @@ sub __menus {
 }
 
 
-
-
-
 sub __config_insert {
     my ( $self ) = @_;
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
@@ -206,7 +203,7 @@ sub __config_insert {
         # Choose
         my $idx = choose(
             [ @pre, @real ],
-            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_back} }
+            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{_back}, clear_screen => 0 } #
         );
         exit if ! defined $idx;
         my $key = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre][0];

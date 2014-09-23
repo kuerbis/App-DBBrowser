@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_03';
+our $VERSION = '0.040_04';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.040_03
+Version 0.040_04
 
 =cut
 
@@ -133,8 +133,8 @@ of C<q>.
 
 These features are experimental. Things may change or be removed.
 
-To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL menu and then
-select the prompt "I<Choose:>".
+To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL sub-menu
+"SELECT" and then select the prompt "I<Your choice:>".
 
 =head3 Scalar functions
 
