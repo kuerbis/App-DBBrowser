@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_05';
+our $VERSION = '0.041';
 
 use File::Temp qw( tempfile );
 
@@ -308,12 +308,6 @@ sub __filter_input {
             $util->__print_sql_statement( $sql, $table, $sql_type );
             my $prompt = sprintf "First row: %*d\n", length $last_row, $first_row;
             $prompt .= sprintf "Last  row: %*d\n\n", length $last_row, $last_row;
-            ## Choose
-            #my $confirm = $stmt_h->choose(
-            #    [ undef, $self->{info}{confirm} ],
-            #    { prompt => $prompt, undef => $self->{info}{back} }
-            #);
-            #next FILTER if ! defined $confirm;
             $sql->{quote}{insert_into_args} = [ @{$aoa}[$first_row .. $last_row] ];
             next FILTER;
         }

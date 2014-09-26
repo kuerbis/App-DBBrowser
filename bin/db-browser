@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_05';
+our $VERSION = '0.041';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.040_05
+Version 0.041
 
 =cut
 
@@ -86,17 +86,6 @@ The best way to find out how C<db-browser> works is calling C<db-browser>.
 
 To be able to use all the features of the C<db-browser> some basic SQL knowledge is required.
 
-=head3 SQL menu
-
-The SQL menu is the menu which opens after a table was selected.
-
-If C<AGGREGATE> or C<GROUP BY> is set, the C<SELECT> statement is automatically formed; a previous user defined
-C<SELECT> statement is reset. A user defined C<SELECT> resets a previous set C<AGGREGATE> or C<GROUP BY> statement.
-
-To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu entry and choose C<'- OK -'>.
-
-Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
-
 =head3 Keys to move around
 
 =over
@@ -120,25 +109,36 @@ With the option I<mouse> enabled it can be used the mouse with the left mouse ke
 
 To confirm a chosen menu item use the C<Return> key.
 
-When choosing columns for the C<SELECT> and C<GROUP BY> statement, it is possible to select items with the C<SpaceBar>
-key before C<Return> is pressed. Then the list of items marked with the C<SpaceBar> including the highlighted
-item are added to the chosen items. If a mouse mode is enabled, it can be used the right mouse key instead of the
-C<SpaceBar>. C<Ctrl-SpaceBar> (or C<Ctrl-@>) inverts the made choices - marked items are unmarked and unmarked items are
-marked.
+In some sub-menus it is possible to select more then one item before C<Return> is pressed; in such sub-menus the list of
+items marked with the C<SpaceBar> key including the highlighted item are added to the chosen items when C<Return>
+is pressed. If a mouse mode is enabled, it can be used the right mouse key instead of the C<SpaceBar>. C<Ctrl-SpaceBar>
+(or C<Ctrl-@>) inverts the made choices - marked items are unmarked and unmarked items are marked.
 
 To move backwards in the menu hierarchy one can press the C<q> key. When prompted for a string, try C<Ctrl-D> instead
 of C<q>.
 
+=head3 SQL menu
+
+The SQL menu is the menu which opens after a table was selected.
+
+If C<AGGREGATE> or C<GROUP BY> is set, the C<SELECT> statement is automatically formed; a previous user defined
+C<SELECT> statement is reset. A user defined C<SELECT> resets a previous set C<AGGREGATE> or C<GROUP BY> statement.
+
+To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu entry and choose C<'- OK -'>.
+
+Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
+
 =head3 Delete, Update and Insert
 
-These features are experimental. Things may change or be removed.
+These features are experimental.
 
-To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL sub-menu
-"SELECT" and then select the prompt "I<Your choice:>".
+To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL menu
+ and then select the prompt "I<Your choice:>".
 
 =head3 Scalar functions
 
-The scalar functions can be reached by selecting the prompt "I<Customize:>" in the SQL menu.
+The scalar functions can be reached in the main SQL menu and also in the C<DELETE> and C<UPDATE> SQL sub-menus by
+selecting the prompt "I<Customize:>".
 
 The available functions are:
 
@@ -368,7 +368,8 @@ This options have no meaning if the SQLite driver is in use.
 
 =head3 Insert
 
-These I<Insert> settings can also set temporarily in the C<INSERT INTO> sub-menu by selecting the "I<Customize:>" prompt.
+These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-menu by selecting the prompt
+"I<Customize:>".
 
 =head4 Insert mode
 
@@ -410,11 +411,11 @@ Read the input from am CSV file.
 
 =head4 Encoding input file
 
-When the input is read from a CSV file, this option determines how to decode the file.
+When the input is read from a file, this option tells how to decode the file.
 
 =head4 Col-Row input filter
 
-Enable the col-row input filter. If this filter is enabled and the input mode is set to "Multirow" or "File", the user
+Enable the col-row input filter. If this option is enabled and the input mode is set to "Multirow" or "File", the user
 can choose which columns/rows from the input to use as insert values.
 
 =head4 CSV settings
@@ -435,7 +436,7 @@ Set the csv escape_char.
 
 =head4 Options csv
 
-Set different csv options.
+Other different csv options.
 
 =head2 CONFIGURATION FILES
 

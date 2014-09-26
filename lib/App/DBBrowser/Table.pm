@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.040_05';
+our $VERSION = '0.041';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -37,7 +37,7 @@ sub __on_table {
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
         Select => [ qw( print_table columns aggregate distinct where group_by having order_by limit lock ) ],
-        Delete => [ qw( commit     where ) ], # order_by limit
+        Delete => [ qw( commit     where ) ],
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
@@ -79,12 +79,6 @@ sub __on_table {
         last CUSTOMIZE if ! defined $idx;
         my $custom = $choices->[$idx];
         last CUSTOMIZE if ! defined $custom;
-        #if ( ! defined $custom ) {
-        #    last CUSTOMIZE if $sql_type eq 'Select';
-        #    $sql_type = 'Select';
-        #    $old_idx = 1;
-        #    next CUSTOMIZE;
-        #}
         if ( $self->{opt}{menu_sql_memory} ) {
             if ( $old_idx == $idx ) {
                 $old_idx = 1;
@@ -980,9 +974,7 @@ sub __on_table {
                 $stmt .= ' ' . $qt_table;
                 $stmt .= $sql->{quote}{set_stmt}      if $sql->{quote}{set_stmt};
                 $stmt .= $sql->{quote}{where_stmt}    if $sql->{quote}{where_stmt};
-                #$stmt .= $sql->{quote}{order_by_stmt} if $sql->{quote}{order_by_stmt};
-                #$stmt .= $sql->{quote}{limit_stmt}    if $sql->{quote}{limit_stmt};
-                my @arguments = ( @{$sql->{quote}{set_args}}, @{$sql->{quote}{where_args}} ); # @{$sql->{quote}{limit_args}}
+                my @arguments = ( @{$sql->{quote}{set_args}}, @{$sql->{quote}{where_args}} );
                 $to_execute = [ \@arguments ];
             }
             if ( $transaction ) {

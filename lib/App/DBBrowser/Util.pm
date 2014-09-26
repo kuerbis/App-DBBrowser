@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.040_05';
+our $VERSION = '0.041';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
@@ -73,9 +73,6 @@ sub __print_sql_statement {
     print CLEAR_SCREEN;
     print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $str );
 }
-
-
-
 
 
 sub __print_error_message {
