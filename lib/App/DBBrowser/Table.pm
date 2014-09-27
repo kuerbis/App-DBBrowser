@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041';
+our $VERSION = '0.041_01';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -285,11 +285,10 @@ sub __on_table {
                 my $choices = [ @pre, @cols ];
                 $util->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
-                my @print_col = $stmt_h->choose(
+                my $print_col = $stmt_h->choose(
                     $choices,
-                    { no_spacebar => [ 0 .. $#pre ] }
                 );
-                if ( ! @print_col || ! defined $print_col[0] ) {
+                if ( ! defined $print_col ) {
                     if ( @{$sql->{quote}{set_args}} ) {
                         $sql->{quote}{set_args} = [];
                         $sql->{quote}{set_stmt} = " SET";
@@ -303,26 +302,7 @@ sub __on_table {
                         last SET;
                     }
                 }
-                if ( $print_col[0] eq $self->{info}{ok} ) {
-                    shift @print_col;
-                    for my $print_col ( @print_col ) {
-                        ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-                        $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
-                        $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-                        $util->__print_sql_statement( $sql, $table, $sql_type );
-                        # Readline
-                        my $value = $trs->readline( $print_col . ': ' );
-                        if ( ! defined $value ) {
-                            $sql->{quote}{set_args} = [];
-                            $sql->{quote}{set_stmt} = '';
-                            $sql->{print}{set_stmt} = '';
-                            return;
-                        }
-                        $sql->{quote}{set_stmt} .= ' ' . '?';
-                        $sql->{print}{set_stmt} .= ' ' . "'$value'";
-                        push @{$sql->{quote}{set_args}}, $value;
-                        $col_sep = ', ';
-                    }
+                if ( $print_col eq $self->{info}{ok} ) {
                     if ( $col_sep eq ' ' ) {
                         $sql->{quote}{set_stmt} = '';
                         $sql->{print}{set_stmt} = '';
@@ -330,25 +310,111 @@ sub __on_table {
                     }
                     last SET;
                 }
-                for my $print_col ( @print_col ) {
-                    ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-                    $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
-                    $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
-                    # Readline
-                    my $value = $trs->readline( $print_col . ': ' );
-                    if ( ! defined $value ) {
+                ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
+                $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
+                $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
+                $util->__print_sql_statement( $sql, $table, $sql_type );
+                # Readline
+                my $value = $trs->readline( $print_col . ': ' );
+                if ( ! defined $value ) {
+                    if ( @{$sql->{quote}{set_args}} ) {
                         $sql->{quote}{set_args} = [];
-                        $sql->{quote}{set_stmt} = '';
-                        $sql->{print}{set_stmt} = '';
-                        return;
+                        $sql->{quote}{set_stmt} = " SET";
+                        $sql->{print}{set_stmt} = " SET";
+                        $col_sep = ' ';
+                        next SET;
                     }
-                    $sql->{quote}{set_stmt} .= ' ' . '?';
-                    $sql->{print}{set_stmt} .= ' ' . "'$value'";
-                    push @{$sql->{quote}{set_args}}, $value;
-                    $col_sep = ', ';
+                    else {
+                        $sql = clone( $backup_sql );
+                        last SET;
+                    }
                 }
+                $sql->{quote}{set_stmt} .= ' ' . '?';
+                $sql->{print}{set_stmt} .= ' ' . "'$value'";
+                push @{$sql->{quote}{set_args}}, $value;
+                $col_sep = ', ';
             }
+##################################################################
+#            # Choose
+#            my @print_col = $stmt_h->choose(
+#                $choices,
+#                { no_spacebar => [ 0 .. $#pre ] }
+#            );
+#            if ( ! @print_col || ! defined $print_col[0] ) {
+#                if ( @{$sql->{quote}{set_args}} ) {
+#                    $sql->{quote}{set_args} = [];
+#                    $sql->{quote}{set_stmt} = " SET";
+#                    $sql->{print}{set_stmt} = " SET";
+#                    $col_sep = ' ';
+#                    #delete $sql->{pr_backup_in_hidd}{set_args};
+#                    next SET;
+#                }
+#                else {
+#                    $sql = clone( $backup_sql );
+#                    last SET;
+#                }
+#            }
+#            if ( $print_col[0] eq $self->{info}{ok} ) {
+#                shift @print_col;
+#                for my $print_col ( @print_col ) {
+#                    ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
+#                    $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
+#                    $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
+#                    $util->__print_sql_statement( $sql, $table, $sql_type );
+#                    # Readline
+#                    my $value = $trs->readline( $print_col . ': ' );
+#                    if ( ! defined $value ) {
+#                        if ( @{$sql->{quote}{set_args}} ) { #
+#                            $sql->{quote}{set_args} = [];
+#                            $sql->{quote}{set_stmt} = " SET";
+#                            $sql->{print}{set_stmt} = " SET";
+#                            $col_sep = ' ';
+#                            next SET;
+#                        }
+#                        else {
+#                            $sql = clone( $backup_sql );
+#                            last SET;
+#                        }
+#                    }
+#                    $sql->{quote}{set_stmt} .= ' ' . '?';
+#                    $sql->{print}{set_stmt} .= ' ' . "'$value'";
+#                    push @{$sql->{quote}{set_args}}, $value;
+#                    $col_sep = ', ';
+#                }
+#                if ( $col_sep eq ' ' ) {
+#                    $sql->{quote}{set_stmt} = '';
+#                    $sql->{print}{set_stmt} = '';
+#                    #delete $sql->{pr_backup_in_hidd}{set_args};
+#                }
+#                last SET;
+#            }
+#            for my $print_col ( @print_col ) {
+#                ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
+#                $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
+#                $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
+#                $util->__print_sql_statement( $sql, $table, $sql_type );
+#                # Readline
+#                my $value = $trs->readline( $print_col . ': ' );
+#                if ( ! defined $value ) {
+#                    if ( @{$sql->{quote}{set_args}} ) {
+#                        $sql->{quote}{set_args} = [];
+#                        $sql->{quote}{set_stmt} = " SET";
+#                        $sql->{print}{set_stmt} = " SET";
+#                        $col_sep = ' ';
+#                        next SET;
+#                    }
+#                    else {
+#                        $sql = clone( $backup_sql );
+#                        last SET;
+#                    }
+#                }
+#                $sql->{quote}{set_stmt} .= ' ' . '?';
+#                $sql->{print}{set_stmt} .= ' ' . "'$value'";
+#                push @{$sql->{quote}{set_args}}, $value;
+#                $col_sep = ', ';
+#            }
+#        }
+##################################################################
         }
         elsif ( $custom eq $customize{'where'} ) {
             my @cols = ( @$pr_columns, @{$sql->{pr_col_with_hidd_func}} );

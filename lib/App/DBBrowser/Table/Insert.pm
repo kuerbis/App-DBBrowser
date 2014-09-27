@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041';
+our $VERSION = '0.041_01';
 
 use File::Temp qw( tempfile );
 

@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+0.041_01   2014-09-27
+        - Let "SET" sub-statement behave like similar other sql sub-statements.
+
 0.041   2014-09-26
         - Code cleanup.
         - Improved documentation.
