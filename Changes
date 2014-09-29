@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.041_02   2014-09-29
+        - Insert: additional option to choose single rows.
+        - Modified menu behavior.
+
 0.041_01   2014-09-27
         - Let "SET" sub-statement behave like similar other sql sub-statements.
 

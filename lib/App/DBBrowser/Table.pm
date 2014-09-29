@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041_01';
+our $VERSION = '0.041_02';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -41,6 +41,11 @@ sub __on_table {
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
+    my %map_sql_types = (
+        Delete => "DELETE",
+        Update => "UPDATE",
+        Insert => "INSERT INTO",
+    );
     my $sql_types = [ 'Delete', 'Update', 'Insert' ];
     my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
@@ -76,9 +81,24 @@ sub __on_table {
             $choices,
             { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx, undef => $self->{info}{back} }
         );
-        last CUSTOMIZE if ! defined $idx;
+        if ( ! defined $idx || ! defined $choices->[$idx] ) {
+            if ( $sql_type eq 'Select'  ) {
+                last CUSTOMIZE;
+            }
+            else {
+                if ( $sql->{print}{where_stmt} || $sql->{print}{set_stmt} ) {
+                    $util->__reset_sql( $sql );
+                    next CUSTOMIZE;
+                }
+                else {
+                    $sql_type = 'Select';
+                    $old_idx = 1;
+                    $sql = clone $backup_sql;
+                    next CUSTOMIZE;
+                }
+            }
+        }
         my $custom = $choices->[$idx];
-        last CUSTOMIZE if ! defined $custom;
         if ( $self->{opt}{menu_sql_memory} ) {
             if ( $old_idx == $idx ) {
                 $old_idx = 1;
@@ -100,7 +120,6 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'insert'} ) {
-
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
             $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns, $backup_sql );
@@ -334,87 +353,6 @@ sub __on_table {
                 push @{$sql->{quote}{set_args}}, $value;
                 $col_sep = ', ';
             }
-##################################################################
-#            # Choose
-#            my @print_col = $stmt_h->choose(
-#                $choices,
-#                { no_spacebar => [ 0 .. $#pre ] }
-#            );
-#            if ( ! @print_col || ! defined $print_col[0] ) {
-#                if ( @{$sql->{quote}{set_args}} ) {
-#                    $sql->{quote}{set_args} = [];
-#                    $sql->{quote}{set_stmt} = " SET";
-#                    $sql->{print}{set_stmt} = " SET";
-#                    $col_sep = ' ';
-#                    #delete $sql->{pr_backup_in_hidd}{set_args};
-#                    next SET;
-#                }
-#                else {
-#                    $sql = clone( $backup_sql );
-#                    last SET;
-#                }
-#            }
-#            if ( $print_col[0] eq $self->{info}{ok} ) {
-#                shift @print_col;
-#                for my $print_col ( @print_col ) {
-#                    ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-#                    $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
-#                    $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-#                    $util->__print_sql_statement( $sql, $table, $sql_type );
-#                    # Readline
-#                    my $value = $trs->readline( $print_col . ': ' );
-#                    if ( ! defined $value ) {
-#                        if ( @{$sql->{quote}{set_args}} ) { #
-#                            $sql->{quote}{set_args} = [];
-#                            $sql->{quote}{set_stmt} = " SET";
-#                            $sql->{print}{set_stmt} = " SET";
-#                            $col_sep = ' ';
-#                            next SET;
-#                        }
-#                        else {
-#                            $sql = clone( $backup_sql );
-#                            last SET;
-#                        }
-#                    }
-#                    $sql->{quote}{set_stmt} .= ' ' . '?';
-#                    $sql->{print}{set_stmt} .= ' ' . "'$value'";
-#                    push @{$sql->{quote}{set_args}}, $value;
-#                    $col_sep = ', ';
-#                }
-#                if ( $col_sep eq ' ' ) {
-#                    $sql->{quote}{set_stmt} = '';
-#                    $sql->{print}{set_stmt} = '';
-#                    #delete $sql->{pr_backup_in_hidd}{set_args};
-#                }
-#                last SET;
-#            }
-#            for my $print_col ( @print_col ) {
-#                ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-#                $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
-#                $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-#                $util->__print_sql_statement( $sql, $table, $sql_type );
-#                # Readline
-#                my $value = $trs->readline( $print_col . ': ' );
-#                if ( ! defined $value ) {
-#                    if ( @{$sql->{quote}{set_args}} ) {
-#                        $sql->{quote}{set_args} = [];
-#                        $sql->{quote}{set_stmt} = " SET";
-#                        $sql->{print}{set_stmt} = " SET";
-#                        $col_sep = ' ';
-#                        next SET;
-#                    }
-#                    else {
-#                        $sql = clone( $backup_sql );
-#                        last SET;
-#                    }
-#                }
-#                $sql->{quote}{set_stmt} .= ' ' . '?';
-#                $sql->{print}{set_stmt} .= ' ' . "'$value'";
-#                push @{$sql->{quote}{set_args}}, $value;
-#                $col_sep = ', ';
-#            }
-#        }
-##################################################################
         }
         elsif ( $custom eq $customize{'where'} ) {
             my @cols = ( @$pr_columns, @{$sql->{pr_col_with_hidd_func}} );
@@ -1005,12 +943,6 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'commit'} ) {
             my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
-            my %map_sql_types = (
-                Delete => "DELETE",
-                Update => "UPDATE",
-                Insert => "INSERT INTO",
-            );
-
             local $| = 1;
             print CLEAR_SCREEN;
             say 'Database : ...' if $self->{opt}{progress_bar};
@@ -1063,6 +995,8 @@ sub __on_table {
                     }
                     else {
                         $dbh->rollback;
+                        $util->__reset_sql( $sql );
+                        next CUSTOMIZE;
                     }
                     1;
                     }
@@ -1095,8 +1029,11 @@ sub __on_table {
                         $sth->execute( @$values );
                     }
                 }
+                else {
+                    $util->__reset_sql( $sql );
+                    next CUSTOMIZE;
+                }
             }
-            $util->__reset_sql( $sql );
             $sql_type = 'Select';
             $old_idx = 1;
             $sql = clone $backup_sql;

@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041_01';
+our $VERSION = '0.041_02';
 
 use File::Temp qw( tempfile );
 
@@ -204,8 +204,8 @@ sub __filter_input {
     FILTER: while ( 1 ) {
         my @pre = ( $self->{info}{ok} );
         unshift @pre, undef if $self->{opt}{sssc_mode};
-        my ( $input_cols, $input_rows, $reset ) = ( 'Columns', 'Rows', 'Reset' );
-        my $choices = [ @pre, $input_cols, $input_rows, $reset ];
+        my ( $input_cols, $input_rows_range, $input_rows_choose, $reset ) = ( 'Columns', 'Rows-range', 'Rows-choose', 'Reset' );
+        my $choices = [ @pre, $input_cols, $input_rows_range, $input_rows_choose, $reset ];
         $util->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my $choice = $stmt_h->choose(
@@ -213,13 +213,13 @@ sub __filter_input {
             { prompt => 'Filter:' }
         );
         if ( ! defined $choice ) {
-            seek $fh, 0 , 0;
+            seek $fh, 0, 0;
             $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
             #$sql->{quote}{insert_into_args} = clone $backup;
             return;
         }
         elsif ( $choice eq $reset ) {
-            seek $fh, 0 , 0;
+            seek $fh, 0, 0;
             $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
             #$sql->{quote}{insert_into_args} = clone $backup;
         }
@@ -227,14 +227,12 @@ sub __filter_input {
             return;
         }
         elsif ( $choice eq $input_cols  ) {
-            my $aoa = $sql->{quote}{insert_into_args};
-            my $cols = [ 0 .. $#{$aoa->[0]} ];
             my @col_idx = ();
 
             COLS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
-                my $choices = [ @pre, map { "col_$_" } @$cols ];
+                my $choices = [ @pre, map { "col_$_" } 0 .. $#{$sql->{quote}{insert_into_args}[0]} ];
                 $util->__print_sql_statement( $sql, $table, $sql_type );
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', @col_idx if @col_idx;
@@ -260,7 +258,7 @@ sub __filter_input {
                     }
                     if ( @col_idx ) {
                         my $tmp = [];
-                        for my $row ( @$aoa ) {
+                        for my $row ( @{$sql->{quote}{insert_into_args}} ) {
                             push @$tmp, [ @{$row}[@col_idx] ];
                         }
                         $sql->{quote}{insert_into_args} = $tmp;
@@ -273,12 +271,10 @@ sub __filter_input {
                 }
             }
         }
-        elsif ( $choice eq $input_rows ) {
-            my $aoa = $sql->{quote}{insert_into_args};
-            my $rows = [ 0 .. $#{$aoa} ];
+        elsif ( $choice eq $input_rows_range ) {
             my @pre = ();
             unshift @pre, undef if $self->{opt}{sssc_mode};
-            my $choices = [ @pre, map { "@$_" } @{$aoa}[@$rows] ];
+            my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
             $util->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             my $first_row = $stmt_h->choose(
@@ -308,11 +304,70 @@ sub __filter_input {
             $util->__print_sql_statement( $sql, $table, $sql_type );
             my $prompt = sprintf "First row: %*d\n", length $last_row, $first_row;
             $prompt .= sprintf "Last  row: %*d\n\n", length $last_row, $last_row;
-            $sql->{quote}{insert_into_args} = [ @{$aoa}[$first_row .. $last_row] ];
+            $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[$first_row .. $last_row] ];
+            next FILTER;
+        }
+        elsif ( $choice eq $input_rows_choose ) {
+            my @pre = ();
+            unshift @pre, undef if $self->{opt}{sssc_mode};
+            my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
+            $util->__print_sql_statement( $sql, $table, $sql_type );
+            # Choose
+            my @row_idx = $stmt_h->choose(
+                $choices,
+                { prompt => 'Choose rows:', layout => 3, index => 1, no_spacebar => [ 0 .. $#pre ] }
+            );
+            next FILTER if ! $row_idx[0];
+            $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[@row_idx] ];
             next FILTER;
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
