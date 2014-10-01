@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041_02';
+our $VERSION = '0.042';
 
 use File::Temp qw( tempfile );
 
@@ -172,12 +172,13 @@ sub __insert_into {
                 ( $fh ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 );
                 binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
                 print $fh $input;
-                seek $fh, 0 , 0;
+                seek $fh, 0, 0;
                 #$sql->{quote}{insert_into_args} = $csv->getline_all( \*STDIN );
             }
             elsif ( $insert_mode == 4 ) {
                 # Readline
                 my $file = $trs->readline( 'Path to file: ' );
+                return if ! defined $file;
                 open $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
                 #open my $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
                 #$sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
@@ -323,51 +324,6 @@ sub __filter_input {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

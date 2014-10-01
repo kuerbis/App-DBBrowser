@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.041_02';
+our $VERSION = '0.042';
 
 use Encode       qw( encode decode );
 #use File::Find   qw( find );  # "require"-d
