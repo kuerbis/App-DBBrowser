@@ -183,7 +183,7 @@ sub run {
             next DB_DRIVER;
         }
         if ( ! @$databases ) {
-            $util->__print_error_message( $self->{info}, "no $db_driver-databases found\n" );
+            $util->__print_error_message( "no $db_driver-databases found\n" );
             exit if @{$self->{opt}{db_drivers}} == 1;
             next DB_DRIVER;
         }
