@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 use Encode       qw( encode decode );
 #use File::Find   qw( find );  # "require"-d
@@ -177,7 +177,7 @@ sub available_databases {
                     return if ! -f $file;
                     return if ! -s $file; #
                     return if ! -r $file; #
-                    say $file;
+                    #say $file;
                     if ( ! eval {
                         open my $fh, '<:raw', $file or die "$file: $!";
                         defined( read $fh, my $string, 13 ) or die "$file: $!";

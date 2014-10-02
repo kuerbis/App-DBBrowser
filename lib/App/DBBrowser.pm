@@ -5,7 +5,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -183,7 +183,7 @@ sub run {
             next DB_DRIVER;
         }
         if ( ! @$databases ) {
-            print_error_message( $self->{info}, "no $db_driver-databases found\n" );
+            $util->__print_error_message( $self->{info}, "no $db_driver-databases found\n" );
             exit if @{$self->{opt}{db_drivers}} == 1;
             next DB_DRIVER;
         }
@@ -514,7 +514,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.042
+Version 0.043
 
 =head1 DESCRIPTION
 
