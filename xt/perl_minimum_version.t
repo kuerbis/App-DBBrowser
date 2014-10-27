@@ -4,7 +4,7 @@ use strict;
 use Perl::MinimumVersion;
 use Perl::Version;
 use File::Find;
-use Test::More tests => 2;
+use Test::More;
 
 
 my $make_minimum;
@@ -20,7 +20,7 @@ while ( my $line = <$fh_m> ) {
 close $fh_m or die $!;
 
 
-my $pod1_minimum;
+#my $pod1_minimum;
 #open my $fh_p1, '<', 'lib/App/DBBrowser.pm' or die $!;
 #while ( my $line = <$fh_p1> ) {
 #    if ( $line =~ /^=head1\sREQUIREMENTS/ .. $line =~ /^=head1\sAUTHOR/ ) {
@@ -75,3 +75,5 @@ my ( $explicit_minimum ) = keys %explicit_minimum;
 cmp_ok( $make_minimum, '==', $explicit_minimum,  'perl minimum version in Makefile.PL == explicit perl minimum version' );
 #cmp_ok( $make_minimum, '==', $pod1_minimum,      'perl minimum version in Makefile.PL == pod1 perl minimum version' );
 cmp_ok( $make_minimum, '==', $pod2_minimum,      'perl minimum version in Makefile.PL == pod2 perl minimum version' );
+
+done_testing;

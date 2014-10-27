@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044';
+our $VERSION = '0.044_01';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.044
+Version 0.044_01
 
 =cut
 

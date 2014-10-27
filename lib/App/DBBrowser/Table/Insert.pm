@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044';
+our $VERSION = '0.044_01';
 
 use File::Temp qw( tempfile );
 
@@ -37,7 +37,7 @@ sub __insert_into {
     $sql->{print}{chosen_cols}      = [];
     my $sql_type = 'Insert';
 
-    COLUMNS: while ( 1 ) {
+    COL_NAME: while ( 1 ) {
         my @pre = ( $self->{info}{ok} );
         unshift @pre, undef if $self->{opt}{sssc_mode};
         my $choices = [ @pre, @cols ];
@@ -60,7 +60,7 @@ sub __insert_into {
                 $sql->{quote}{chosen_cols} = [];
                 $sql->{print}{chosen_cols} = [];
                 @cols = ( @$pr_columns );
-                next COLUMNS;
+                next COL_NAME;
             }
             else {
                 $sql = clone( $backup_sql );
@@ -77,7 +77,7 @@ sub __insert_into {
                 @{$sql->{quote}{chosen_cols}} = @{$qt_columns}{@$pr_columns};
                 @{$sql->{print}{chosen_cols}} = @$pr_columns;
             }
-            last COLUMNS;
+            last COL_NAME;
         }
         for my $print_col ( @print_col ) {
             push @{$sql->{quote}{chosen_cols}}, $qt_columns->{$print_col};
@@ -105,7 +105,7 @@ sub __insert_into {
             $insert_mode = $self->{opt}{insert_mode};
         }
         if ( $insert_mode <= 2 ) {
-            my ( $last, $add ) = ( 'Last', 'Add' );
+            my ( $last, $add, $del ) = ( 'Last', 'Add', 'Del' );
             ROWS: while ( 1 ) {
                 my $row_idx = @{$sql->{quote}{insert_into_args}};
                 if ( $insert_mode == 1 ) {
@@ -113,16 +113,16 @@ sub __insert_into {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         my $value = $trs->readline( $col . ': ' );
-                        if ( ! defined $value ) {
-                            if ( $row_idx > 0 ) {
-                                $#{$sql->{quote}{insert_into_args}}--;
-                            }
-                            else {
-                                next INSERT if ! defined $sql->{quote}{insert_into_args}[0][0];
-                                $sql->{quote}{insert_into_args} = [];
-                            }
-                            last COLS;
-                        }
+                        #if ( ! defined $value ) {
+                        #    if ( $row_idx > 0 ) {
+                        #        $#{$sql->{quote}{insert_into_args}}--;
+                        #    }
+                        #    else {
+                        #        next INSERT if ! defined $sql->{quote}{insert_into_args}[0][0];
+                        #        $sql->{quote}{insert_into_args} = [];
+                        #    }
+                        #    last COLS;
+                        #}
                         push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $value;
                     }
                 }
@@ -131,35 +131,58 @@ sub __insert_into {
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
                     if ( ! defined $row ) {
-                            if ( $row_idx > 0 ) {
-                                $#{$sql->{quote}{insert_into_args}}--;
-                            }
-                            else {
-                                $sql->{quote}{insert_into_args} = [];
-                            }
+                        if ( $row_idx > 0 ) {
+                            $#{$sql->{quote}{insert_into_args}}--;
                             next ROWS;
+                        }
+                        else {
+                            $sql->{quote}{insert_into_args} = [];
+                            $sql->{quote}{chosen_cols}      = [];
+                            $sql->{print}{chosen_cols}      = [];
+                            #next INSERT;
+                        }
                     }
                     push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
                 }
-                $util->__print_sql_statement( $sql, $table, $sql_type );
-                my $choices = [ $last, $add ];
+                my $choices = [ $last, $add, $del ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                # Choose
-                my $add_row = $stmt_h->choose(
-                    $choices,
-                    { prompt => '' }
-                );
-                if ( ! defined $add_row ) {
-                    $sql->{quote}{insert_into_args} = [];
-                    next INSERT;
-                }
-                elsif ( $add_row eq $last ) {
-                    return;
+                while ( 1 ) {
+                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    # Choose
+                    my $add_row = $stmt_h->choose(
+                        $choices,
+                        { prompt => '' }
+                    );
+                    if ( ! defined $add_row ) {
+                        $sql->{quote}{insert_into_args} = [];
+                        $sql->{quote}{chosen_cols}      = [];
+                        $sql->{print}{chosen_cols}      = [];
+                        #next INSERT;
+                        return;
+                    }
+                    elsif ( $add_row eq $last ) {
+                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                            $sql->{quote}{chosen_cols} = [];
+                            $sql->{print}{chosen_cols} = [];
+                        }
+                        return;
+                    }
+                    elsif ( $add_row eq $del ) {
+                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                            $sql->{quote}{insert_into_args} = [];
+                            $sql->{quote}{chosen_cols}      = [];
+                            $sql->{print}{chosen_cols}      = [];
+                            return;
+                        }
+                        $#{$sql->{quote}{insert_into_args}}--; ###
+                    }
+                    else {
+                        last;
+                    }
                 }
             }
         }
         else {
-            my $row_idx = @{$sql->{quote}{insert_into_args}};
             my $fh;
             $util->__print_sql_statement( $sql, $table, $sql_type );
             if ( $insert_mode == 3 ) {
@@ -189,6 +212,11 @@ sub __insert_into {
                 chomp $row;
                 push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
             }
+            if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                $sql->{quote}{chosen_cols} = [];
+                $sql->{print}{chosen_cols} = [];
+                return;
+            }
             if ( $self->{opt}{row_col_filter} ) {
                 $self->__filter_input( $sql, $table, $sql_type, $fh );
             }
@@ -217,17 +245,14 @@ sub __filter_input {
             { prompt => 'Filter:' }
         );
         if ( ! defined $choice ) {
-            seek $fh, 0, 0;
-            while ( my $row = <$fh> ) {
-                chomp $row;
-                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-            }
-            #$sql->{quote}{insert_into_args} = clone $backup;
+            $sql->{quote}{insert_into_args} = [];
+            $sql->{quote}{chosen_cols}      = [];
+            $sql->{print}{chosen_cols}      = [];
             return;
         }
         elsif ( $choice eq $reset ) {
-            seek $fh, 0, 0;
             $sql->{quote}{insert_into_args} = [];
+            seek $fh, 0, 0;
             while ( my $row = <$fh> ) {
                 chomp $row;
                 push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
