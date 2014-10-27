@@ -1,8 +1,12 @@
 Revision history for App-DBBrowser
 
 
+0.044   2014-10-27
+        - Use of "Text::ParseWords" instead of "Text::CSV" to parse rows.
+        - Update documentation.
+
 0.043   2014-10-02
-        - Bugfix "print_error_message" [github #2].
+        - Bugfix "print_error_message" [github #2 - Mark Lawrence].
         - Don't print all filenames when searching SQLite databases.
 
 0.042   2014-10-01

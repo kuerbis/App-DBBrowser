@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.043';
+our $VERSION = '0.044';
 
 use File::Temp qw( tempfile );
 
@@ -15,7 +15,7 @@ use File::Slurp            qw( read_file );
 use Term::Choose           qw();
 use Term::Choose::Util     qw( choose_multi );
 use Term::ReadLine::Simple qw();
-use Text::CSV              qw();
+use Text::ParseWords       qw( parse_line );
 
 use App::DBBrowser::Util;
 
@@ -128,7 +128,6 @@ sub __insert_into {
                 }
                 elsif ( $insert_mode == 2 ) {
                     $util->__print_sql_statement( $sql, $table, $sql_type );
-                    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
                     if ( ! defined $row ) {
@@ -140,8 +139,7 @@ sub __insert_into {
                             }
                             next ROWS;
                     }
-                    my $status = $csv->parse( $row );
-                    push @{$sql->{quote}{insert_into_args}}, [ $csv->fields() ];
+                    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
                 }
                 $util->__print_sql_statement( $sql, $table, $sql_type );
                 my $choices = [ $last, $add ];
@@ -164,27 +162,33 @@ sub __insert_into {
             my $row_idx = @{$sql->{quote}{insert_into_args}};
             my $fh;
             $util->__print_sql_statement( $sql, $table, $sql_type );
-            my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
             if ( $insert_mode == 3 ) {
                 say 'Multirow: ';
                 # STDIN
                 my $input = read_file( \*STDIN );
                 ( $fh ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 );
-                binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
+                binmode $fh, ':encoding(' . $self->{opt}{encoding_in_file} . ')';
                 print $fh $input;
                 seek $fh, 0, 0;
-                #$sql->{quote}{insert_into_args} = $csv->getline_all( \*STDIN );
+                #for my $row ( split $/, $input ) {
+                #    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+                #}
             }
             elsif ( $insert_mode == 4 ) {
                 # Readline
                 my $file = $trs->readline( 'Path to file: ' );
                 return if ! defined $file;
-                open $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
-                #open my $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
-                #$sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
+                open $fh, '<:encoding(' . $self->{opt}{encoding_in_file} . ')', $file or die $!;
+                #while ( my $row = <$fh> ) {
+                #    chomp $row;
+                #    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+                #}
                 #close $fh;
             }
-            $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
+            while ( my $row = <$fh> ) {
+                chomp $row;
+                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+            }
             if ( $self->{opt}{row_col_filter} ) {
                 $self->__filter_input( $sql, $table, $sql_type, $fh );
             }
@@ -199,7 +203,6 @@ sub __filter_input {
     my ( $self, $sql, $table, $sql_type, $fh ) = @_;
     my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
-    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
     #my $backup = clone $sql->{quote}{insert_into_args};
 
     FILTER: while ( 1 ) {
@@ -215,13 +218,20 @@ sub __filter_input {
         );
         if ( ! defined $choice ) {
             seek $fh, 0, 0;
-            $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
+            while ( my $row = <$fh> ) {
+                chomp $row;
+                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+            }
             #$sql->{quote}{insert_into_args} = clone $backup;
             return;
         }
         elsif ( $choice eq $reset ) {
             seek $fh, 0, 0;
-            $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
+            $sql->{quote}{insert_into_args} = [];
+            while ( my $row = <$fh> ) {
+                chomp $row;
+                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+            }
             #$sql->{quote}{insert_into_args} = clone $backup;
         }
         elsif ( $choice eq $self->{info}{ok} ) {
@@ -311,14 +321,15 @@ sub __filter_input {
         elsif ( $choice eq $input_rows_choose ) {
             my @pre = ();
             unshift @pre, undef if $self->{opt}{sssc_mode};
-            my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
+            #my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
+            my $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
             $util->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             my @row_idx = $stmt_h->choose(
                 $choices,
-                { prompt => 'Choose rows:', layout => 3, index => 1, no_spacebar => [ 0 .. $#pre ] }
+                { prompt => 'Choose rows:', layout => 3, justify => 0, index => 1, no_spacebar => [ 0 .. $#pre ] }
             );
-            next FILTER if ! $row_idx[0];
+            next FILTER if ! defined $row_idx[0];
             $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[@row_idx] ];
             next FILTER;
         }

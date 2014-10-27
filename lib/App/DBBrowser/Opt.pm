@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.043';
+our $VERSION = '0.044';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -61,18 +61,9 @@ sub defaults {
         binary_string        => 'BNRY',
         insert_mode          => 1,
         row_col_filter       => 0,
-        encoding_csv_file    => 'UTF-8',
-        sep_char             => ',',
-        quote_char           => '"',
-        escape_char          => '"',
-        eol                  => $/,
-        allow_loose_escapes  => 0,
-        allow_loose_quotes   => 0,
-        allow_whitespace     => 0,
-        auto_diag            => 1,
-        blank_is_undef       => 1,
-        binary               => 1,
-        empty_is_undef       => 0,
+        encoding_in_file     => 'UTF-8',
+        delim                => '\s*,\s*',
+        keep                 => 0,
         SQLite => {
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
@@ -125,13 +116,6 @@ sub __multi_choose {
             [ 'ask_host_port_per_db', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
             [ 'ask_user_pass_per_db', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
         ],
-        _options_csv => [
-            [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
-            [ 'allow_loose_quotes',  "- allow_loose_quotes",  [ 'NO', 'YES' ] ],
-            [ 'allow_whitespace',    "- allow_whitespace",    [ 'NO', 'YES' ] ],
-            [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
-            [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
-        ],
     };
     return $multi_choose->{$key};
 }
@@ -178,11 +162,9 @@ sub __menus {
         config_insert => [
             [ 'insert_mode',       "- Insert mode" ],
             [ 'row_col_filter',    "- Col-Row input filter" ],
-            [ 'encoding_csv_file', "- Encoding csv file" ],
-            [ 'sep_char',          "- csv sep_char" ],
-            [ 'quote_char',        "- csv quote_char" ],
-            [ 'escape_char',       "- csv escape_char" ],
-            [ '_options_csv',      "- Options csv" ],
+            [ 'encoding_in_file',  "- Encoding input file" ],
+            [ 'delim',             "- Delimiter" ],
+            [ 'keep',              "- Keep quotes an backslashes" ],
         ],
     };
     return $menus->{$group};
@@ -240,29 +222,18 @@ sub __config_insert {
             my $prompt = 'Enable col-row input filter';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
-        elsif ( $key eq 'encoding_csv_file' ) {
-            my $prompt = 'Encoding csv file';
+        elsif ( $key eq 'encoding_in_file' ) {
+            my $prompt = 'Encoding input file';
             $self->__opt_readline( $key, $prompt );
         }
-        elsif ( $key eq 'sep_char' ) {
-            my $prompt = 'csv sep_char';
+        elsif ( $key eq 'delim' ) {
+            my $prompt = 'Delimiter';
             $self->__opt_readline( $key, $prompt );
         }
-        elsif ( $key eq 'quote_char' ) {
-            my $prompt = 'csv quote_char';
-            $self->__opt_readline( $key, $prompt );
-        }
-        elsif ( $key eq 'escape_char' ) {
-            my $prompt = 'csv escape_char';
-            $self->__opt_readline( $key, $prompt );
-        }
-        #elsif ( $key eq 'eol' ) {
-        #    my $prompt = 'csv eol';
-        #    $self->__opt_readline( $key, $prompt );
-        #}
-        elsif ( $key eq '_options_csv' ) {
-            my $sub_menu = $self->__multi_choose( $key );
-            $self->__opt_choose_multi( $sub_menu );
+        elsif ( $key eq 'keep' ) {
+            my $list = $no_yes;
+            my $prompt = 'Keep quotes and backslashes';
+            $self->__opt_choose_index( $key, $prompt, $list );
         }
         else { die "Unknown option: $key" }
     }
