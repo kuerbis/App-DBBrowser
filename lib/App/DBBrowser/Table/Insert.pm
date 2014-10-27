@@ -139,7 +139,7 @@ sub __insert_into {
                             $sql->{quote}{insert_into_args} = [];
                             $sql->{quote}{chosen_cols}      = [];
                             $sql->{print}{chosen_cols}      = [];
-                            #next INSERT;
+                            return;
                         }
                     }
                     push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
@@ -157,7 +157,6 @@ sub __insert_into {
                         $sql->{quote}{insert_into_args} = [];
                         $sql->{quote}{chosen_cols}      = [];
                         $sql->{print}{chosen_cols}      = [];
-                        #next INSERT;
                         return;
                     }
                     elsif ( $add_row eq $last ) {
@@ -169,9 +168,8 @@ sub __insert_into {
                     }
                     elsif ( $add_row eq $del ) {
                         if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                            $sql->{quote}{insert_into_args} = [];
-                            $sql->{quote}{chosen_cols}      = [];
-                            $sql->{print}{chosen_cols}      = [];
+                            $sql->{quote}{chosen_cols} = [];
+                            $sql->{print}{chosen_cols} = [];
                             return;
                         }
                         $#{$sql->{quote}{insert_into_args}}--; ###
