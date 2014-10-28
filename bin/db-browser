@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044_02';
+our $VERSION = '0.044_03';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.044_02
+Version 0.044_03
 
 =cut
 
@@ -405,30 +405,38 @@ Enter all rows at once.
 
 File
 
-Read the input from a file.
+Read the input from am CSV file.
 
 =back
 
-It is used L<Text::ParseWords> to parse the input, if the input is entered with the input mode "Rows", "Multirow" or "File".
-
 =head4 Encoding input file
 
-When the input is read from a file, this option tells how to decode the read input.
+When the input is read from a file, this option tells how to decode the file.
 
 =head4 Col-Row input filter
 
 Enable the col-row input filter. If this option is enabled and the input mode is set to "Multirow" or "File", the user
 can choose which columns/rows from the input to use as insert values.
 
-=head4 Delimiter
+=head4 CSV settings
 
-Set the I<delimiter>. The I<delimiter> is used to set the option C<$delim> of the function C<parse_line> from
-L<Text::ParseWords>. C<parse_line> is used to get the column values from a row (if the input mode is "Rows", "Multirow"
-or "File". The I<delimiter> can be a regular expression.
+It is used L<Text::CSV> to parse the input, if the input is entered with the input mode "Rows", "Multirow" or "File".
 
-=head4 Keep quotes an backslashes
+=head4 csv sep_char
 
-See the C<$keep> option in L<Text::ParseWords>.
+Set the csv sep_char.
+
+=head4 csv quote_char
+
+Set the csv quote_char.
+
+=head4 csv escape_char
+
+Set the csv escape_char.
+
+=head4 Options csv
+
+Other different csv options.
 
 =head2 CONFIGURATION FILES
 

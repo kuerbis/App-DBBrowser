@@ -49,6 +49,7 @@ WriteMakefile(
         'Getopt::Long'           => 0,
         'JSON'                   => 0,
         'List::MoreUtils'        => 0,
+        'List::Util'             => 0,
         'Pod::Usage'             => 0,
         'Scalar::Util'           => 0,
         'Term::Choose'           => '1.116',

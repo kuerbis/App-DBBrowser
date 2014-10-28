@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044_02';
+our $VERSION = '0.044_03';
 
 use File::Temp qw( tempfile );
 
@@ -16,7 +16,7 @@ use List::Util             qw( all );
 use Term::Choose           qw();
 use Term::Choose::Util     qw( choose_multi );
 use Term::ReadLine::Simple qw();
-use Text::ParseWords       qw( parse_line );
+use Text::CSV              qw();
 
 use App::DBBrowser::Util;
 
@@ -118,6 +118,7 @@ sub __insert_into {
                     }
                 }
                 elsif ( $insert_mode == 2 ) {
+                    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
                     $util->__print_sql_statement( $sql, $table, $sql_type );
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
@@ -130,11 +131,12 @@ sub __insert_into {
                         $#{$sql->{quote}{insert_into_args}}--;
                         next ROWS;
                     }
-                    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
+                    my $status = $csv->parse( $row );
+                    push @{$sql->{quote}{insert_into_args}}, [ $csv->fields() ];
                 }
                 my $choices = [ $last, $add, $del ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                my $default = all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ? 2 : 1;
+                my $default = ( all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ) ? 2 : 1;
 
                 ASK: while ( 1 ) {
                     $util->__print_sql_statement( $sql, $table, $sql_type );
@@ -171,6 +173,7 @@ sub __insert_into {
             }
         }
         else {
+            my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
             my $fh;
             $util->__print_sql_statement( $sql, $table, $sql_type );
             if ( $insert_mode == 3 ) {
@@ -178,28 +181,21 @@ sub __insert_into {
                 # STDIN
                 my $input = read_file( \*STDIN );
                 ( $fh ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 );
-                binmode $fh, ':encoding(' . $self->{opt}{encoding_in_file} . ')';
+                binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
                 print $fh $input;
                 seek $fh, 0, 0;
-                #for my $row ( split $/, $input ) {
-                #    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-                #}
+                #$sql->{quote}{insert_into_args} = $csv->getline_all( \*STDIN );
             }
             elsif ( $insert_mode == 4 ) {
                 # Readline
                 my $file = $trs->readline( 'Path to file: ' );
                 return if ! defined $file;
-                open $fh, '<:encoding(' . $self->{opt}{encoding_in_file} . ')', $file or die $!;
-                #while ( my $row = <$fh> ) {
-                #    chomp $row;
-                #    push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-                #}
+                open $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
+                #open my $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
+                #$sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
                 #close $fh;
             }
-            while ( my $row = <$fh> ) {
-                chomp $row;
-                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-            }
+            $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
             if ( ! @{$sql->{quote}{insert_into_args}} ) {
                 $sql->{quote}{chosen_cols} = [];
                 $sql->{print}{chosen_cols} = [];
@@ -219,6 +215,7 @@ sub __filter_input {
     my ( $self, $sql, $table, $sql_type, $fh ) = @_;
     my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
+    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
     #my $backup = clone $sql->{quote}{insert_into_args};
 
     FILTER: while ( 1 ) {
@@ -241,10 +238,7 @@ sub __filter_input {
         elsif ( $choice eq $reset ) {
             $sql->{quote}{insert_into_args} = [];
             seek $fh, 0, 0;
-            while ( my $row = <$fh> ) {
-                chomp $row;
-                push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-            }
+            $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
             #$sql->{quote}{insert_into_args} = clone $backup;
         }
         elsif ( $choice eq $self->{info}{ok} ) {

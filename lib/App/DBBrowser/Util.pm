@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.044_02';
+our $VERSION = '0.044_03';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
