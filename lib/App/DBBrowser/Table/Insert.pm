@@ -6,12 +6,13 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044_01';
+our $VERSION = '0.044_02';
 
 use File::Temp qw( tempfile );
 
 use Clone                  qw( clone );
 use File::Slurp            qw( read_file );
+use List::Util             qw( all );
 use Term::Choose           qw();
 use Term::Choose::Util     qw( choose_multi );
 use Term::ReadLine::Simple qw();
@@ -105,25 +106,15 @@ sub __insert_into {
             $insert_mode = $self->{opt}{insert_mode};
         }
         if ( $insert_mode <= 2 ) {
-            my ( $last, $add, $del ) = ( 'Last', 'Add', 'Del' );
+            my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
             ROWS: while ( 1 ) {
-                my $row_idx = @{$sql->{quote}{insert_into_args}};
                 if ( $insert_mode == 1 ) {
-                    COLS: for my $col ( @{$sql->{print}{chosen_cols}} ) {
+                    my $row_idx = @{$sql->{quote}{insert_into_args}};
+                    COLS: for my $col_name ( @{$sql->{print}{chosen_cols}} ) {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
-                        my $value = $trs->readline( $col . ': ' );
-                        #if ( ! defined $value ) {
-                        #    if ( $row_idx > 0 ) {
-                        #        $#{$sql->{quote}{insert_into_args}}--;
-                        #    }
-                        #    else {
-                        #        next INSERT if ! defined $sql->{quote}{insert_into_args}[0][0];
-                        #        $sql->{quote}{insert_into_args} = [];
-                        #    }
-                        #    last COLS;
-                        #}
-                        push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $value;
+                        my $col = $trs->readline( $col_name . ': ' );
+                        push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $col;
                     }
                 }
                 elsif ( $insert_mode == 2 ) {
@@ -131,27 +122,26 @@ sub __insert_into {
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
                     if ( ! defined $row ) {
-                        if ( $row_idx > 0 ) {
-                            $#{$sql->{quote}{insert_into_args}}--;
-                            next ROWS;
-                        }
-                        else {
-                            $sql->{quote}{insert_into_args} = [];
-                            $sql->{quote}{chosen_cols}      = [];
-                            $sql->{print}{chosen_cols}      = [];
+                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                            $sql->{quote}{chosen_cols} = [];
+                            $sql->{print}{chosen_cols} = [];
                             return;
                         }
+                        $#{$sql->{quote}{insert_into_args}}--;
+                        next ROWS;
                     }
                     push @{$sql->{quote}{insert_into_args}}, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
                 }
                 my $choices = [ $last, $add, $del ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                while ( 1 ) {
+                my $default = all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ? 2 : 1;
+
+                ASK: while ( 1 ) {
                     $util->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $add_row = $stmt_h->choose(
                         $choices,
-                        { prompt => '' }
+                        { prompt => '', default => $default }
                     );
                     if ( ! defined $add_row ) {
                         $sql->{quote}{insert_into_args} = [];
@@ -172,11 +162,11 @@ sub __insert_into {
                             $sql->{print}{chosen_cols} = [];
                             return;
                         }
+                        $default = 0;
                         $#{$sql->{quote}{insert_into_args}}--; ###
+                        next ASK;
                     }
-                    else {
-                        last;
-                    }
+                    last ASK;
                 }
             }
         }
