@@ -1,5 +1,9 @@
 Revision history for App-DBBrowser
 
+
+0.045   2014-10-29
+        - Code refactoring.
+
 0.044_03   2014-10-28
         - Switched back to "Text::CSV".
         - Added missing dependency in the "Makefile.PL".

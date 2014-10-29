@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.044_03';
+our $VERSION = '0.045';
 
 use File::Temp qw( tempfile );
 
@@ -38,7 +38,7 @@ sub __insert_into {
     $sql->{print}{chosen_cols}      = [];
     my $sql_type = 'Insert';
 
-    COL_NAME: while ( 1 ) {
+    COL_NAMES: while ( 1 ) {
         my @pre = ( $self->{info}{ok} );
         unshift @pre, undef if $self->{opt}{sssc_mode};
         my $choices = [ @pre, @cols ];
@@ -61,7 +61,7 @@ sub __insert_into {
                 $sql->{quote}{chosen_cols} = [];
                 $sql->{print}{chosen_cols} = [];
                 @cols = ( @$pr_columns );
-                next COL_NAME;
+                next COL_NAMES;
             }
             else {
                 $sql = clone( $backup_sql );
@@ -78,7 +78,7 @@ sub __insert_into {
                 @{$sql->{quote}{chosen_cols}} = @{$qt_columns}{@$pr_columns};
                 @{$sql->{print}{chosen_cols}} = @$pr_columns;
             }
-            last COL_NAME;
+            last COL_NAMES;
         }
         for my $print_col ( @print_col ) {
             push @{$sql->{quote}{chosen_cols}}, $qt_columns->{$print_col};
@@ -88,7 +88,7 @@ sub __insert_into {
     my $trs = Term::ReadLine::Simple->new();
     my $insert_mode;
 
-    INSERT: while ( 1 ) {
+    VALUES: while ( 1 ) {
         if ( ! $self->{opt}{insert_mode} ) {
             $util->__print_sql_statement( $sql, $table, $sql_type );
             my $choices = [ undef, 'Cols', 'Rows', 'Multirow', 'File' ];
@@ -114,7 +114,7 @@ sub __insert_into {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         my $col = $trs->readline( $col_name . ': ' );
-                        push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $col;
+                        push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $col; # show $col immediatly in "print_sql_statement"
                     }
                 }
                 elsif ( $insert_mode == 2 ) {
@@ -236,7 +236,6 @@ sub __filter_input {
             return;
         }
         elsif ( $choice eq $reset ) {
-            $sql->{quote}{insert_into_args} = [];
             seek $fh, 0, 0;
             $sql->{quote}{insert_into_args} = $csv->getline_all( $fh );
             #$sql->{quote}{insert_into_args} = clone $backup;
@@ -251,9 +250,9 @@ sub __filter_input {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my $choices = [ @pre, map { "col_$_" } 0 .. $#{$sql->{quote}{insert_into_args}[0]} ];
-                $util->__print_sql_statement( $sql, $table, $sql_type );
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', @col_idx if @col_idx;
+                $util->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my @col_nr = $stmt_h->choose(
                     $choices,
@@ -313,15 +312,14 @@ sub __filter_input {
             $last_row -= @pre;
             next FILTER if $last_row < 0;
             if ( $last_row < $first_row ) {
+                $util->__print_sql_statement( $sql, $table, $sql_type );
+                # Choose
                 $stmt_h->choose(
                     [ "Last row ($last_row) is less than First row ($first_row)" ],
                     { %{$self->{info}{lyt_stop}}, prompt => '' }
                 );
                 next FILTER;
             }
-            $util->__print_sql_statement( $sql, $table, $sql_type );
-            my $prompt = sprintf "First row: %*d\n", length $last_row, $first_row;
-            $prompt .= sprintf "Last  row: %*d\n\n", length $last_row, $last_row;
             $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[$first_row .. $last_row] ];
             next FILTER;
         }
