@@ -829,11 +829,9 @@ sub __on_table {
                 }
                 if ( $print_col eq $choose_type ) {
                     my $choices = [ undef, map( "- $_", @$sql_types ) ];
-                    #$util->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $st = $stmt_h->choose(
                         $choices,
-                        #{ %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0 }
                         { %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0, clear_screen => 1 }
                     );
                     if ( defined $st ) {

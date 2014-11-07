@@ -389,7 +389,7 @@ Rows
 
 Enter a row at a time.
 
-To parse the rows it is use C<Text::CSV>.
+To parse the rows it is used C<Text::CSV>.
 
 =item
 
@@ -416,7 +416,7 @@ can choose which columns/rows from the input to use as insert values.
 
 Set which module to use for parsing CSV files or for parsing the "Multirow" input.
 
-Files where its name match the regexp C</\.csv\z/i> are considered CSV files.
+The files whose name match the regexp C</\.csv\z/i> are considered CSV files.
 
 If a file is not a CSV file then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
 

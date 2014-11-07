@@ -245,7 +245,7 @@ sub __insert_into {
                         next FILE;
                     }
                     if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                        my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'ENTER' } );
+                        my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
                         $cm->choose( [ 'empty file!' ] ); ############
                         next FILE;
                     }
@@ -437,7 +437,7 @@ sub __filter_input {
                 # Choose
                 $stmt_h->choose(
                     [ "Last row [$last_row] is less than First row [$first_row]!" ],
-                    { %{$self->{info}{lyt_stop}}, prompt => 'ENTER' }
+                    { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' }
                 );
                 next FILTER;
             }
