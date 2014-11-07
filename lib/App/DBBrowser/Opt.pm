@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -59,13 +59,14 @@ sub defaults {
         tab_width            => 2,
         undef                => '',
         binary_string        => 'BNRY',
-        insert_mode          => 1,
+        input_mode           => [ 'Cols', 'Multirow', 'File' ],
         row_col_filter       => 0,
+        csv_read             => 0,
         encoding_csv_file    => 'UTF-8',
+    # Text::CSV:
         sep_char             => ',',
         quote_char           => '"',
         escape_char          => '"',
-        eol                  => $/,
         allow_loose_escapes  => 0,
         allow_loose_quotes   => 0,
         allow_whitespace     => 0,
@@ -73,6 +74,9 @@ sub defaults {
         blank_is_undef       => 1,
         binary               => 1,
         empty_is_undef       => 0,
+    # Text::ParseWords:
+        delim                => ',',
+        keep                 => 0,
         SQLite => {
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
@@ -176,13 +180,16 @@ sub __menus {
             [ '_env_dbi',     "- ENV DBI" ],
         ],
         config_insert => [
-            [ 'insert_mode',       "- Insert mode" ],
-            [ 'row_col_filter',    "- Col-Row input filter" ],
-            [ 'encoding_csv_file', "- Encoding csv file" ],
+            [ 'input_mode',        "- Input modes" ],
+            [ 'row_col_filter',    "- Input filter" ],
+            [ 'csv_read',          "- CSV parse module" ],
+            [ 'encoding_csv_file', "- CSV file encoding" ],
             [ 'sep_char',          "- csv sep_char" ],
             [ 'quote_char',        "- csv quote_char" ],
             [ 'escape_char',       "- csv escape_char" ],
-            [ '_options_csv',      "- Options csv" ],
+            [ '_options_csv',      "- csv various" ],
+            [ 'delim',             "- T::PW: \$delim" ],
+            [ 'keep',              "- T::PW: \$keep" ],
         ],
     };
     return $menus->{$group};
@@ -230,14 +237,18 @@ sub __config_insert {
             }
             return;
         }
-        elsif ( $key eq 'insert_mode' ) {
-            my $list = [ '--', 'Cols', 'Rows', 'Multirow', 'File' ];
-            my $prompt = 'Insert mode';
-            $self->__opt_choose_index( $key, $prompt, $list );
+        elsif ( $key eq 'input_mode' ) {
+                my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
+                $self->__opt_choose_a_list( $key, $available );
         }
         elsif ( $key eq 'row_col_filter' ) {
             my $list = $no_yes;
             my $prompt = 'Enable col-row input filter';
+            $self->__opt_choose_index( $key, $prompt, $list );
+        }
+        elsif ( $key eq 'csv_read' ) {
+            my $list = [ 'Text::CSV', 'Text::ParseWords', 'Spreadsheet::Read' ];
+            my $prompt = 'Module for parsing CSV files';
             $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'encoding_csv_file' ) {
@@ -256,13 +267,18 @@ sub __config_insert {
             my $prompt = 'csv escape_char';
             $self->__opt_readline( $key, $prompt );
         }
-        #elsif ( $key eq 'eol' ) {
-        #    my $prompt = 'csv eol';
-        #    $self->__opt_readline( $key, $prompt );
-        #}
         elsif ( $key eq '_options_csv' ) {
             my $sub_menu = $self->__multi_choose( $key );
             $self->__opt_choose_multi( $sub_menu );
+        }
+        elsif ( $key eq 'delim' ) {
+            my $prompt = 'Text::ParseWords delimiter (regexp)';
+            $self->__opt_readline( $key, $prompt );
+        }
+        elsif ( $key eq 'keep' ) {
+            my $list = $no_yes;
+            my $prompt = 'Text::ParseWords option $keep';
+            $self->__opt_choose_index( $key, $prompt, $list );
         }
         else { die "Unknown option: $key" }
     }

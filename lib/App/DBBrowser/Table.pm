@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -42,11 +42,11 @@ sub __on_table {
         Insert => [ qw( commit insert    ) ],
     };
     my %map_sql_types = (
-        Delete => "DELETE",
-        Update => "UPDATE",
         Insert => "INSERT INTO",
+        Update => "UPDATE",
+        Delete => "DELETE",
     );
-    my $sql_types = [ 'Delete', 'Update', 'Insert' ];
+    my $sql_types = [ 'Insert', 'Update', 'Delete' ];
     my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
     my %customize = (
@@ -122,7 +122,7 @@ sub __on_table {
         elsif ( $custom eq $customize{'insert'} ) {
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
-            $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns, $backup_sql );
+            $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns );
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
@@ -770,6 +770,7 @@ sub __on_table {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
                 $obj_opt->__config_insert( 0 );
+                $sql = clone( $backup_sql ); ###
                 next CUSTOMIZE;
             }
             my @functions = @{$self->{info}{keys_hidd_func_pr}};
@@ -828,11 +829,12 @@ sub __on_table {
                 }
                 if ( $print_col eq $choose_type ) {
                     my $choices = [ undef, map( "- $_", @$sql_types ) ];
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    #$util->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $st = $stmt_h->choose(
                         $choices,
-                        { %{$self->{info}{lyt_stmt_v}}, prompt => '', default => 0 }
+                        #{ %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0 }
+                        { %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0, clear_screen => 1 }
                     );
                     if ( defined $st ) {
                         $st =~ s/^-\ //;

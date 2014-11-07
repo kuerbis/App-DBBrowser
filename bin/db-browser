@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.045
+Version 0.046
 
 =cut
 
@@ -371,17 +371,11 @@ This options have no meaning if the SQLite driver is in use.
 These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-menu by selecting the prompt
 "I<Customize:>".
 
-=head4 Insert mode
+=head4 Input modes
 
 Choose how to enter the data, when inserting into a table.
 
 =over
-
-=item
-
-"--"
-
-Offer the I<Insert mode> menu each time when inserting into a table.
 
 =item
 
@@ -395,6 +389,8 @@ Rows
 
 Enter a row at a time.
 
+To parse the rows it is use C<Text::CSV>.
+
 =item
 
 Multirow
@@ -405,22 +401,59 @@ Enter all rows at once.
 
 File
 
-Read the input from am CSV file.
+Read the input from am file.
+
+Supported file formats: CSV files and the spreadsheet formats supported by L<Spreadsheet::Read>.
 
 =back
 
-=head4 Encoding input file
-
-When the input is read from a file, this option tells how to decode the file.
-
-=head4 Col-Row input filter
+=head4 Input filter
 
 Enable the col-row input filter. If this option is enabled and the input mode is set to "Multirow" or "File", the user
 can choose which columns/rows from the input to use as insert values.
 
-=head4 CSV settings
+=head4 CSV parse module
 
-It is used L<Text::CSV> to parse the input, if the input is entered with the input mode "Rows", "Multirow" or "File".
+Set which module to use for parsing CSV files or for parsing the "Multirow" input.
+
+Files where its name match the regexp C</\.csv\z/i> are considered CSV files.
+
+If a file is not a CSV file then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
+
+=over
+
+=item
+
+Text::CSV
+
+The following csv options are used if L<Text::CSV> is chosen.
+
+To decode the file it is used the I<CSV file encoding>
+
+=item
+
+Text::ParseWords
+
+With L<Text::ParseWords> it is possible to use a regexp as delimiter - see the option I<T::PW: $delim>.
+
+To decode the file it is used the I<CSV file encoding>
+
+=item
+
+Spreadsheet::Read
+
+If L<Spreadsheet::Read> is chosen, the default settings from C<Spreadsheet::Read> are used.
+
+C<Spreadsheet::Read> will use the first line of the file to auto-detect the separation character if the file is a CSV
+file.
+
+The following csv settings have no meaning when L<Spreadsheet::Read> is in use.
+
+=back
+
+=head4 CSV file encoding
+
+How to decode csv files.
 
 =head4 csv sep_char
 
@@ -434,9 +467,17 @@ Set the csv quote_char.
 
 Set the csv escape_char.
 
-=head4 Options csv
+=head4 csv various
 
 Other different csv options.
+
+=head4 T::PW: $delim
+
+C<Text::ParseWords>: set the delimiter (C<$delim>). Can be a regexp.
+
+=head4 T::PW: $keep
+
+See L<Text::ParseWords> for more information for the option C<$keep>.
 
 =head2 CONFIGURATION FILES
 
