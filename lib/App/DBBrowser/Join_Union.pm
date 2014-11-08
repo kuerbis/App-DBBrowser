@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046';
+our $VERSION = '0.046_01';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );

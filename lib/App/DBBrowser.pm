@@ -5,7 +5,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046';
+our $VERSION = '0.046_01';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -84,6 +84,7 @@ sub __init {
     $self->{info}{app_dir}       = $app_dir;
     $self->{info}{conf_file_fmt} = catfile $app_dir, 'config_%s.json';
     $self->{info}{db_cache_file} = catfile $app_dir, 'cache_db_search.json';
+    $self->{info}{input_files}   = catfile $app_dir, 'file_history.txt';
 
     if ( ! eval {
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, {} );
@@ -514,7 +515,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.046
+Version 0.046_01
 
 =head1 DESCRIPTION
 

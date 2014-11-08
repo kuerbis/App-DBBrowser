@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046';
+our $VERSION = '0.046_01';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -59,10 +59,11 @@ sub defaults {
         tab_width            => 2,
         undef                => '',
         binary_string        => 'BNRY',
-        input_mode           => [ 'Cols', 'Multirow', 'File' ],
+        input_modes          => [ 'Cols', 'Multirow', 'File' ],
         row_col_filter       => 0,
         csv_read             => 0,
         encoding_csv_file    => 'UTF-8',
+        max_files            => 15,
     # Text::CSV:
         sep_char             => ',',
         quote_char           => '"',
@@ -180,7 +181,7 @@ sub __menus {
             [ '_env_dbi',     "- ENV DBI" ],
         ],
         config_insert => [
-            [ 'input_mode',        "- Input modes" ],
+            [ 'input_modes',       "- Input modes" ],
             [ 'row_col_filter',    "- Input filter" ],
             [ 'csv_read',          "- CSV parse module" ],
             [ 'encoding_csv_file', "- CSV file encoding" ],
@@ -190,6 +191,7 @@ sub __menus {
             [ '_options_csv',      "- csv various" ],
             [ 'delim',             "- T::PW: \$delim" ],
             [ 'keep',              "- T::PW: \$keep" ],
+            [ 'max_files',         "- File history" ],
         ],
     };
     return $menus->{$group};
@@ -237,7 +239,7 @@ sub __config_insert {
             }
             return;
         }
-        elsif ( $key eq 'input_mode' ) {
+        elsif ( $key eq 'input_modes' ) {
                 my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
                 $self->__opt_choose_a_list( $key, $available );
         }
@@ -279,6 +281,11 @@ sub __config_insert {
             my $list = $no_yes;
             my $prompt = 'Text::ParseWords option $keep';
             $self->__opt_choose_index( $key, $prompt, $list );
+        }
+        elsif ( $key eq 'max_files' ) {
+            my $digits = 3;
+            my $prompt = 'Save the last x input file names';
+            $self->__opt_number_range( $key, $prompt, $digits );
         }
         else { die "Unknown option: $key" }
     }

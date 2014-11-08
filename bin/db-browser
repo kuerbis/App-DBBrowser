@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046';
+our $VERSION = '0.046_01';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.046
+Version 0.046_01
 
 =cut
 
@@ -414,11 +414,11 @@ can choose which columns/rows from the input to use as insert values.
 
 =head4 CSV parse module
 
-Set which module to use for parsing CSV files or for parsing the "Multirow" input.
+Set which module to use for parsing text files or for parsing the "Multirow" input.
 
-The files whose name match the regexp C</\.csv\z/i> are considered CSV files.
+The files where C<-T $filename> returns true are considered text files.
 
-If a file is not a CSV file then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
+If a file is not a text file, then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
 
 =over
 
@@ -478,6 +478,10 @@ C<Text::ParseWords>: set the delimiter (C<$delim>). Can be a regexp.
 =head4 T::PW: $keep
 
 See L<Text::ParseWords> for more information for the option C<$keep>.
+
+=head4 File history
+
+Set how many input file name should be saved. A value of 0 disables the file history.
 
 =head2 CONFIGURATION FILES
 

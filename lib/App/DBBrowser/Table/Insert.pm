@@ -6,13 +6,17 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046';
+our $VERSION = '0.046_01';
 
+use Cwd        qw( realpath );
+use Encode     qw( encode decode );
 use File::Temp qw( tempfile );
+use List::Util qw( all );
 
 #use Clone                  qw( clone );
 use File::Slurp            qw( read_file );
-use List::Util             qw( all );
+use List::MoreUtils        qw( first_index );
+use Encode::Locale         qw();
 #use Spreadsheet::Read      qw( ReadData rows ); # "require"d
 use Term::Choose           qw();
 use Term::Choose::Util     qw( choose_multi );
@@ -85,18 +89,17 @@ sub __insert_into {
         }
     }
     my $trs = Term::ReadLine::Simple->new();
-    my $previous_file;
 
     VALUES: while ( 1 ) {
         my $input_mode;
-        if ( @{$self->{opt}{input_mode}} == 1 ) {
-            $input_mode = $self->{opt}{input_mode}[0];
+        if ( @{$self->{opt}{input_modes}} == 1 ) {
+            $input_mode = $self->{opt}{input_modes}[0];
         }
         else {
             $util->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             $input_mode = $stmt_h->choose(
-                [ undef, @{$self->{opt}{input_mode}} ],
+                [ undef, @{$self->{opt}{input_modes}} ],
                 { prompt => 'Input mode: ' }
             );
             if ( ! defined $input_mode ) {
@@ -109,12 +112,12 @@ sub __insert_into {
             my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
             ROWS: while ( 1 ) {
                 if ( $input_mode eq 'Cols' ) {
-                    my $row_idx = @{$sql->{quote}{insert_into_args}};
+                    my $input_row_idx = @{$sql->{quote}{insert_into_args}};
                     COLS: for my $col_name ( @{$sql->{print}{chosen_cols}} ) {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         my $col = $trs->readline( $col_name . ': ' );
-                        push @{$sql->{quote}{insert_into_args}->[$row_idx]}, $col; # show $col immediately in "print_sql_statement"
+                        push @{$sql->{quote}{insert_into_args}->[$input_row_idx]}, $col; # show $col immediately in "print_sql_statement"
                     }
                 }
                 elsif ( $input_mode eq 'Rows' ) {
@@ -169,7 +172,7 @@ sub __insert_into {
                 say 'Multirow: ';
                 # STDIN
                 my $input = read_file( \*STDIN );
-                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, SUFFIX => '.csv', UNLINK => 1 );
+                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 ); # , SUFFIX => '.csv'
                 binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
                 print $fh $input;
                 seek $fh, 0, 0;
@@ -180,7 +183,7 @@ sub __insert_into {
                 if ( ! @{$sql->{quote}{insert_into_args}} ) {
                     my $cm = Term::Choose->new( { prompt => 'Press ENTER' } );
                     $cm->choose( [ 'empty sheet!' ] ); ###
-                    if ( @{$self->{opt}{input_mode}} == 1 ) {
+                    if ( @{$self->{opt}{input_modes}} == 1 ) {
                         $sql->{quote}{chosen_cols} = [];
                         $sql->{print}{chosen_cols} = [];
                         return;
@@ -190,7 +193,7 @@ sub __insert_into {
                 if ( $self->{opt}{row_col_filter} ) {
                     $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
                     if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                        if ( @{$self->{opt}{input_mode}} == 1 ) {
+                        if ( @{$self->{opt}{input_modes}} == 1 ) {
                             $sql->{quote}{chosen_cols} = [];
                             $sql->{print}{chosen_cols} = [];
                             return;
@@ -202,40 +205,76 @@ sub __insert_into {
             elsif ( $input_mode eq 'File' ) {
                 FILE: while ( 1 ) {
                     my @files = ();
-                    push @files, $previous_file if defined $previous_file;
-                    my $new_file = 'New file';
-                    if ( @files ) {
+                    if ( $self->{opt}{max_files} && -e $self->{info}{input_files} ) {
+                        open my $fh_in, '<', $self->{info}{input_files} or die $!; ###
+                        while ( my $f = <$fh_in> ) {
+                            chomp $f;
+                            next if ! -e $f;
+                            push @files, $f;
+                        }
+                        close $fh_in;
+                    }
+                    ###
+                    my @files_sorted = sort map { decode 'locale_fs', $_ } @files;
+                    if ( length $file ) {
+                        my $i = first_index { decode( 'locale_fs', $file ) eq $_ } @files_sorted;
+                        if ( $i > -1  ) {
+                            splice @files_sorted, $i, 1;
+                        }
+                        unshift @files_sorted, decode 'locale_fs', $file;
+                    }
+                    ###
+                    my $add_file = 'New file';
+                    if ( @files_sorted ) {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Choose
                         $file = $stmt_h->choose(
-                            [ undef, map( "  $_", @files, $new_file ) ],
+                            [ undef, '  ' . $add_file, map( "- $_", @files_sorted ) ],
                             { %{$self->{info}{lyt_stmt_v}} }
                         );
                         if ( ! defined $file ) {
-                            if ( @{$self->{opt}{input_mode}} == 1 ) {
+                            if ( @{$self->{opt}{input_modes}} == 1 ) {
                                 $sql->{quote}{chosen_cols} = [];
                                 $sql->{print}{chosen_cols} = [];
                                 return;
                             }
                             next VALUES;
                         }
-                        $file =~ s/^\s+//;
+                        $file =~ s/^.\s//;
                     }
-                    if ( ! defined $file || $file eq $new_file ) {
+                    if ( ! defined $file || $file eq $add_file ) {
                         $util->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         $file = $trs->readline( 'Path to file: ' );
                         if ( ! defined $file || ! length $file ) {
-                            if ( @{$self->{opt}{input_mode}} == 1 ) {
+                            if ( @{$self->{opt}{input_modes}} == 1 ) {
                                 $sql->{quote}{chosen_cols} = [];
                                 $sql->{print}{chosen_cols} = [];
                                 return;
                             }
                             next VALUES;
                         }
+                        $file = realpath encode 'locale_fs', $file;
+                        if ( $self->{opt}{max_files} ) {
+                            my $i = first_index { $file eq $_ } @files;
+                            if ( $i > -1  ) {
+                                splice @files, $i, 1;
+                            }
+                            push @files, $file;
+                            while ( @files > $self->{opt}{max_files} ) {
+                                shift @files;
+                            }
+                            open my $fh_out, '>', $self->{info}{input_files} or die $!; ###
+                            for my $f ( @files ) {
+                                print $fh_out $f . "\n";
+                            }
+                            close $fh_out;
+                        }
                     }
-                    $previous_file = $file;
-                    if ( $self->{opt}{csv_read} < 2 && $file =~ /\.csv\z/i ) {
+                    else {
+                        $file = realpath encode 'locale_fs', $file;
+                    }
+                    if ( $self->{opt}{csv_read} < 2 && -T $file ) {
                         open my $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
                         $file = $fh;
                     }
@@ -246,12 +285,14 @@ sub __insert_into {
                     }
                     if ( ! @{$sql->{quote}{insert_into_args}} ) {
                         my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
-                        $cm->choose( [ 'empty file!' ] ); ############
+                        $cm->choose( [ 'empty file!' ] ); ###
                         next FILE;
                     }
                     if ( $self->{opt}{row_col_filter} ) {
                         $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
-                        next FILE if ! @{$sql->{quote}{insert_into_args}};
+                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                            next FILE;
+                        }
                     }
                     last FILE;
                 }
@@ -286,15 +327,15 @@ sub __parse_file {
     else {
         my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
         if ( ! -e $file ) {
-            $cm->choose( [ $file . ' : file not found!' ] );
+            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file not found!' ] );
             return;
         }
         if ( ! -s $file ) {
-            $cm->choose( [ $file . ' : file is empty!' ] );
+            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file is empty!' ] );
             return;
         }
         if ( ! -r $file ) {
-            $cm->choose( [ $file . ' : file is not readable!' ] );
+            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file is not readable!' ] );
             return;
         }
         require Spreadsheet::Read;
@@ -307,7 +348,7 @@ sub __parse_file {
             return [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ], $sheet_idx;
         }
         if ( @$book < 2 ) {
-            $cm->choose( [ $file . ' : no sheets!' ] );
+            $cm->choose( [ decode( 'locale_fs', $file ) . ' : no sheets!' ] );
             return;
         }
         elsif ( @$book == 2 ) { # first sheet in $book contains meta info

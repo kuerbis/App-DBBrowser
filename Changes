@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.046_01   2014-11-08
+        - Added file history.
+        - Choose parse module: Textfiles instead of only CSV files.
+        - Update documentation.
+
 0.046   2014-11-07
         - Support file formats supported by "Spreadsheet::Read".
         - New dependencies: "Spreadsheet::Read" and "Text::ParseWords".
