@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010000;
 
-our $VERSION = '0.046_01';
+our $VERSION = '0.047';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
@@ -78,7 +78,7 @@ sub __print_sql_statement {
 sub __print_error_message {
     my ( $self, $message ) = @_;
     utf8::decode( $message );
-    #$message =~ s/\sat(?:(?!\sat\s).)+//;
+    $message =~ s/\sat(?:(?!\sat\s).)+// if ! $self->{opt}{debug};
     print $message;
     choose(
         [ 'Press ENTER to continue' ],

@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046_01';
+our $VERSION = '0.047';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -158,7 +158,7 @@ sub __insert_into {
                     elsif ( $add_row eq $del ) {
                         next VALUES if ! @{$sql->{quote}{insert_into_args}};
                         $default = 0;
-                        $#{$sql->{quote}{insert_into_args}}--; ###
+                        $#{$sql->{quote}{insert_into_args}}--;
                         next ASK;
                     }
                     last ASK;
@@ -172,7 +172,7 @@ sub __insert_into {
                 say 'Multirow: ';
                 # STDIN
                 my $input = read_file( \*STDIN );
-                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 ); # , SUFFIX => '.csv'
+                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
                 binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
                 print $fh $input;
                 seek $fh, 0, 0;
@@ -182,7 +182,7 @@ sub __insert_into {
                 ( $sql->{quote}{insert_into_args}, $sheet_idx ) = $self->__parse_file( $file );
                 if ( ! @{$sql->{quote}{insert_into_args}} ) {
                     my $cm = Term::Choose->new( { prompt => 'Press ENTER' } );
-                    $cm->choose( [ 'empty sheet!' ] ); ###
+                    $cm->choose( [ 'empty sheet!' ] );
                     if ( @{$self->{opt}{input_modes}} == 1 ) {
                         $sql->{quote}{chosen_cols} = [];
                         $sql->{print}{chosen_cols} = [];
@@ -206,7 +206,7 @@ sub __insert_into {
                 FILE: while ( 1 ) {
                     my @files = ();
                     if ( $self->{opt}{max_files} && -e $self->{info}{input_files} ) {
-                        open my $fh_in, '<', $self->{info}{input_files} or die $!; ###
+                        open my $fh_in, '<', $self->{info}{input_files} or die $!;
                         while ( my $f = <$fh_in> ) {
                             chomp $f;
                             next if ! -e $f;
@@ -264,7 +264,7 @@ sub __insert_into {
                             while ( @files > $self->{opt}{max_files} ) {
                                 shift @files;
                             }
-                            open my $fh_out, '>', $self->{info}{input_files} or die $!; ###
+                            open my $fh_out, '>', $self->{info}{input_files} or die $!;
                             for my $f ( @files ) {
                                 print $fh_out $f . "\n";
                             }
@@ -285,7 +285,7 @@ sub __insert_into {
                     }
                     if ( ! @{$sql->{quote}{insert_into_args}} ) {
                         my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
-                        $cm->choose( [ 'empty file!' ] ); ###
+                        $cm->choose( [ 'empty file!' ] );
                         next FILE;
                     }
                     if ( $self->{opt}{row_col_filter} ) {
@@ -326,29 +326,30 @@ sub __parse_file {
     }
     else {
         my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
+        my $file_dc = decode( 'locale_fs', $file );
         if ( ! -e $file ) {
-            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file not found!' ] );
+            $cm->choose( [ $file_dc . ' : file not found!' ] );
             return;
         }
         if ( ! -s $file ) {
-            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file is empty!' ] );
+            $cm->choose( [ $file_dc . ' : file is empty!' ] );
             return;
         }
         if ( ! -r $file ) {
-            $cm->choose( [ decode( 'locale_fs', $file ) . ' : file is not readable!' ] );
+            $cm->choose( [ $file_dc . ' : file is not readable!' ] );
             return;
         }
         require Spreadsheet::Read;
         my $book = Spreadsheet::Read::ReadData( $file, cells => 0, attr => 0, rc => 1, strip => 0 );
         if ( ! defined $book ) {
-            $cm->choose( [ $file . ' : no book!' ] );
+            $cm->choose( [ $file_dc . ' : no book!' ] );
             return;
         }
         if ( $sheet_idx ) {
             return [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ], $sheet_idx;
         }
         if ( @$book < 2 ) {
-            $cm->choose( [ decode( 'locale_fs', $file ) . ' : no sheets!' ] );
+            $cm->choose( [ $file_dc . ' : no sheets!' ] );
             return;
         }
         elsif ( @$book == 2 ) { # first sheet in $book contains meta info

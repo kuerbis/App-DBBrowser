@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046_01';
+our $VERSION = '0.047';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.046_01
+Version 0.047
 
 =cut
 
@@ -202,6 +202,10 @@ Set the string that will be shown on the screen instead of an undefined field.
 On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
 C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
 a machine with 'MSWin32' OS.
+
+=head4 Debug
+
+If I<Debug> is enabled, it is shown from where an error message was called.
 
 =head3 Menu
 
@@ -416,7 +420,7 @@ can choose which columns/rows from the input to use as insert values.
 
 Set which module to use for parsing text files or for parsing the "Multirow" input.
 
-The files where C<-T $filename> returns true are considered text files.
+Files where C<-T $filename> returns true are considered text files.
 
 If a file is not a text file, then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
 
@@ -481,7 +485,7 @@ See L<Text::ParseWords> for more information for the option C<$keep>.
 
 =head4 File history
 
-Set how many input file name should be saved. A value of 0 disables the file history.
+Set how many input file names should be saved. A value of 0 disables the file history.
 
 =head2 CONFIGURATION FILES
 

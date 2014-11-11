@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.047   2014-11-11
+        - New option "Debug".
+        - Code refactoring.
+        - Update documentation.
+
 0.046_01   2014-11-08
         - Added file history.
         - Choose parse module: Textfiles instead of only CSV files.

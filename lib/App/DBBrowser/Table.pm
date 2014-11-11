@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046_01';
+our $VERSION = '0.047';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -79,7 +79,8 @@ sub __on_table {
         # Choose
         my $idx = $stmt_h->choose(
             $choices,
-            { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx, undef => $self->{info}{back} }
+            { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx,
+            undef => $sql_type ne 'Select' ? $self->{info}{_back} : $self->{info}{back} }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
             if ( $sql_type eq 'Select'  ) {
@@ -988,7 +989,7 @@ sub __on_table {
                     # Choose
                     my $choice = $stmt_h->choose(
                         $choices,
-                        { %{$self->{info}{lyt_stmt_v}}, undef => '  BACK', prompt => '' }
+                        { %{$self->{info}{lyt_stmt_v}}, undef => '  BACK', prompt => 'Choose:' }
                     );
                     if ( defined $choice && $choice eq $commit_ok ) {;
                         $dbh->commit;

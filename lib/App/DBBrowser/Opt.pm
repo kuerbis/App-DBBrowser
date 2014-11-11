@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.046_01';
+our $VERSION = '0.047';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename );
@@ -58,6 +58,7 @@ sub defaults {
         min_col_width        => 30,
         tab_width            => 2,
         undef                => '',
+        debug                => 0,
         binary_string        => 'BNRY',
         input_modes          => [ 'Cols', 'Multirow', 'File' ],
         row_col_filter       => 0,
@@ -159,6 +160,7 @@ sub __menus {
             [ 'progress_bar',  "- ProgressBar" ],
             [ 'tab_width',     "- Tabwidth" ],
             [ 'undef',         "- Undef" ],
+            [ 'debug',         "- Debug" ],
         ],
         config_menu => [
             [ '_enchant',  "- Enchant" ],
@@ -389,6 +391,11 @@ sub set_options {
             elsif ( $key eq 'undef' ) {
                 my $prompt = 'Print replacement for undefined table vales';
                 $self->__opt_readline( $key, $prompt );
+            }
+            elsif ( $key eq 'debug' ) {
+                my $list = $no_yes;
+                my $prompt = 'Debug';
+                $self->__opt_choose_index( $key, $prompt, $list );
             }
             elsif ( $key eq 'progress_bar' ) {
                 my $digits = 7;
