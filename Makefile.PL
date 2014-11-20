@@ -53,7 +53,7 @@ WriteMakefile(
         'Pod::Usage'             => 0,
         'Scalar::Util'           => 0,
         'Spreadsheet::Read'      => 0,
-        'Term::Choose'           => '1.116',
+        'Term::Choose'           => '1.117',
         'Term::Choose::Util'     => '0.016',
         'Term::ReadLine::Simple' => 0,
         'Term::TablePrint'       => '0.017',

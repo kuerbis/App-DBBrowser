@@ -4,7 +4,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.047
+Version 0.048
 
 =cut
 
@@ -92,7 +92,7 @@ To be able to use all the features of the C<db-browser> some basic SQL knowledge
 
 =item *
 
-the C<Arrow> keys (or C<h,j,k,l>) to move up and down and to move to the right and to the left,
+the C<Arrow> keys (or C<h,j,k,l>) to move up and down and to move to the right and to the left.
 
 =item *
 
@@ -129,8 +129,6 @@ To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu 
 Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
 
 =head3 Delete, Update and Insert
-
-These features are experimental.
 
 To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL menu
  and then select the prompt "I<Your choice:>".
