@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.048';
+our $VERSION = '0.049';
 
 use Encode       qw( encode decode );
 #use File::Find   qw( find );  # "require"-d
@@ -299,12 +299,13 @@ sub get_table_names {
 
 
 sub column_names_and_types {
-    my ( $self, $dbh, $db, $schema, $data ) = @_;
+    my ( $self, $dbh, $db, $schema, $tables ) = @_;
+    my ( $col_names, $col_types );
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
-        for my $table ( @{$data->{$db}{$schema}{tables}} ) {
+        for my $table ( @$tables ) {
             my $sth = $dbh->prepare( "SELECT * FROM " . $dbh->quote_identifier( undef, undef, $table ) );
-            $data->{$db}{$schema}{col_names}{$table} = $sth->{NAME};
-            $data->{$db}{$schema}{col_types}{$table} = $sth->{TYPE};
+            $col_names->{$table} = $sth->{NAME};
+            $col_types->{$table} = $sth->{TYPE};
         }
     }
     else {
@@ -323,19 +324,19 @@ sub column_names_and_types {
         $sth->execute( $schema );
         while ( my $row = $sth->fetchrow_arrayref() ) {
             my ( $table, $col_name, $col_type ) = @$row;
-            push @{$data->{$db}{$schema}{col_names}{$table}}, $col_name;
-            push @{$data->{$db}{$schema}{col_types}{$table}}, $col_type;
+            push @{$col_names->{$table}}, $col_name;
+            push @{$col_types->{$table}}, $col_type;
         }
     }
-    return $data;
+    return $col_names, $col_types;
 }
 
 
 sub primary_and_foreign_keys {
-    my ( $self, $dbh, $db, $schema, $data ) = @_;
+    my ( $self, $dbh, $db, $schema, $tables ) = @_;
     my $pk_cols = {};
     my $fks     = {};
-    for my $table ( @{$data->{$db}{$schema}{tables}} ) {
+    for my $table ( @$tables ) {
         if ( $self->{info}{db_driver} eq 'SQLite' ) {
             for my $c ( @{$dbh->selectall_arrayref( "pragma foreign_key_list( $table )" )} ) {
                 $fks->{$table}{$c->[0]}{foreign_key_col}  [$c->[1]] = $c->[3];

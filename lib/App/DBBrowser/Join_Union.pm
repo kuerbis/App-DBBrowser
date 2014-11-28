@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.048';
+our $VERSION = '0.049';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -28,14 +28,15 @@ sub new {
 }
 
 
-
 sub __union_tables {
     my ( $self, $dbh, $db, $schema, $data ) = @_;
     my $no_lyt = Term::Choose->new();
     my $u = $data->{$db}{$schema};
     if ( ! defined $u->{col_names} || ! defined $u->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        $data = $obj_db->column_names_and_types( $dbh, $db, $schema, $data );
+        my ( $col_names, $col_types ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} );
+        $u->{col_names} = $col_names;
+        $u->{col_types} = $col_types;
     }
     my $union = {
         unused_tables => [ map { "- $_" } @{$u->{tables}} ],
@@ -232,7 +233,7 @@ sub __get_tables_info {
     my $tables_info = {};
     my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $data );
+    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $data->{$db}{$schema}{tables} );
     for my $table ( @{$data->{$db}{$schema}{tables}} ) {
         push @{$tables_info->{$table}}, [ 'Table: ', '== ' . $table . ' ==' ];
         push @{$tables_info->{$table}}, [
@@ -287,7 +288,9 @@ sub __join_tables {
     my $j = $data->{$db}{$schema};
     if ( ! defined $j->{col_names} || ! defined $j->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        $data = $obj_db->column_names_and_types( $dbh, $db, $schema, $data );
+        my ( $col_names, $col_types ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );
+        $j->{col_names} = $col_names;
+        $j->{col_types} = $col_types;
     }
     my @tables = map { "- $_" } @{$j->{tables}};
 
