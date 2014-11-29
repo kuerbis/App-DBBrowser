@@ -231,18 +231,18 @@ sub __print_union_statement {
 
 
 sub __get_tables_info {
-    my ( $self, $dbh, $db, $schema, $d ) = @_;
+    my ( $self, $dbh, $db, $schema, $u_or_j ) = @_;
     my $tables_info = {};
     my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $d->{tables} );
-    for my $table ( @{$d->{tables}} ) {
+    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} );
+    for my $table ( @{$u_or_j->{tables}} ) {
         push @{$tables_info->{$table}}, [ 'Table: ', '== ' . $table . ' ==' ];
         push @{$tables_info->{$table}}, [
             'Columns: ',
             join( ' | ', map {
-                    lc( $d->{col_types}{$table}[$_] )
-                . ' ' . $d->{col_names}{$table}[$_] } 0 .. $#{$d->{col_names}{$table}} )
+                    lc( $u_or_j->{col_types}{$table}[$_] )
+                . ' ' . $u_or_j->{col_names}{$table}[$_] } 0 .. $#{$u_or_j->{col_names}{$table}} )
         ];
         if ( @{$pk->{$table}} ) {
             push @{$tables_info->{$table}}, [ 'PK: ', 'primary key (' . join( ',', @{$pk->{$table}} ) . ')' ];
