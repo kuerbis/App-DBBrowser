@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+0.049_01   2014-11-29
+        - Code refactoring.
+
 0.049   2014-11-28
         - Code refactoring.
         - "Term::Choose-Util" minimum version "0.017".

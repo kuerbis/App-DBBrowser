@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049';
+our $VERSION = '0.049_01';
 
 use Encode       qw( encode decode );
 #use File::Find   qw( find );  # "require"-d
@@ -165,7 +165,7 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $dbh ) = @_;
+    my ( $self, $dbh, $metadata ) = @_;
     my $databases = [];
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
         require File::Find;
@@ -198,7 +198,7 @@ sub available_databases {
     elsif( $self->{info}{db_driver} eq 'Pg' ) {
         my $regexp = [];
         my $stmt = "SELECT datname FROM pg_database";
-        if ( ! $self->{opt}{metadata} ) {
+        if ( ! $metadata ) {
             $regexp = regexp_system( $self, 'database' );
             $stmt .= " WHERE " . join( " AND ", ( "datname !~ ?" ) x @$regexp ) if @$regexp;
         }
@@ -208,7 +208,7 @@ sub available_databases {
     elsif( $self->{info}{db_driver} eq 'mysql' ) {
         my $regexp = [];
         my $stmt = "SELECT schema_name FROM information_schema.schemata";
-        if ( ! $self->{opt}{metadata} ) {
+        if ( ! $metadata ) {
             $regexp = regexp_system( $self, 'database' );
             $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @$regexp ) if @$regexp;
         }
@@ -251,14 +251,14 @@ sub regexp_system {
 
 
 sub get_schema_names {
-    my ( $self, $dbh, $db ) = @_;
+    my ( $self, $dbh, $db, $metadata ) = @_;
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
         return [ 'main' ];
     }
     elsif ( $self->{info}{db_driver} eq 'Pg' ) {
         my $regexp = [];
         my $stmt = "SELECT schema_name FROM information_schema.schemata";
-        if ( ! $self->{opt}{metadata} ) {
+        if ( ! $metadata ) {
             $regexp = regexp_system( $self, 'schema' );
             $stmt .= " WHERE " . join( " AND ", ( "schema_name !~ ?" ) x @$regexp ) if @$regexp;
         }
@@ -274,18 +274,18 @@ sub get_schema_names {
 
 
 sub get_table_names {
-    my ( $self, $dbh, $schema ) = @_;
+    my ( $self, $dbh, $schema, $metadata ) = @_;
     my $tables = [];
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
         my $regexp = [];
         my $stmt = "SELECT name FROM sqlite_master WHERE type = 'table'";
-        if ( ! $self->{opt}{metadata} ) {
+        if ( ! $metadata ) {
             $regexp = regexp_system( $self, 'table' );
             $stmt .= " AND " . join( " AND ", ( "name NOT REGEXP ?" ) x @$regexp ) if @$regexp;
         }
         $stmt .= " ORDER BY name";
         $tables = $dbh->selectcol_arrayref( $stmt, {}, @$regexp );
-        push @$tables, 'sqlite_master' if $self->{opt}{metadata};
+        push @$tables, 'sqlite_master' if $metadata;
     }
     else {
         my $stmt = "SELECT table_name FROM information_schema.tables
@@ -381,9 +381,9 @@ sub primary_and_foreign_keys {
 
 
 sub sql_regexp {
-    my ( $self, $quote_col, $not_regexp ) = @_;
+    my ( $self, $quote_col, $is_not_regexp, $case_sensitive ) = @_;
     if ( $self->{info}{db_driver} eq 'SQLite' ) {
-        if ( $not_regexp ) {
+        if ( $is_not_regexp ) {
             return ' '. $quote_col . ' NOT REGEXP ?';
         }
         else {
@@ -391,33 +391,33 @@ sub sql_regexp {
         }
     }
     elsif ( $self->{info}{db_driver} eq 'mysql' ) {
-        if ( $not_regexp ) {
-            return ' '. $quote_col . ' NOT REGEXP ?'        if ! $self->{opt}{regex_case};
-            return ' '. $quote_col . ' NOT REGEXP BINARY ?' if   $self->{opt}{regex_case};
+        if ( $is_not_regexp ) {
+            return ' '. $quote_col . ' NOT REGEXP ?'        if ! $case_sensitive;
+            return ' '. $quote_col . ' NOT REGEXP BINARY ?' if   $case_sensitive;
         }
         else {
-            return ' '. $quote_col . ' REGEXP ?'            if ! $self->{opt}{regex_case};
-            return ' '. $quote_col . ' REGEXP BINARY ?'     if   $self->{opt}{regex_case};
+            return ' '. $quote_col . ' REGEXP ?'            if ! $case_sensitive;
+            return ' '. $quote_col . ' REGEXP BINARY ?'     if   $case_sensitive;
         }
     }
     elsif ( $self->{info}{db_driver} eq 'Pg' ) {
-        if ( $not_regexp ) {
-            return ' '. $quote_col . '::text' . ' !~* ?' if ! $self->{opt}{regex_case};
-            return ' '. $quote_col . '::text' . ' !~ ?'  if   $self->{opt}{regex_case};
+        if ( $is_not_regexp ) {
+            return ' '. $quote_col . '::text' . ' !~* ?' if ! $case_sensitive;
+            return ' '. $quote_col . '::text' . ' !~ ?'  if   $case_sensitive;
         }
         else {
-            return ' '. $quote_col . '::text' . ' ~* ?'  if ! $self->{opt}{regex_case};
-            return ' '. $quote_col . '::text' . ' ~ ?'   if   $self->{opt}{regex_case};
+            return ' '. $quote_col . '::text' . ' ~* ?'  if ! $case_sensitive;
+            return ' '. $quote_col . '::text' . ' ~ ?'   if   $case_sensitive;
         }
     }
     elsif ( $self->{info}{db_driver} eq 'oracle' ) {
-        if ( $not_regexp ) {
-            return ' NOT REGEXP_LIKE(' . $quote_col . ',?,\'i\')' if ! $self->{opt}{regex_case};
-            return ' NOT REGEXP_LIKE(' . $quote_col . ',?)'       if   $self->{opt}{regex_case};
+        if ( $is_not_regexp ) {
+            return ' NOT REGEXP_LIKE(' . $quote_col . ',?,\'i\')' if ! $case_sensitive;
+            return ' NOT REGEXP_LIKE(' . $quote_col . ',?)'       if   $case_sensitive;
         }
         else {
-            return ' REGEXP_LIKE(' . $quote_col . ',?,\'i\')'     if ! $self->{opt}{regex_case};
-            return ' REGEXP_LIKE(' . $quote_col . ',?)'           if   $self->{opt}{regex_case};
+            return ' REGEXP_LIKE(' . $quote_col . ',?,\'i\')'     if ! $case_sensitive;
+            return ' REGEXP_LIKE(' . $quote_col . ',?)'           if   $case_sensitive;
         }
     }
     die 'No entry for "' . $self->{info}{db_driver} . '"!';

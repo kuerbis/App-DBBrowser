@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049';
+our $VERSION = '0.049_01';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -1170,7 +1170,7 @@ sub __set_operator_sql {
             }
             $sql->{quote}{$stmt} =~ s/.*\K\s\Q$quote_col\E//;
             my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-            $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $operator =~ /^NOT/ ? 1 : 0 );
+            $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $operator =~ /^NOT/ ? 1 : 0, $self->{opt}{regexp_case} );
             $sql->{print}{$stmt} .= ' ' . "'$value'";
             push @{$sql->{quote}{$args}}, $value;
         }

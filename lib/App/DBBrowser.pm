@@ -5,7 +5,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049';
+our $VERSION = '0.049_01';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -173,7 +173,7 @@ sub run {
                 $databases = $self->__available_databases_cached( $dbh );
             }
             else {
-                $databases = $obj_db->available_databases( $dbh );
+                $databases = $obj_db->available_databases( $dbh, $self->{opt}{metadata} );
             }
             1 }
         ) {
@@ -256,7 +256,7 @@ sub run {
             my $dbh;
             if ( ! eval {
                 $dbh = $obj_db->get_db_handle( $db );
-                $data->{$db}{schemas} = $obj_db->get_schema_names( $dbh, $db ) if ! defined $data->{$db}{schemas};
+                $data->{$db}{schemas} = $obj_db->get_schema_names( $dbh, $db, $self->{opt}{metadata} ) if ! defined $data->{$db}{schemas};
                 1 }
             ) {
                 say 'Get database handle and schema names:';
@@ -316,7 +316,7 @@ sub run {
 
                 if ( ! eval {
                     if ( ! defined $data->{$db}{$schema}{tables} ) {
-                        $data->{$db}{$schema}{tables} = $obj_db->get_table_names( $dbh, $schema );
+                        $data->{$db}{$schema}{tables} = $obj_db->get_table_names( $dbh, $schema, $self->{opt}{metadata} );
                     }
                     1 }
                 ) {
@@ -406,12 +406,11 @@ sub run {
                             require App::DBBrowser::Join_Union;
                             my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
                             $multi_table = $obj_ju->__union_tables( $dbh, $db, $schema, $data );
-                            if ( $self->{union_all} ) {
+                            if ( $obj_ju->{union_all} ) { #
                                 $table = 'union_all_tables';
-                                delete $self->{union_all};
                             }
                             else {
-                                $table = 'union_tables';
+                                $table = 'union_selected_tables';
                             }
                             1 }
                         ) {
@@ -491,7 +490,7 @@ sub __available_databases_cached {
         return $self->{info}{cache}{$cache_key};
     }
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my $databases = $obj_db->available_databases( $dbh );
+    my $databases = $obj_db->available_databases( $dbh, $self->{opt}{metadata} );
     $self->{info}{cache}{$cache_key} = $databases;
     $obj_opt->write_json( $self->{info}{db_cache_file}, $self->{info}{cache} );
     return $databases;
@@ -515,7 +514,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049
+Version 0.049_01
 
 =head1 DESCRIPTION
 

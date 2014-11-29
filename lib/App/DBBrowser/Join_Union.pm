@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049';
+our $VERSION = '0.049_01';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -34,9 +34,7 @@ sub __union_tables {
     my $u = $data->{$db}{$schema};
     if ( ! defined $u->{col_names} || ! defined $u->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        my ( $col_names, $col_types ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} );
-        $u->{col_names} = $col_names;
-        $u->{col_types} = $col_types;
+        ( $u->{col_names}, $u->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} );
     }
     my $union = {
         unused_tables => [ map { "- $_" } @{$u->{tables}} ],
@@ -52,17 +50,18 @@ sub __union_tables {
         my @post_tbl = ( $all_tables, $self->{info}{_info} );
         my $choices = [ @pre_tbl, map( "+ $_", @{$union->{used_tables}} ), @{$union->{unused_tables}}, @post_tbl ];
         $self->__print_union_statement( $union );
+        my $prompt = $self->{union_all} ? 'One UNION table for cols:' : 'Choose UNION table:';
         # Choose
         my $idx_tbl = $no_lyt->choose(
             $choices,
-            { %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose UNION table:', index => 1 }
+            { %{$self->{info}{lyt_stmt_v}}, prompt => $prompt, index => 1 }
         );
         return if ! defined $idx_tbl;
         my $union_table = $choices->[$idx_tbl];
         return  if ! defined $union_table;
         if ( $union_table eq $self->{info}{_info} ) {
             if ( ! defined $u->{tables_info} ) {
-                $u->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $data );
+                $u->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $u );
             }
             my $tbls_info = $self->__print_tables_info( $u );
             # Choose
@@ -188,7 +187,8 @@ sub __union_tables {
         $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_ALL_TABLES' );
     }
     else {
-        $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( join '_', @{$union->{used_tables}} );
+        #$union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( join '_', @{$union->{used_tables}} );
+        $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_SELECTED_TABLES' );
     }
     return $union;
 }
@@ -198,8 +198,9 @@ sub __print_union_statement {
     my ( $self, $union ) = @_;
     my $str;
     if ( $self->{union_all} ) {
-        $str = 'UNION ALL TABLES' . "\n" . 'Col: ';
+        $str = 'UNION ALL TABLES';
         if ( @{$union->{used_tables}} ) {
+            $str .= "\n" . 'Cols: ';
             my $table = $union->{used_tables}[0];
             $str .= join( ', ', @{$union->{used_cols}{$table}} ) if @{$union->{used_cols}{$table}//[]};
         }
@@ -207,17 +208,18 @@ sub __print_union_statement {
     }
     else {
         $str = "SELECT * FROM (\n";
-        my $c = 0;
-        for my $table ( @{$union->{used_tables}} ) {
-            ++$c;
-            $str .= "  SELECT ";
-            $str .= @{$union->{used_cols}{$table}//[]} ? join( ', ', @{$union->{used_cols}{$table}} ) : '?';
-            $str .= " FROM $table";
-            $str .= $c < @{$union->{used_tables}} ? " UNION ALL\n" : "\n";
-        }
         if ( @{$union->{used_tables}} ) {
+            my $c = 0;
+            for my $table ( @{$union->{used_tables}} ) {
+                ++$c;
+                $str .= "  SELECT ";
+                $str .= @{$union->{used_cols}{$table}//[]} ? join( ', ', @{$union->{used_cols}{$table}} ) : '?';
+                $str .= " FROM $table";
+                $str .= $c < @{$union->{used_tables}} ? " UNION ALL\n" : "\n";
+            }
             $str .= ") AS ";
-            $str .= $self->{union_all} ? 'UNION_ALL_TABLES' : join '_', @{$union->{used_tables}};
+            #$str .= join '_', @{$union->{used_tables}};
+            $str .= 'Selected_Tables';
             $str .= " \n";
         }
     }
@@ -229,18 +231,18 @@ sub __print_union_statement {
 
 
 sub __get_tables_info {
-    my ( $self, $dbh, $db, $schema, $data ) = @_;
+    my ( $self, $dbh, $db, $schema, $d ) = @_;
     my $tables_info = {};
     my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $data->{$db}{$schema}{tables} );
-    for my $table ( @{$data->{$db}{$schema}{tables}} ) {
+    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $d->{tables} );
+    for my $table ( @{$d->{tables}} ) {
         push @{$tables_info->{$table}}, [ 'Table: ', '== ' . $table . ' ==' ];
         push @{$tables_info->{$table}}, [
             'Columns: ',
             join( ' | ', map {
-                    lc( $data->{$db}{$schema}{col_types}{$table}[$_] )
-                . ' ' . $data->{$db}{$schema}{col_names}{$table}[$_] } 0 .. $#{$data->{$db}{$schema}{col_names}{$table}} )
+                    lc( $d->{col_types}{$table}[$_] )
+                . ' ' . $d->{col_names}{$table}[$_] } 0 .. $#{$d->{col_names}{$table}} )
         ];
         if ( @{$pk->{$table}} ) {
             push @{$tables_info->{$table}}, [ 'PK: ', 'primary key (' . join( ',', @{$pk->{$table}} ) . ')' ];
@@ -288,9 +290,7 @@ sub __join_tables {
     my $j = $data->{$db}{$schema};
     if ( ! defined $j->{col_names} || ! defined $j->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        my ( $col_names, $col_types ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );
-        $j->{col_names} = $col_names;
-        $j->{col_types} = $col_types;
+        ( $j->{col_names}, $j->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );
     }
     my @tables = map { "- $_" } @{$j->{tables}};
 
@@ -308,7 +308,7 @@ sub __join_tables {
         return if ! defined $master;
         if ( $master eq $self->{info}{_info} ) {
             if ( ! defined $j->{tables_info} ) {
-                $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $data );
+                $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
             }
             my $tbls_info = $self->__print_tables_info( $j );
             # Choose
@@ -364,7 +364,7 @@ sub __join_tables {
                 }
                 elsif ( $slave eq $self->{info}{_info} ) {
                     if ( ! defined $j->{tables_info} ) {
-                        $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $data );
+                        $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
                     }
                     my $tbls_info = $self->__print_tables_info( $j );
                     # Choose
