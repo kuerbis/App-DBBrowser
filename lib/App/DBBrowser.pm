@@ -1,21 +1,21 @@
 package App::DBBrowser;
 
-use warnings;
+use warnings FATAL => 'all';
 use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_01';
+our $VERSION = '0.049_02';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 use Getopt::Long          qw( GetOptions );
 
-use Encode::Locale         qw( decode_argv );
-use File::HomeDir          qw();
-use Term::Choose           qw();
-use Term::TablePrint       qw( print_table );
+use Encode::Locale   qw( decode_argv );
+use File::HomeDir    qw();
+use Term::Choose     qw();
+use Term::TablePrint qw( print_table );
 
 use App::DBBrowser::Opt;
 use App::DBBrowser::DB;
@@ -167,14 +167,9 @@ sub run {
         my $databases = [];
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
         if ( ! eval {
-            my $db = $obj_db->info_database();
-            my $dbh = $obj_db->get_db_handle( $db );
-            if ( $db_driver eq 'SQLite' ) {
-                $databases = $self->__available_databases_cached( $dbh );
-            }
-            else {
-                $databases = $obj_db->available_databases( $dbh, $self->{opt}{metadata} );
-            }
+            my ( $user_db, $system_db ) = $obj_db->available_databases( $self->{opt}{metadata} );
+            $system_db //= [];
+            $databases = $db_driver eq 'SQLite' ? [ @$user_db, @$system_db ] : [ map( "- $_", @$user_db ), map( "  $_", @$system_db ) ];
             1 }
         ) {
             say 'Available databases:';
@@ -187,31 +182,6 @@ sub run {
             $util->__print_error_message( "no $db_driver-databases found\n" );
             exit if @{$self->{opt}{db_drivers}} == 1;
             next DB_DRIVER;
-        }
-        my $regexp_system;
-        $regexp_system = $obj_db->regexp_system( 'database' ) if $self->{opt}{metadata};
-        if ( defined $regexp_system ) {
-            my $regexp = join( '|', @$regexp_system );
-            my ( @data, @system );
-            for my $database ( @{$databases} ) {
-                if ( $database =~ /(?:$regexp)/ ) {
-                    push @system, $database;
-                }
-                else {
-                    push @data, $database;
-                }
-            }
-            if ( $db_driver eq 'SQLite' ) {
-                $databases = [ @data, @system ];
-            }
-            else {
-                $databases = [ map( "- $_", @data ), map( "  $_", @system ) ];
-            }
-        }
-        else {
-            if ( $db_driver ne 'SQLite' ) {
-                $databases = [ map{ "- $_" } @$databases ];
-            }
         }
 
         my $data = {};
@@ -254,9 +224,15 @@ sub run {
             }
 
             my $dbh;
+            my $choices_schema = [];
             if ( ! eval {
                 $dbh = $obj_db->get_db_handle( $db );
-                $data->{$db}{schemas} = $obj_db->get_schema_names( $dbh, $db, $self->{opt}{metadata} ) if ! defined $data->{$db}{schemas};
+                ## if ( ! defined $data->{$db}{schemas} ) {
+                my ( $user_sma, $system_sma ) = $obj_db->get_schema_names( $dbh, $db, $self->{opt}{metadata} );
+                $system_sma //= [];
+                $data->{$db}{schemas} = [ @$user_sma, @$system_sma ];
+                $choices_schema = [ map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) ];
+                unshift @$choices_schema, undef;
                 1 }
             ) {
                 say 'Get database handle and schema names:';
@@ -274,33 +250,13 @@ sub run {
                     $schema = $data->{$db}{schemas}[0];
                 }
                 elsif ( @{$data->{$db}{schemas}} > 1 ) {
-                    my $choices;
-                    my $idx_sch;
-                    my $regexp_system;
-                    $regexp_system = $obj_db->regexp_system( 'schema' ) if $self->{opt}{metadata};
-                    if ( defined $regexp_system ) {
-                        my $regexp = join( '|', @$regexp_system );
-                        my ( @data, @system );
-                        for my $schema ( @{$data->{$db}{schemas}} ) {
-                            if ( $schema =~ /(?:$regexp)/ ) {
-                                push @system, $schema;
-                            }
-                            else {
-                                push @data, $schema;
-                            }
-                        }
-                        $choices = [ undef, map( "- $_", @data ), map( "  $_", @system ) ];
-                    }
-                    else {
-                        $choices = [ undef, map( "- $_", @{$data->{$db}{schemas}} ) ];
-                    }
                     my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
                     # Choose
-                    $idx_sch = $lyt_3->choose(
-                        $choices,
+                    my $idx_sch = $lyt_3->choose(
+                        $choices_schema,
                         { prompt => $prompt, index => 1, default => $old_idx_sch }
                     );
-                    $schema = $choices->[$idx_sch] if defined $idx_sch;
+                    $schema = $choices_schema->[$idx_sch] if defined $idx_sch;
                     next DATABASE if ! defined $schema;
                     if ( $self->{opt}{menus_db_memory} ) {
                         if ( $old_idx_sch == $idx_sch ) {
@@ -314,10 +270,18 @@ sub run {
                     $schema =~ s/^[-\ ]\s//;
                 }
 
+                my $join       = '  Join';
+                my $union      = '  Union';
+                my $db_setting = '  Database settings';
+                my $choices_table;
                 if ( ! eval {
-                    if ( ! defined $data->{$db}{$schema}{tables} ) {
-                        $data->{$db}{$schema}{tables} = $obj_db->get_table_names( $dbh, $schema, $self->{opt}{metadata} );
-                    }
+                    ## if ( ! defined $data->{$db}{$schema}{tables} ) {
+                    my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema, $self->{opt}{metadata} );
+                    $system_tbl //= [];
+                    $data->{$db}{$schema}{tables} = [ @$user_tbl, @$system_tbl ];
+                    $choices_table = [ map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) ];
+                    unshift @$choices_table, undef;
+                    push @$choices_table, $join, $union, $db_setting;
                     1 }
                 ) {
                     say 'Get table names:';
@@ -325,28 +289,6 @@ sub run {
                     next DATABASE;
                 }
 
-                my $join       = '  Join';
-                my $union      = '  Union';
-                my $db_setting = '  Database settings';
-                my @tables = ();
-                my $regexp_system;
-                $regexp_system = $obj_db->regexp_system( 'table' ) if $self->{opt}{metadata};
-                if ( defined $regexp_system ) {
-                    my $regexp = join( '|', @$regexp_system );
-                    my ( @data, @system );
-                    for my $table ( @{$data->{$db}{$schema}{tables}} ) {
-                        if ( $table =~ /(?:$regexp)/ ) {
-                            push @system, $table;
-                        }
-                        else {
-                            push @data, $table;
-                        }
-                    }
-                    @tables = ( map( "- $_", @data ), map( "  $_", @system ) );
-                }
-                else {
-                    @tables = map { "- $_" } @{$data->{$db}{$schema}{tables}};
-                }
                 my $old_idx_tbl = 0;
 
                 TABLE: while ( 1 ) {
@@ -354,14 +296,12 @@ sub run {
                     my $prompt = 'DB: "'. basename( $db );
                     $prompt .= '.' . $schema if defined $data->{$db}{schemas} && @{$data->{$db}{schemas}} > 1;
                     $prompt .= '"';
-                    my $choices = [ undef, @tables, $join, $union, $db_setting ];
                     # Choose
                     my $idx_tbl = $lyt_3->choose(
-                        $choices,
+                        $choices_table,
                         { prompt => $prompt, index => 1, default => $old_idx_tbl }
                     );
-                    my $table;
-                    $table = $choices->[$idx_tbl] if defined $idx_tbl;
+                    my $table = $choices_table->[$idx_tbl] if defined $idx_tbl;
                     if ( ! defined $table ) {
                         next SCHEMA if defined $data->{$db}{schemas} && @{$data->{$db}{schemas}} > 1;
                         next DATABASE;
@@ -475,29 +415,6 @@ sub run {
 }
 
 
-sub __available_databases_cached {
-    my ( $self, $dbh ) = @_;
-    my $db_driver = $self->{info}{db_driver};
-    my $cache_key = $db_driver . '_' . join ' ', @{$self->{info}{sqlite_dirs}};
-    my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
-    $self->{info}{cache} = $obj_opt->read_json( $self->{info}{db_cache_file} );
-    if ( $self->{info}{sqlite_search} ) {
-        delete $self->{info}{cache}{$cache_key};
-        $self->{info}{sqlite_search} = 0;
-    }
-    if ( $self->{info}{cache}{$cache_key} ) {
-        $self->{info}{cached} = ' (cached)';
-        return $self->{info}{cache}{$cache_key};
-    }
-    my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my $databases = $obj_db->available_databases( $dbh, $self->{opt}{metadata} );
-    $self->{info}{cache}{$cache_key} = $databases;
-    $obj_opt->write_json( $self->{info}{db_cache_file}, $self->{info}{cache} );
-    return $databases;
-}
-
-
-
 
 1;
 
@@ -514,7 +431,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_01
+Version 0.049_02
 
 =head1 DESCRIPTION
 

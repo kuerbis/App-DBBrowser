@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+0.049_02   2014-12-01
+        - "App::DBBrowser::DB": a module for each driver.
+
 0.049_01   2014-11-29
         - Code refactoring.
 

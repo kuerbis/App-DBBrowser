@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
-use warnings;
+use warnings FATAL => 'all';
 use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_01';
+our $VERSION = '0.049_02';
 
 use Encode::Locale qw();
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_01
+Version 0.049_02
 
 =cut
 

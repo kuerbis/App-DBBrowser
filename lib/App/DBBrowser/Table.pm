@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::Table;
 
-use warnings;
+use warnings FATAL => 'all';
 use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_01';
+our $VERSION = '0.049_02';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
