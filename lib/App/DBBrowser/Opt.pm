@@ -6,10 +6,10 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_02';
+our $VERSION = '0.049_03';
 
 use Encode                qw( encode );
-use File::Basename        qw( basename );
+use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
@@ -21,7 +21,7 @@ use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
 use Term::ReadLine::Simple qw();
 
-
+use App::DBBrowser::DB;
 
 sub new {
     my ( $class, $info, $opt ) = @_;
@@ -32,13 +32,11 @@ sub new {
 sub defaults {
     my ( $self, @keys ) = @_;
     my $defaults = {
-        db_drivers           => [ 'SQLite', 'mysql', 'Pg' ],
-        ask_host_port_per_db => 1,
-        ask_user_pass_per_db => 1,
-        use_env_dbi_user     => 0,
-        use_env_dbi_pass     => 0,
-        use_env_dbi_host     => 0,
-        use_env_dbi_port     => 0,
+        db_plugins           => [ 'SQLite', 'mysql', 'Pg' ],
+        login_host           => 1,
+        login_port           => 1,
+        login_user           => 1,
+        login_pass           => 1,
         menus_config_memory  => 0,
         menu_sql_memory      => 0,
         menus_db_memory      => 0,
@@ -121,15 +119,11 @@ sub __multi_choose {
             [ 'parentheses_w', "- Parentheses in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
             [ 'parentheses_h', "- Parentheses in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
         ],
-        _env_dbi     => [
-            [ 'use_env_dbi_user', "- Use DBI_USER", [ 'NO', 'YES' ] ],
-            [ 'use_env_dbi_pass', "- Use DBI_PASS", [ 'NO', 'YES' ] ],
-            [ 'use_env_dbi_host', "- Use DBI_HOST", [ 'NO', 'YES' ] ],
-            [ 'use_env_dbi_port', "- Use DBI_PORT", [ 'NO', 'YES' ] ],
-        ],
         _db_connect  => [
-            [ 'ask_host_port_per_db', "- Ask host/port per DB", [ 'NO', 'YES' ] ],
-            [ 'ask_user_pass_per_db', "- Ask user/pass per DB", [ 'NO', 'YES' ] ],
+            [ 'login_host', "- Host",     [ 'Ask once', 'Ask always', 'ENV DBI_HOST', 'Don\'t set' ] ],
+            [ 'login_port', "- Port",     [ 'Ask once', 'Ask always', 'ENV DBI_PORT', 'Don\'t set' ] ],
+            [ 'login_user', "- User",     [ 'Ask once', 'Ask always', 'ENV DBI_USER' ] ],
+            [ 'login_pass', "- Password", [ 'Ask once', 'Ask always', 'ENV DBI_PASS' ] ],
         ],
         _options_csv => [
             [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
@@ -178,9 +172,8 @@ sub __menus {
         ],
         config_database => [
             [ '_db_defaults', "- DB Defaults" ],
-            [ 'db_drivers',   "- DB Drivers" ],
-            [ '_db_connect',  "- DB Login" ],
-            [ '_env_dbi',     "- ENV DBI" ],
+            [ 'db_plugins',   "- DB Plugins" ],
+            [ '_db_connect',  "- DB Login mode" ],
         ],
         config_insert => [
             [ 'input_modes',       "- Input modes" ],
@@ -430,10 +423,6 @@ sub set_options {
                 my $sub_menu = $self->__multi_choose( $key );
                 $self->__opt_choose_multi( $sub_menu );
             }
-            elsif ( $key eq '_env_dbi' ) {
-                my $sub_menu = $self->__multi_choose( $key );
-                $self->__opt_choose_multi( $sub_menu );
-            }
             elsif ( $key eq '_db_defaults' ) {
                 $self->database_setting();
             }
@@ -446,9 +435,12 @@ sub set_options {
                 my $available = $self->{info}{avail_operators};
                 $self->__opt_choose_a_list( $key, $available );
             }
-            elsif ( $key eq 'db_drivers' ) {
-                my $available = $self->{info}{avail_db_drivers};
-                $self->__opt_choose_a_list( $key, $available );
+            elsif ( $key eq 'db_plugins' ) {
+                my %avail;
+                for my $dir ( @INC ) {
+                    my @dummy = map { $avail{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm"; ##
+                }
+                $self->__opt_choose_a_list( $key, [ sort keys %avail ] );
             }
             elsif ( $key eq 'mouse' ) {
                 my $max = 4;
@@ -541,31 +533,35 @@ sub __opt_readline {
 
 sub database_setting {
     my ( $self, $db ) = @_;
-    my ( $db_driver, $section );
+    my ( $db_plugin, $db_driver, $section );
     if ( ! defined $db ) {
-        if ( @{$self->{opt}{db_drivers}} == 1 ) {
-            $db_driver = $self->{opt}{db_drivers}[0];
+        if ( @{$self->{opt}{db_plugins}} == 1 ) {
+            $db_plugin = $self->{opt}{db_plugins}[0];
         }
         else {
             # Choose
-            $db_driver = choose(
-                [ undef, @{$self->{opt}{db_drivers}} ],
+            $db_plugin = choose(
+                [ undef, @{$self->{opt}{db_plugins}} ],
                 { %{$self->{info}{lyt_1}} }
             );
-            return if ! defined $db_driver;
+            return if ! defined $db_plugin;
         }
-        $section = $db_driver;
+        $self->{info}{db_plugin} = $db_plugin;
+        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        $db_driver = $obj_db->db_driver();
+        $section = $db_plugin;
     }
     else {
-        $db_driver = $self->{info}{db_driver};
-        $section   = $db_driver . '_' . $db;
+        $db_plugin = $self->{info}{db_plugin};
+        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        $db_driver = $obj_db->db_driver();
+        $section   = $db_plugin . '_' . $db;
         for my $key ( keys %{$self->{opt}{$db_driver}} ) {
             next if $key =~ /^(?:host|port|user)\z/; #
             next if $key eq 'dirs_sqlite_search';
-            $self->{opt}{$section}{$key} //= $self->{opt}{$db_driver}{$key};
+            $self->{opt}{$section}{$key} //= $self->{opt}{$db_plugin}{$key};
         }
     }
-
     my $orig = clone( $self->{opt} );
     my $menus = {
         SQLite => [
@@ -580,7 +576,8 @@ sub database_setting {
         ],
     };
     if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) {
-        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ], [ 'port', "- Port" ] if $self->{opt}{ask_host_port_per_db};
+        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ] if $self->{opt}{login_host} != 3; #
+        unshift @{$menus->{$db_driver}}, [ 'port', "- Port" ] if $self->{opt}{login_port} != 3; #
         unshift @{$menus->{$db_driver}}, [ 'user', "- User" ];
     }
     if ( ! $db && $db_driver eq 'SQLite' ) {
@@ -619,7 +616,6 @@ sub database_setting {
                 $old_idx = $idx;
             }
         }
-
         if ( $key eq '_reset' ) {
             if ( $db ) {
                 delete $self->{opt}{$section};
@@ -767,17 +763,17 @@ sub __db_opt_readline {
 
 sub __write_config_files {
     my ( $self ) = @_;
-    my $regexp_db_drivers = join '|', map quotemeta, @{$self->defaults( qw( db_drivers ) )};
+    my $regexp_db_plugins = join '|', map quotemeta, @{$self->defaults( qw( db_plugins ) )};
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
     for my $section ( sort keys %{$self->{opt}} ) {
-        if ( $section =~ /^($regexp_db_drivers)(?:_(.+))?\z/ ) {
+        if ( $section =~ /^($regexp_db_plugins)(?:_(.+))?\z/ ) {
             die $section if ref( $self->{opt}{$section} ) ne 'HASH';
-            my ( $db_driver, $conf_sect ) = ( $1, $2 );
-            $conf_sect //= '*' . $db_driver;
+            my ( $db_plugin, $conf_sect ) = ( $1, $2 );
+            $conf_sect //= '*' . $db_plugin;
             for my $key ( keys %{$self->{opt}{$section}} ) {
                 next if $key =~ /^_/;
-                $tmp->{$db_driver}{$conf_sect}{$key} = $self->{opt}{$section}{$key};
+                $tmp->{$db_plugin}{$conf_sect}{$key} = $self->{opt}{$section}{$key};
             }
         }
         else {
@@ -799,14 +795,14 @@ sub read_config_files {
     my ( $self ) = @_;
     $self->{opt} = $self->defaults();
     my $fmt = $self->{info}{conf_file_fmt};
-    for my $db_driver ( @{$self->defaults( qw( db_drivers ) )} ) {
-        my $file = sprintf( $fmt, $db_driver );
+    for my $db_plugin ( @{$self->defaults( qw( db_plugins ) )} ) {
+        my $file = sprintf( $fmt, $db_plugin );
         if ( -f $file && -s $file ) {
             my $tmp = $self->read_json( $file );
             for my $conf_sect ( keys %$tmp ) {
-                my $section = $db_driver . ( $conf_sect =~ /^\*(?:$db_driver)\z/ ? '' : '_' . $conf_sect );
+                my $section = $db_plugin . ( $conf_sect =~ /^\*(?:$db_plugin)\z/ ? '' : '_' . $conf_sect );
                 for my $key ( keys %{$tmp->{$conf_sect}} ) {
-                    $self->{opt}{$section}{$key} = $tmp->{$conf_sect}{$key} if exists $self->{opt}{$db_driver}{$key};
+                    $self->{opt}{$section}{$key} = $tmp->{$conf_sect}{$key} if exists $self->{opt}{$db_plugin}{$key};
                 }
             }
         }

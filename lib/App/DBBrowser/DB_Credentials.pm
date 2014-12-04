@@ -6,100 +6,74 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_02';
+our $VERSION = '0.049_03';
 
 use Term::ReadLine::Simple qw();
-
-#sub CLEAR_SCREEN () { "\e[H\e[J" }
 
 
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class ) = @_;
+    bless {}, $class;
 }
 
 
-sub __get_host_or_port {
-    my ( $self, $db, $key ) = @_;
-    my $db_driver = $self->{info}{db_driver};
-    my $db_key = $db_driver . '_' . $db;
+sub get_login {
+    my ( $self, $key, $login_cache ) = @_;
+    my $login_key = 'login_' . $key;
+    $login_cache->{$login_key} //= 1;
     my $prompt = ucfirst( $key ) . ': ';
-    my $env_key = 'DBI_' . uc( $key );
-    return '' if $db_driver eq 'SQLite';
-    if ( $self->{opt}{ask_host_port_per_db} ) {
-        return $self->{info}{login}{$db_key}{$key} if defined $self->{info}{login}{$db_key}{$key};
-        if ( length $self->{opt}{$db_key}{$key} ) {
-            say $prompt . $self->{opt}{$db_key}{$key};
-            return $self->{opt}{$db_key}{$key};
+    my $trs = Term::ReadLine::Simple->new();
+    if ( $login_cache->{$login_key} == 0 ) {
+        #if ( length $login_cache->{$key} ) {
+        if ( defined $login_cache->{$key} ) {
+            say $prompt . $login_cache->{$key};
+            return $login_cache->{$key};
         }
-        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $new = $trs->readline( $prompt, { default => $self->{opt}{$db_driver}{$key} } ); #
-        $self->{info}{login}{$db_key}{$key} = $new;
+        my $new = $trs->readline( $prompt );
+        $login_cache->{$key} = $new;
         return $new;
     }
-    else {
-        return $ENV{$env_key}                 if $self->{opt}{'use_env_dbi_' . $key} && exists $ENV{$env_key};
-        return $self->{opt}{$db_driver}{$key} if exists $self->{opt}{$db_driver}{$key} && length $self->{opt}{$db_driver}{$key};
-    }
-    return;
-}
-
-
-sub __get_user {
-    my ( $self, $db ) = @_;
-    my $db_driver = $self->{info}{db_driver};
-    my $db_key = $db_driver . '_' . $db;
-    return '' if $db_driver eq 'SQLite';
-    if ( $self->{opt}{ask_user_pass_per_db} ) {
-        return $self->{info}{login}{$db_key}{user} if defined $self->{info}{login}{$db_key}{user};
-        if ( length $self->{opt}{$db_key}{user} ) {
-            say 'User :' . $self->{opt}{$db_key}{user};
-            return $self->{opt}{$db_key}{user};
+    elsif ( $login_cache->{$login_key} == 1 ) {
+        if ( length $login_cache->{$key} ) {
+            say $prompt . $login_cache->{$key};
+            return $login_cache->{$key};
         }
-        my $trs = Term::ReadLine::Simple->new();
         # Readline
-        my $new = $trs->readline( 'User: ', { default => $self->{opt}{$db_driver}{user} } ); #
-        $self->{info}{login}{$db_key}{user} = $new;
+        my $new = $trs->readline( $prompt, $login_cache->{'default_' . $key} );
         return $new;
     }
-    else {
-        return $self->{info}{login}{$db_driver}{user} if defined $self->{info}{login}{$db_driver}{user};
-        return $ENV{DBI_USER}                         if $self->{opt}{use_env_dbi_user} && exists $ENV{DBI_USER};
-        #return $self->{opt}{$db_key}{user}            if length $self->{opt}{$db_key}{user};
-        return $self->{opt}{$db_driver}{user}         if exists $self->{opt}{$db_driver}{user} && length $self->{opt}{$db_driver}{user};
-        my $trs = Term::ReadLine::Simple->new();
-        # Readline
-        my $new = $trs->readline( 'User: ' );
-        $self->{info}{login}{$db_driver}{user} = $new;
-        return $new;
+    elsif ( $login_cache->{$login_key} == 2 ) {
+        say $prompt . $login_cache->{$key};
+        return $login_cache->{$key};
+    }
+    elsif ( $login_cache->{$login_key} == 3 ) {
+        return;
     }
 }
 
 
-sub __get_password {
-    my ( $self, $db, $user ) = @_;
-    my $db_driver = $self->{info}{db_driver};
-    my $db_key = $db_driver . '_' . $db;
-    return '' if $db_driver eq 'SQLite';
-    if ( $self->{opt}{ask_user_pass_per_db} ) {
-        return $self->{info}{login}{$db_key}{$user}{passwd} if defined $self->{info}{login}{$db_key}{$user}{passwd};
-        my $trs = Term::ReadLine::Simple->new();
+sub get_password {
+    my ( $self, $login_cache ) = @_;
+    $login_cache->{login_pass} //= 1;
+    my $trs = Term::ReadLine::Simple->new();
+    if ( $login_cache->{login_pass} == 0 ) {
+        return $login_cache->{pass} if length $login_cache->{pass};
         # Readline
         my $passwd = $trs->readline( 'Password: ', { no_echo => 1 } );
-        $self->{info}{login}{$db_key}{$user}{passwd} = $passwd;
+        $login_cache->{pass} = $passwd;
         return $passwd;
     }
-    else {
-        return $self->{info}{login}{$db_driver}{$user}{passwd} if defined $self->{info}{login}{$db_driver}{$user}{passwd};
-        return $ENV{DBI_PASS}                                  if $self->{opt}{use_env_dbi_pass} && exists $ENV{DBI_PASS};
-        my $trs = Term::ReadLine::Simple->new();
+    elsif ( $login_cache->{login_pass} == 1 ) {
         # Readline
-        my $passwd = $trs->readline( 'Password: ', { no_echo => 1 }  );
-        $self->{info}{login}{$db_driver}{$user}{passwd} = $passwd;
+        my $passwd = $trs->readline( 'Password: ', { no_echo => 1 } );
         return $passwd;
     }
+    elsif ( $login_cache->{login_pass} == 2 ) {
+        return $login_cache->{pass};
+    }
+
 }
 
 

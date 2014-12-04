@@ -6,7 +6,7 @@ use strict;
 use 5.010000;
 no warnings 'utf8';
 
-our $VERSION = '0.049_02';
+our $VERSION = '0.049_03';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -885,7 +885,7 @@ sub __on_table {
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $util->__print_sql_statement( $sql, $table, $sql_type );
                 my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-                my ( $quote_hidd, $print_hidd ) = $obj_db->col_functions( $function, $quote_col, $print_col );
+                my ( $quote_hidd, $print_hidd ) = $self->__col_functions( $function, $quote_col, $print_col );
                 if ( ! defined $quote_hidd ) {
                     next HIDDEN;
                 }
@@ -1235,6 +1235,55 @@ sub __set_operator_sql {
         }
     }
     return;
+}
+
+
+sub __col_functions {
+    my ( $self, $func, $quote_col, $print_col ) = @_;
+    my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+    my $obj_ch = Term::Choose->new();
+    my ( $quote_f, $print_f );
+    $print_f = $self->{info}{hidd_func_pr}{$func} . '(' . $print_col . ')';
+    if ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
+        my $prompt = "$print_f\nInterval:";
+        my ( $microseconds, $milliseconds, $seconds ) = (
+            '  ****************   Micro-Second',
+            '  *************      Milli-Second',
+            '  **********               Second' );
+        my $choices = [ undef, $microseconds, $milliseconds, $seconds ];
+        # Choose
+        my $interval = $obj_ch->choose(
+            $choices,
+            { %{$self->{info}{lyt_stmt_v}}, prompt => $prompt }
+        );
+        return if ! defined $interval;
+        my $div = $interval eq $microseconds ? 1000000 :
+                  $interval eq $milliseconds ? 1000 : 1;
+        if ( $func eq 'Epoch_to_DateTime' ) {
+            $quote_f = $obj_db->epoch_to_datetime( $quote_col, $div ); #
+        }
+        else {
+            $quote_f = $obj_db->epoch_to_date( $quote_col, $div ); #
+        }
+    }
+    elsif ( $func eq 'Truncate' ) {
+        my $prompt = "TRUNC $print_col\nDecimal places:";
+        my $choices = [ undef, 0 .. 9 ];
+        # Choose
+        my $precision = $obj_ch->choose(
+            $choices,
+            { %{$self->{info}{lyt_stmt_h}}, prompt => $prompt }
+        );
+        return if ! defined $precision;
+        $quote_f = $obj_db->truncate( $quote_col, $precision );
+    }
+    elsif ( $func eq 'Bit_Length' ) {
+        $quote_f = $obj_db->bit_length( $quote_col );
+    }
+    elsif ( $func eq 'Char_Length' ) {
+        $quote_f = $obj_db->char_length( $quote_col );
+    }
+    return $quote_f, $print_f;
 }
 
 

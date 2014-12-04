@@ -8,30 +8,29 @@ no warnings 'utf8';
 
 #our $VERSION = '';
 
-use Encode     qw( encode decode );
-#use File::Find qw( find );  # "require"-d
+use Encode       qw( encode decode );
+#use File::Find   qw( find );  # "require"-d
+use Scalar::Util qw( looks_like_number );
 
 use DBI            qw();
 use Encode::Locale qw();
 
-use App::DBBrowser::Opt;
 
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class ) = @_;
+    bless {}, $class;
 }
 
 
-#sub database_driver {
-#    my ( $self ) = @_;
-#    return 'SQLite';
-#}
+sub db_driver { #
+    my ( $self ) = @_;
+    return 'SQLite';
+}
 
 
 sub get_db_handle {
     my ( $self, $db, $db_arg ) = @_;
-    #return if ! defined $db;
     my $dsn = 'dbi:SQLite:dbname=' . $db; #
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
@@ -67,50 +66,35 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $metadata ) = @_;
-    my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
-    my $cache_key = 'SQLite_' . join ' ', @{$self->{info}{sqlite_dirs}}; ###
-    $self->{info}{cache} = $obj_opt->read_json( $self->{info}{db_cache_file} );
-    if ( $self->{info}{sqlite_search} ) {
-        delete $self->{info}{cache}{$cache_key};
-        $self->{info}{sqlite_search} = 0;
-    }
-    if ( $self->{info}{cache}{$cache_key} ) {
-        $self->{info}{cached} = ' (cached)';
-        return $self->{info}{cache}{$cache_key};
-    }
-    else {
-        my $databases = [];
-        require File::Find;
-        say 'Searching...';
-        for my $dir ( @{$self->{info}{sqlite_dirs}} ) {  ###
-            File::Find::find( {
-                wanted     => sub {
-                    my $file = $File::Find::name;
-                    return if ! -f $file;
-                    return if ! -s $file; #
-                    return if ! -r $file; #
-                    #say $file;
-                    if ( ! eval {
-                        open my $fh, '<:raw', $file or die "$file: $!";
-                        defined( read $fh, my $string, 13 ) or die "$file: $!";
-                        close $fh;
-                        push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
-                        1 }
-                    ) {
-                        utf8::decode( $@ );
-                        print $@;
-                    }
-                },
-                no_chdir   => 1,
+    my ( $self, $metadata, $sqlite_dirs ) = @_;
+    my $databases = [];
+    require File::Find;
+    say 'Searching...';
+    for my $dir ( @$sqlite_dirs ) {
+        File::Find::find( {
+            wanted     => sub {
+                my $file = $File::Find::name; #
+                return if ! -f $file;
+                return if ! -s $file; #
+                return if ! -r $file; #
+                #say $file;
+                if ( ! eval {
+                    open my $fh, '<:raw', $file or die "$file: $!";
+                    defined( read $fh, my $string, 13 ) or die "$file: $!";
+                    close $fh;
+                    push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
+                    1 }
+                ) {
+                    utf8::decode( $@ );
+                    print $@;
+                }
             },
-            encode( 'locale_fs', $dir ) );
-        }
-        say 'Ended searching';
-        $self->{info}{cache}{$cache_key} = $databases;
-        $obj_opt->write_json( $self->{info}{db_cache_file}, $self->{info}{cache} );
-        return $databases;
+            no_chdir   => 1,
+        },
+        encode( 'locale_fs', $dir ) );
     }
+    say 'Ended searching';
+    return $databases;
 }
 
 
@@ -122,19 +106,18 @@ sub get_schema_names {
 
 sub get_table_names {
     my ( $self, $dbh, $schema, $metadata ) = @_;
-    my $regexes = regexp_system( $self, 'table' );
+    my $regexp_system_tbl = '^sqlite_';
     my $stmt = "SELECT name FROM sqlite_master WHERE type = 'table'";
     if ( ! $metadata ) {
-        $stmt .= " AND " . join( " AND ", ( "name NOT REGEXP ?" ) x @$regexes );
+        $stmt .= " AND name NOT REGEXP ?";
     }
     $stmt .= " ORDER BY name";
-    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : @$regexes );
+    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : ( $regexp_system_tbl ) );
     if ( $metadata ) {
-        my $regexp = join '|', @$regexes; #
-        my $user_tbl   = []; ###
+        my $user_tbl   = [];
         my $system_tbl = [];
         for my $table ( @{$tables} ) {
-            if ( $table =~ /(?:$regexp)/ ) {
+            if ( $table =~ /(?:$regexp_system_tbl)/ ) {
                 push @$system_tbl, $table;
             }
             else {
@@ -147,14 +130,6 @@ sub get_table_names {
     else {
         return $tables, []; ##
     }
-}
-
-
-sub regexp_system {
-    my ( $self, $level ) = @_;
-    return                if $level eq 'database'; #
-    return                if $level eq 'schema';
-    return [ '^sqlite_' ] if $level eq 'table';
 }
 
 

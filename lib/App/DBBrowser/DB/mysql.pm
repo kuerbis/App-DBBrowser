@@ -12,30 +12,33 @@ use DBI qw();
 
 use App::DBBrowser::DB_Credentials;
 
+sub CLEAR_SCREEN () { "\e[H\e[J" }
+
+
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class ) = @_;
+    bless {}, $class;
 }
 
 
-#sub database_driver {
-#    my ( $self ) = @_;
-#    return 'mysql';
-#}
+sub db_driver { #
+    my ( $self ) = @_;
+    return 'mysql';
+}
 
 
 sub get_db_handle {
-    my ( $self, $db, $db_arg ) = @_;
+    my ( $self, $db, $db_arg, $login_cache ) = @_;
     $db_arg //= {};
     my $obj_db_cred = App::DBBrowser::DB_Credentials->new( $self->{info}, $self->{opt} );
+    my $host   = $obj_db_cred->get_login( 'host', $login_cache );
+    my $port   = $obj_db_cred->get_login( 'port', $login_cache );
+    my $user   = $obj_db_cred->get_login( 'user', $login_cache );
+    my $passwd = $obj_db_cred->get_password( $login_cache );
     my $dsn  = 'dbi:mysql:dbname=' . $db; ##
-    my $host = $obj_db_cred->__get_host_or_port( $db, 'host' );
-    my $port = $obj_db_cred->__get_host_or_port( $db, 'port' );
     $dsn .= ';host=' . $host if length $host;
     $dsn .= ';port=' . $port if length $port;
-    my $user   = $obj_db_cred->__get_user( $db );
-    my $passwd = $obj_db_cred->__get_password( $db, $user );
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,
         RaiseError => 1,
@@ -48,18 +51,21 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $metadata ) = @_;
-    my $regexes = $self->regexp_system( 'database' );
+    my ( $self, $metadata, $login_cache ) = @_;
+    my @regex_system_db = ( '^mysql$', '^information_schema$', '^performance_schema$' );
     my $stmt = "SELECT schema_name FROM information_schema.schemata";
     if ( ! $metadata ) {
-        $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @$regexes );
+        $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @regex_system_db );
     }
     $stmt .= " ORDER BY schema_name";
-    my $dbh = $self->get_db_handle( 'information_schema' ); # $db_arg
-    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : @$regexes );
+    my $info_database = 'information_schema';
+    print CLEAR_SCREEN;
+    print "DB: $info_database\n";
+    my $dbh = $self->get_db_handle( $info_database, undef, $login_cache ); # $db_arg
+    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : @regex_system_db );
     $dbh->disconnect(); #
     if ( $metadata ) {
-        my $regexp = join '|', @$regexes;
+        my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
         my $system_db = [];
         for my $database ( @{$databases} ) {
@@ -92,15 +98,6 @@ sub get_table_names {
                     # AND table_type = 'BASE TABLE'
     my $tables = $dbh->selectcol_arrayref( $stmt, {}, ( $schema ) );
     return $tables;
-}
-
-
-sub regexp_system {
-    my ( $self, $level ) = @_;
-    return [ '^mysql$', '^information_schema$', '^performance_schema$' ] if $level eq 'database';
-    return                                                               if $level eq 'schema'; #
-    return                                                               if $level eq 'table';
-
 }
 
 
