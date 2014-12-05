@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::DB_Credentials;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Term::ReadLine::Simple qw();
 
@@ -21,13 +21,15 @@ sub new {
 sub get_login {
     my ( $self, $key, $login_cache ) = @_;
     my $login_key = 'login_' . $key;
-    $login_cache->{$login_key} //= 1;
+    if ( ! defined $login_cache->{$login_key} ) {
+        $login_cache->{$login_key} = 1;
+    }
     my $prompt = ucfirst( $key ) . ': ';
     my $trs = Term::ReadLine::Simple->new();
     if ( $login_cache->{$login_key} == 0 ) {
         #if ( length $login_cache->{$key} ) {
         if ( defined $login_cache->{$key} ) {
-            say $prompt . $login_cache->{$key};
+            print $prompt . $login_cache->{$key} . "\n";
             return $login_cache->{$key};
         }
         # Readline
@@ -37,7 +39,7 @@ sub get_login {
     }
     elsif ( $login_cache->{$login_key} == 1 ) {
         if ( length $login_cache->{$key} ) {
-            say $prompt . $login_cache->{$key};
+            print $prompt . $login_cache->{$key} ."\n";
             return $login_cache->{$key};
         }
         # Readline
@@ -45,7 +47,7 @@ sub get_login {
         return $new;
     }
     elsif ( $login_cache->{$login_key} == 2 ) {
-        say $prompt . $login_cache->{$key};
+        print $prompt . $login_cache->{$key} . "\n";
         return $login_cache->{$key};
     }
     elsif ( $login_cache->{$login_key} == 3 ) {
@@ -56,7 +58,9 @@ sub get_login {
 
 sub get_password {
     my ( $self, $login_cache ) = @_;
-    $login_cache->{login_pass} //= 1;
+    if ( ! defined $login_cache->{login_pass} ) {
+        $login_cache->{login_pass} = 1;
+    }
     my $trs = Term::ReadLine::Simple->new();
     if ( $login_cache->{login_pass} == 0 ) {
         return $login_cache->{pass} if length $login_cache->{pass};

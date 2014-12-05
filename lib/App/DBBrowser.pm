@@ -1,11 +1,11 @@
 package App::DBBrowser;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -74,8 +74,8 @@ sub __init {
     my ( $self ) = @_;
     my $home = decode( 'locale', File::HomeDir->my_home() );
     if ( ! $home ) {
-        say "'File::HomeDir->my_home()' could not find the home directory!";
-        say "'db-browser' requires a home directory";
+        print "'File::HomeDir->my_home()' could not find the home directory!\n";
+        print "'db-browser' requires a home directory\n";
         exit;
     }
     my $my_data = decode( 'locale', File::HomeDir->my_data() );
@@ -111,9 +111,8 @@ sub __init {
         }
         1 }
     ) {
-        say 'Configfile/Options:';
         my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
-        $util->__print_error_message( $@ );
+        $util->__print_error_message( $@, 'Configfile/Options' );
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
         $self->{opt} = $obj_opt->defaults();
         while ( $ARGV[0] =~ /^-/ ) {
@@ -128,7 +127,8 @@ sub __init {
         }
     }
     $self->{info}{ok} = '<OK>' if $self->{opt}{sssc_mode};
-    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search} // [ $home ];
+    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search};
+    $self->{info}{sqlite_dirs} = [ $home ] if ! defined $self->{info}{sqlite_dirs};
 }
 
 
@@ -185,15 +185,14 @@ sub run {
             }
             else {
                 my ( $user_db, $system_db ) = $obj_db->available_databases( $self->{opt}{metadata}, $login_cache );
-                $system_db //= [];
+                $system_db = [] if ! defined $system_db;
                 $databases = [ map( "- $_", @$user_db ), map( "  $_", @$system_db ) ];
                 #$databases = $db_driver eq 'SQLite' ? [ @$user_db, @$system_db ] : [ map( "- $_", @$user_db ), map( "  $_", @$system_db ) ];
             }
             1 }
         ) {
-            say 'Available databases:';
             $login_cache = {};
-            $util->__print_error_message( $@ );
+            $util->__print_error_message( $@, 'Available databases' );
             next DB_PLUGIN;
         }
         if ( ! @$databases ) {
@@ -249,16 +248,20 @@ sub run {
                 my $db_arg = {};
                 for my $option ( sort keys %{$self->{opt}{$db_plugin}} ) {
                     next if $option !~ /^\Q$self->{info}{connect_opt_pre}{$db_plugin}\E/;
-                    $db_arg->{$option} = $self->{opt}{$db_key}{$option} // $self->{opt}{$db_plugin}{$option};
+                    if ( defined $self->{opt}{$db_key}{$option} ) {
+                        $db_arg->{$option} = $self->{opt}{$db_key}{$option};
+                    }
+                    else {
+                        $db_arg->{$option} = $self->{opt}{$db_plugin}{$option};
+                    }
                 }
                 print CLEAR_SCREEN;
                 print "DB: $db\n";
                 $dbh = $obj_db->get_db_handle( $db, $db_arg, $login_cache );
                 1 }
             ) {
-                say 'Get database handle:';
                 $login_cache = {};
-                $util->__print_error_message( $@ );
+                $util->__print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
                 next DATABASE;
             }
@@ -268,13 +271,12 @@ sub run {
             if ( ! eval {
                 ## if ( ! defined $data->{$db}{schemas} ) {
                 my ( $user_sma, $system_sma ) = $obj_db->get_schema_names( $dbh, $db, $self->{opt}{metadata} );
-                $system_sma //= [];
+                $system_sma = [] if ! defined $system_sma;
                 $data->{$db}{schemas} = [ @$user_sma, @$system_sma ];
                 $choices_schema = [ map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) ];
                 1 }
             ) {
-                say 'Get schema names:';
-                $util->__print_error_message( $@ );
+                $util->__print_error_message( $@, 'Get schema names' );
                 next DATABASE;
             }
             my $old_idx_sch = 0;
@@ -312,26 +314,24 @@ sub run {
                 if ( ! eval {
                     ## if ( ! defined $data->{$db}{$schema}{tables} ) {
                     my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema, $self->{opt}{metadata} );
-                    $system_tbl //= [];
+                    $system_tbl = [] if ! defined $system_tbl;
                     $data->{$db}{$schema}{tables} = [ @$user_tbl, @$system_tbl ];
                     $choices_table = [ map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) ];
 
                     1 }
                 ) {
-                    say 'Get table names:';
-                    $util->__print_error_message( $@ );
+                    $util->__print_error_message( $@, 'Get table names' );
                     next DATABASE;
                 }
                 my $old_idx_tbl = 0;
-                my $join       = '  Join';
-                my $union      = '  Union';
-                my $db_setting = '  Database settings';
+                my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
                 unshift @$choices_table, undef;
                 push    @$choices_table, $join, $union, $db_setting;
-                my $prompt = 'DB: "'. basename( $db );##
+                #my $prompt = 'DB: "'. basename( $db );##
                 #$prompt .= '.' . $schema if defined $data->{$db}{schemas} && @{$data->{$db}{schemas}} > 1;
-                $prompt .= '.' . $schema if @{$data->{$db}{schemas}} > 1;
-                $prompt .= '"';##
+                #$prompt .= '.' . $schema if @{$data->{$db}{schemas}} > 1;
+                #$prompt .= '"';##
+                my $prompt = 'DB: "'. basename( $db ) . ( @{$data->{$db}{schemas}} > 1 ? '.' . $schema : '' ) . '"';
 
                 TABLE: while ( 1 ) {
 
@@ -361,8 +361,7 @@ sub run {
                             $new_db_settings = $obj_opt->database_setting( $db );
                             1 }
                         ) {
-                            say 'Database settings:';
-                            $util->__print_error_message( $@ );
+                            $util->__print_error_message( $@, 'Database settings' );
                         }
                         next DATABASE if $new_db_settings;
                         next TABLE;
@@ -375,8 +374,7 @@ sub run {
                             $table = 'joined_tables';
                             1 }
                         ) {
-                            say 'Join tables:';
-                            $util->__print_error_message( $@ );
+                            $util->__print_error_message( $@, 'Join tables' );
                         }
                         next TABLE if ! defined $multi_table;
                     }
@@ -393,8 +391,7 @@ sub run {
                             }
                             1 }
                         ) {
-                            say 'Union tables:';
-                            $util->__print_error_message( $@ );
+                            $util->__print_error_message( $@, 'Union tables' );
                         }
                         next TABLE if ! defined $multi_table;
                     }
@@ -443,8 +440,7 @@ sub run {
 
                         1 }
                     ) {
-                        say 'Print table:';
-                        $util->__print_error_message( $@ );
+                        $util->__print_error_message( $@, 'Print table' );
                     }
                 }
             }
@@ -505,7 +501,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_03
+Version 0.049_04
 
 =head1 DESCRIPTION
 

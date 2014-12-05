@@ -1,11 +1,11 @@
 package # hide from PAUSE
 App::DBBrowser::Util;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
@@ -76,7 +76,8 @@ sub __print_sql_statement {
 
 
 sub __print_error_message {
-    my ( $self, $message ) = @_;
+    my ( $self, $message, $title ) = @_;
+    print "$title:\n" if $title;
     utf8::decode( $message );
     $message =~ s/\sat(?:(?!\sat\s).)+// if ! $self->{opt}{debug};
     print $message;

@@ -1,9 +1,9 @@
 package # hide from PAUSE
 App::DBBrowser::DB::SQLite;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
 #our $VERSION = '';
@@ -41,7 +41,7 @@ sub get_db_handle {
     } ) or die DBI->errstr;
     $dbh->sqlite_create_function( 'regexp', 2, sub {
             my ( $regex, $string ) = @_;
-            $string //= '';
+            $string = '' if ! defined $string;
             return $string =~ m/$regex/ism;
         }
     );
@@ -69,7 +69,7 @@ sub available_databases {
     my ( $self, $metadata, $sqlite_dirs ) = @_;
     my $databases = [];
     require File::Find;
-    say 'Searching...';
+    print 'Searching...' . "\n";
     for my $dir ( @$sqlite_dirs ) {
         File::Find::find( {
             wanted     => sub {
@@ -77,7 +77,7 @@ sub available_databases {
                 return if ! -f $file;
                 return if ! -s $file; #
                 return if ! -r $file; #
-                #say $file;
+                #print "$file\n";
                 if ( ! eval {
                     open my $fh, '<:raw', $file or die "$file: $!";
                     defined( read $fh, my $string, 13 ) or die "$file: $!";
@@ -93,7 +93,7 @@ sub available_databases {
         },
         encode( 'locale_fs', $dir ) );
     }
-    say 'Ended searching';
+    print 'Ended searching' . "\n";
     return $databases;
 }
 

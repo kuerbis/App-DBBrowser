@@ -1,9 +1,9 @@
 package # hide from PAUSE
 App::DBBrowser::DB::Pg;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
 #our $VERSION = '';
@@ -30,7 +30,7 @@ sub db_driver { #
 
 sub get_db_handle {
     my ( $self, $db, $db_arg, $login_cache ) = @_;
-    $db_arg //= {};
+    $db_arg = {} if ! defined $db_arg;
     my $obj_db_cred = App::DBBrowser::DB_Credentials->new();
     my $host   = $obj_db_cred->get_login( 'host', $login_cache );
     my $port   = $obj_db_cred->get_login( 'port', $login_cache );

@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Encode::Locale qw();
 
@@ -16,7 +16,6 @@ print "\e(U" if $^O eq 'MSWin32';
 binmode STDIN,  ':encoding(console_in)';
 binmode STDOUT, ':encoding(console_out)';
 binmode STDERR, ':encoding(console_out)';
-
 
 
 my $db_browser = App::DBBrowser->new();
@@ -36,7 +35,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_03
+Version 0.049_04
 
 =cut
 
@@ -536,7 +535,7 @@ See L<Term::TablePrint/REQUIREMENTS>.
 
 =head2 Perl version
 
-Requires Perl version 5.10.0 or greater.
+Requires Perl version 5.8.9 or greater.
 
 =head2 Decoded strings
 

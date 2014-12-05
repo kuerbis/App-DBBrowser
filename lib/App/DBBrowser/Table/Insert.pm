@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::Table::Insert;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -169,7 +169,7 @@ sub __insert_into {
             my ( $file, $sheet_idx );
             if ( $input_mode eq 'Multirow' ) {
                 $util->__print_sql_statement( $sql, $table, $sql_type );
-                say 'Multirow: ';
+                print 'Multirow: ' . "\n";
                 # STDIN
                 my $input = read_file( \*STDIN );
                 ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );

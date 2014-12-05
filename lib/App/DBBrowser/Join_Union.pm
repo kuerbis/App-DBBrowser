@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::Join_Union;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -202,7 +202,9 @@ sub __print_union_statement {
         if ( @{$union->{used_tables}} ) {
             $str .= "\n" . 'Cols: ';
             my $table = $union->{used_tables}[0];
-            $str .= join( ', ', @{$union->{used_cols}{$table}} ) if @{$union->{used_cols}{$table}//[]};
+            if ( defined $union->{used_cols}{$table} && @{$union->{used_cols}{$table}} ) { #
+                $str .= join( ', ', @{$union->{used_cols}{$table}} );
+            }
         }
         $str .= "\n";
     }
@@ -213,7 +215,12 @@ sub __print_union_statement {
             for my $table ( @{$union->{used_tables}} ) {
                 ++$c;
                 $str .= "  SELECT ";
-                $str .= @{$union->{used_cols}{$table}//[]} ? join( ', ', @{$union->{used_cols}{$table}} ) : '?';
+                if ( defined $union->{used_cols}{$table} && @{$union->{used_cols}{$table}} ) { #
+                    $str .= join( ', ', @{$union->{used_cols}{$table}} );
+                }
+                else {
+                    $str .= '?';
+                }
                 $str .= " FROM $table";
                 $str .= $c < @{$union->{used_tables}} ? " UNION ALL\n" : "\n";
             }

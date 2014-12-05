@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::DB;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 
 
@@ -119,23 +119,6 @@ sub char_length {
     my $quote_f = $self->{db_plugin}->char_length( $quote_col );
     return $quote_f;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

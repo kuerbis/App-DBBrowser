@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::Table;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -933,7 +933,7 @@ sub __on_table {
             }
             local $| = 1;
             print CLEAR_SCREEN;
-            say 'Database : ...' if $self->{opt}{progress_bar};
+            print 'Database : ...' . "\n" if $self->{opt}{progress_bar};
             my $sth = $dbh->prepare( $select );
             $sth->execute( @arguments );
             my $col_names = $sth->{NAME};
@@ -946,7 +946,7 @@ sub __on_table {
             my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
             local $| = 1;
             print CLEAR_SCREEN;
-            say 'Database : ...' if $self->{opt}{progress_bar};
+            print 'Database : ...' . "\n" if $self->{opt}{progress_bar};
             my $stmt = $map_sql_types{$sql_type};
             my $to_execute;
             my $transaction;
@@ -1002,8 +1002,7 @@ sub __on_table {
                     1;
                     }
                 ) {
-                    say 'Commit:';
-                    $util->__print_error_message( "$@rolling back ...\n" );
+                    $util->__print_error_message( "$@rolling back ...\n", 'Commit' );
                     eval { $dbh->rollback };#
                 }
             }

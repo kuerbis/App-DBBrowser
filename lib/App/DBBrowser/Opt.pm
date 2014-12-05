@@ -1,12 +1,12 @@
 package # hide from PAUSE
 App::DBBrowser::Opt;
 
-use warnings FATAL => 'all';
+use warnings;
 use strict;
-use 5.010000;
+use 5.008009;
 no warnings 'utf8';
 
-our $VERSION = '0.049_03';
+our $VERSION = '0.049_04';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename fileparse );
@@ -559,7 +559,9 @@ sub database_setting {
         for my $key ( keys %{$self->{opt}{$db_driver}} ) {
             next if $key =~ /^(?:host|port|user)\z/; #
             next if $key eq 'dirs_sqlite_search';
-            $self->{opt}{$section}{$key} //= $self->{opt}{$db_plugin}{$key};
+            if ( ! defined $self->{opt}{$section}{$key} ) {
+                $self->{opt}{$section}{$key} = $self->{opt}{$db_plugin}{$key};
+            }
         }
     }
     my $orig = clone( $self->{opt} );
@@ -770,7 +772,7 @@ sub __write_config_files {
         if ( $section =~ /^($regexp_db_plugins)(?:_(.+))?\z/ ) {
             die $section if ref( $self->{opt}{$section} ) ne 'HASH';
             my ( $db_plugin, $conf_sect ) = ( $1, $2 );
-            $conf_sect //= '*' . $db_plugin;
+            $conf_sect = '*' . $db_plugin if ! defined $conf_sect;
             for my $key ( keys %{$self->{opt}{$section}} ) {
                 next if $key =~ /^_/;
                 $tmp->{$db_plugin}{$conf_sect}{$key} = $self->{opt}{$section}{$key};
@@ -820,7 +822,7 @@ sub read_config_files {
 
 sub write_json {
     my ( $self, $file, $h_ref ) = @_;
-    my $json = JSON::XS->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
+    my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
     open my $fh, '>', encode( 'locale_fs', $file ) or die $!;
     print $fh $json;
     close $fh;

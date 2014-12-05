@@ -24,7 +24,7 @@ close $fh_m or die $!;
 #open my $fh_p1, '<', 'lib/App/DBBrowser.pm' or die $!;
 #while ( my $line = <$fh_p1> ) {
 #    if ( $line =~ /^=head1\sREQUIREMENTS/ .. $line =~ /^=head1\sAUTHOR/ ) {
-#        if ( $line =~ /Perl\sversion\s(5\.\d\d\.\d+)\s/ ) {
+#        if ( $line =~ /Perl\sversion\s(5\.\d\d?\.\d+)\s/ ) {
 #            my $version    = Perl::Version->new( $1 );
 #            my $numified   = $version->numify;
 #            $pod1_minimum  = $numified;
@@ -39,7 +39,7 @@ my $pod2_minimum;
 open my $fh_p2, '<', 'bin/db-browser' or die $!;
 while ( my $line = <$fh_p2> ) {
     if ( $line =~ /^=head2\s+Perl\s+version/ .. $line =~ /^=head2\s+Modules/ ) {
-        if ( $line =~ /(5\.\d\d\.\d+)\s/ ) {
+        if ( $line =~ /(5\.\d\d?\.\d+)\s/ ) {
             my $version    = Perl::Version->new( $1 );
             my $numified   = $version->numify;
             $pod2_minimum  = $numified;
