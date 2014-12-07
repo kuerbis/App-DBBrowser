@@ -159,7 +159,7 @@ sub run {
         my $db_driver = $obj_db->db_driver();
         $self->{info}{db_driver} = $db_driver;
         my $login_cache = {}; #
-        $self->fill_login_chache( $login_cache );
+        $self->fill_login_cache( $login_cache );
 
 
         my $databases = [];
@@ -239,7 +239,7 @@ sub run {
                 $db =~ s/^[-\ ]\s// if $db_driver ne 'SQLite';
                 die "'$db': $!. Maybe the cached data is not up to date." if $db_driver eq 'SQLite' && ! -f $db;
             }
-            $self->fill_login_chache( $login_cache, $db ); #
+            $self->fill_login_cache( $login_cache, $db ); #
 
 
             my $dbh;
@@ -450,7 +450,7 @@ sub run {
 }
 
 
-sub fill_login_chache {
+sub fill_login_cache {
     my ( $self, $login_cache, $db ) = @_;
     my $db_plugin = $self->{info}{db_plugin};
     for my $key ( 'host', 'port', 'user', 'pass' ) {
