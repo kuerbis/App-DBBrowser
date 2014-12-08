@@ -3,10 +3,10 @@ App::DBBrowser::Table::Insert;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_04';
+our $VERSION = '0.049_05';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );

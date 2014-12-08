@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_04';
+our $VERSION = '0.049_05';
 
 use Encode::Locale qw();
 
@@ -22,7 +22,6 @@ my $db_browser = App::DBBrowser->new();
 $db_browser->run();
 
 
-
 __END__
 
 =pod
@@ -35,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_04
+Version 0.049_05
 
 =cut
 
@@ -325,11 +324,11 @@ I<RESET> resets the database settings.
 
 =back
 
-=head4 DB Drivers
+=head4 DB Plugins
 
-Choose the required database drivers.
+Choose the required database plugins.
 
-=head4 DB Login
+=head4 DB Login Mode
 
 Determine when C<db-browser> asks for the login data:
 
@@ -337,35 +336,34 @@ Determine when C<db-browser> asks for the login data:
 
 =item
 
-Ask host/port per DB
+Ask once
 
-If set to "YES" host and port data is asked once per database else the global settings are used if any.
+Ask only once for all connections.
 
 =item
 
-Ask user/pass per DB
+Ask always
 
-If set to "YES" username and password data is asked once per database else only once.
+Ask for each database connection.
+
+=item
+
+ENV DBI_...
+
+Use the environment variable for the login (DBI_HOST, DBI_PORT, DBI_USER, DBI_PASS).
+
+If the environment variable does not exits, the login mode is set to I<Ask once>.
+
+=item
+
+Don't set
+
+This is only available for the host and port. If I<Don't set> is selected, the C<DBI> C<DSN> is formed without host
+respectively without port.
 
 =back
 
-This option has no meaning if the SQLite driver is in use.
-
-=head4 ENV DBI
-
-- use C<DBI_USER> as username for all database logins if the environment variable exists and I<Ask user/pass> is set to
-"Once".
-
-- use C<DBI_PASS> as password for all database logins if the environment variable exists and I<Ask user/pass> is set to
-"Once".
-
-- use C<DBI_HOST> as host for all database connections if the environment variable exists and I<Ask host/port> is set to
-"No".
-
-- use C<DBI_PORT> as port for all database connections if the environment variable exists and I<Ask host/port> is set to
-"No".
-
-This options have no meaning if the SQLite driver is in use.
+The option I<DB Login Mode> has no meaning if the SQLite driver is in use.
 
 =head3 Insert
 
@@ -374,7 +372,7 @@ These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-m
 
 =head4 Input modes
 
-Choose how to enter the data, when inserting into a table.
+C<INSERT>ing data into a tables: select the input modes:
 
 =over
 
@@ -486,25 +484,25 @@ Set how many input file names should be saved. A value of 0 disables the file hi
 
 =head2 CONFIGURATION FILES
 
-The syntax of the configuration file names is C<"conf_${driver_name}.json">. To find out the location of the
+The syntax of the configuration file names is C<"conf_${db_plugin_name}.json">. To find out the location of the
 configuration files call C<db-browser -h> and choose I<Path>.
 
 The data is saved in JSON format.
 
-The global settings are placed in the member called C<"*$db_driver">. This settings are used if I<ask per DB> in
-I<DB Login> is not enabled. If I<ask per DB> is enabled each database uses is own member named like the database itself.
+The global database settings are placed in the member called C<"*$db_plugin">. Database specific settings have its own
+member named like the database itself.
 With the C<SQLite> driver "database name" means the absolute path to the database file.
 
 Sub-members (keys):
 
-    SQLlite:                                    mysql:                             Pg:
+    SQLite:                                    mysql:                             Pg:
         sqlite_unicode              (0,1)           user                              user
         sqlite_see_if_its_a_number  (0,1)           host                              host
         binary_filter               (0,1)           port                              port
         dirs_sqlite_search ¹                        mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
                                                     binary_filter      (0,1)          binary_filter   (0,1)
 
-¹ only in C<"*SQLite">: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
+¹ only with the C<SQLite> driver: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
 directories passed with this array-reference.
 
 Examples
@@ -535,7 +533,7 @@ See L<Term::TablePrint/REQUIREMENTS>.
 
 =head2 Perl version
 
-Requires Perl version 5.8.9 or greater.
+Requires Perl version 5.8.3 or greater.
 
 =head2 Decoded strings
 

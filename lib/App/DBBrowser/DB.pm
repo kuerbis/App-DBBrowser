@@ -3,10 +3,10 @@ App::DBBrowser::DB;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_04';
+our $VERSION = '0.049_05';
 
 
 
@@ -15,7 +15,7 @@ sub new {
     die "Invalid character in the DB plugin name" if $info->{db_plugin} !~ /^[\w_]+\z/;
     my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
     eval "require $db_module";
-    my $db_plugin = $db_module->new();
+    my $db_plugin = $db_module->new( { metadata => $opt->{metadata}, debug => $opt->{debug} } );
     bless { info => $info, opt => $opt, db_plugin => $db_plugin }, $class; #
 }
 
@@ -28,8 +28,8 @@ sub db_driver {
 
 
 sub available_databases {
-    my ( $self, $metadata, $ref ) = @_; # $db_arg
-    my ( $user_db, $system_db ) = $self->{db_plugin}->available_databases( $metadata, $ref );
+    my ( $self, $db_arg, $ref ) = @_;
+    my ( $user_db, $system_db ) = $self->{db_plugin}->available_databases( $db_arg, $ref );
     return $user_db, $system_db;
 }
 
@@ -42,15 +42,15 @@ sub get_db_handle {
 
 
 sub get_schema_names {
-    my ( $self, $dbh, $db, $metadata ) = @_;
-    my ( $user_sma, $system_sma ) = $self->{db_plugin}->get_schema_names( $dbh, $db, $metadata );
+    my ( $self, $dbh, $db ) = @_;
+    my ( $user_sma, $system_sma ) = $self->{db_plugin}->get_schema_names( $dbh, $db );
     return $user_sma, $system_sma;
 }
 
 
 sub get_table_names {
-    my ( $self, $dbh, $schema, $metadata ) = @_;
-    my ( $user_tbl, $system_tbl ) = $self->{db_plugin}->get_table_names( $dbh, $schema, $metadata );
+    my ( $self, $dbh, $schema ) = @_;
+    my ( $user_tbl, $system_tbl ) = $self->{db_plugin}->get_table_names( $dbh, $schema );
     return $user_tbl, $system_tbl;
 }
 

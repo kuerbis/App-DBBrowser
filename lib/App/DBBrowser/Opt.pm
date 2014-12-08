@@ -3,10 +3,10 @@ App::DBBrowser::Opt;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_04';
+our $VERSION = '0.049_05';
 
 use Encode                qw( encode );
 use File::Basename        qw( basename fileparse );
@@ -173,7 +173,7 @@ sub __menus {
         config_database => [
             [ '_db_defaults', "- DB Defaults" ],
             [ 'db_plugins',   "- DB Plugins" ],
-            [ '_db_connect',  "- DB Login mode" ],
+            [ '_db_connect',  "- DB Login Mode" ],
         ],
         config_insert => [
             [ 'input_modes',       "- Input modes" ],
@@ -438,7 +438,7 @@ sub set_options {
             elsif ( $key eq 'db_plugins' ) {
                 my %avail;
                 for my $dir ( @INC ) {
-                    my @dummy = map { $avail{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm"; ##
+                    map { $avail{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm";
                 }
                 $self->__opt_choose_a_list( $key, [ sort keys %avail ] );
             }

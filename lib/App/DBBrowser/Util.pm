@@ -3,9 +3,9 @@ App::DBBrowser::Util;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 
-our $VERSION = '0.049_04';
+our $VERSION = '0.049_05';
 
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );

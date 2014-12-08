@@ -3,7 +3,7 @@ App::DBBrowser::DB::SQLite;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
 #our $VERSION = '';
@@ -18,8 +18,8 @@ use Encode::Locale qw();
 
 
 sub new {
-    my ( $class ) = @_;
-    bless {}, $class;
+    my ( $class, $opt ) = @_;
+    bless $opt, $class;
 }
 
 
@@ -66,7 +66,7 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $metadata, $sqlite_dirs ) = @_;
+    my ( $self, $db_arg, $sqlite_dirs ) = @_;
     my $databases = [];
     require File::Find;
     print 'Searching...' . "\n";
@@ -99,21 +99,21 @@ sub available_databases {
 
 
 sub get_schema_names {
-    my ( $self, $dbh, $db, $metadata ) = @_;
+    my ( $self, $dbh, $db ) = @_;
     return [ 'main' ];
 }
 
 
 sub get_table_names {
-    my ( $self, $dbh, $schema, $metadata ) = @_;
+    my ( $self, $dbh, $schema ) = @_;
     my $regexp_system_tbl = '^sqlite_';
     my $stmt = "SELECT name FROM sqlite_master WHERE type = 'table'";
-    if ( ! $metadata ) {
+    if ( ! $self->{metadata} ) {
         $stmt .= " AND name NOT REGEXP ?";
     }
     $stmt .= " ORDER BY name";
-    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : ( $regexp_system_tbl ) );
-    if ( $metadata ) {
+    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : ( $regexp_system_tbl ) );
+    if ( $self->{metadata} ) {
         my $user_tbl   = [];
         my $system_tbl = [];
         for my $table ( @{$tables} ) {

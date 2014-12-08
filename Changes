@@ -1,6 +1,13 @@
 Revision history for App-DBBrowser
 
 
+0.049_05   2014-12-08
+        - Code refactoring.
+        - Update documentation.
+        - Minimum Perl version "5.8.3".
+        - "Term::TablePrint": minimum version "0.021".
+        - Fixed typo in method name  [github #3 - Ivan Baidakou (basiliscos)].
+
 0.049_04   2014-12-05
         - Bugfix inf sub "read_json": "JSON::XS" -> "JSON".
         - "Term::TablePrint": minimum version "0.020".

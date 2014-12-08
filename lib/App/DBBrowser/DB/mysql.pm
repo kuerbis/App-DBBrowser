@@ -3,7 +3,7 @@ App::DBBrowser::DB::mysql;
 
 use warnings;
 use strict;
-use 5.008009;
+use 5.008003;
 no warnings 'utf8';
 
 #our $VERSION = '';
@@ -17,8 +17,8 @@ sub CLEAR_SCREEN () { "\e[H\e[J" }
 
 
 sub new {
-    my ( $class ) = @_;
-    bless {}, $class;
+    my ( $class, $opt ) = @_;
+    bless $opt, $class;
 }
 
 
@@ -30,8 +30,7 @@ sub db_driver { #
 
 sub get_db_handle {
     my ( $self, $db, $db_arg, $login_cache ) = @_;
-    $db_arg = {} if ! defined $db_arg;
-    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( $self->{info}, $self->{opt} );
+    my $obj_db_cred = App::DBBrowser::DB_Credentials->new();
     my $host   = $obj_db_cred->get_login( 'host', $login_cache );
     my $port   = $obj_db_cred->get_login( 'port', $login_cache );
     my $user   = $obj_db_cred->get_login( 'user', $login_cache );
@@ -51,20 +50,20 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $metadata, $login_cache ) = @_;
+    my ( $self, $db_arg, $login_cache ) = @_;
     my @regex_system_db = ( '^mysql$', '^information_schema$', '^performance_schema$' );
     my $stmt = "SELECT schema_name FROM information_schema.schemata";
-    if ( ! $metadata ) {
+    if ( ! $self->{metadata} ) {
         $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @regex_system_db );
     }
     $stmt .= " ORDER BY schema_name";
     my $info_database = 'information_schema';
     print CLEAR_SCREEN;
     print "DB: $info_database\n";
-    my $dbh = $self->get_db_handle( $info_database, undef, $login_cache ); # $db_arg
-    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $metadata ? () : @regex_system_db );
+    my $dbh = $self->get_db_handle( $info_database, $db_arg, $login_cache );
+    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
     $dbh->disconnect(); #
-    if ( $metadata ) {
+    if ( $self->{metadata} ) {
         my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
         my $system_db = [];
@@ -85,13 +84,13 @@ sub available_databases {
 
 
 sub get_schema_names {
-    my ( $self, $dbh, $db, $metadata ) = @_;
+    my ( $self, $dbh, $db ) = @_;
     return [ $db ];
 }
 
 
 sub get_table_names {
-    my ( $self, $dbh, $schema, $metadata ) = @_;
+    my ( $self, $dbh, $schema ) = @_;
     my $stmt = "SELECT table_name FROM information_schema.tables
                     WHERE table_schema = ?
                     ORDER BY table_name";
