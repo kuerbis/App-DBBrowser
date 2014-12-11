@@ -1,24 +1,28 @@
 package # hide from PAUSE
-App::DBBrowser::Util;
+App::DBBrowser::Auxil;
 
 use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
+use Encode qw( encode );
+
+use Encode::Locale         qw();
+use JSON                   qw( decode_json );
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( term_size );
 use Text::LineFold         qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
-sub CLEAR_SCREEN () { "\e[H\e[J" }
-
 
 
 sub new {
     my ( $class, $info, $opt ) = @_;
+    $info = {} if ! defined $info;
+    $opt  = {} if ! defined $opt;
     bless { info => $info, opt => $opt }, $class;
 }
 
@@ -70,7 +74,7 @@ sub __print_sql_statement {
     }
     $str .= "\n";
     my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
-    print CLEAR_SCREEN;
+    print $self->{info}{clear_screen};
     print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $str );
 }
 
@@ -98,6 +102,33 @@ sub __reset_sql {
     $sql->{pr_col_with_hidd_func} = [];
     delete $sql->{pr_backup_in_hidd};
 }
+
+
+sub write_json {
+    my ( $self, $file, $h_ref ) = @_;
+    my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
+    open my $fh, '>', encode( 'locale_fs', $file ) or die $!;
+    print $fh $json;
+    close $fh;
+}
+
+
+sub read_json {
+    my ( $self, $file ) = @_;
+    return {} if ! -f encode( 'locale_fs', $file );
+    open my $fh, '<', encode( 'locale_fs', $file ) or die $!;
+    my $json = do { local $/; <$fh> };
+    close $fh;
+    my $h_ref = {};
+    if ( ! eval {
+        $h_ref = decode_json( $json ) if $json;
+        1 }
+    ) {
+        die "In '$file':\n$@";
+    }
+    return $h_ref;
+}
+
 
 
 

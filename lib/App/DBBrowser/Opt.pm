@@ -6,22 +6,22 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
-use Encode                qw( encode );
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
 
 use Clone                  qw( clone );
-use Encode::Locale         qw();
-use JSON                   qw( decode_json );
 use Term::Choose           qw( choose );
 use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
 use Term::ReadLine::Simple qw();
 
 use App::DBBrowser::DB;
+use App::DBBrowser::Auxil;
+
+
 
 sub new {
     my ( $class, $info, $opt ) = @_;
@@ -120,10 +120,10 @@ sub __multi_choose {
             [ 'parentheses_h', "- Parentheses in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
         ],
         _db_connect  => [
-            [ 'login_host', "- Host",     [ 'Ask once', 'Ask always', 'ENV DBI_HOST', 'Don\'t set' ] ],
-            [ 'login_port', "- Port",     [ 'Ask once', 'Ask always', 'ENV DBI_PORT', 'Don\'t set' ] ],
-            [ 'login_user', "- User",     [ 'Ask once', 'Ask always', 'ENV DBI_USER' ] ],
-            [ 'login_pass', "- Password", [ 'Ask once', 'Ask always', 'ENV DBI_PASS' ] ],
+            [ 'login_host', "- Host",     [ 'Ask', 'Use DBI_HOST', 'Don\'t set' ] ],
+            [ 'login_port', "- Port",     [ 'Ask', 'Use DBI_PORT', 'Don\'t set' ] ],
+            [ 'login_user', "- User",     [ 'Ask', 'Use DBI_USER' ] ],
+            [ 'login_pass', "- Password", [ 'Ask', 'Use DBI_PASS' ] ],
         ],
         _options_csv => [
             [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
@@ -577,10 +577,8 @@ sub database_setting {
             [ 'pg_enable_utf8', "- Enable utf8" ],
         ],
     };
-    if ( $db_driver =~ /^(?:mysql|Pg)\z/ ) {
-        unshift @{$menus->{$db_driver}}, [ 'host', "- Host" ] if $self->{opt}{login_host} != 3; #
-        unshift @{$menus->{$db_driver}}, [ 'port', "- Port" ] if $self->{opt}{login_port} != 3; #
-        unshift @{$menus->{$db_driver}}, [ 'user', "- User" ];
+    if ( $db_driver ne 'SQLite' ) {
+        unshift @{$menus->{$db_driver}}, ( [ 'host', "- Host" ], [ 'port', "- Port" ], [ 'user', "- User" ] );
     }
     if ( ! $db && $db_driver eq 'SQLite' ) {
         push @{$menus->{$db_driver}}, [ 'dirs_sqlite_search', "- Default DB dirs" ];
@@ -786,8 +784,9 @@ sub __write_config_files {
             $tmp->{$generic}{$key} = $self->{opt}{$key};
         }
     }
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     for my $name ( keys %$tmp ) {
-        $self->write_json( sprintf( $fmt, $name ), $tmp->{$name}  );
+        $auxil->write_json( sprintf( $fmt, $name ), $tmp->{$name}  );
     }
 
 }
@@ -797,10 +796,11 @@ sub read_config_files {
     my ( $self ) = @_;
     $self->{opt} = $self->defaults();
     my $fmt = $self->{info}{conf_file_fmt};
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     for my $db_plugin ( @{$self->defaults( qw( db_plugins ) )} ) {
         my $file = sprintf( $fmt, $db_plugin );
         if ( -f $file && -s $file ) {
-            my $tmp = $self->read_json( $file );
+            my $tmp = $auxil->read_json( $file );
             for my $conf_sect ( keys %$tmp ) {
                 my $section = $db_plugin . ( $conf_sect =~ /^\*(?:$db_plugin)\z/ ? '' : '_' . $conf_sect );
                 for my $key ( keys %{$tmp->{$conf_sect}} ) {
@@ -811,7 +811,7 @@ sub read_config_files {
     }
     my $file =  sprintf( $fmt, $self->{info}{sect_generic} );
     if ( -f $file && -s $file ) {
-        my $tmp = $self->read_json( $file );
+        my $tmp = $auxil->read_json( $file );
         for my $key ( keys %$tmp ) {
             $self->{opt}{$key} = $tmp->{$key} if exists $self->{opt}{$key};
         }
@@ -820,30 +820,6 @@ sub read_config_files {
 }
 
 
-sub write_json {
-    my ( $self, $file, $h_ref ) = @_;
-    my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
-    open my $fh, '>', encode( 'locale_fs', $file ) or die $!;
-    print $fh $json;
-    close $fh;
-}
-
-
-sub read_json {
-    my ( $self, $file ) = @_;
-    return {} if ! -f encode( 'locale_fs', $file );
-    open my $fh, '<', encode( 'locale_fs', $file ) or die $!;
-    my $json = do { local $/; <$fh> };
-    close $fh;
-    my $h_ref = {};
-    if ( ! eval {
-        $h_ref = decode_json( $json ) if $json;
-        1 }
-    ) {
-        die "In '$file':\n$@";
-    }
-    return $h_ref;
-}
 
 
 1;

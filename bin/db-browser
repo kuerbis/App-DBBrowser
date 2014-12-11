@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_05
+Version 0.049_06
 
 =cut
 
@@ -50,11 +50,17 @@ When the C<db-browser> is called with the argument C<-h|--help>, it shows a menu
 
 =head2 SQLite
 
-    db-browser [-s|--search] [directories to be searched]
+    db-browser [-s|--search] [directory to be searched, ...]
 
 If no directories are passed, the home directory is searched for SQLite databases.
 
 C<db-browser> called with C<-s|--search> causes a new search of SQLite databases instead of using the cached data.
+
+=head2 MySQL/PostgreSQL
+
+    db-browser [database-name, ...]
+
+If no database-name is passed, C<db-browser> searches for available databases.
 
 =head1 DESCRIPTION
 
@@ -330,36 +336,38 @@ Choose the required database plugins.
 
 =head4 DB Login Mode
 
-Determine when C<db-browser> asks for the login data:
+Determine how to gather the login data:
 
 =over
 
 =item
 
-Ask once
+Ask
 
-Ask only once for all connections.
-
-=item
-
-Ask always
-
-Ask for each database connection.
+Ask for login data when connecting to a database.
 
 =item
 
-ENV DBI_...
+Use DBI_....
 
-Use the environment variable for the login (DBI_HOST, DBI_PORT, DBI_USER, DBI_PASS).
+Use the environment variable
 
-If the environment variable does not exits, the login mode is set to I<Ask once>.
+- DBI_HOST to set the host
+
+- DBI_PORT to set the port
+
+- DBI_USER as the username
+
+- DBI_PASS as the password
+
+If an environment variable doesn't exist, the users is asked for the data.
 
 =item
 
 Don't set
 
-This is only available for the host and port. If I<Don't set> is selected, the C<DBI> C<DSN> is formed without host
-respectively without port.
+For the host and port: if I<Don't set> is selected, the C<DBI> C<DSN> is formed without the host part respectively
+without port part.
 
 =back
 

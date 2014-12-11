@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -19,9 +19,7 @@ use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 use App::DBBrowser::DB;
 #use App::DBBrowser::Table::Insert;  # "require"-d
-use App::DBBrowser::Util;
-
-sub CLEAR_SCREEN () { "\e[H\e[J" }
+use App::DBBrowser::Auxil;
 
 
 
@@ -33,7 +31,7 @@ sub new {
 
 sub __on_table {
     my ( $self, $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns ) = @_;
-    my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
         Select => [ qw( print_table columns aggregate distinct where group_by having order_by limit lock ) ],
@@ -67,14 +65,14 @@ sub __on_table {
     );
     my ( $DISTINCT, $ALL, $ASC, $DESC, $AND, $OR ) = ( "DISTINCT", "ALL", "ASC", "DESC", "AND", "OR" );
     if ( $self->{info}{lock} == 0 ) {
-        $util->__reset_sql( $sql );
+        $auxil->__reset_sql( $sql );
     }
     my $backup_sql = clone( $sql );
     my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
         $backup_sql = clone( $sql ) if $sql_type eq 'Select';
-        $util->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $table, $sql_type );
         my $choices = [ $customize{hidden}, undef, @customize{@{$sub_stmts->{$sql_type}}} ];
         # Choose
         my $idx = $stmt_h->choose(
@@ -88,7 +86,7 @@ sub __on_table {
             }
             else {
                 if ( $sql->{print}{where_stmt} || $sql->{print}{set_stmt} ) {
-                    $util->__reset_sql( $sql );
+                    $auxil->__reset_sql( $sql );
                     next CUSTOMIZE;
                 }
                 else {
@@ -113,7 +111,7 @@ sub __on_table {
             if ( $self->{info}{lock} == 1 ) {
                 $self->{info}{lock} = 0;
                 $customize{lock} = $lk->[0];
-                $util->__reset_sql( $sql );
+                $auxil->__reset_sql( $sql );
             }
             elsif ( $self->{info}{lock} == 0 )   {
                 $self->{info}{lock} = 1;
@@ -127,7 +125,7 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
-                $util->__reset_sql( $sql );
+                $auxil->__reset_sql( $sql );
             }
             my @cols = ( @$pr_columns );
             $sql->{quote}{chosen_cols} = [];
@@ -138,7 +136,7 @@ sub __on_table {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my $choices = [ @pre, @cols ];
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my @print_col = $stmt_h->choose(
                     $choices,
@@ -182,7 +180,7 @@ sub __on_table {
             DISTINCT: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, $DISTINCT, $ALL ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $select_distinct = $stmt_h->choose(
                     $choices
@@ -207,7 +205,7 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'aggregate'} ) {
             if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
-                $util->__reset_sql( $sql );
+                $auxil->__reset_sql( $sql );
             }
             my @cols = ( @$pr_columns );
             $sql->{quote}{aggr_cols} = [];
@@ -217,7 +215,7 @@ sub __on_table {
             AGGREGATE: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @{$self->{info}{avail_aggregate}} ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $aggr = $stmt_h->choose(
                     $choices
@@ -253,7 +251,7 @@ sub __on_table {
                     if ( $aggr eq 'COUNT' ) {
                         my $choices = [ $ALL, $DISTINCT ];
                         unshift @$choices, undef if $self->{opt}{sssc_mode};
-                        $util->__print_sql_statement( $sql, $table, $sql_type );
+                        $auxil->__print_sql_statement( $sql, $table, $sql_type );
                         # Choose
                         my $all_or_distinct = $stmt_h->choose(
                             $choices
@@ -270,7 +268,7 @@ sub __on_table {
                     }
                     my $choices = [ @cols ];
                     unshift @$choices, undef if $self->{opt}{sssc_mode};
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $print_col = $stmt_h->choose(
                         $choices
@@ -303,7 +301,7 @@ sub __on_table {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my $choices = [ @pre, @cols ];
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     $choices,
@@ -333,7 +331,7 @@ sub __on_table {
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
                 $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Readline
                 my $value = $trs->readline( $print_col . ': ' );
                 if ( ! defined $value ) {
@@ -374,7 +372,7 @@ sub __on_table {
                 elsif ( $self->{opt}{parentheses_w} == 2 ) {
                     push @choices, $unclosed ? ')' : '(';
                 }
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     [ @pre, @choices ]
@@ -409,7 +407,7 @@ sub __on_table {
                 if ( $count > 0 && $sql->{quote}{where_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
                     unshift @$choices, undef if $self->{opt}{sssc_mode};
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
                         $choices
@@ -449,7 +447,7 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'group_by'} ) {
             if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
-                $util->__reset_sql( $sql );
+                $auxil->__reset_sql( $sql );
             }
             my @cols = ( @$pr_columns );
             my $col_sep = ' ';
@@ -463,7 +461,7 @@ sub __on_table {
                 my @pre = ( $self->{info}{ok} );
                 unshift @pre, undef if $self->{opt}{sssc_mode};
                 my $choices = [ @pre, @cols ];
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my @print_col = $stmt_h->choose(
                     $choices,
@@ -533,7 +531,7 @@ sub __on_table {
                 elsif ( $self->{opt}{parentheses_h} == 2 ) {
                     push @choices, $unclosed ? ')' : '(';
                 }
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $aggr = $stmt_h->choose(
                     [ @pre, @choices ]
@@ -568,7 +566,7 @@ sub __on_table {
                 if ( $count > 0 && $sql->{quote}{having_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
                     unshift @$choices, undef if $self->{opt}{sssc_mode};
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
                         $choices
@@ -615,7 +613,7 @@ sub __on_table {
                     $print_aggr                 =           $aggr . "(";
                     my $choices = [ @cols ];
                     unshift @$choices, undef if $self->{opt}{sssc_mode};
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $print_col = $stmt_h->choose(
                         $choices
@@ -661,7 +659,7 @@ sub __on_table {
             ORDER_BY: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @cols ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     $choices
@@ -691,7 +689,7 @@ sub __on_table {
                 $sql->{print}{order_by_stmt} .= $col_sep . $print_col;
                 $choices = [ $ASC, $DESC ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $direction = $stmt_h->choose(
                     $choices
@@ -718,7 +716,7 @@ sub __on_table {
             LIMIT: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, $only_limit, $offset_and_limit ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $choice = $stmt_h->choose(
                     $choices
@@ -813,7 +811,7 @@ sub __on_table {
                     $default = 1;
                 }
                 my $choices = [ @pre, map( "- $_", @cols ) ];
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $i = $stmt_h->choose(
                     $choices,
@@ -839,7 +837,7 @@ sub __on_table {
                         $st =~ s/^-\ //;
                         $sql_type = $st;
                         $old_idx = 1;
-                        $util->__reset_sql( $sql );
+                        $auxil->__reset_sql( $sql );
                     }
                     last HIDDEN;
                 }
@@ -872,7 +870,7 @@ sub __on_table {
                     $changed++;
                     next HIDDEN;
                 }
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $function = $stmt_h->choose(
                     [ undef, map( "  $_", @functions ) ],
@@ -883,7 +881,7 @@ sub __on_table {
                 }
                 $function =~ s/^\s\s//;
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
                 my ( $quote_hidd, $print_hidd ) = $self->__col_functions( $function, $quote_col, $print_col );
                 if ( ! defined $quote_hidd ) {
@@ -932,20 +930,20 @@ sub __on_table {
                 push @arguments, $self->{opt}{max_rows};
             }
             local $| = 1;
-            print CLEAR_SCREEN;
+            print $self->{info}{clear_screen};
             print 'Database : ...' . "\n" if $self->{opt}{progress_bar};
             my $sth = $dbh->prepare( $select );
             $sth->execute( @arguments );
             my $col_names = $sth->{NAME};
             my $all_arrayref = $sth->fetchall_arrayref;
             unshift @$all_arrayref, $col_names;
-            print CLEAR_SCREEN;
+            print $self->{info}{clear_screen};
             return $all_arrayref;
         }
         elsif ( $custom eq $customize{'commit'} ) {
             my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
             local $| = 1;
-            print CLEAR_SCREEN;
+            print $self->{info}{clear_screen};
             print 'Database : ...' . "\n" if $self->{opt}{progress_bar};
             my $stmt = $map_sql_types{$sql_type};
             my $to_execute;
@@ -984,7 +982,7 @@ sub __on_table {
                     }
                     my $nr_rows   = $sql_type eq 'Insert' ? @$to_execute : $sth->rows;
                     my $commit_ok = sprintf $commit_fmt{$sql_type}, $nr_rows;
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     my $choices = [ undef,  $commit_ok ];
                     # Choose
                     my $choice = $stmt_h->choose(
@@ -996,13 +994,13 @@ sub __on_table {
                     }
                     else {
                         $dbh->rollback;
-                        $util->__reset_sql( $sql );
+                        $auxil->__reset_sql( $sql );
                         next CUSTOMIZE;
                     }
                     1;
                     }
                 ) {
-                    $util->__print_error_message( "$@rolling back ...\n", 'Commit' );
+                    $auxil->__print_error_message( "$@rolling back ...\n", 'Commit' );
                     eval { $dbh->rollback };#
                 }
             }
@@ -1016,7 +1014,7 @@ sub __on_table {
                     ( $nr_rows ) = $dbh->selectrow_array( $count_stmt, undef, @{$sql->{quote}{where_args}} );
                 }
                 my $commit_ok = sprintf $commit_fmt{$sql_type}, $nr_rows;
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 my $choices = [ undef,  $commit_ok ];
                 # Choose
                 my $choice = $stmt_h->choose(
@@ -1030,7 +1028,7 @@ sub __on_table {
                     }
                 }
                 else {
-                    $util->__reset_sql( $sql );
+                    $auxil->__reset_sql( $sql );
                     next CUSTOMIZE;
                 }
             }
@@ -1059,7 +1057,7 @@ sub __unambiguous_key {
 
 sub __set_operator_sql {
     my ( $self, $sql, $clause, $table, $cols, $qt_columns, $quote_col, $sql_type ) = @_;
-    my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my ( $stmt, $args );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     if ( $clause eq 'where' ) {
@@ -1072,7 +1070,7 @@ sub __set_operator_sql {
     }
     my $choices = [ @{$self->{opt}{operators}} ];
     unshift @$choices, undef if $self->{opt}{sssc_mode};
-    $util->__print_sql_statement( $sql, $table, $sql_type );
+    $auxil->__print_sql_statement( $sql, $table, $sql_type );
     # Choose
     my $operator = $stmt_h->choose(
         $choices
@@ -1099,7 +1097,7 @@ sub __set_operator_sql {
             $sql->{print}{$stmt} .= '(';
 
             IN: while ( 1 ) {
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Readline
                 my $value = $trs->readline( 'Value: ' );
                 if ( ! defined $value ) {
@@ -1126,7 +1124,7 @@ sub __set_operator_sql {
             }
         }
         elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Readline
             my $value_1 = $trs->readline( 'Value: ' );
             if ( ! defined $value_1 ) {
@@ -1138,7 +1136,7 @@ sub __set_operator_sql {
             $sql->{quote}{$stmt} .= ' ' . '?' .      ' AND';
             $sql->{print}{$stmt} .= ' ' . $value_1 . ' AND';
             push @{$sql->{quote}{$args}}, $value_1;
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Readline
             my $value_2 = $trs->readline( 'Value: ' );
             if ( ! defined $value_2 ) {
@@ -1153,7 +1151,7 @@ sub __set_operator_sql {
         }
         elsif ( $operator =~ /REGEXP\z/ ) {
             $sql->{print}{$stmt} .= ' ' . $operator;
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Readline
             my $value = $trs->readline( 'Pattern: ' );
             if ( ! defined $value ) {
@@ -1174,7 +1172,7 @@ sub __set_operator_sql {
             push @{$sql->{quote}{$args}}, $value;
         }
         else {
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
             # Readline
             my $value = $trs->readline( $prompt );
@@ -1200,7 +1198,7 @@ sub __set_operator_sql {
         $sql->{print}{$stmt} .= ' ' . $operator;
         my $choices = [ @$cols ];
         unshift @$choices, undef if $self->{opt}{sssc_mode};
-        $util->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my $print_col = $stmt_h->choose(
             $choices,

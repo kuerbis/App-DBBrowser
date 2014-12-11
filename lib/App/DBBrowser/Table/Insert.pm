@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -24,7 +24,7 @@ use Term::ReadLine::Simple qw();
 use Text::CSV              qw();
 use Text::ParseWords       qw( parse_line );
 
-use App::DBBrowser::Util;
+use App::DBBrowser::Auxil;
 
 
 
@@ -36,7 +36,7 @@ sub new {
 
 sub __insert_into {
     my ( $self, $sql, $table, $qt_columns, $pr_columns ) = @_;
-    my $util   = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil   = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my @cols = ( @$pr_columns );
     $sql->{quote}{insert_into_args} = [];
@@ -48,7 +48,7 @@ sub __insert_into {
         my @pre = ( $self->{info}{ok} );
         unshift @pre, undef if $self->{opt}{sssc_mode};
         my $choices = [ @pre, @cols ];
-        $util->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my @idx = $stmt_h->choose(
             $choices,
@@ -96,7 +96,7 @@ sub __insert_into {
             $input_mode = $self->{opt}{input_modes}[0];
         }
         else {
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             $input_mode = $stmt_h->choose(
                 [ undef, @{$self->{opt}{input_modes}} ],
@@ -114,7 +114,7 @@ sub __insert_into {
                 if ( $input_mode eq 'Cols' ) {
                     my $input_row_idx = @{$sql->{quote}{insert_into_args}};
                     COLS: for my $col_name ( @{$sql->{print}{chosen_cols}} ) {
-                        $util->__print_sql_statement( $sql, $table, $sql_type );
+                        $auxil->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         my $col = $trs->readline( $col_name . ': ' );
                         push @{$sql->{quote}{insert_into_args}->[$input_row_idx]}, $col; # show $col immediately in "print_sql_statement"
@@ -122,7 +122,7 @@ sub __insert_into {
                 }
                 elsif ( $input_mode eq 'Rows' ) {
                     my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
                     if ( ! defined $row ) {
@@ -138,7 +138,7 @@ sub __insert_into {
                 my $default = ( all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ) ? 2 : 1;
 
                 ASK: while ( 1 ) {
-                    $util->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $add_row = $stmt_h->choose(
                         $choices,
@@ -168,7 +168,7 @@ sub __insert_into {
         else {
             my ( $file, $sheet_idx );
             if ( $input_mode eq 'Multirow' ) {
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 print 'Multirow: ' . "\n";
                 # STDIN
                 my $input = read_file( \*STDIN );
@@ -226,7 +226,7 @@ sub __insert_into {
                     ###
                     my $add_file = 'New file';
                     if ( @files_sorted ) {
-                        $util->__print_sql_statement( $sql, $table, $sql_type );
+                        $auxil->__print_sql_statement( $sql, $table, $sql_type );
                         # Choose
                         $file = $stmt_h->choose(
                             [ undef, '  ' . $add_file, map( "- $_", @files_sorted ) ],
@@ -243,7 +243,7 @@ sub __insert_into {
                         $file =~ s/^.\s//;
                     }
                     if ( ! defined $file || $file eq $add_file ) {
-                        $util->__print_sql_statement( $sql, $table, $sql_type );
+                        $auxil->__print_sql_statement( $sql, $table, $sql_type );
                         # Readline
                         $file = $trs->readline( 'Path to file: ' );
                         if ( ! defined $file || ! length $file ) {
@@ -380,7 +380,7 @@ sub __parse_file {
 
 sub __filter_input {
     my ( $self, $sql, $table, $sql_type, $file, $sheet_idx ) = @_;
-    my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     #my $backup = clone $sql->{quote}{insert_into_args};
 
@@ -388,7 +388,7 @@ sub __filter_input {
         my @pre = ( undef, $self->{info}{ok} );
         my ( $input_cols, $input_rows_range, $input_rows_choose, $reset ) = ( 'Columns', 'Rows-range', 'Rows-choose', 'Reset' );
         my $choices = [ @pre, $input_cols, $input_rows_range, $input_rows_choose, $reset ];
-        $util->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my $choice = $stmt_h->choose(
             $choices,
@@ -414,7 +414,7 @@ sub __filter_input {
                 my $choices = [ @pre, map { "col_$_" } 1 .. @{$sql->{quote}{insert_into_args}[0]} ];
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', map { $_ + 1 } @col_idx if @col_idx;
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my @col_nr = $stmt_h->choose(
                     $choices,
@@ -455,7 +455,7 @@ sub __filter_input {
             unshift @pre, undef if $self->{opt}{sssc_mode};
             #my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
             my $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             my $first_row = $stmt_h->choose(
                 $choices,
@@ -465,7 +465,7 @@ sub __filter_input {
             $first_row -= @pre;
             next FILTER if $first_row < 0;
             $choices->[$first_row + @pre] = '* ' . $choices->[$first_row + @pre];
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             my $last_row = $stmt_h->choose(
                 $choices,
@@ -475,7 +475,7 @@ sub __filter_input {
             $last_row -= @pre;
             next FILTER if $last_row < 0;
             if ( $last_row < $first_row ) {
-                $util->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 $stmt_h->choose(
                     [ "Last row [$last_row] is less than First row [$first_row]!" ],
@@ -491,7 +491,7 @@ sub __filter_input {
             unshift @pre, undef if $self->{opt}{sssc_mode};
             #my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
             my $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
-            $util->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             my @row_idx = $stmt_h->choose(
                 $choices,

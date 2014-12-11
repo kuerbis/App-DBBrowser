@@ -6,8 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
-
+our $VERSION = '0.049_06';
 
 
 sub new {
@@ -15,8 +14,23 @@ sub new {
     die "Invalid character in the DB plugin name" if $info->{db_plugin} !~ /^[\w_]+\z/;
     my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
     eval "require $db_module";
-    my $db_plugin = $db_module->new( { metadata => $opt->{metadata}, debug => $opt->{debug} } );
-    bless { info => $info, opt => $opt, db_plugin => $db_plugin }, $class; #
+    my $plugin = $db_module->new( {
+        home_dir            => $info->{home_dir},
+        app_dir             => $info->{app_dir},
+        db_plugin           => $info->{db_plugin},
+        db_cache_file       => $info->{db_cache_file},
+        sqlite_search       => $info->{sqlite_search},
+        clear_screen        => $info->{clear_screen},
+        debug               => $opt->{debug},
+        metadata            => $opt->{metadata},
+        dirs_sqlite_search  => $opt->{dirs_sqlite_search},
+        connect_arg         => $opt->{$info->{db_plugin}},
+        login_mode_host     => $opt->{login_host},
+        login_mode_port     => $opt->{login_port},
+        login_mode_user     => $opt->{login_user},
+        login_mode_pass     => $opt->{login_pass},
+    } );
+    bless { db_plugin => $plugin }, $class;
 }
 
 
@@ -28,15 +42,15 @@ sub db_driver {
 
 
 sub available_databases {
-    my ( $self, $db_arg, $ref ) = @_;
-    my ( $user_db, $system_db ) = $self->{db_plugin}->available_databases( $db_arg, $ref );
+    my ( $self ) = @_;
+    my ( $user_db, $system_db ) = $self->{db_plugin}->available_databases();
     return $user_db, $system_db;
 }
 
 
 sub get_db_handle {
-    my ( $self, $db, $db_arg, $login_cache ) = @_;
-    my $dbh = $self->{db_plugin}->get_db_handle( $db, $db_arg, $login_cache );
+    my ( $self, $db, $connect_arg_db ) = @_;
+    my $dbh = $self->{db_plugin}->get_db_handle( $db, $connect_arg_db );
     return $dbh;
 }
 

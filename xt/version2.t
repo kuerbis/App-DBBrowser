@@ -110,7 +110,7 @@ while ( my $line = <$fh7> ) {
 }
 close $fh7;
 
-my $ut = 'lib/App/DBBrowser/Util.pm';
+my $ut = 'lib/App/DBBrowser/Auxil.pm';
 open my $fh8, '<', $ut or die $!;
 while ( my $line = <$fh8> ) {
     if ( $line =~ /^our\ \$VERSION\ =\ '(\d\.\d\d\d(?:_\d\d)?)';/ ) {
@@ -153,7 +153,7 @@ is( $v_lib,        $v_opt,         'Version in "App::DBBrowser::Opt"            
 is( $v_lib,        $v_db,          'Version in "App::DBBrowser::DB"             OK');
 is( $v_lib,        $v_tbl,         'Version in "App::DBBrowser::Table"          OK');
 is( $v_lib,        $v_ju,          'Version in "App::DBBrowser::Join_Union"     OK');
-is( $v_lib,        $v_ut,          'Version in "App::DBBrowser::Util"           OK');
+is( $v_lib,        $v_ut,          'Version in "App::DBBrowser::Auxil"          OK');
 is( $v_lib,        $v_insert,      'Version in "App::DBBrowser::Table::Insert"  OK');
 is( $release_date, $today,         'Release date in Changes is date from today'   );
 

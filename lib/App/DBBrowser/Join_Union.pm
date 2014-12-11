@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -17,8 +17,6 @@ use Text::LineFold         qw();
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 use App::DBBrowser::DB;
-
-sub CLEAR_SCREEN () { "\e[H\e[J" }
 
 
 
@@ -232,7 +230,7 @@ sub __print_union_statement {
     }
     $str .= "\n";
     my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
-    print CLEAR_SCREEN;
+    print $self->{info}{clear_screen};
     print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $str );
 }
 
@@ -484,7 +482,7 @@ sub __print_join_statement {
     $join_stmt_pr =~ s/(?=\sLEFT\sOUTER\sJOIN)/\n\ /g;
     $join_stmt_pr .= "\n\n";
     my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
-    print CLEAR_SCREEN;
+    print $self->{info}{clear_screen};
     print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $join_stmt_pr );
 }
 

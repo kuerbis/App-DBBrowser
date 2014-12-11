@@ -12,32 +12,46 @@ use DBI qw();
 
 use App::DBBrowser::DB_Credentials;
 
-sub CLEAR_SCREEN () { "\e[H\e[J" }
-
 
 
 sub new {
     my ( $class, $opt ) = @_;
+    $opt->{db_driver} = 'Pg';
     bless $opt, $class;
 }
 
 
-sub db_driver { #
+sub db_driver {
     my ( $self ) = @_;
-    return 'Pg';
+    return $self->{db_driver};
 }
 
 
 sub get_db_handle {
-    my ( $self, $db, $db_arg, $login_cache ) = @_;
-    my $obj_db_cred = App::DBBrowser::DB_Credentials->new();
-    my $host   = $obj_db_cred->get_login( 'host', $login_cache );
-    my $port   = $obj_db_cred->get_login( 'port', $login_cache );
-    my $user   = $obj_db_cred->get_login( 'user', $login_cache );
-    my $passwd = $obj_db_cred->get_password( $login_cache );
-    my $dsn  = 'dbi:Pg:dbname=' . $db; ##
-    $dsn .= ';host=' . $host if length $host;
-    $dsn .= ';port=' . $port if length $port;
+    my ( $self, $db, $connect_arg_db ) = @_;
+    $connect_arg_db = {} if ! defined $connect_arg_db;
+    my $db_driver = $self->{db_driver};
+    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( {
+        connect_arg_db => $connect_arg_db,
+        connect_arg    => $self->{connect_arg},
+    } );
+    my $host   = $obj_db_cred->get_login( 'host', $self->{login_mode_host} );
+    my $port   = $obj_db_cred->get_login( 'port', $self->{login_mode_port} );
+    my $user   = $obj_db_cred->get_login( 'user', $self->{login_mode_user} );
+    my $passwd = $obj_db_cred->get_login( 'pass', $self->{login_mode_pass} );
+    my $dsn  = "dbi:$db_driver:dbname=$db";
+    $dsn .= ";host=$host" if length $host;
+    $dsn .= ";port=$port" if length $port;
+    my $db_arg;
+    for my $option ( sort keys %{$self->{connect_arg}} ) {
+        next if $option !~ /^\Q$db_driver\E_/i;
+        if ( defined $connect_arg_db->{$option} ) {
+            $db_arg->{$option} = $connect_arg_db->{$option};
+        }
+        else {
+            $db_arg->{$option} = $self->{connect_arg}{$option};
+        }
+    }
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,
         RaiseError => 1,
@@ -50,7 +64,8 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self, $db_arg, $login_cache ) = @_;
+    my ( $self ) = @_;
+    return \@ARGV, [] if @ARGV;
     my @regex_system_db = ( '^postgres$', '^template0$', '^template1$' );
     my $stmt = "SELECT datname FROM pg_database";
     if ( ! $self->{metadata} ) {
@@ -58,9 +73,9 @@ sub available_databases {
     }
     $stmt .= " ORDER BY datname";
     my $info_database = 'postgres';
-    print CLEAR_SCREEN;
+    print $self->{clear_screen};
     print "DB: $info_database\n";
-    my $dbh = $self->get_db_handle( $info_database, $db_arg, $login_cache );
+    my $dbh = $self->get_db_handle( $info_database );
     my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
     $dbh->disconnect(); ##
     if ( $self->{metadata} ) {

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_05';
+our $VERSION = '0.049_06';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -21,15 +21,12 @@ use App::DBBrowser::Opt;
 use App::DBBrowser::DB;
 #use App::DBBrowser::Join_Union;  # "require"-d
 use App::DBBrowser::Table;
-use App::DBBrowser::Util;
+use App::DBBrowser::Auxil;
 
 BEGIN {
     decode_argv(); # not at the end of the BEGIN block if less than perl 5.16
     1;
 }
-
-sub CLEAR_SCREEN () { "\e[H\e[J" }
-
 
 
 sub new {
@@ -50,6 +47,7 @@ sub new {
         _continue => '  CONTINUE',
         _info     => '  INFO',
         _reset    => '  RESET',
+        clear_screen      => "\e[H\e[J",
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
         sect_generic      => 'Generic',
         stmt_init_tab     => 4,
@@ -62,7 +60,6 @@ sub new {
         hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                                Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
-        connect_opt_pre   => {  SQLite => 'sqlite_', mysql => 'mysql_', Pg => 'pg_' },
         csv_opt           => [ qw( allow_loose_escapes allow_loose_quotes allow_whitespace auto_diag
                                    blank_is_undef binary empty_is_undef eol escape_char quote_char sep_char ) ],
     };
@@ -81,6 +78,7 @@ sub __init {
     my $my_data = decode( 'locale', File::HomeDir->my_data() );
     my $app_dir = $my_data ? catdir( $my_data, 'db_browser_conf' ) : catdir( $home, '.db_browser_conf' );
     mkdir $app_dir or die $! if ! -d $app_dir;
+    $self->{info}{home_dir}      = $home;
     $self->{info}{app_dir}       = $app_dir;
     $self->{info}{conf_file_fmt} = catfile $app_dir, 'config_%s.json';
     $self->{info}{db_cache_file} = catfile $app_dir, 'cache_db_search.json';
@@ -111,8 +109,8 @@ sub __init {
         }
         1 }
     ) {
-        my $util = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
-        $util->__print_error_message( $@, 'Configfile/Options' );
+        my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+        $auxil->__print_error_message( $@, 'Configfile/Options' );
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
         $self->{opt} = $obj_opt->defaults();
         while ( $ARGV[0] =~ /^-/ ) {
@@ -127,8 +125,6 @@ sub __init {
         }
     }
     $self->{info}{ok} = '<OK>' if $self->{opt}{sssc_mode};
-    $self->{info}{sqlite_dirs} = @ARGV ? \@ARGV : $self->{opt}{SQLite}{dirs_sqlite_search};
-    $self->{info}{sqlite_dirs} = [ $home ] if ! defined $self->{info}{sqlite_dirs};
 }
 
 
@@ -136,17 +132,17 @@ sub run {
     my ( $self ) = @_;
     $self->__init();
     my $lyt_3 = Term::Choose->new( $self->{info}{lyt_3} );
-    my $util  = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auto_one;
     my $db_plugin;
 
     DB_PLUGIN: while ( 1 ) {
 
         if ( @{$self->{opt}{db_plugins}} == 1 ) {
-            $self->{info}{one_db_plugin} = 1;
+            $auto_one++;
             $db_plugin = $self->{opt}{db_plugins}[0];
         }
         else {
-            $self->{info}{one_db_plugin} = 0;
             # Choose
             $db_plugin = $lyt_3->choose(
                 [ undef, @{$self->{opt}{db_plugins}} ],
@@ -159,104 +155,83 @@ sub run {
         my $db_driver = $obj_db->db_driver();
         $self->{info}{db_driver} = $db_driver;
 
-        my $login_cache = {};
+        # DATABASES
+
         my $databases = [];
-        my $dbs_cached = 0;
-        my $db_arg = {};
         if ( ! eval {
-            for my $option ( sort keys %{$self->{opt}{$db_plugin}} ) {
-                next if $option !~ /^\Q$self->{info}{connect_opt_pre}{$db_driver}\E/; #
-                if ( defined $self->{opt}{$db_plugin}{$option} ) {
-                    $db_arg->{$option} = $self->{opt}{$db_plugin}{$option};
-                }
-            }
+            my ( $user_db, $system_db ) = $obj_db->available_databases();
+            $system_db = [] if ! defined $system_db;
             if ( $db_driver eq 'SQLite' ) {
-                my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
-                my $cache_key = $db_plugin . '_' . join ' ', @{$self->{info}{sqlite_dirs}};
-                my $db_cache = $obj_opt->read_json( $self->{info}{db_cache_file} );
-                if ( $self->{info}{sqlite_search} ) {
-                    delete $db_cache->{$cache_key};
-                    $self->{info}{sqlite_search} = 0;
-                }
-                if ( ! defined $db_cache->{$cache_key} ) {
-                    ( $databases ) = $obj_db->available_databases( $db_arg, $self->{info}{sqlite_dirs} );
-                    $db_cache->{$cache_key} = $databases;
-                    $obj_opt->write_json( $self->{info}{db_cache_file}, $db_cache );
-                }
-                else {
-                    $dbs_cached = 1;
-                    $databases = $db_cache->{$cache_key};
-                }
+                $databases = [ @$user_db, @$system_db ]; #
             }
             else {
-                $self->__fill_login_cache( $login_cache );
-                my ( $user_db, $system_db ) = $obj_db->available_databases( $db_arg, $login_cache );
-                $system_db = [] if ! defined $system_db;
                 $databases = [ map( "- $_", @$user_db ), map( "  $_", @$system_db ) ];
             }
+            $self->{info}{sqlite_search} = 0 if $self->{info}{sqlite_search};
             1 }
         ) {
-            $login_cache = {};
-            $util->__print_error_message( $@, 'Available databases' );
+            $auxil->__print_error_message( $@, 'Available databases' );
             next DB_PLUGIN;
         }
         if ( ! @$databases ) {
-            $util->__print_error_message( "no $db_driver-databases found\n" );
+            $auxil->__print_error_message( "no $db_driver-databases found\n" );
             exit if @{$self->{opt}{db_plugins}} == 1;
             next DB_PLUGIN;
         }
 
         my $db;
         my $old_idx_db = 0;
-        my $back = ( $db_driver eq 'SQLite' ? '' : ' ' x 2 ) . ( $self->{info}{one_db_plugin} ? 'Quit' : 'BACK' );
-        my $prompt = 'Choose Database' . ( $dbs_cached ? ' (cached)' : '' );
+        my $back = ( $db_driver eq 'SQLite' ? '' : ' ' x 2 ) . ( $auto_one ? 'Quit' : 'BACK' );
+        my $prompt = 'Choose Database:';
         my $choices_db = [ undef, @$databases ];
 
         DATABASE: while ( 1 ) {
 
-            # Choose
-            my $idx_db = $lyt_3->choose(
-                $choices_db,
-                { prompt => $prompt, index => 1, default => $old_idx_db, undef => $back }
-            );
-            $db = undef;
-            $db = $choices_db->[$idx_db] if defined $idx_db;
-            if ( ! defined $db ) {
-                last DB_PLUGIN if   $self->{info}{one_db_plugin};
-                next DB_PLUGIN if ! $self->{info}{one_db_plugin};
-            }
-            if ( $self->{opt}{menus_db_memory} ) {
-                if ( $old_idx_db == $idx_db ) {
-                    $old_idx_db = 0;
-                    next DATABASE;
+            #if ( @$databases == 1 ) {
+            #    $db = $databases->[0];
+            #    $auto_one++ if $auto_one == 1;
+            #}
+            #else {
+                # Choose
+                my $idx_db = $lyt_3->choose(
+                    $choices_db,
+                    { prompt => $prompt, index => 1, default => $old_idx_db, undef => $back }
+                );
+                $db = undef;
+                $db = $choices_db->[$idx_db] if defined $idx_db;
+                if ( ! defined $db ) {
+                    $db_plugin = undef;
+                    last DB_PLUGIN if @{$self->{opt}{db_plugins}} == 1;
+                    next DB_PLUGIN;
                 }
-                else {
-                    $old_idx_db = $idx_db;
+                if ( $self->{opt}{menus_db_memory} ) {
+                    if ( $old_idx_db == $idx_db ) {
+                        $old_idx_db = 0;
+                        next DATABASE;
+                    }
+                    else {
+                        $old_idx_db = $idx_db;
+                    }
                 }
-            }
+            #}
             $db =~ s/^[-\ ]\s// if $db_driver ne 'SQLite';
             die "'$db': $!. Maybe the cached data is not up to date." if $db_driver eq 'SQLite' && ! -f $db;
 
+            # DB-HANDLE
+
             my $dbh;
             if ( ! eval {
-                my $db_key = $db_plugin . '_' . $db;
-                for my $option ( sort keys %{$self->{opt}{$db_plugin}} ) {
-                    next if $option !~ /^\Q$self->{info}{connect_opt_pre}{$db_driver}\E/; #
-                    if ( defined $self->{opt}{$db_key}{$option} ) {
-                        $db_arg->{$option} = $self->{opt}{$db_key}{$option};
-                    }
-                }
-                $self->__fill_login_cache( $login_cache, $db ); #
-                print CLEAR_SCREEN;
+                print $self->{info}{clear_screen};
                 print "DB: $db\n";
-                $dbh = $obj_db->get_db_handle( $db, $db_arg, $login_cache );
+                $dbh = $obj_db->get_db_handle( $db, $self->{opt}{$db_plugin . '_' . $db} );
                 1 }
             ) {
-                $login_cache = {};
-                $util->__print_error_message( $@, 'Get database handle' );
+                $auxil->__print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
                 next DATABASE;
             }
+
+            # SCHEMAS
 
             my $data = {};
             my $choices_schema = [];
@@ -267,11 +242,12 @@ sub run {
                 $choices_schema = [ map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) ];
                 1 }
             ) {
-                $util->__print_error_message( $@, 'Get schema names' );
+                $auxil->__print_error_message( $@, 'Get schema names' );
                 next DATABASE;
             }
             my $old_idx_sch = 0;
             unshift @$choices_schema, undef;
+            my $back = $auto_one == 2 ? '  Quit' : '  BACK';
             my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
 
             SCHEMA: while ( 1 ) {
@@ -279,15 +255,21 @@ sub run {
                 my $schema;
                 if ( @{$data->{$db}{schemas}} == 1 ) {
                     $schema = $data->{$db}{schemas}[0];
+                    $auto_one++ if $auto_one == 2
                 }
                 elsif ( @{$data->{$db}{schemas}} > 1 ) {
                     # Choose
                     my $idx_sch = $lyt_3->choose(
                         $choices_schema,
-                        { prompt => $prompt, index => 1, default => $old_idx_sch }
+                        { prompt => $prompt, index => 1, default => $old_idx_sch, undef => $back }
                     );
                     $schema = $choices_schema->[$idx_sch] if defined $idx_sch;
-                    next DATABASE if ! defined $schema;
+                    if ( ! defined $schema ) {
+                        next DATABASE;
+                        #next DATABASE  if @$databases                 > 1;
+                        #next DB_PLUGIN if @{$self->{opt}{db_plugins}} > 1;
+                        #last DB_PLUGIN;
+                    }
                     if ( $self->{opt}{menus_db_memory} ) {
                         if ( $old_idx_sch == $idx_sch ) {
                             $old_idx_sch = 0;
@@ -300,22 +282,24 @@ sub run {
                     $schema =~ s/^[-\ ]\s//;
                 }
 
+                # TABLES
+
                 my $choices_table = [];
                 if ( ! eval {
                     my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema );
                     $system_tbl = [] if ! defined $system_tbl;
                     $data->{$db}{$schema}{tables} = [ @$user_tbl, @$system_tbl ];
                     $choices_table = [ map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) ];
-
                     1 }
                 ) {
-                    $util->__print_error_message( $@, 'Get table names' );
+                    $auxil->__print_error_message( $@, 'Get table names' );
                     next DATABASE;
                 }
                 my $old_idx_tbl = 0;
                 my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
                 unshift @$choices_table, undef;
                 push    @$choices_table, $join, $union, $db_setting;
+                my $back = $auto_one == 3 ? '  Quit' : '  BACK';
                 my $prompt = 'DB: "'. basename( $db ) . ( @{$data->{$db}{schemas}} > 1 ? '.' . $schema : '' ) . '"';
 
                 TABLE: while ( 1 ) {
@@ -323,12 +307,15 @@ sub run {
                     # Choose
                     my $idx_tbl = $lyt_3->choose(
                         $choices_table,
-                        { prompt => $prompt, index => 1, default => $old_idx_tbl }
+                        { prompt => $prompt, index => 1, default => $old_idx_tbl, undef => $back }
                     );
                     my $table = $choices_table->[$idx_tbl] if defined $idx_tbl;
                     if ( ! defined $table ) {
-                        next SCHEMA if @{$data->{$db}{schemas}} > 1;
+                        next SCHEMA    if @{$data->{$db}{schemas}}    > 1;
                         next DATABASE;
+                        #next DATABASE  if @$databases                 > 1;
+                        #next DB_PLUGIN if @{$self->{opt}{db_plugins}} > 1;
+                        #last DB_PLUGIN;
                     }
                     if ( $self->{opt}{menus_db_memory} ) {
                         if ( $old_idx_tbl == $idx_tbl ) {
@@ -347,7 +334,8 @@ sub run {
                             $new_db_settings = $obj_opt->database_setting( $db );
                             1 }
                         ) {
-                            $util->__print_error_message( $@, 'Database settings' );
+                            $auxil->__print_error_message( $@, 'Database settings' );
+                            next TABLE;
                         }
                         next SCHEMA if $new_db_settings;
                         next TABLE;
@@ -360,7 +348,8 @@ sub run {
                             $table = 'joined_tables';
                             1 }
                         ) {
-                            $util->__print_error_message( $@, 'Join tables' );
+                            $auxil->__print_error_message( $@, 'Join tables' );
+                            next TABLE;
                         }
                         next TABLE if ! defined $multi_table;
                     }
@@ -377,7 +366,8 @@ sub run {
                             }
                             1 }
                         ) {
-                            $util->__print_error_message( $@, 'Union tables' );
+                            $auxil->__print_error_message( $@, 'Union tables' );
+                            next TABLE;
                         }
                         next TABLE if ! defined $multi_table;
                     }
@@ -388,7 +378,8 @@ sub run {
                          $self->__browse_the_table( $dbh, $db, $schema, $table, $multi_table );
                         1 }
                     ) {
-                        $util->__print_error_message( $@, 'Print table' );
+                        $auxil->__print_error_message( $@, 'Print table' );
+                        next TABLE;
                     }
                 }
             }
@@ -400,7 +391,7 @@ sub run {
 
 sub __browse_the_table {
     my ( $self, $dbh, $db, $schema, $table, $multi_table ) = @_;
-    my $util      = App::DBBrowser::Util->new( $self->{info}, $self->{opt} );
+    my $auxil     = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
     my $db_plugin = $self->{info}{db_plugin};
     my $qt_columns = {};
@@ -408,7 +399,7 @@ sub __browse_the_table {
     my $sql        = {};
     $sql->{strg_keys} = [ qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt ) ];
     $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args limit_args insert_into_args ) ];
-    $util->__reset_sql( $sql );
+    $auxil->__reset_sql( $sql );
     $self->{info}{lock} = $self->{opt}{lock_stmt};
     my $select_from_stmt = '';
     if ( $multi_table ) {
@@ -429,7 +420,7 @@ sub __browse_the_table {
     }
     $self->{opt}{_db_browser_mode} = 1;
     $self->{opt}{binary_filter}    =    $self->{opt}{$db_plugin . '_' . $db}{binary_filter}
-                                        || $self->{opt}{$db_plugin}{binary_filter};
+                                     || $self->{opt}{$db_plugin}{binary_filter};
 
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
@@ -439,40 +430,6 @@ sub __browse_the_table {
     }
 }
 
-
-sub __fill_login_cache {
-    my ( $self, $login_cache, $db ) = @_;
-    my $db_plugin = $self->{info}{db_plugin};
-    for my $key ( 'host', 'port', 'user', 'pass' ) {
-        my $login_key = 'login_' . $key;
-        if ( $self->{opt}{$login_key} == 2 ) {
-            if ( exists $ENV{'DBI_' . uc $key} ) {
-                $login_cache->{$key} = $ENV{'DBI_' . uc $key};
-            }
-            else {
-                $self->{opt}{$login_key} = 0;
-            }
-        }
-        $login_cache->{$login_key} = $self->{opt}{$login_key};
-        #return if $self->{opt}{$login_key} >= 2;
-        if ( $self->{opt}{$login_key} == 1 ) {
-            if ( $db  ) {
-                my $db_key = $db_plugin . '_' . $db;
-                if ( defined $self->{opt}{$db_key}{$key} ) {
-                    $login_cache->{$key} = $self->{opt}{$db_key}{$key};
-                }
-            }
-            if ( ! defined $login_cache->{$key} ) {
-                $login_cache->{'default_' . $key} = $self->{opt}{$db_plugin}{$key};
-            }
-        }
-        elsif ( $self->{opt}{$login_key} == 0  ) {
-            if ( defined $self->{opt}{$db_plugin}{$key} ) {
-                $login_cache->{$key} = $self->{opt}{$db_plugin}{$key};
-            }
-        }
-    }
-}
 
 
 
@@ -491,7 +448,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_05
+Version 0.049_06
 
 =head1 DESCRIPTION
 

@@ -9,29 +9,41 @@ no warnings 'utf8';
 #our $VERSION = '';
 
 use Encode       qw( encode decode );
-#use File::Find   qw( find );  # "require"-d
+use File::Find   qw( find );
 use Scalar::Util qw( looks_like_number );
 
 use DBI            qw();
 use Encode::Locale qw();
 
-
+use App::DBBrowser::Auxil;
 
 sub new {
     my ( $class, $opt ) = @_;
+    $opt->{db_driver} = 'SQLite';
     bless $opt, $class;
 }
 
 
-sub db_driver { #
+sub db_driver {
     my ( $self ) = @_;
-    return 'SQLite';
+    return $self->{db_driver};
 }
 
 
 sub get_db_handle {
-    my ( $self, $db, $db_arg ) = @_;
-    my $dsn = 'dbi:SQLite:dbname=' . $db; #
+    my ( $self, $db, $connect_arg_db ) = @_;
+    my $db_driver = $self->{db_driver};
+    my $dsn = "dbi:$db_driver:dbname=$db";
+    my $db_arg;
+    for my $option ( sort keys %{$self->{connect_arg}} ) {
+        next if $option !~ /^\Q$db_driver\E_/i;
+        if ( defined $connect_arg_db->{$option} ) {
+            $db_arg->{$option} = $connect_arg_db->{$option};
+        }
+        else {
+            $db_arg->{$option} = $self->{connect_arg}{$option};
+        }
+    }
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
         RaiseError => 1,
@@ -65,35 +77,52 @@ sub get_db_handle {
 }
 
 
+
+
 sub available_databases {
-    my ( $self, $db_arg, $sqlite_dirs ) = @_;
-    my $databases = [];
-    require File::Find;
-    print 'Searching...' . "\n";
-    for my $dir ( @$sqlite_dirs ) {
-        File::Find::find( {
-            wanted     => sub {
-                my $file = $File::Find::name; #
-                return if ! -f $file;
-                return if ! -s $file; #
-                return if ! -r $file; #
-                #print "$file\n";
-                if ( ! eval {
-                    open my $fh, '<:raw', $file or die "$file: $!";
-                    defined( read $fh, my $string, 13 ) or die "$file: $!";
-                    close $fh;
-                    push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
-                    1 }
-                ) {
-                    utf8::decode( $@ );
-                    print $@;
-                }
-            },
-            no_chdir   => 1,
-        },
-        encode( 'locale_fs', $dir ) );
+    my ( $self ) = @_;
+    my $sqlite_dirs = @ARGV ? \@ARGV : $self->{dirs_sqlite_search};
+    $sqlite_dirs = [ $self->{home_dir} ] if ! defined $sqlite_dirs;
+    my $cache_key = $self->{db_plugin} . '_' . join ' ', @$sqlite_dirs;
+    my $auxil = App::DBBrowser::Auxil->new();
+    my $db_cache = $auxil->read_json( $self->{db_cache_file} );
+    if ( $self->{sqlite_search} ) {
+        delete $db_cache->{$cache_key};
     }
-    print 'Ended searching' . "\n";
+    my $databases = [];
+    if ( ! defined $db_cache->{$cache_key} ) {
+        #local $File::Find::name;
+        print 'Searching...' . "\n";
+        for my $dir ( @$sqlite_dirs ) {
+            File::Find::find( {
+                wanted     => sub {
+                    my $file = $File::Find::name; #
+                    return if ! -f $file;
+                    return if ! -s $file; #
+                    return if ! -r $file; #
+                    #print "$file\n";
+                    if ( ! eval {
+                        open my $fh, '<:raw', $file or die "$file: $!";
+                        defined( read $fh, my $string, 13 ) or die "$file: $!";
+                        close $fh;
+                        push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
+                        1 }
+                    ) {
+                        utf8::decode( $@ );
+                        print $@;
+                    }
+                },
+                no_chdir   => 1,
+            },
+            encode( 'locale_fs', $dir ) );
+        }
+        print 'Ended searching' . "\n";
+        $db_cache->{$cache_key} = $databases;
+        $auxil->write_json( $self->{db_cache_file}, $db_cache );
+    }
+    else {
+        $databases = $db_cache->{$cache_key};
+    }
     return $databases;
 }
 
