@@ -20,6 +20,7 @@ use App::DBBrowser::Auxil;
 sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
+    $opt->{driver_prefix} = 'sqlite';
     bless $opt, $class;
 }
 
@@ -30,26 +31,22 @@ sub db_driver {
 }
 
 
+sub driver_prefix {
+    my ( $self ) = @_;
+    return $self->{driver_prefix};
+}
+
+
+
 sub get_db_handle {
-    my ( $self, $db, $connect_arg_db ) = @_;
-    my $db_driver = $self->{db_driver};
-    my $dsn = "dbi:$db_driver:dbname=$db";
-    my $db_arg;
-    for my $option ( sort keys %{$self->{connect_arg}} ) {
-        next if $option !~ /^\Q$db_driver\E_/i;
-        if ( defined $connect_arg_db->{$option} ) {
-            $db_arg->{$option} = $connect_arg_db->{$option};
-        }
-        else {
-            $db_arg->{$option} = $self->{connect_arg}{$option};
-        }
-    }
+    my ( $self, $db, $connect_parameter ) = @_;
+    my $dsn = "dbi:$self->{db_driver}:dbname=$db";
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %$db_arg,
+        %{$connect_parameter->{attributes}},
     } ) or die DBI->errstr;
     $dbh->sqlite_create_function( 'regexp', 2, sub {
             my ( $regex, $string ) = @_;
@@ -81,8 +78,7 @@ sub get_db_handle {
 
 sub available_databases {
     my ( $self ) = @_;
-    my $sqlite_dirs = @ARGV ? \@ARGV : $self->{dirs_sqlite_search};
-    $sqlite_dirs = [ $self->{home_dir} ] if ! defined $sqlite_dirs;
+    my $sqlite_dirs = @ARGV ? \@ARGV : $self->{db_search_path};
     my $cache_key = $self->{db_plugin} . '_' . join ' ', @$sqlite_dirs;
     my $auxil = App::DBBrowser::Auxil->new();
     my $db_cache = $auxil->read_json( $self->{db_cache_file} );
@@ -91,12 +87,11 @@ sub available_databases {
     }
     my $databases = [];
     if ( ! defined $db_cache->{$cache_key} ) {
-        #local $File::Find::name;
         print 'Searching...' . "\n";
         for my $dir ( @$sqlite_dirs ) {
             File::Find::find( {
-                wanted     => sub {
-                    my $file = $File::Find::name; #
+                wanted => sub {
+                    my $file = $_;
                     return if ! -f $file;
                     return if ! -s $file; #
                     return if ! -r $file; #
@@ -112,7 +107,7 @@ sub available_databases {
                         print $@;
                     }
                 },
-                no_chdir   => 1,
+                no_chdir => 1,
             },
             encode( 'locale_fs', $dir ) );
         }
@@ -157,7 +152,7 @@ sub get_table_names {
         return $user_tbl, $system_tbl;
     }
     else {
-        return $tables, []; ##
+        return $tables;
     }
 }
 
@@ -191,8 +186,8 @@ sub primary_and_foreign_keys {
 
 
 sub sql_regexp {
-    my ( $self, $quote_col, $is_not_regexp, $case_sensitive ) = @_;
-    if ( $is_not_regexp ) {
+    my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
+    if ( $do_not_match_regexp ) {
         return ' '. $quote_col . ' NOT REGEXP ?';
     }
     else {

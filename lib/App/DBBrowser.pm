@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -128,13 +128,39 @@ sub __init {
 }
 
 
+sub __prepare_connect_parameter {
+    my ( $self, $db ) = @_;
+    my $db_plugin = $self->{info}{db_plugin};
+    my $connect_parameter = {};
+    for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
+        if ( defined $db && defined $self->{opt}{$db_plugin . '_' . $db}{$option} ) {
+            if ( $option =~ /^\Q$self->{into}{driver_prefix}\E/ ) {
+                $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin . '_' . $db}{$option};
+            }
+            else {
+                $connect_parameter->{$option} = $self->{opt}{$db_plugin . '_' . $db}{$option};
+            }
+        }
+        else {
+            if ( $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+                $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin}{$option};
+            }
+            else {
+                $connect_parameter->{$option} = $self->{opt}{$db_plugin}{$option};
+            }
+        }
+    }
+    return $connect_parameter
+}
+
+
 sub run {
     my ( $self ) = @_;
     $self->__init();
     my $lyt_3 = Term::Choose->new( $self->{info}{lyt_3} );
     my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $auto_one;
-    my $db_plugin;
+    my $db_plugin;  ###
 
     DB_PLUGIN: while ( 1 ) {
 
@@ -154,12 +180,15 @@ sub run {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
         my $db_driver = $obj_db->db_driver();
         $self->{info}{db_driver} = $db_driver;
+        $self->{info}{driver_prefix} = $obj_db->driver_prefix();
+
 
         # DATABASES
 
         my $databases = [];
         if ( ! eval {
-            my ( $user_db, $system_db ) = $obj_db->available_databases();
+            my $connect_parameter = $self->__prepare_connect_parameter();
+            my ( $user_db, $system_db ) = $obj_db->available_databases( $connect_parameter );
             $system_db = [] if ! defined $system_db;
             if ( $db_driver eq 'SQLite' ) {
                 $databases = [ @$user_db, @$system_db ]; #
@@ -200,7 +229,7 @@ sub run {
                 $db = undef;
                 $db = $choices_db->[$idx_db] if defined $idx_db;
                 if ( ! defined $db ) {
-                    $db_plugin = undef;
+                    $db_plugin = undef; #########
                     last DB_PLUGIN if @{$self->{opt}{db_plugins}} == 1;
                     next DB_PLUGIN;
                 }
@@ -223,7 +252,8 @@ sub run {
             if ( ! eval {
                 print $self->{info}{clear_screen};
                 print "DB: $db\n";
-                $dbh = $obj_db->get_db_handle( $db, $self->{opt}{$db_plugin . '_' . $db} );
+                my $connect_parameter = $self->__prepare_connect_parameter();
+                $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
                 1 }
             ) {
                 $auxil->__print_error_message( $@, 'Get database handle' );
@@ -253,11 +283,12 @@ sub run {
             SCHEMA: while ( 1 ) {
 
                 my $schema;
+                #$data->{$db}{schemas}[0] = undef if ! defined $data->{$db}{schemas}[0];
                 if ( @{$data->{$db}{schemas}} == 1 ) {
                     $schema = $data->{$db}{schemas}[0];
                     $auto_one++ if $auto_one == 2
                 }
-                elsif ( @{$data->{$db}{schemas}} > 1 ) {
+                elsif ( @{$data->{$db}{schemas}} > 1 ) { ###
                     # Choose
                     my $idx_sch = $lyt_3->choose(
                         $choices_schema,
@@ -448,7 +479,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_06
+Version 0.049_07
 
 =head1 DESCRIPTION
 

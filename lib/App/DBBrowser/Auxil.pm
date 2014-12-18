@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use Encode qw( encode );
 
@@ -83,7 +83,6 @@ sub __print_error_message {
     my ( $self, $message, $title ) = @_;
     print "$title:\n" if $title;
     utf8::decode( $message );
-    $message =~ s/\sat(?:(?!\sat\s).)+// if ! $self->{opt}{debug};
     print $message;
     choose(
         [ 'Press ENTER to continue' ],

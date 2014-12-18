@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -243,24 +243,31 @@ sub __get_tables_info {
     my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} );
     for my $table ( @{$u_or_j->{tables}} ) {
         push @{$tables_info->{$table}}, [ 'Table: ', '== ' . $table . ' ==' ];
-        push @{$tables_info->{$table}}, [
-            'Columns: ',
-            join( ' | ', map {
-                    lc( $u_or_j->{col_types}{$table}[$_] )
-                . ' ' . $u_or_j->{col_names}{$table}[$_] } 0 .. $#{$u_or_j->{col_names}{$table}} )
-        ];
-        if ( @{$pk->{$table}} ) {
+        if ( defined $u_or_j->{col_names} ) {
+            push @{$tables_info->{$table}}, [
+                'Columns: ',
+                join( ' | ', map {
+                        lc( $u_or_j->{col_types}{$table}[$_] )
+                    . ' ' . $u_or_j->{col_names}{$table}[$_] } 0 .. $#{$u_or_j->{col_names}{$table}} )
+            ];
+        }
+        if ( defined $pk && @{$pk->{$table}} ) {
             push @{$tables_info->{$table}}, [ 'PK: ', 'primary key (' . join( ',', @{$pk->{$table}} ) . ')' ];
         }
-        for my $fk_name ( sort keys %{$fk->{$table}} ) {
-            if ( $fk->{$table}{$fk_name} ) {
-                push @{$tables_info->{$table}}, [
-                    'FK: ',
-                    'foreign key (' . join( ',', @{$fk->{$table}{$fk_name}{foreign_key_col}} ) .
-                    ') references ' . $fk->{$table}{$fk_name}{reference_table} .
-                    '(' . join( ',', @{$fk->{$table}{$fk_name}{reference_key_col}} ) .')'
-                ];
+        if ( defined $fk ) {
+            for my $fk_name ( sort keys %{$fk->{$table}} ) {
+                if ( $fk->{$table}{$fk_name} ) {
+                    push @{$tables_info->{$table}}, [
+                        'FK: ',
+                        'foreign key (' . join( ',', @{$fk->{$table}{$fk_name}{foreign_key_col}} ) .
+                        ') references ' . $fk->{$table}{$fk_name}{reference_table} .
+                        '(' . join( ',', @{$fk->{$table}{$fk_name}{reference_key_col}} ) .')'
+                    ];
+                }
             }
+        }
+        if ( @{$tables_info->{$table}} == 1 ) {
+            push @{$tables_info->{$table}}, [ '   No INFO available.' ];
         }
     }
     return $tables_info;

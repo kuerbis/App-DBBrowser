@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use Term::ReadLine::Simple qw();
 
@@ -27,10 +27,6 @@ sub get_login {
     elsif ( $login_mode == 1 && exists $ENV{'DBI_' . uc $key} ) {
         print $prompt . $ENV{'DBI_' . uc $key}, "\n" if $key ne 'pass';
         return $ENV{'DBI_' . uc $key};
-    }
-    elsif ( defined $self->{connect_arg_db}{$key} ) {
-        print $prompt . $self->{connect_arg_db}{$key}, "\n" if $key ne 'pass';
-        return $self->{connect_arg_db}{$key};
     }
     elsif ( defined $self->{connect_arg}{$key} ) {
         print $prompt . $self->{connect_arg}{$key}, "\n" if $key ne 'pass';

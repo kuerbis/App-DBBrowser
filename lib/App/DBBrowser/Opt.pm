@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -56,7 +56,6 @@ sub defaults {
         min_col_width        => 30,
         tab_width            => 2,
         undef                => '',
-        debug                => 0,
         binary_string        => 'BNRY',
         input_modes          => [ 'Cols', 'Multirow', 'File' ],
         row_col_filter       => 0,
@@ -81,7 +80,7 @@ sub defaults {
             sqlite_unicode             => 1,
             sqlite_see_if_its_a_number => 1,
             binary_filter              => 0,
-            dirs_sqlite_search         => undef,
+            db_search_path             => [ $self->{info}{home_dir} ], #####################
         },
         mysql => {
             user              => undef,
@@ -108,12 +107,14 @@ sub defaults {
 sub __multi_choose {
     my ( $self, $key ) = @_;
     my $multi_choose = {
-       _enchant      => [
-            [ 'menus_config_memory', "- Menus config", [ 'Simple', 'Memory' ] ],
-            [ 'menu_sql_memory',     "- Menu  sql",    [ 'Simple', 'Memory' ] ],
-            [ 'menus_db_memory',     "- Menus db",     [ 'Simple', 'Memory' ] ],
-            [ 'table_expand',        "- Print  Table", [ 'Simple', 'Expand' ] ],
-            [ 'keep_header',         "- Table Header", [ 'Simple', 'Each page' ] ],
+       _menu_memory  => [
+            [ 'menus_config_memory', "- Config Menus", [ 'Simple', 'Memory' ] ],
+            [ 'menu_sql_memory',     "- SQL    Menu",  [ 'Simple', 'Memory' ] ],
+            [ 'menus_db_memory',     "- DB     Menus", [ 'Simple', 'Memory' ] ],
+        ],
+       _table_expand => [
+            [ 'table_expand', "- Print  Table", [ 'Simple', 'Expand'    ] ],
+            [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
         ],
         _parentheses => [
             [ 'parentheses_w', "- Parentheses in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
@@ -146,7 +147,7 @@ sub __menus {
             [ 'config_output',   "- Output" ],
             [ 'config_menu',     "- Menu" ],
             [ 'config_sql',      "- SQL" ],
-            [ 'config_database', "- Database" ],
+            [ 'config_database', "- DB" ], ########################
             [ 'config_insert',   "- Insert" ],
         ],
         config_output => [
@@ -154,13 +155,13 @@ sub __menus {
             [ 'progress_bar',  "- ProgressBar" ],
             [ 'tab_width',     "- Tabwidth" ],
             [ 'undef',         "- Undef" ],
-            [ 'debug',         "- Debug" ],
         ],
         config_menu => [
-            [ '_enchant',  "- Enchant" ],
-            [ 'lock_stmt', "- Lock" ],
-            [ 'mouse',     "- Mouse Mode" ],
-            [ 'sssc_mode', "- Sssc Mode" ],
+            [ '_menu_memory',  "- Menu Memory" ], ########################
+            [ '_table_expand', "- Table Expand" ], ########################
+            [ 'lock_stmt',     "- Lock" ],
+            [ 'mouse',         "- Mouse Mode" ],
+            [ 'sssc_mode',     "- Sssc Mode" ],
         ],
         config_sql => [
             [ 'max_rows',     "- Max Rows" ],
@@ -171,8 +172,8 @@ sub __menus {
 
         ],
         config_database => [
-            [ '_db_defaults', "- DB Defaults" ],
             [ 'db_plugins',   "- DB Plugins" ],
+            [ '_db_defaults', "- DB Settings" ],  #################################
             [ '_db_connect',  "- DB Login Mode" ],
         ],
         config_insert => [
@@ -385,11 +386,6 @@ sub set_options {
                 my $prompt = 'Print replacement for undefined table vales';
                 $self->__opt_readline( $key, $prompt );
             }
-            elsif ( $key eq 'debug' ) {
-                my $list = $no_yes;
-                my $prompt = 'Debug';
-                $self->__opt_choose_index( $key, $prompt, $list );
-            }
             elsif ( $key eq 'progress_bar' ) {
                 my $digits = 7;
                 my $prompt = '"Threshold ProgressBar"';
@@ -440,6 +436,14 @@ sub set_options {
                 for my $dir ( @INC ) {
                     map { $avail{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm";
                 }
+                #for my $dir ( @INC ) {
+                #    for my $item ( glob "$dir/App/DBBrowser/DB/*/*.pm" ) {
+                #        ( my $name, my $path ) = fileparse $item, '.pm';
+                #        my $db_driver = basename $path;
+                #        #push @plugins, [ $db_driver, $name ];
+                #        $avail{"$db_driver::$name"}++;
+                #    }
+                #}
                 $self->__opt_choose_a_list( $key, [ sort keys %avail ] );
             }
             elsif ( $key eq 'mouse' ) {
@@ -447,7 +451,11 @@ sub set_options {
                 my $prompt = 'Mouse mode';
                 $self->__opt_number( $key, $prompt, $max );
             }
-            elsif ( $key eq '_enchant' ) {
+            elsif ( $key eq '_menu_memory' ) {
+                my $sub_menu = $self->__multi_choose( $key );
+                $self->__opt_choose_multi( $sub_menu );
+            }
+            elsif ( $key eq '_table_expand' ) {
                 my $sub_menu = $self->__multi_choose( $key );
                 $self->__opt_choose_multi( $sub_menu );
             }
@@ -533,7 +541,7 @@ sub __opt_readline {
 
 sub database_setting {
     my ( $self, $db ) = @_;
-    my ( $db_plugin, $db_driver, $section );
+    my ( $db_driver, $db_plugin, $section );
     if ( ! defined $db ) {
         if ( @{$self->{opt}{db_plugins}} == 1 ) {
             $db_plugin = $self->{opt}{db_plugins}[0];
@@ -547,7 +555,7 @@ sub database_setting {
             return if ! defined $db_plugin;
         }
         $self->{info}{db_plugin} = $db_plugin;
-        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} ); # requires $self->{info}{db_plugin}
         $db_driver = $obj_db->db_driver();
         $section = $db_plugin;
     }
@@ -558,7 +566,7 @@ sub database_setting {
         $section   = $db_plugin . '_' . $db;
         for my $key ( keys %{$self->{opt}{$db_driver}} ) {
             next if $key =~ /^(?:host|port|user)\z/; #
-            next if $key eq 'dirs_sqlite_search';
+            next if $key eq 'db_search_path';
             if ( ! defined $self->{opt}{$section}{$key} ) {
                 $self->{opt}{$section}{$key} = $self->{opt}{$db_plugin}{$key};
             }
@@ -580,10 +588,9 @@ sub database_setting {
     if ( $db_driver ne 'SQLite' ) {
         unshift @{$menus->{$db_driver}}, ( [ 'host', "- Host" ], [ 'port', "- Port" ], [ 'user', "- User" ] );
     }
-    if ( ! $db && $db_driver eq 'SQLite' ) {
-        push @{$menus->{$db_driver}}, [ 'dirs_sqlite_search', "- Default DB dirs" ];
-    }
-    push @{$menus->{$db_driver}}, [ 'binary_filter', "- Binary Filter" ], [ '_reset', "  RESET" ];
+    push @{$menus->{$db_driver}}, [ 'binary_filter',  "- Binary Filter" ];
+    push @{$menus->{$db_driver}}, [ 'db_search_path', "  Search directories" ] if ! $db && $db_driver eq 'SQLite';
+    push @{$menus->{$db_driver}}, [ '_reset',         "  RESET" ];
     my $prompt;
     if ( defined $db ) {
         $prompt = 'DB: "' . ( $db_driver eq 'SQLite' ? basename( $db ) : $db ) . '"';
@@ -621,18 +628,18 @@ sub database_setting {
                 delete $self->{opt}{$section};
             }
             else {
-                my @dbs = ();
+                my @databases = ();
                 for my $section ( keys %{$self->{opt}} ) {
-                    push @dbs, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
+                    push @databases, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
-                my $dlt = choose_a_subset( [ '*' . $db_driver, sort @dbs ], { p_new => 'Reset: ' } );
-                next DB_OPTION if ! defined $dlt;
-                next DB_OPTION if ! defined $dlt->[0];
-                for my $db ( @$dlt ) {
-                    if ( $db eq '*' . $db_driver ) {
+                my $choices = choose_a_subset( [ '*' . $db_driver, sort @databases ], { p_new => 'Reset: ' } );
+                next DB_OPTION if ! $choices->[0];
+                for my $item ( @$choices ) {
+                    if ( $item eq '*' . $db_driver ) {
                         $self->{opt}{$db_driver} = $self->defaults( $db_driver );
                     }
                     else {
+                        my $db = $item;
                         my $section = $db_driver . '_' . $db;
                         delete $self->{opt}{$section};
                     }
@@ -664,7 +671,7 @@ sub database_setting {
                 my $prompt = 'Enable Binary Filter';
                 $self->__db_opt_choose_index( $section, $key, $prompt, $no_yes );
             }
-            elsif ( $key eq 'dirs_sqlite_search' ) {
+            elsif ( $key eq 'db_search_path' ) {
                 $self->__db_opt_choose_dirs( $section, $key, $prompt );
             }
             else { die "Unknown key: $key" }
@@ -788,7 +795,6 @@ sub __write_config_files {
     for my $name ( keys %$tmp ) {
         $auxil->write_json( sprintf( $fmt, $name ), $tmp->{$name}  );
     }
-
 }
 
 

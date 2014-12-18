@@ -17,6 +17,7 @@ use App::DBBrowser::DB_Credentials;
 sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'Pg';
+    $opt->{driver_prefix} = 'pg';
     bless $opt, $class;
 }
 
@@ -27,45 +28,36 @@ sub db_driver {
 }
 
 
+sub driver_prefix {
+    my ( $self ) = @_;
+    return $self->{driver_prefix};
+}
+
+
 sub get_db_handle {
-    my ( $self, $db, $connect_arg_db ) = @_;
-    $connect_arg_db = {} if ! defined $connect_arg_db;
-    my $db_driver = $self->{db_driver};
-    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( {
-        connect_arg_db => $connect_arg_db,
-        connect_arg    => $self->{connect_arg},
-    } );
+    my ( $self, $db, $connect_parameter ) = @_;
+    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( { connect_arg_db => $connect_parameter } );
     my $host   = $obj_db_cred->get_login( 'host', $self->{login_mode_host} );
     my $port   = $obj_db_cred->get_login( 'port', $self->{login_mode_port} );
     my $user   = $obj_db_cred->get_login( 'user', $self->{login_mode_user} );
     my $passwd = $obj_db_cred->get_login( 'pass', $self->{login_mode_pass} );
-    my $dsn  = "dbi:$db_driver:dbname=$db";
+    my $dsn  = "dbi:$self->{db_driver}:dbname=$db";
     $dsn .= ";host=$host" if length $host;
     $dsn .= ";port=$port" if length $port;
-    my $db_arg;
-    for my $option ( sort keys %{$self->{connect_arg}} ) {
-        next if $option !~ /^\Q$db_driver\E_/i;
-        if ( defined $connect_arg_db->{$option} ) {
-            $db_arg->{$option} = $connect_arg_db->{$option};
-        }
-        else {
-            $db_arg->{$option} = $self->{connect_arg}{$option};
-        }
-    }
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %$db_arg,
+        %{$connect_parameter->{attributes}},
     } ) or die DBI->errstr;
     return $dbh;
 }
 
 
 sub available_databases {
-    my ( $self ) = @_;
-    return \@ARGV, [] if @ARGV;
+    my ( $self, $connect_parameter ) = @_;
+    return \@ARGV if @ARGV;
     my @regex_system_db = ( '^postgres$', '^template0$', '^template1$' );
     my $stmt = "SELECT datname FROM pg_database";
     if ( ! $self->{metadata} ) {
@@ -75,7 +67,7 @@ sub available_databases {
     my $info_database = 'postgres';
     print $self->{clear_screen};
     print "DB: $info_database\n";
-    my $dbh = $self->get_db_handle( $info_database );
+    my $dbh = $self->get_db_handle( $info_database, $connect_parameter );
     my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
     $dbh->disconnect(); ##
     if ( $self->{metadata} ) {
@@ -93,7 +85,7 @@ sub available_databases {
         return $user_db, $system_db;
     }
     else {
-        return $databases, [];
+        return $databases;
     }
 }
 
@@ -122,7 +114,7 @@ sub get_schema_names {
         return $user_sma, $system_sma;
     }
     else {
-        return $schemas, []; #
+        return $schemas;
     }
 }
 
@@ -134,7 +126,7 @@ sub get_table_names {
                     ORDER BY table_name";
                     # AND table_type = 'BASE TABLE'
     my $tables = $dbh->selectcol_arrayref( $stmt, {}, ( $schema ) );
-    return $tables, []; #
+    return $tables;
 }
 
 
@@ -178,8 +170,8 @@ sub primary_and_foreign_keys {
 
 
 sub sql_regexp {
-    my ( $self, $quote_col, $is_not_regexp, $case_sensitive ) = @_;
-    if ( $is_not_regexp ) {
+    my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
+    if ( $do_not_match_regexp ) {
         return ' '. $quote_col . '::text' . ' !~* ?' if ! $case_sensitive;
         return ' '. $quote_col . '::text' . ' !~ ?'  if   $case_sensitive;
     }

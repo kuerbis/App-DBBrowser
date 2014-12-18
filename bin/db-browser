@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_06';
+our $VERSION = '0.049_07';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_06
+Version 0.049_07
 
 =cut
 
@@ -205,23 +205,21 @@ On MSWin32 only single-byte character sets are supported when setting I<Undef>, 
 C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
 a machine with 'MSWin32' OS.
 
-=head4 Debug
-
-If I<Debug> is enabled, it is shown from where an error message was called.
-
 =head3 Menu
 
-=head4 Enchant
+=head4 Menu Memory
 
-Set the behavior of different interactive menus:
+Set the behavior of the interactive menus:
 
-- setting I<Menus config> to "Memory" means: save the selected configuration menu position while entering in a config
+- setting I<Config Menus> to "Memory" means: save the selected configuration menu position while entering in a config
 sub menu.
 
-- setting I<Menu sql> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
+- setting I<SQL Menu> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
 
-- setting I<Menus db> to "Memory" means: save the selected menu position in the database/schema/table menus while
+- setting I<DB Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
 entering in a sub menu.
+
+=head4 Table expand
 
 - setting I<Print Table> to "Expand" means: enable printing the chosen table row.
 
@@ -280,11 +278,13 @@ With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
 
 =head3 Database
 
-=head4 DB Defaults
+=head4 DB Plugins
 
-Set Database defaults.
+Choose the required database plugins.
 
-The I<DB Defaults> can be overwritten for each database with the database menu entry "Database settings".
+=head4 DB Settings
+
+The I<DB Settings> can be overwritten for each database with the database menu entry "Database settings".
 
 =over
 
@@ -329,10 +329,6 @@ Printing arbitrary binary data could break the output.
 I<RESET> resets the database settings.
 
 =back
-
-=head4 DB Plugins
-
-Choose the required database plugins.
 
 =head4 DB Login Mode
 
@@ -507,7 +503,7 @@ Sub-members (keys):
         sqlite_unicode              (0,1)           user                              user
         sqlite_see_if_its_a_number  (0,1)           host                              host
         binary_filter               (0,1)           port                              port
-        dirs_sqlite_search ¹                        mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
+        db_search_path¹                             mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
                                                     binary_filter      (0,1)          binary_filter   (0,1)
 
 ¹ only with the C<SQLite> driver: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
@@ -520,7 +516,7 @@ Examples
     {                                                           {
         "*SQLite" : {                                               "*mysql" : {
             "binary_filter" : 0,                                        "binary_filter" : 0,
-            "dirs_sqlite_search" : [                                    "host" : "localhost",
+            "db_search_path" : [                                        "host" : "localhost",
                 "/home/my/Documents",                                   "mysql_enable_utf8" : 1,
                 "/home/my/databases"                                    "port" : null,
             ],                                                          "user" : "name"
