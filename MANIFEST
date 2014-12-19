@@ -3,9 +3,9 @@ Changes
 lib/App/DBBrowser.pm
 lib/App/DBBrowser/Auxil.pm
 lib/App/DBBrowser/DB.pm
-lib/App/DBBrowser/DB/mysql.pm
-lib/App/DBBrowser/DB/Pg.pm
-lib/App/DBBrowser/DB/SQLite.pm
+lib/App/DBBrowser/DB/mysql/mysql.pm
+lib/App/DBBrowser/DB/Pg/Pg.pm
+lib/App/DBBrowser/DB/SQLite/SQLite.pm
 lib/App/DBBrowser/DB_Credentials.pm
 lib/App/DBBrowser/Join_Union.pm
 lib/App/DBBrowser/Opt.pm

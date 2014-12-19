@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::DB::mysql;
+App::DBBrowser::DB::Pg::Pg;
 
 use warnings;
 use strict;
@@ -16,8 +16,8 @@ use App::DBBrowser::DB_Credentials;
 
 sub new {
     my ( $class, $opt ) = @_;
-    $opt->{db_driver} = 'mysql';
-    $opt->{driver_prefix} = 'mysql';
+    $opt->{db_driver} = 'Pg';
+    $opt->{driver_prefix} = 'pg';
     bless $opt, $class;
 }
 
@@ -58,18 +58,18 @@ sub get_db_handle {
 sub available_databases {
     my ( $self, $connect_parameter ) = @_;
     return \@ARGV if @ARGV;
-    my @regex_system_db = ( '^mysql$', '^information_schema$', '^performance_schema$' );
-    my $stmt = "SELECT schema_name FROM information_schema.schemata";
+    my @regex_system_db = ( '^postgres$', '^template0$', '^template1$' );
+    my $stmt = "SELECT datname FROM pg_database";
     if ( ! $self->{metadata} ) {
-        $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @regex_system_db );
+        $stmt .= " WHERE " . join( " AND ", ( "datname !~ ?" ) x @regex_system_db );
     }
-    $stmt .= " ORDER BY schema_name";
-    my $info_database = 'information_schema';
+    $stmt .= " ORDER BY datname";
+    my $info_database = 'postgres';
     print $self->{clear_screen};
     print "DB: $info_database\n";
     my $dbh = $self->get_db_handle( $info_database, $connect_parameter );
     my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
-    $dbh->disconnect(); #
+    $dbh->disconnect(); ##
     if ( $self->{metadata} ) {
         my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
@@ -92,7 +92,30 @@ sub available_databases {
 
 sub get_schema_names {
     my ( $self, $dbh, $db ) = @_;
-    return [ $db ];
+    my @regex_system_sma = ( '^pg_', '^information_schema$' );;
+    my $stmt = "SELECT schema_name FROM information_schema.schemata";
+    if ( ! $self->{metadata} ) {
+        $stmt .= " WHERE " . join( " AND ", ( "schema_name !~ ?" ) x @regex_system_sma );
+    }
+    $stmt .= " ORDER BY schema_name";
+    my $schemas = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_sma );
+    if ( $self->{metadata} ) {
+        my $regexp = join '|', @regex_system_sma;
+        my $user_sma   = [];
+        my $system_sma = [];
+        for my $schema ( @{$schemas} ) {
+            if ( $schema =~ /(?:$regexp)/ ) {
+                push @$system_sma, $schema;
+            }
+            else {
+                push @$user_sma, $schema;
+            }
+        }
+        return $user_sma, $system_sma;
+    }
+    else {
+        return $schemas;
+    }
 }
 
 
@@ -110,7 +133,7 @@ sub get_table_names {
 sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
     my ( $col_names, $col_types );
-    my $stmt = "SELECT table_name, column_name, column_type
+    my $stmt = "SELECT table_name, column_name, data_type
                     FROM information_schema.columns
                     WHERE table_schema = ?";
     my $sth = $dbh->prepare( $stmt );
@@ -129,19 +152,15 @@ sub primary_and_foreign_keys {
     my $pk_cols = {};
     my $fks     = {};
     for my $table ( @$tables ) {
-        my $stmt = "SELECT constraint_name, table_name, column_name, referenced_table_name,
-                            referenced_column_name, position_in_unique_constraint
-                        FROM information_schema.key_column_usage
-                        WHERE table_schema = ? AND table_name = ? AND referenced_table_name IS NOT NULL";
-        my $sth = $dbh->prepare( $stmt );
-        $sth->execute( $schema, $table );
-        while ( my $row = $sth->fetchrow_hashref ) {
-            my $fk_name = $row->{constraint_name};
-            my $pos     = $row->{position_in_unique_constraint} - 1;
-            $fks->{$table}{$fk_name}{foreign_key_col}  [$pos] = $row->{column_name};
-            $fks->{$table}{$fk_name}{reference_key_col}[$pos] = $row->{referenced_column_name};
-            if ( ! $fks->{$table}{$fk_name}{reference_table} ) {
-                $fks->{$table}{$fk_name}{reference_table} = $row->{referenced_table_name};
+        my $sth = $dbh->foreign_key_info( undef, undef, undef, undef, $schema, $table );
+        if ( defined $sth ) {
+            while ( my $row = $sth->fetchrow_hashref ) {
+                my $fk_name = $row->{FK_NAME};
+                push @{$fks->{$table}{$fk_name}{foreign_key_col  }}, $row->{FK_COLUMN_NAME};
+                push @{$fks->{$table}{$fk_name}{reference_key_col}}, $row->{UK_COLUMN_NAME};
+                if ( ! $fks->{$table}{$fk_name}{reference_table} ) {
+                    $fks->{$table}{$fk_name}{reference_table} = $row->{UK_TABLE_NAME};
+                }
             }
         }
         $pk_cols->{$table} = [ $dbh->primary_key( undef, $schema, $table ) ];
@@ -153,39 +172,37 @@ sub primary_and_foreign_keys {
 sub sql_regexp {
     my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
     if ( $do_not_match_regexp ) {
-        return ' '. $quote_col . ' NOT REGEXP ?'        if ! $case_sensitive;
-        return ' '. $quote_col . ' NOT REGEXP BINARY ?' if   $case_sensitive;
+        return ' '. $quote_col . '::text' . ' !~* ?' if ! $case_sensitive;
+        return ' '. $quote_col . '::text' . ' !~ ?'  if   $case_sensitive;
     }
     else {
-        return ' '. $quote_col . ' REGEXP ?'            if ! $case_sensitive;
-        return ' '. $quote_col . ' REGEXP BINARY ?'     if   $case_sensitive;
+        return ' '. $quote_col . '::text' . ' ~* ?'  if ! $case_sensitive;
+        return ' '. $quote_col . '::text' . ' ~ ?'   if   $case_sensitive;
     }
 }
 
 
 sub concatenate {
     my ( $self, $arg ) = @_;
-    return 'concat(' . join( ',', @$arg ) . ')';
+    return join( ' || ', @$arg );
 }
 
 
 # scalar functions
 
-
 sub epoch_to_datetime {
     my ( $self, $col, $interval ) = @_;
-    # mysql: FROM_UNIXTIME doesn't work with negative timestamps
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s')";
+    return "(TO_TIMESTAMP(${col}::bigint/$interval))::timestamp";
 }
 
 sub epoch_to_date {
     my ( $self, $col, $interval ) = @_;
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')";
+    return "(TO_TIMESTAMP(${col}::bigint/$interval))::date";
 }
 
 sub truncate {
     my ( $self, $col, $precision ) = @_;
-    return "TRUNCATE($col,$precision)";
+    return "TRUNC($col,$precision)";
 }
 
 sub bit_length {

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_07';
+our $VERSION = '0.049_08';
 
 use Term::ReadLine::Simple qw();
 
@@ -21,6 +21,7 @@ sub new {
 sub get_login {
     my ( $self, $key, $login_mode ) = @_;
     my $prompt = ucfirst( $key ) . ': ';
+    $self->{connect_arg}{$key} = undef if $self->{connect_arg}{error};
     if ( $login_mode == 2 ) {
         return;
     }

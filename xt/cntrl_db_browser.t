@@ -11,9 +11,9 @@ for my $file (
     'lib/App/DBBrowser/Opt.pm',
     'lib/App/DBBrowser/DB.pm',
     'lib/App/DBBrowser/DB_Credentials.pm',
-    'lib/App/DBBrowser/DB/SQLite.pm',
-    'lib/App/DBBrowser/DB/mysql.pm',
-    'lib/App/DBBrowser/DB/Pg.pm',
+    #'lib/App/DBBrowser/DB/SQLite.pm',
+    #'lib/App/DBBrowser/DB/mysql.pm',
+    #'lib/App/DBBrowser/DB/Pg.pm',
     'lib/App/DBBrowser/Table.pm',
     'lib/App/DBBrowser/Table/Insert.pm'
                                               ) {

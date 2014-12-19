@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.049_08   2014-12-19
+        - Code refactoring.
+        - Changed plugin name format.
+        - Update documentation.
+
 0.049_07   2014-12-18
         - Code refactoring.
         - Update documentation.

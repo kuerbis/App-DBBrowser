@@ -54,7 +54,7 @@ WriteMakefile(
         'Scalar::Util'           => 0,
         'Spreadsheet::Read'      => 0,
         'Term::Choose'           => 0,
-        'Term::Choose::Util'     => 0,
+        'Term::Choose::Util'     => '0.020',
         'Term::ReadLine::Simple' => 0,
         'Term::TablePrint'       => '0.021',
         'Text::CSV'              => 0,

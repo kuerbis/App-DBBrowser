@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_07';
+our $VERSION = '0.049_08';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_07
+Version 0.049_08
 
 =cut
 
@@ -284,7 +284,11 @@ Choose the required database plugins.
 
 =head4 DB Settings
 
-The I<DB Settings> can be overwritten for each database with the database menu entry "Database settings".
+I<DB Settings> are used as default database settings.
+
+There is also in each database the menu entry "Database settings". If these database specific parameter are not set, the
+
+global (to the database plugin) I<DB Settings> are use instead.
 
 =over
 
@@ -305,16 +309,6 @@ numbers.
 
 See L<DBD::SQLite> for details. This is a SQLite-only option.
 
-=item Default DB directories
-
-Sets the default directories where C<db-browser> searches for SQLite databases. This is a SQLite-only option.
-
-To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
-"C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
-entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
-any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
-
-This setting can not be overwritten in a single database.
 
 =item "Binary Filter"
 
@@ -323,6 +317,19 @@ Print "BNRY" instead of arbitrary binary data.
 If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
 
 Printing arbitrary binary data could break the output.
+
+=item Search directories
+
+This is a SQLite-only option.
+
+Sets the directories where C<db-browser> searches for SQLite databases. Defaults to the home directory.
+
+To move around in the directory tree select a directory and press C<Return> to enter in the selected directory or choose
+"C< .. >" to move upwards. To add the current working-directory to the list of chosen directories use the "C< . >" menu
+entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry resets the list of chosen directories if
+any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
+
+This setting can not be overwritten in a single database.
 
 =item RESET
 

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_07';
+our $VERSION = '0.049_08';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -133,24 +133,15 @@ sub __prepare_connect_parameter {
     my $db_plugin = $self->{info}{db_plugin};
     my $connect_parameter = {};
     for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
-        if ( defined $db && defined $self->{opt}{$db_plugin . '_' . $db}{$option} ) {
-            if ( $option =~ /^\Q$self->{into}{driver_prefix}\E/ ) {
-                $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin . '_' . $db}{$option};
-            }
-            else {
-                $connect_parameter->{$option} = $self->{opt}{$db_plugin . '_' . $db}{$option};
-            }
+        if ( $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+            $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin}{$option};
         }
         else {
-            if ( $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
-                $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin}{$option};
-            }
-            else {
-                $connect_parameter->{$option} = $self->{opt}{$db_plugin}{$option};
-            }
+            $connect_parameter->{$option} = $self->{opt}{$db_plugin}{$option};
         }
     }
-    return $connect_parameter
+    delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error};
+    return $connect_parameter;
 }
 
 
@@ -160,28 +151,49 @@ sub run {
     my $lyt_3 = Term::Choose->new( $self->{info}{lyt_3} );
     my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
     my $auto_one;
-    my $db_plugin;  ###
+    ## my $db_plugin;  ##
+    my $plugin_idx;
 
     DB_PLUGIN: while ( 1 ) {
 
+        ## if ( @{$self->{opt}{db_plugins}} == 1 ) {
+        ##     $auto_one++;
+        ##     $db_plugin = $self->{opt}{db_plugins}[0];
+        ## }
+        ## else {
+        ##     # Choose
+        ##     $db_plugin = $lyt_3->choose(
+        ##         [ undef, @{$self->{opt}{db_plugins}} ],
+        ##         { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', undef => 'Quit' }
+        ##     );
+        ##     last DB_PLUGIN if ! defined $db_plugin;
+        ## }
+        ## $self->{info}{db_plugin} = $db_plugin;
+        ## my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        ## my $db_driver = $obj_db->db_driver();
+        ## $self->{info}{db_driver} = $db_driver;
+        ## $self->{info}{driver_prefix} = $obj_db->driver_prefix();
+
         if ( @{$self->{opt}{db_plugins}} == 1 ) {
             $auto_one++;
-            $db_plugin = $self->{opt}{db_plugins}[0];
+            $plugin_idx;
         }
         else {
+            my @pre = ( undef );
             # Choose
-            $db_plugin = $lyt_3->choose(
-                [ undef, @{$self->{opt}{db_plugins}} ],
-                { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', undef => 'Quit' }
+            my $idx = $lyt_3->choose(
+                [ @pre, @{$self->{opt}{db_plugins}} ],
+                { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', index => 1, undef => 'Quit' }
             );
-            last DB_PLUGIN if ! defined $db_plugin;
+            last DB_PLUGIN if ! $idx;
+            $plugin_idx = $idx - @pre;
         }
-        $self->{info}{db_plugin} = $db_plugin;
+        $self->{info}{db_plugin}     = $self->{opt}{db_plugins}[$plugin_idx];
+        $self->{info}{db_plugin_raw} = $self->{opt}{db_plugins_raw}[$plugin_idx];
+        $self->{info}{db_driver}     = ( split '::', $self->{info}{db_plugin_raw} )[0];
+        my $db_driver = $self->{info}{db_driver};
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        my $db_driver = $obj_db->db_driver();
-        $self->{info}{db_driver} = $db_driver;
         $self->{info}{driver_prefix} = $obj_db->driver_prefix();
-
 
         # DATABASES
 
@@ -200,6 +212,7 @@ sub run {
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Available databases' );
+            $self->{opt}{$self->{info}{db_plugin}}{error} = 1;
             next DB_PLUGIN;
         }
         if ( ! @$databases ) {
@@ -229,7 +242,7 @@ sub run {
                 $db = undef;
                 $db = $choices_db->[$idx_db] if defined $idx_db;
                 if ( ! defined $db ) {
-                    $db_plugin = undef; #########
+                    #$db_plugin = undef; ####
                     last DB_PLUGIN if @{$self->{opt}{db_plugins}} == 1;
                     next DB_PLUGIN;
                 }
@@ -258,6 +271,7 @@ sub run {
             ) {
                 $auxil->__print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
+                $self->{opt}{$self->{info}{db_plugin}}{error} = 1;
                 next DATABASE;
             }
 
@@ -479,7 +493,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_07
+Version 0.049_08
 
 =head1 DESCRIPTION
 

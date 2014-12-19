@@ -6,7 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_07';
+our $VERSION = '0.049_08';
+
+## A database plug-in provides the database specific methods. C<App::DBBrowser> considers a module whose name matches the
+## regex pattern C</^App::DBBrowser::DB::[\w-]+\.pm\z/> and which is located in one of the C<@INC> directories as a database
+## plugin. Plug-ins with the name C<App::DBBrowser::DB::$db_driver.pm> should be for general use of $db_driver databases.
 
 
 =head1 NAME
@@ -15,13 +19,19 @@ App::DBBrowser database plugin documentation.
 
 =head1 VERSION
 
-Version 0.049_06
+Version 0.049_08
 
 =head1 DESCRIPTION
 
 A database plug-in provides the database specific methods. C<App::DBBrowser> considers a module whose name matches the
-regex pattern C</^App::DBBrowser::DB::[\w-]+\.pm\z/> and is located in one of the C<@INC> directories as a database
-plugins. Plug-ins with the name C<App::DBBrowser::DB::$database_driver.pm> should be for general public use.
+pattern C</^App::DBBrowser::DB::$db_driver::[\w-]+\.pm\z/> and is located in one of the C<@INC> directories as a
+database plugins.
+
+Plug-ins with the name C<App::DBBrowser::DB::$db_driver::$db_driver.pm> (e.g. C<App::DBBrowser::DB::SQLite::SQLite.pm>)
+should be for general use of $db_driver databases.
+
+The user interface plugin name is the file name prefixed with the database driver (unless the module filename is the
+database driver name - then the plugin name is the database driver name).
 
 The user can add an installed database plugin to the available plugins in the option menu (C<db-browser -h>) by
 selecting I<DB> and then I<DB Plugins>.
@@ -42,10 +52,7 @@ The constructor method.
 
 A reference to a hash. The hash entries are:
 
-
         app_dir             # path application directoriy
-        clear_screen        # clear screen ansi escape sequence
-
         db_plugin           # name of the database plugin
         metadata            # true or false
 
@@ -71,9 +78,10 @@ The object.
 
 sub new {
     my ( $class, $info, $opt ) = @_; #
-    die "Invalid character in the DB plugin name: $info->{db_plugin}" if $info->{db_plugin} !~ /^[\w_]+\z/;
-    #die "Invalid character in the DB plugin name" if $info->{db_plugin} !~ /^[\w_:]+\z/;
-    my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
+    ## die "Invalid character in the DB plugin name: $info->{db_plugin}" if $info->{db_plugin} !~ /^[\w_]+\z/;
+    ## my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
+    die "Invalid character in the DB plugin name: $info->{db_plugin}" if $info->{db_plugin_raw} !~ /^[\w_]+::[\w_]+\z/;
+    my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin_raw};
     eval "require $db_module" or die $@;
     my $plugin = $db_module->new( {
         app_dir             => $info->{app_dir},

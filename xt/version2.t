@@ -14,6 +14,7 @@ my $v_bin         = -1;
 my $v_browser     = -1;
 my $v_opt         = -1;
 my $v_db          = -1;
+my $v_db_pod      = -1;
 my $v_tbl         = -1;
 my $v_ju          = -1;
 my $v_ut          = -1;
@@ -89,6 +90,11 @@ while ( my $line = <$fh5> ) {
     if ( $line =~ /^our\ \$VERSION\ =\ '(\d\.\d\d\d(?:_\d\d)?)';/ ) {
         $v_db = $1;
     }
+    if ( $line =~ /^=head1 VERSION/ .. $line =~ /^=head1 DESCRIPTION/ ) {
+        if ( $line =~ /^\s*Version\s+(\S+)/ ) {
+            $v_db_pod = $1;
+        }
+    }
 }
 close $fh5;
 
@@ -151,6 +157,7 @@ is( $v_lib,        $v_browser,     'Version in "App::DBBrowser::Browser"        
 is( $v_lib,        $v_browser_pod, 'Version in "App::DBBrowser::Browser"    POD OK');
 is( $v_lib,        $v_opt,         'Version in "App::DBBrowser::Opt"            OK');
 is( $v_lib,        $v_db,          'Version in "App::DBBrowser::DB"             OK');
+is( $v_lib,        $v_db_pod,      'Version in "App::DBBrowser::DB"         POD OK');
 is( $v_lib,        $v_tbl,         'Version in "App::DBBrowser::Table"          OK');
 is( $v_lib,        $v_ju,          'Version in "App::DBBrowser::Join_Union"     OK');
 is( $v_lib,        $v_ut,          'Version in "App::DBBrowser::Auxil"          OK');
