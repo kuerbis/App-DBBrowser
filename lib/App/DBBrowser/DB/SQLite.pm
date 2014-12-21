@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::DB::SQLite::SQLite;
+App::DBBrowser::DB::SQLite;
 
 use warnings;
 use strict;

@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_08';
+our $VERSION = '0.049_09';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_08
+Version 0.049_09
 
 =cut
 
@@ -286,9 +286,8 @@ Choose the required database plugins.
 
 I<DB Settings> are used as default database settings.
 
-There is also in each database the menu entry "Database settings". If these database specific parameter are not set, the
-
-global (to the database plugin) I<DB Settings> are use instead.
+There is also in each database sub menu the menu entry "Database settings". If these database specific parameter are not
+set, the global (to the database plugin) I<DB Settings> are use instead.
 
 =over
 

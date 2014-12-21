@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_08';
+our $VERSION = '0.049_09';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -32,8 +32,7 @@ sub new {
 sub defaults {
     my ( $self, @keys ) = @_;
     my $defaults = {
-        db_plugins           => [ 'SQLite',         'mysql',        'Pg' ],
-        db_plugins_raw       => [ 'SQLite::SQLite', 'mysql::mysql', 'Pg::Pg' ],
+        db_plugins           => [ 'SQLite', 'mysql', 'Pg' ],
         login_host           => 1,
         login_port           => 1,
         login_user           => 1,
@@ -433,28 +432,11 @@ sub set_options {
                 $self->__opt_choose_a_list( $key, $available );
             }
             elsif ( $key eq 'db_plugins' ) {
-                ## my %installed_db_driver;
-                ## for my $dir ( @INC ) {
-                ##     map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm";
-                ## }
-                my $installed_db_driver;
+                my %installed_db_driver;
                 for my $dir ( @INC ) {
-                    for my $item ( glob "$dir/App/DBBrowser/DB/*/*.pm" ) {
-                        ( my $name, my $path ) = fileparse $item, '.pm';
-                        my $db_driver = basename $path;
-                          my $key_installed_driver = $db_driver eq $name ? $db_driver : $db_driver . '_' . $name;
-                        $installed_db_driver->{$key_installed_driver} = $db_driver . '::' . $name;
-                    }
+                    map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm";
                 }
-                my @keys_installed = ( sort keys %$installed_db_driver );
-                $self->__opt_choose_a_list( $key, \@keys_installed, 1 );
-                my @idx = @{$self->{opt}{db_plugins}};
-                $self->{opt}{db_plugins}     = [];
-                $self->{opt}{db_plugins_raw} = [];
-                for my $i ( @idx ) {
-                    push @{$self->{opt}{db_plugins}},     $keys_installed[$i];
-                    push @{$self->{opt}{db_plugins_raw}}, $installed_db_driver->{$keys_installed[$i]};
-                }
+                $self->__opt_choose_a_list( $key, [ sort keys %installed_db_driver ] );
             }
             elsif ( $key eq 'mouse' ) {
                 my $max = 4;
@@ -551,70 +533,35 @@ sub __opt_readline {
 
 sub database_setting {
     my ( $self, $db ) = @_;
-    ## my ( $db_driver, $db_plugin, $section );
-    ## if ( ! defined $db ) {
-    ##     if ( @{$self->{opt}{db_plugins}} == 1 ) {
-    ##         $db_plugin = $self->{opt}{db_plugins}[0];
-    ##     }
-    ##     else {
-    ##         # Choose
-    ##         $db_plugin = choose(
-    ##             [ undef, @{$self->{opt}{db_plugins}} ],
-    ##             { %{$self->{info}{lyt_1}} }
-    ##         );
-    ##         return if ! defined $db_plugin;
-    ##     }
-    ##     $self->{info}{db_plugin} = $db_plugin;
-    ##     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} ); # requires $self->{info}{db_plugin}
-    ##     $db_driver = $obj_db->db_driver();
-    ##     $section = $db_plugin;
-    ## }
-    ## else {
-    ##     $db_plugin = $self->{info}{db_plugin};
-    ##     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    ##     $db_driver = $obj_db->db_driver();
-    ##     $section   = $db_plugin . '_' . $db;
-    ##     for my $key ( keys %{$self->{opt}{$db_driver}} ) {
-    ##         #next if $key =~ /^(?:host|port|user)\z/; #
-    ##         next if $key eq 'db_search_path';
-    ##         if ( ! defined $self->{opt}{$section}{$key} ) {
-    ##             $self->{opt}{$section}{$key} = $self->{opt}{$db_plugin}{$key};
-    ##         }
-    ##     }
-    ## }
-    my ( $db_driver, $section );
-    if ( ! defined $db ) {
-        my $plugin_idx;
-        if ( @{$self->{opt}{db_plugins}} == 1 ) {
-            $plugin_idx = 0;
-        }
-        else {
-            my @pre = ( undef );
-            # Choose
-            my $idx = choose(
-                [ @pre, @{$self->{opt}{db_plugins}} ],
-                { %{$self->{info}{lyt_1}}, index => 1 }
-            );
-            return if ! $idx;
-            $plugin_idx = $idx - @pre;
-        }
-        $self->{info}{db_plugin}     = $self->{opt}{db_plugins}[$plugin_idx];
-        $self->{info}{db_plugin_raw} = $self->{opt}{db_plugins_raw}[$plugin_idx];
-        $self->{info}{db_driver}     = ( split '::', $self->{info}{db_plugin_raw} )[0];
-        $db_driver = $self->{info}{db_driver};
-        $section = $self->{info}{db_plugin};
-    }
-    else {
-        my $db_plugin = $self->{info}{db_plugin};
+    my ( $db_driver, $db_plugin, $section );
+    if ( defined $db ) {
+        $db_plugin = $self->{info}{db_plugin};
         $db_driver = $self->{info}{db_driver};
         $section   = $db_plugin . '_' . $db;
-        for my $key ( keys %{$self->{opt}{$db_driver}} ) {
+        for my $key ( keys %{$self->{opt}{$db_driver}} ) { #
             #next if $key =~ /^(?:host|port|user)\z/; #
             next if $key eq 'db_search_path';
             if ( ! defined $self->{opt}{$section}{$key} ) {
                 $self->{opt}{$section}{$key} = $self->{opt}{$db_plugin}{$key};
             }
         }
+    }
+    else {
+        if ( @{$self->{opt}{db_plugins}} == 1 ) {
+            $db_plugin = $self->{opt}{db_plugins}[0];
+        }
+        else {
+            # Choose
+            $db_plugin = choose(
+                [ undef, @{$self->{opt}{db_plugins}} ],
+                { %{$self->{info}{lyt_1}} }
+            );
+            return if ! defined $db_plugin;
+        }
+        $self->{info}{db_plugin} = $db_plugin;
+        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        $db_driver = $obj_db->db_driver();
+        $section = $db_plugin;
     }
     my $orig = clone( $self->{opt} );
     my $menus = {

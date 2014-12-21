@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::DB::mysql::mysql;
+App::DBBrowser::DB::mysql;
 
 use warnings;
 use strict;

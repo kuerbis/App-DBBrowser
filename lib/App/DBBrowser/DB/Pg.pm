@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::DB::Pg::Pg;
+App::DBBrowser::DB::Pg;
 
 use warnings;
 use strict;
