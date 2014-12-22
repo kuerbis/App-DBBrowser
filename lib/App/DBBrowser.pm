@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -31,32 +31,30 @@ BEGIN {
 
 sub new {
     my ( $class ) = @_;
-
     my $info = {
         lyt_1      => {                      layout => 1, order => 0, justify => 2, clear_screen => 1, mouse => 0, undef => '<<'     },
         lyt_stmt_h => { prompt => 'Choose:', layout => 1, order => 0, justify => 2, clear_screen => 0, mouse => 0, undef => '<<'     },
         lyt_3      => {                      layout => 3,             justify => 0, clear_screen => 1, mouse => 0, undef => '  BACK' },
         lyt_stmt_v => { prompt => 'Choose:', layout => 3,             justify => 0, clear_screen => 0, mouse => 0, undef => '  BACK' },
         lyt_stop   => {                                                             clear_screen => 0, mouse => 0                    },
+        quit      => 'QUIT',
         back      => 'BACK',
-        confirm   => 'CONFIRM',
-        ok        => '- OK -',
-        _exit     => '  EXIT',
+        _quit     => '  QUIT',
         _back     => '  BACK',
-        _confirm  => '  CONFIRM',
         _continue => '  CONTINUE',
-        _info     => '  INFO',
+        _confirm  => '  CONFIRM',
         _reset    => '  RESET',
+        ok        => '- OK -',
         clear_screen      => "\e[H\e[J",
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
         sect_generic      => 'Generic',
         stmt_init_tab     => 4,
         tbl_info_width    => 140,
         avail_aggregate   => [ "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" ],
-        avail_operators   => [ "REGEXP", "NOT REGEXP", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL", "IN", "NOT IN",
-                            "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ", "LIKE col",
-                            "NOT LIKE col", "LIKE %col%", "NOT LIKE %col%", " = col", " != col", " <> col", " < col",
-                            " > col", " >= col", " <= col" ], # "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col"
+        avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
+                               "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
+                               "LIKE col", "NOT LIKE col", "LIKE %col%", "NOT LIKE %col%", " = col", " != col", " <> col",
+                               " < col", " > col", " >= col", " <= col" ], # "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col"
         hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                                Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
@@ -130,15 +128,17 @@ sub __init {
 
 sub __prepare_connect_parameter {
     my ( $self, $db ) = @_;
+    my $connect_parameter = { attributes => {} };
     my $db_plugin = $self->{info}{db_plugin};
-    my $connect_parameter = {};
+    my $db_key    = $db_plugin . '_' . $db;
     for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
+        my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
         if ( $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
-            $connect_parameter->{attributes}{$option} = $self->{opt}{$db_plugin}{$option};
+            $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
         }
         else {
             next if $self->{opt}{$db_plugin}{error} && $option =~ /^(?:host|port|user|pass)/;
-            $connect_parameter->{$option} = $self->{opt}{$db_plugin}{$option};
+            $connect_parameter->{$option} = $self->{opt}{$section}{$option};
         }
     }
     delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error};
@@ -164,7 +164,7 @@ sub run {
             # Choose
             $db_plugin = $lyt_3->choose(
                 [ undef, @{$self->{opt}{db_plugins}} ],
-                { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', undef => 'Quit' }
+                { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', undef => $self->{info}{quit} }
             );
             last DB_PLUGIN if ! defined $db_plugin;
         }
@@ -178,7 +178,7 @@ sub run {
 
         my $databases = [];
         if ( ! eval {
-            my $connect_parameter = $self->__prepare_connect_parameter();
+            my $connect_parameter = $self->__prepare_connect_parameter( '' );
             my ( $user_db, $system_db ) = $obj_db->available_databases( $connect_parameter );
             $system_db = [] if ! defined $system_db;
             if ( $db_driver eq 'SQLite' ) {
@@ -202,7 +202,13 @@ sub run {
 
         my $db;
         my $old_idx_db = 0;
-        my $back = ( $db_driver eq 'SQLite' ? '' : ' ' x 2 ) . ( $auto_one ? 'Quit' : 'BACK' );
+        my $back;
+        if ( $db_driver eq 'SQLite' ) {
+            $back = $auto_one ? $self->{info}{quit} : $self->{info}{back};
+        }
+        else {
+            $back = $auto_one ? $self->{info}{_quit} : $self->{info}{_back};
+        }
         my $prompt = 'Choose Database:';
         my $choices_db = [ undef, @$databases ];
 
@@ -235,7 +241,6 @@ sub run {
                 }
             #}
             $db =~ s/^[-\ ]\s// if $db_driver ne 'SQLite';
-            die "'$db': $!. Maybe the cached data is not up to date." if $db_driver eq 'SQLite' && ! -f $db;
 
             # DB-HANDLE
 
@@ -243,7 +248,7 @@ sub run {
             if ( ! eval {
                 print $self->{info}{clear_screen};
                 print "DB: $db\n";
-                my $connect_parameter = $self->__prepare_connect_parameter();
+                my $connect_parameter = $self->__prepare_connect_parameter( $db );
                 $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
                 1 }
             ) {
@@ -256,31 +261,29 @@ sub run {
             # SCHEMAS
 
             my $data = {};
-            my $choices_schema = [];
+            my @schemas = ();
             if ( ! eval {
                 my ( $user_sma, $system_sma ) = $obj_db->get_schema_names( $dbh, $db );
                 $system_sma = [] if ! defined $system_sma;
-                $data->{$db}{schemas} = [ @$user_sma, @$system_sma ];
-                $choices_schema = [ map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) ];
+                @schemas = ( map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) );
                 1 }
             ) {
                 $auxil->__print_error_message( $@, 'Get schema names' );
                 next DATABASE;
             }
             my $old_idx_sch = 0;
-            unshift @$choices_schema, undef;
-            my $back = $auto_one == 2 ? '  Quit' : '  BACK';
+            my $choices_schema = [ undef, @schemas ];
+            my $back = $auto_one == 2 ? $self->{info}{_quit} : $self->{info}{_back};
             my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
 
             SCHEMA: while ( 1 ) {
 
                 my $schema;
-                #$data->{$db}{schemas}[0] = undef if ! defined $data->{$db}{schemas}[0];
-                if ( @{$data->{$db}{schemas}} == 1 ) {
-                    $schema = $data->{$db}{schemas}[0];
+                if ( @schemas == 1 ) {
+                    $schema = $schemas[0];
                     $auto_one++ if $auto_one == 2
                 }
-                elsif ( @{$data->{$db}{schemas}} > 1 ) { ###
+                else {
                     # Choose
                     my $idx_sch = $lyt_3->choose(
                         $choices_schema,
@@ -302,8 +305,8 @@ sub run {
                             $old_idx_sch = $idx_sch;
                         }
                     }
-                    $schema =~ s/^[-\ ]\s//;
                 }
+                $schema =~ s/^[-\ ]\s//;
 
                 # TABLES
 
@@ -322,8 +325,8 @@ sub run {
                 my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
                 unshift @$choices_table, undef;
                 push    @$choices_table, $join, $union, $db_setting;
-                my $back = $auto_one == 3 ? '  Quit' : '  BACK';
-                my $prompt = 'DB: "'. basename( $db ) . ( @{$data->{$db}{schemas}} > 1 ? '.' . $schema : '' ) . '"';
+                my $back = $auto_one == 3 ? $self->{info}{_quit} : $self->{info}{_back};
+                my $prompt = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
 
                 TABLE: while ( 1 ) {
 
@@ -334,7 +337,7 @@ sub run {
                     );
                     my $table = $choices_table->[$idx_tbl] if defined $idx_tbl;
                     if ( ! defined $table ) {
-                        next SCHEMA    if @{$data->{$db}{schemas}}    > 1;
+                        next SCHEMA    if @schemas > 1;
                         next DATABASE;
                         #next DATABASE  if @$databases                 > 1;
                         #next DB_PLUGIN if @{$self->{opt}{db_plugins}} > 1;
@@ -471,7 +474,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.049_09
+Version 0.990
 
 =head1 DESCRIPTION
 

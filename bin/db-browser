@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.049_09
+Version 0.990
 
 =cut
 
@@ -42,33 +42,34 @@ Version 0.049_09
 
 =head2 SQLite/MySQL/PostgreSQL
 
-    db-browser
-
     db-browser -h|--help
 
-When the C<db-browser> is called with the argument C<-h|--help>, it shows a menu - see L</OPTIONS>.
-
-=head2 SQLite
-
-    db-browser [-s|--search] [directory to be searched, ...]
-
-If no directories are passed, the home directory is searched for SQLite databases.
-
-C<db-browser> called with C<-s|--search> causes a new search of SQLite databases instead of using the cached data.
-
-=head2 MySQL/PostgreSQL
+    db-browser
 
     db-browser [database-name, ...]
 
-If no database-name is passed, C<db-browser> searches for available databases.
+When the C<db-browser> is called with the argument C<-h|--help>, it shows a menu. The menu entry I<HELP> shows this
+documentation - see L</OPTIONS>.
+
+C<db-browser> called without arguments uses its own method to find the available databases. If the C<SQLite> driver is
+in use, the option I<Search directories> determines where to search for C<SQLite> databases (defaults to the home
+directory).
+
+If C<db-browser> is called with arguments, the arguments are use as the available databases.
+
+=head2 SQLite
+
+    db-browser [-s|--search]
+
+C<db-browser> called with C<-s|--search> causes a new search of SQLite databases instead of using the cached data.
 
 =head1 DESCRIPTION
 
 Search and read in SQLite/MySQL/PostgreSQL databases. With the C<db-browser> one can browse databases and their tables
 interactively. The supported DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
 
-To be able to browse database-, schema- and table-lists and the content of tables one needs to have the database
-privileges required for fetching the respective data.
+To be able to browse the database-, schema- and table-lists and the content of tables the user must have the database
+privileges required for fetching the requested data.
 
 The C<db-browser> expects an existing home directory with read and write permissions for the user of the C<db-browser>.
 
@@ -221,7 +222,8 @@ entering in a sub menu.
 
 =head4 Table expand
 
-- setting I<Print Table> to "Expand" means: enable printing the chosen table row.
+- setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
+in its own line.
 
 - setting I<Table Header> to "Each page" means: print the table header on top of each page.
 
@@ -260,7 +262,9 @@ If I<Metadata> is enabled, system tables/schemas/databases are appended to the r
 
 Choose the required operators.
 
-With this menu entry it is possible to mark items with the C<SpaceBar> key.
+There are two REGEXP entries: "REGEXP" matches case sensitive while "REGEXP_i" matches case insensitive.
+
+With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
 
 =head4 Parentheses
 
@@ -269,12 +273,6 @@ Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
 - C<(YES>: the position of "(" in the menu is before the column names.
 
 - C<YES(>: the position of "(" in the menu is after the column names.
-
-=head4 Regexp Case
-
-If I<Regexp Case> is enabled, C<REGEXP> will match case sensitive.
-
-With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
 
 =head3 Database
 
@@ -286,7 +284,7 @@ Choose the required database plugins.
 
 I<DB Settings> are used as default database settings.
 
-There is also in each database sub menu the menu entry "Database settings". If these database specific parameter are not
+There is also in each database sub-menu the menu entry "Database settings". If these database specific parameter are not
 set, the global (to the database plugin) I<DB Settings> are use instead.
 
 =over
@@ -295,7 +293,7 @@ set, the global (to the database plugin) I<DB Settings> are use instead.
 
 If I<Enable utf8> is enabled, the utf8 flag will be turned on for character data coming from the database.
 
-For a more driver specific explanation see the documentation of the respective Perl DBI driver.
+For a more driver specific explanation see the documentation of the chosen Perl DBI driver.
 
 With the C<Pg> driver in use it is available - apart from the "YES/NO" choices - also an "AUTO" choice. If the
 L<DBD::Pg> version is less than 3.0.0, "AUTO" is mapped to "YES". For the meaning of "AUTO" look in
@@ -368,8 +366,9 @@ If an environment variable doesn't exist, the users is asked for the data.
 
 Don't set
 
-For the host and port: if I<Don't set> is selected, the C<DBI> C<DSN> is formed without the host part respectively
-without port part.
+If I<Don't set> is selected for the host entry, the C<DBI> C<DSN> is formed without the host.
+
+If I<Don't set> is selected for the port entry, the C<DBI> C<DSN> is formed without the port.
 
 =back
 
@@ -382,7 +381,7 @@ These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-m
 
 =head4 Input modes
 
-C<INSERT>ing data into a tables: select the input modes:
+C<INSERT>ing data into a tables - select the input modes:
 
 =over
 

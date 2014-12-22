@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -40,12 +40,14 @@ sub __union_tables {
         used_cols     => {},
         saved_cols    => [],
     };
+    my $enough_tables = '  Enough TABLES';
+    my $all_tables    = '  All Tables';
+    my $info          = '  INFO';
+    my @pre_tbl  = ( undef, $enough_tables );
+    my @post_tbl = ( $all_tables, $info );
 
     UNION_TABLE: while ( 1 ) {
-        my $enough_tables = '  Enough TABLES';
-        my $all_tables    = '  All Tables';
-        my @pre_tbl  = ( undef, $enough_tables );
-        my @post_tbl = ( $all_tables, $self->{info}{_info} );
+
         my $choices = [ @pre_tbl, map( "+ $_", @{$union->{used_tables}} ), @{$union->{unused_tables}}, @post_tbl ];
         $self->__print_union_statement( $union );
         my $prompt = $self->{union_all} ? 'One UNION table for cols:' : 'Choose UNION table:';
@@ -57,7 +59,7 @@ sub __union_tables {
         return if ! defined $idx_tbl;
         my $union_table = $choices->[$idx_tbl];
         return  if ! defined $union_table;
-        if ( $union_table eq $self->{info}{_info} ) {
+        if ( $union_table eq $info ) {
             if ( ! defined $u->{tables_info} ) {
                 $u->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $u );
             }
@@ -97,12 +99,12 @@ sub __union_tables {
             push @{$union->{used_tables}}, $union_table;
             $self->{idx_reset_used_tables} = -1;
         }
+        my ( $all_cols, $privious_cols, $void ) = ( q['*'], q['^'], q[' '] );
+        my @short_cuts = ( ( @{$union->{saved_cols}} ? $privious_cols : $void ), $all_cols );
+        my @pre_col = ( $self->{info}{ok}, @short_cuts );
+        unshift @pre_col, undef if $self->{opt}{sssc_mode};
 
         UNION_COLUMN: while ( 1 ) {
-            my ( $all_cols, $privious_cols, $void ) = ( q['*'], q['^'], q[' '] );
-            my @short_cuts = ( ( @{$union->{saved_cols}} ? $privious_cols : $void ), $all_cols );
-            my @pre_col = ( $self->{info}{ok}, @short_cuts );
-            unshift @pre_col, undef if $self->{opt}{sssc_mode};
             my $choices = [ @pre_col, @{$u->{col_names}{$union_table}} ];
             $self->__print_union_statement( $union );
             # Choose
@@ -305,12 +307,13 @@ sub __join_tables {
         ( $j->{col_names}, $j->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );
     }
     my @tables = map { "- $_" } @{$j->{tables}};
+    my $info = '  INFO';
+    my @pre = ( undef );
 
     MASTER: while ( 1 ) {
         $self->__print_join_statement( $join->{print}{stmt} );
+        my $choices = [ @pre, @tables, $info ];
         # Choose
-        my @pre = ( undef );
-        my $choices = [ @pre, @tables, $self->{info}{_info} ];
         my $idx = $stmt_v->choose(
             $choices,
             { prompt => 'Choose MASTER table:', index => 1 }
@@ -318,7 +321,7 @@ sub __join_tables {
         return if ! defined $idx;
         my $master = $choices->[$idx];
         return if ! defined $master;
-        if ( $master eq $self->{info}{_info} ) {
+        if ( $master eq $info ) {
             if ( ! defined $j->{tables_info} ) {
                 $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
             }
@@ -342,14 +345,14 @@ sub __join_tables {
         my $backup_master = clone( $join );
 
         JOIN: while ( 1 ) {
-            my $enough_slaves = '  Enough TABLES';
             my ( $idx, $slave );
             my $backup_join = clone( $join );
+            my $enough_slaves = '  Enough TABLES';
+            my @pre = ( undef, $enough_slaves );
 
             SLAVE: while ( 1 ) {
                 $self->__print_join_statement( $join->{print}{stmt} );
-                my @pre = ( undef, $enough_slaves );
-                my $choices = [ @pre, @{$join->{avail_tables}}, $self->{info}{_info} ];
+                my $choices = [ @pre, @{$join->{avail_tables}}, $info ];
                 # Choose
                 $idx = $stmt_v->choose(
                     $choices,
@@ -374,7 +377,7 @@ sub __join_tables {
                 elsif ( $slave eq $enough_slaves ) {
                     last JOIN;
                 }
-                elsif ( $slave eq $self->{info}{_info} ) {
+                elsif ( $slave eq $info ) {
                     if ( ! defined $j->{tables_info} ) {
                         $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
                     }
@@ -405,10 +408,10 @@ sub __join_tables {
                 $avail_fk_cols{ $slave . '.' . $col } = $dbh->quote_identifier( undef, $slave, $col );
             }
             my $AND = '';
+            my @pre = ( undef );
 
             ON: while ( 1 ) {
                 $self->__print_join_statement( $join->{print}{stmt} );
-                my @pre = ( undef );
                 push @pre, $self->{info}{_continue} if $AND;
                 # Choose
                 my $pk_col = $stmt_v->choose(

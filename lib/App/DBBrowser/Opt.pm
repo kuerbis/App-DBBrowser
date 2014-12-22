@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -47,10 +47,10 @@ sub defaults {
         thsd_sep             => ',',
         metadata             => 0,
         max_rows             => 50_000,
-        operators            => [ "REGEXP", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
+        operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
         parentheses_w        => 0,
         parentheses_h        => 0,
-        regexp_case          => 0,
+        #regexp_case          => 0,
         keep_header          => 0,
         progress_bar         => 40_000,
         min_col_width        => 30,
@@ -58,7 +58,7 @@ sub defaults {
         undef                => '',
         binary_string        => 'BNRY',
         input_modes          => [ 'Cols', 'Multirow', 'File' ],
-        row_col_filter       => 0,
+        row_col_filter       => 1,
         csv_read             => 0,
         encoding_csv_file    => 'UTF-8',
         max_files            => 15,
@@ -168,7 +168,6 @@ sub __menus {
             [ 'metadata',     "- Metadata" ],
             [ 'operators',    "- Operators" ],
             [ '_parentheses', "- Parentheses" ],
-            [ 'regexp_case',  "- Regexp Case" ],
 
         ],
         config_database => [
@@ -296,12 +295,12 @@ sub set_options {
     my $old_idx = 0;
 
     GROUP: while ( 1 ) {
-        my @pre = ( undef, $self->{info}{$group eq 'main' ? '_continue' : '_confirm'} );
+        my @pre = ( undef, $group eq 'main' ? $self->{info}{_continue} : $self->{info}{_confirm} );
         my $menu = $self->__menus( $group );
         my @real = map( $_->[1], @$menu );
 
         OPTION: while ( 1 ) {
-            my $back = $self->{info}{$group eq 'main' ? '_exit' : '_back'};
+            my $back = $group eq 'main' ? $self->{info}{_quit} : $self->{info}{_back};
             # Choose
             my $idx = choose(
                 [ @pre, @real ],
@@ -404,11 +403,6 @@ sub set_options {
             elsif ( $key eq 'metadata' ) {
                 my $list = $no_yes;
                 my $prompt = 'Enable Metadata';
-                $self->__opt_choose_index( $key, $prompt, $list );
-            }
-            elsif ( $key eq 'regexp_case' ) {
-                my $list = $no_yes;
-                my $prompt = 'REGEXP case sensitiv';
                 $self->__opt_choose_index( $key, $prompt, $list );
             }
             elsif ( $key eq '_parentheses' ) {
@@ -538,8 +532,7 @@ sub database_setting {
         $db_plugin = $self->{info}{db_plugin};
         $db_driver = $self->{info}{db_driver};
         $section   = $db_plugin . '_' . $db;
-        for my $key ( keys %{$self->{opt}{$db_driver}} ) { #
-            #next if $key =~ /^(?:host|port|user)\z/; #
+        for my $key ( keys %{$self->{opt}{$db_driver}} ) {
             next if $key eq 'db_search_path';
             if ( ! defined $self->{opt}{$section}{$key} ) {
                 $self->{opt}{$section}{$key} = $self->{opt}{$db_plugin}{$key};

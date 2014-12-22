@@ -17,6 +17,8 @@ use Encode::Locale qw();
 
 use App::DBBrowser::Auxil;
 
+
+
 sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
@@ -37,7 +39,6 @@ sub driver_prefix {
 }
 
 
-
 sub get_db_handle {
     my ( $self, $db, $connect_parameter ) = @_;
     my $dsn = "dbi:$self->{db_driver}:dbname=$db";
@@ -48,9 +49,10 @@ sub get_db_handle {
         ShowErrorStatement => 1,
         %{$connect_parameter->{attributes}},
     } ) or die DBI->errstr;
-    $dbh->sqlite_create_function( 'regexp', 2, sub {
-            my ( $regex, $string ) = @_;
+    $dbh->sqlite_create_function( 'regexp', 3, sub {
+            my ( $regex, $string, $case_sensitive ) = @_;
             $string = '' if ! defined $string;
+            return $string =~ m/$regex/sm if $case_sensitive;
             return $string =~ m/$regex/ism;
         }
     );
@@ -74,12 +76,10 @@ sub get_db_handle {
 }
 
 
-
-
 sub available_databases {
     my ( $self ) = @_;
-    my $sqlite_dirs = @ARGV ? \@ARGV : $self->{db_search_path};
-    my $cache_key = $self->{db_plugin} . '_' . join ' ', @$sqlite_dirs;
+    return \@ARGV if @ARGV;
+    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$self->{db_search_path}};
     my $auxil = App::DBBrowser::Auxil->new();
     my $db_cache = $auxil->read_json( $self->{db_cache_file} );
     if ( $self->{sqlite_search} ) {
@@ -88,7 +88,7 @@ sub available_databases {
     my $databases = [];
     if ( ! defined $db_cache->{$cache_key} ) {
         print 'Searching...' . "\n";
-        for my $dir ( @$sqlite_dirs ) {
+        for my $dir ( @{$self->{db_search_path}} ) {
             File::Find::find( {
                 wanted => sub {
                     my $file = $_;
@@ -188,10 +188,10 @@ sub primary_and_foreign_keys {
 sub sql_regexp {
     my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
     if ( $do_not_match_regexp ) {
-        return ' '. $quote_col . ' NOT REGEXP ?';
+        return sprintf ' NOT REGEXP(?,%s,%d)', $quote_col, $case_sensitive;
     }
     else {
-        return ' '. $quote_col . ' REGEXP ?';
+        return sprintf ' REGEXP(?,%s,%d)', $quote_col, $case_sensitive;
     }
 }
 

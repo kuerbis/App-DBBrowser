@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 
 
@@ -16,13 +16,15 @@ App::DBBrowser database plugin documentation.
 
 =head1 VERSION
 
-Version 0.049_09
+Version 0.990
 
 =head1 DESCRIPTION
 
+The API described below is new a may be changed.
+
 A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches the
-regex pattern C</^App::DBBrowser::DB::[\w-]+\z/> and which is located in one of the C<@INC> directories as a database
-plugin. Plugins with the name C<App::DBBrowser::DB::$database_driver> should be for general use of $database_driver
+regex pattern C</^App::DBBrowser::DB::[\w_]+\z/> and which is located in one of the C<@INC> directories as a database
+plugin. Plugins with the name C<App::DBBrowser::DB::$database_driver> should be for general use of C<$database_driver>
 databases.
 
 The user can add an installed database plugin to the available plugins in the option menu (C<db-browser -h>) by
@@ -30,7 +32,7 @@ selecting I<DB> and then I<DB Plugins>.
 
 A suitable database plugin provides the methods named in this documentation.
 
-Column names in method arguments are already quoted with the C<DBI> C<quote_identifier> method.
+Column names passed as arguments are already quoted with the C<DBI> C<quote_identifier> method.
 
 =head1 METHODS
 
@@ -353,7 +355,7 @@ sub primary_and_foreign_keys {
 
 =item Arguments
 
-Column name, $do_not_match_regexp (true/false), $case_sensitive (true/false).
+Column name, C<$do_not_match_regexp> (true/false), C<$case_sensitive> (true/false).
 
 =item return
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.049_09';
+our $VERSION = '0.990';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -796,14 +796,15 @@ sub __on_table {
                 }
             }
             my $changed = 0;
+            my @pre = ( undef, $self->{info}{_confirm} );
+            my $prompt = 'Choose:';
+            my $choose_type = 'Your choice:';
 
             HIDDEN: while ( 1 ) {
                 my @cols = $stmt_key eq 'chosen_cols'
                     ? ( @{$sql->{print}{$stmt_key}}                                  )
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
-                my @pre = ( undef, $self->{info}{_confirm} );
-                my $prompt = 'Choose:';
-                my $choose_type = 'Your choice:';
+
                 my $default = 0;
                 if ( $sql_type eq 'Select' ) {
                     unshift @pre, $choose_type;
@@ -1084,7 +1085,7 @@ sub __set_operator_sql {
     $operator =~ s/^\s+|\s+\z//g;
     if ( $operator !~ /\s%?col%?\z/ ) {
         my $trs = Term::ReadLine::Simple->new();
-        if ( $operator !~ /REGEXP\z/ ) {
+        if ( $operator !~ /REGEXP(_i)?\z/ ) {
             $sql->{quote}{$stmt} .= ' ' . $operator;
             $sql->{print}{$stmt} .= ' ' . $operator;
         }
@@ -1149,7 +1150,7 @@ sub __set_operator_sql {
             $sql->{print}{$stmt} .= ' ' . $value_2;
             push @{$sql->{quote}{$args}}, $value_2;
         }
-        elsif ( $operator =~ /REGEXP\z/ ) {
+        elsif ( $operator =~ /REGEXP(_i)?\z/ ) {
             $sql->{print}{$stmt} .= ' ' . $operator;
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Readline
@@ -1161,13 +1162,11 @@ sub __set_operator_sql {
                 return;
             }
             $value = '^$' if ! length $value;
-            if ( $self->{info}{db_driver} eq 'SQLite' ) {
-                $value = qr/$value/i if ! $self->{opt}{regexp_case};
-                $value = qr/$value/  if   $self->{opt}{regexp_case};
-            }
             $sql->{quote}{$stmt} =~ s/.*\K\s\Q$quote_col\E//;
+            my $do_not_match_regexp = $operator =~ /^NOT/       ? 1 : 0;
+            my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
             my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-            $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $operator =~ /^NOT/ ? 1 : 0, $self->{opt}{regexp_case} );
+            $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
             $sql->{print}{$stmt} .= ' ' . "'$value'";
             push @{$sql->{quote}{$args}}, $value;
         }
@@ -1257,10 +1256,10 @@ sub __col_functions {
         my $div = $interval eq $microseconds ? 1000000 :
                   $interval eq $milliseconds ? 1000 : 1;
         if ( $func eq 'Epoch_to_DateTime' ) {
-            $quote_f = $obj_db->epoch_to_datetime( $quote_col, $div ); #
+            $quote_f = $obj_db->epoch_to_datetime( $quote_col, $div );
         }
         else {
-            $quote_f = $obj_db->epoch_to_date( $quote_col, $div ); #
+            $quote_f = $obj_db->epoch_to_date( $quote_col, $div );
         }
     }
     elsif ( $func eq 'Truncate' ) {
