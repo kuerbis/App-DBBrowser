@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.990';
+our $VERSION = '0.991';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser database plugin documentation.
 
 =head1 VERSION
 
-Version 0.990
+Version 0.991
 
 =head1 DESCRIPTION
 
@@ -88,7 +88,7 @@ sub new {
         login_mode_user     => $opt->{login_user},
         login_mode_pass     => $opt->{login_pass},
     } );
-    bless { db_plugin => $plugin }, $class;
+    bless { Plugin => $plugin }, $class;
 }
 
 
@@ -111,7 +111,7 @@ The C<DBI> database driver name used by the plugin.
 
 sub db_driver {
     my ( $self ) = @_;
-    my $db_driver = $self->{db_plugin}->db_driver();
+    my $db_driver = $self->{Plugin}->db_driver();
     return $db_driver;
 }
 
@@ -135,7 +135,7 @@ The driver-private prefix.
 
 sub driver_prefix {
     my ( $self ) = @_;
-    my $driver_prefix = $self->{db_plugin}->driver_prefix();
+    my $driver_prefix = $self->{Plugin}->driver_prefix();
     $driver_prefix .= '_' if $driver_prefix !~ /_\z/;
     return $driver_prefix;
 }
@@ -164,7 +164,7 @@ If the option I<metadata> is not true, C<available_databases> returns only the "
 
 sub available_databases {
     my ( $self, $connect_parameter ) = @_;
-    my ( $user_db, $system_db ) = $self->{db_plugin}->available_databases( $connect_parameter );
+    my ( $user_db, $system_db ) = $self->{Plugin}->available_databases( $connect_parameter );
     return $user_db, $system_db;
 }
 
@@ -203,7 +203,7 @@ Database handle.
 
 sub get_db_handle {
     my ( $self, $db, $connect_parameter ) = @_;
-    my $dbh = $self->{db_plugin}->get_db_handle( $db, $connect_parameter );
+    my $dbh = $self->{Plugin}->get_db_handle( $db, $connect_parameter );
     return $dbh;
 }
 
@@ -230,7 +230,7 @@ If the option I<metadata> is not true, C<get_schema_names> returns only the "use
 
 sub get_schema_names {
     my ( $self, $dbh, $db ) = @_;
-    my ( $user_sma, $system_sma ) = $self->{db_plugin}->get_schema_names( $dbh, $db );
+    my ( $user_sma, $system_sma ) = $self->{Plugin}->get_schema_names( $dbh, $db );
     return $user_sma, $system_sma;
 }
 
@@ -257,7 +257,7 @@ If the option I<metadata> is not true, C<get_table_names> returns only the "user
 
 sub get_table_names {
     my ( $self, $dbh, $schema ) = @_;
-    my ( $user_tbl, $system_tbl ) = $self->{db_plugin}->get_table_names( $dbh, $schema );
+    my ( $user_tbl, $system_tbl ) = $self->{Plugin}->get_table_names( $dbh, $schema );
     return $user_tbl, $system_tbl;
 }
 
@@ -295,8 +295,13 @@ Two hash references - one for the column names and one for the column types:
 
 sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
-    return if ! $self->{db_plugin}->can( 'column_names_and_types' );
-    my ( $col_names, $col_types ) = $self->{db_plugin}->column_names_and_types( $dbh, $db, $schema, $tables );
+    return if ! $self->{Plugin}->can( 'column_names_and_types' );
+    my ( $col_names, $col_types ) = $self->{Plugin}->column_names_and_types( $dbh, $db, $schema, $tables );
+    for my $table ( keys %$col_types ) {
+        for ( @{$col_types->{$table}} ) {
+            s/integer/int/i;
+        }
+    }
     return $col_names, $col_types;
 }
 
@@ -342,8 +347,8 @@ Two hash references - one for the primary keys and one for the foreign keys:
 
 sub primary_and_foreign_keys {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
-    return if ! $self->{db_plugin}->can( 'primary_and_foreign_keys' );
-    my ( $pk_cols, $fks ) = $self->{db_plugin}->primary_and_foreign_keys( $dbh, $db, $schema, $tables );
+    return if ! $self->{Plugin}->can( 'primary_and_foreign_keys' );
+    my ( $pk_cols, $fks ) = $self->{Plugin}->primary_and_foreign_keys( $dbh, $db, $schema, $tables );
     return $pk_cols, $fks;
 }
 
@@ -381,7 +386,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 
 sub sql_regexp {
     my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
-    my $sql_regexp = $self->{db_plugin}->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
+    my $sql_regexp = $self->{Plugin}->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
     $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
     return $sql_regexp;
 }
@@ -413,7 +418,7 @@ Example form the plugin C<App::DBBrowser::DB::Pg>:
 
 sub concatenate {
     my ( $self, $arg ) = @_;
-    my $concatenated = $self->{db_plugin}->concatenate( $arg );
+    my $concatenated = $self->{Plugin}->concatenate( $arg );
     return $concatenated;
 }
 
@@ -449,7 +454,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 
 sub epoch_to_datetime {
     my ( $self, $quote_col, $interval ) = @_;
-    my $quote_f = $self->{db_plugin}->epoch_to_datetime( $quote_col, $interval );
+    my $quote_f = $self->{Plugin}->epoch_to_datetime( $quote_col, $interval );
     return $quote_f;
 }
 
@@ -482,7 +487,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 
 sub epoch_to_date {
     my ( $self, $quote_col, $interval ) = @_;
-    my $quote_f = $self->{db_plugin}->epoch_to_date( $quote_col, $interval );
+    my $quote_f = $self->{Plugin}->epoch_to_date( $quote_col, $interval );
     return $quote_f;
 }
 
@@ -513,7 +518,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 
 sub truncate {
     my ( $self, $quote_col, $precision ) = @_;
-    my $quote_f = $self->{db_plugin}->truncate( $quote_col, $precision );
+    my $quote_f = $self->{Plugin}->truncate( $quote_col, $precision );
     return $quote_f;
 }
 
@@ -547,7 +552,7 @@ The sql bit length substatement.
 
 sub bit_length {
     my ( $self, $quote_col ) = @_;
-    my $quote_f = $self->{db_plugin}->bit_length( $quote_col );
+    my $quote_f = $self->{Plugin}->bit_length( $quote_col );
     return $quote_f;
 }
 
@@ -579,7 +584,7 @@ Example form the plugin C<App::DBBrowser::DB::Pg>:
 
 sub char_length {
     my ( $self, $quote_col ) = @_;
-    my $quote_f = $self->{db_plugin}->char_length( $quote_col );
+    my $quote_f = $self->{Plugin}->char_length( $quote_col );
     return $quote_f;
 }
 

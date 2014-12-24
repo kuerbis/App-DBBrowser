@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.990';
+our $VERSION = '0.991';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -807,7 +807,7 @@ sub __on_table {
 
                 my $default = 0;
                 if ( $sql_type eq 'Select' ) {
-                    unshift @pre, $choose_type;
+                    unshift @pre, $choose_type if $pre[0] ne $choose_type;
                     $prompt = '';
                     $default = 1;
                 }

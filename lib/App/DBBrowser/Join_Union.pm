@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.990';
+our $VERSION = '0.991';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -47,10 +47,9 @@ sub __union_tables {
     my @post_tbl = ( $all_tables, $info );
 
     UNION_TABLE: while ( 1 ) {
-
+        my $prompt  = $self->{union_all} ? 'One UNION table for cols:' : 'Choose UNION table:';
         my $choices = [ @pre_tbl, map( "+ $_", @{$union->{used_tables}} ), @{$union->{unused_tables}}, @post_tbl ];
         $self->__print_union_statement( $union );
-        my $prompt = $self->{union_all} ? 'One UNION table for cols:' : 'Choose UNION table:';
         # Choose
         my $idx_tbl = $no_lyt->choose(
             $choices,
@@ -58,24 +57,26 @@ sub __union_tables {
         );
         return if ! defined $idx_tbl;
         my $union_table = $choices->[$idx_tbl];
-        return  if ! defined $union_table;
-        if ( $union_table eq $info ) {
+        if ( ! defined $union_table ) {
+            return;
+        }
+        elsif ( $union_table eq $info ) {
             if ( ! defined $u->{tables_info} ) {
-                $u->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $u );
+                $u->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $u, 'union' );
             }
-            my $tbls_info = $self->__print_tables_info( $u );
+            my $tbl_info = $self->__print_tables_info( $u );
             # Choose
             $no_lyt->choose(
-                $tbls_info,
+                $tbl_info,
                 { %{$self->{info}{lyt_3}}, prompt => '' }
             );
             next UNION_TABLE;
         }
-        if ( $union_table eq $enough_tables ) {
+        elsif ( $union_table eq $enough_tables ) {
             return if ! @{$union->{used_tables}};
             last UNION_TABLE;
         }
-        if ( $union_table eq $all_tables ) {
+        elsif ( $union_table eq $all_tables ) {
             $union = {
                 unused_tables => [ map { "- $_" } @{$u->{tables}} ],
                 used_tables   => [],
@@ -89,13 +90,13 @@ sub __union_tables {
         $union_table =~ s/^[-+]\s//;
         my $check_idx = $idx_tbl - ( @pre_tbl + @{$union->{used_tables}} );
         if ( $check_idx < 0 ) {
-            my $idx_used = $idx_tbl - @pre_tbl;
+            my $idx_used_table = $idx_tbl - @pre_tbl;
             delete $union->{used_cols}{$union_table};
-            $self->{idx_reset_used_tables} = $idx_used;
+            $self->{idx_reset_used_tables} = $idx_used_table;
         }
         else {
-            my $idx_unused = $check_idx;
-            splice( @{$union->{unused_tables}}, $idx_unused, 1 );
+            my $idx_unused_table = $check_idx;
+            splice( @{$union->{unused_tables}}, $idx_unused_table, 1 );
             push @{$union->{used_tables}}, $union_table;
             $self->{idx_reset_used_tables} = -1;
         }
@@ -112,7 +113,7 @@ sub __union_tables {
                 $choices,
                 { %{$self->{info}{lyt_stmt_h}}, prompt => 'Choose Column:', no_spacebar => [ 0 .. $#pre_col ] }
             );
-            if ( ! @col || ! defined $col[0] ) {
+            if ( ! defined $col[0] ) {
                 if ( defined $union->{used_cols}{$union_table} ) {
                     delete $union->{used_cols}{$union_table};
                     next UNION_COLUMN;
@@ -123,30 +124,28 @@ sub __union_tables {
                     last UNION_COLUMN;
                 }
             }
-            if ( $col[0] eq $self->{info}{ok} ) {
-                shift @col;
-                if ( @col ) {
-                    push @{$union->{used_cols}{$union_table}}, @col;
-                }
-                elsif ( ! defined $union->{used_cols}{$union_table} ) {
-                    my $tbl = splice( @{$union->{used_tables}}, $self->{idx_reset_used_tables}, 1 );
-                    push @{$union->{unused_tables}}, "- $tbl";
-                    delete $self->{idx_reset_used_tables};
-                    delete $self->{union_all} if defined $self->{union_all};
-                }
-                last UNION_COLUMN;
-            }
-            if ( $col[0] eq $void ) {
+            elsif ( $col[0] eq $void ) {
                 next UNION_COLUMN;
             }
-            if ( $col[0] eq $privious_cols ) {
+            elsif ( $col[0] eq $privious_cols ) {
                 $union->{used_cols}{$union_table} = $union->{saved_cols};
                 next UNION_COLUMN if $self->{opt}{sssc_mode};
                 last UNION_COLUMN;
             }
-            if ( $col[0] eq $all_cols ) {
+            elsif ( $col[0] eq $all_cols ) {
                 @{$union->{used_cols}{$union_table}} = @{$u->{col_names}{$union_table}};
                 next UNION_COLUMN if $self->{opt}{sssc_mode};
+                last UNION_COLUMN;
+            }
+            elsif ( $col[0] eq $self->{info}{ok} ) {
+                shift @col;
+                push @{$union->{used_cols}{$union_table}}, @col;
+                if ( ! defined $union->{used_cols}{$union_table} ) {
+                    my $table = splice( @{$union->{used_tables}}, $self->{idx_reset_used_tables}, 1 );
+                    push @{$union->{unused_tables}}, "- $table";
+                    delete $self->{idx_reset_used_tables};
+                    delete $self->{union_all} if defined $self->{union_all};
+                }
                 last UNION_COLUMN;
             }
             else {
@@ -238,38 +237,35 @@ sub __print_union_statement {
 
 
 sub __get_tables_info {
-    my ( $self, $dbh, $db, $schema, $u_or_j ) = @_;
+    my ( $self, $dbh, $db, $schema, $u_or_j, $type ) = @_;
     my $tables_info = {};
     my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
     my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} );
     for my $table ( @{$u_or_j->{tables}} ) {
-        push @{$tables_info->{$table}}, [ 'Table: ', '== ' . $table . ' ==' ];
+        push @{$tables_info->{$table}}, 'Table => ' . $table;
         if ( defined $u_or_j->{col_names} ) {
-            push @{$tables_info->{$table}}, [
-                'Columns: ',
-                join( ' | ', map {
-                        lc( $u_or_j->{col_types}{$table}[$_] )
-                    . ' ' . $u_or_j->{col_names}{$table}[$_] } 0 .. $#{$u_or_j->{col_names}{$table}} )
-            ];
+            push @{$tables_info->{$table}}, join( ' | ', map {
+                            lc( $u_or_j->{col_types}{$table}[$_] )
+                        . ' ' . $u_or_j->{col_names}{$table}[$_]   } 0 .. $#{$u_or_j->{col_names}{$table}} );
         }
+        next if $type eq 'union';
         if ( defined $pk && @{$pk->{$table}} ) {
-            push @{$tables_info->{$table}}, [ 'PK: ', 'primary key (' . join( ',', @{$pk->{$table}} ) . ')' ];
+            push @{$tables_info->{$table}}, 'PK: primary key (' . join( ',', @{$pk->{$table}} ) . ')';
         }
         if ( defined $fk ) {
             for my $fk_name ( sort keys %{$fk->{$table}} ) {
                 if ( $fk->{$table}{$fk_name} ) {
-                    push @{$tables_info->{$table}}, [
-                        'FK: ',
-                        'foreign key (' . join( ',', @{$fk->{$table}{$fk_name}{foreign_key_col}} ) .
-                        ') references ' . $fk->{$table}{$fk_name}{reference_table} .
-                        '(' . join( ',', @{$fk->{$table}{$fk_name}{reference_key_col}} ) .')'
-                    ];
+                    push @{$tables_info->{$table}}, 'FK: '
+                        . 'foreign key (' . join( ',', @{$fk->{$table}{$fk_name}{foreign_key_col}} )
+                        . ') references ' . $fk->{$table}{$fk_name}{reference_table}
+                        . '(' . join( ',', @{$fk->{$table}{$fk_name}{reference_key_col}} )
+                        . ')';
                 }
             }
         }
         if ( @{$tables_info->{$table}} == 1 ) {
-            push @{$tables_info->{$table}}, [ '   No INFO available.' ];
+            push @{$tables_info->{$table}}, '   No INFO available.';
         }
     }
     return $tables_info;
@@ -278,16 +274,13 @@ sub __get_tables_info {
 
 sub __print_tables_info {
     my ( $self, $ref ) = @_;
-    my $len_key = 10;
     my $col_max = ( term_size() )[0] - 1;
-    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}} );
-    $line_fold->config( 'ColMax', $col_max > $self->{info}{tbl_info_width} ? $self->{info}{tbl_info_width} : $col_max );
+    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => $col_max );
     my $ch_info = [ 'Close with ENTER' ];
     for my $table ( @{$ref->{tables}} ) {
         push @{$ch_info}, " ";
         for my $line ( @{$ref->{tables_info}{$table}} ) {
-            my $text = sprintf "%*s%s", $len_key, @$line;
-            $text = $line_fold->fold( '' , ' ' x $len_key, $text );
+            my $text = $line_fold->fold( $line, 'PLAIN' );
             push @{$ch_info}, split /\R+/, $text;
         }
     }
@@ -311,8 +304,8 @@ sub __join_tables {
     my @pre = ( undef );
 
     MASTER: while ( 1 ) {
-        $self->__print_join_statement( $join->{print}{stmt} );
         my $choices = [ @pre, @tables, $info ];
+        $self->__print_join_statement( $join->{print}{stmt} );
         # Choose
         my $idx = $stmt_v->choose(
             $choices,
@@ -323,12 +316,12 @@ sub __join_tables {
         return if ! defined $master;
         if ( $master eq $info ) {
             if ( ! defined $j->{tables_info} ) {
-                $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
+                $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j, 'join' );
             }
-            my $tbls_info = $self->__print_tables_info( $j );
+            my $tbl_info = $self->__print_tables_info( $j );
             # Choose
             $stmt_v->choose(
-                $tbls_info,
+                $tbl_info,
                 { %{$self->{info}{lyt_3}}, prompt => '' }
             );
             next MASTER;
@@ -343,16 +336,16 @@ sub __join_tables {
         $join->{primary_keys} = [];
         $join->{foreign_keys} = [];
         my $backup_master = clone( $join );
+        my $enough_slaves = '  Enough TABLES';
+        my @pre = ( undef, $enough_slaves );
 
         JOIN: while ( 1 ) {
             my ( $idx, $slave );
             my $backup_join = clone( $join );
-            my $enough_slaves = '  Enough TABLES';
-            my @pre = ( undef, $enough_slaves );
 
             SLAVE: while ( 1 ) {
-                $self->__print_join_statement( $join->{print}{stmt} );
                 my $choices = [ @pre, @{$join->{avail_tables}}, $info ];
+                $self->__print_join_statement( $join->{print}{stmt} );
                 # Choose
                 $idx = $stmt_v->choose(
                     $choices,
@@ -379,12 +372,12 @@ sub __join_tables {
                 }
                 elsif ( $slave eq $info ) {
                     if ( ! defined $j->{tables_info} ) {
-                        $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j );
+                        $j->{tables_info} = $self->__get_tables_info( $dbh, $db, $schema, $j, 'join' );
                     }
-                    my $tbls_info = $self->__print_tables_info( $j );
+                    my $tbl_info = $self->__print_tables_info( $j );
                     # Choose
                     $stmt_v->choose(
-                        $tbls_info,
+                        $tbl_info,
                         { %{$self->{info}{lyt_3}}, prompt => '' }
                     );
                     next SLAVE;

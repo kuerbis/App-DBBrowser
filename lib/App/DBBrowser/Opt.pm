@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.990';
+our $VERSION = '0.991';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -428,7 +428,8 @@ sub set_options {
             elsif ( $key eq 'db_plugins' ) {
                 my %installed_db_driver;
                 for my $dir ( @INC ) {
-                    map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob "$dir/App/DBBrowser/DB/*.pm";
+                    my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
+                    map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
                 }
                 $self->__opt_choose_a_list( $key, [ sort keys %installed_db_driver ] );
             }

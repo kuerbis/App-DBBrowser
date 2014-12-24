@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.991   2014-12-24
+        - Bugfix in hidden menu.
+        - Use 'catfile' to build the glob pattern for the search of the installed db drivers.
+        - Code refactoring.
+
 0.990   2014-12-22
         - SQLite: @ARGV are now databases instead of directories.
         - Bugfix in "prepare_connect_parameter".

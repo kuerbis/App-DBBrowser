@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.990';
+our $VERSION = '0.991';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -49,7 +49,6 @@ sub new {
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
         sect_generic      => 'Generic',
         stmt_init_tab     => 4,
-        tbl_info_width    => 140,
         avail_aggregate   => [ "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" ],
         avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
                                "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
@@ -170,7 +169,7 @@ sub run {
         }
         $self->{info}{db_plugin} = $db_plugin;
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        my $db_driver = $obj_db->db_driver();
+        my $db_driver = $obj_db->db_driver(); #
         $self->{info}{db_driver} = $db_driver;
         $self->{info}{driver_prefix} = $obj_db->driver_prefix();
 
@@ -263,9 +262,9 @@ sub run {
             my $data = {};
             my @schemas = ();
             if ( ! eval {
-                my ( $user_sma, $system_sma ) = $obj_db->get_schema_names( $dbh, $db );
-                $system_sma = [] if ! defined $system_sma;
-                @schemas = ( map( "- $_", @$user_sma ), map( "  $_", @$system_sma ) );
+                my ( $user_schema, $system_schema ) = $obj_db->get_schema_names( $dbh, $db );
+                $system_schema = [] if ! defined $system_schema;
+                @schemas = ( map( "- $_", @$user_schema ), map( "  $_", @$system_schema ) );
                 1 }
             ) {
                 $auxil->__print_error_message( $@, 'Get schema names' );
@@ -400,13 +399,13 @@ sub run {
                     else {
                         $table =~ s/^[-\ ]\s//;
                     }
-                    if ( ! eval {
+                    #if ( ! eval {
                          $self->__browse_the_table( $dbh, $db, $schema, $table, $multi_table );
-                        1 }
-                    ) {
-                        $auxil->__print_error_message( $@, 'Print table' );
-                        next TABLE;
-                    }
+                    #    1 }
+                    #) {
+                    #    $auxil->__print_error_message( $@, 'Browse table' );
+                    #    next TABLE;
+                    #}
                 }
             }
             $dbh->disconnect();
@@ -418,7 +417,6 @@ sub run {
 sub __browse_the_table {
     my ( $self, $dbh, $db, $schema, $table, $multi_table ) = @_;
     my $auxil     = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
-    my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
     my $db_plugin = $self->{info}{db_plugin};
     my $qt_columns = {};
     my $pr_columns = [];
@@ -444,12 +442,20 @@ sub __browse_the_table {
             push @$pr_columns, $col;
         }
     }
+    my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
     $self->{opt}{_db_browser_mode} = 1;
     $self->{opt}{binary_filter}    =    $self->{opt}{$db_plugin . '_' . $db}{binary_filter}
                                      || $self->{opt}{$db_plugin}{binary_filter};
 
     PRINT_TABLE: while ( 1 ) {
-        my $all_arrayref = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
+        my $all_arrayref;
+        if ( ! eval {
+            $all_arrayref = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
+            1 }
+        ) {
+            $auxil->__print_error_message( $@, 'Print table' );
+            next PRINT_TABLE;
+        }
         last PRINT_TABLE if ! defined $all_arrayref;
         delete @{$self->{info}}{qw(width_head width_cols not_a_number)};
         print_table( $all_arrayref, $self->{opt} );
@@ -474,7 +480,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.990
+Version 0.991
 
 =head1 DESCRIPTION
 
