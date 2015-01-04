@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -39,11 +39,6 @@ sub __on_table {
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
-    my %map_sql_types = (
-        Insert => "INSERT INTO",
-        Update => "UPDATE",
-        Delete => "DELETE",
-    );
     my $sql_types = [ 'Insert', 'Update', 'Delete' ];
     my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
@@ -67,7 +62,7 @@ sub __on_table {
     if ( $self->{info}{lock} == 0 ) {
         $auxil->__reset_sql( $sql );
     }
-    my $backup_sql = clone( $sql );
+    my $backup_sql = clone( $sql ); #
     my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
@@ -710,10 +705,9 @@ sub __on_table {
             $sql->{quote}{limit_args} = [];
             $sql->{quote}{limit_stmt} = " LIMIT";
             $sql->{print}{limit_stmt} = " LIMIT";
-            my $digits = 7;
-            my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
 
             LIMIT: while ( 1 ) {
+                my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
                 my $choices = [ $self->{info}{ok}, $only_limit, $offset_and_limit ];
                 unshift @$choices, undef if $self->{opt}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
@@ -743,6 +737,7 @@ sub __on_table {
                 $sql->{quote}{limit_args} = [];
                 $sql->{quote}{limit_stmt} = " LIMIT";
                 $sql->{print}{limit_stmt} = " LIMIT";
+                my $digits = 7;
                 # Choose_a_number
                 my $limit = choose_a_number( $digits, { name => '"LIMIT"' } );
                 next LIMIT if ! defined $limit || $limit eq '--';
@@ -796,9 +791,6 @@ sub __on_table {
                 }
             }
             my $changed = 0;
-            my @pre = ( undef, $self->{info}{_confirm} );
-            my $prompt = 'Choose:';
-            my $choose_type = 'Your choice:';
 
             HIDDEN: while ( 1 ) {
                 my @cols = $stmt_key eq 'chosen_cols'
@@ -806,6 +798,9 @@ sub __on_table {
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
 
                 my $default = 0;
+                my $choose_type = 'Your choice:';
+                my @pre = ( undef, $self->{info}{_confirm} );
+                my $prompt = 'Choose:';
                 if ( $sql_type eq 'Select' ) {
                     unshift @pre, $choose_type if $pre[0] ne $choose_type;
                     $prompt = '';
@@ -939,13 +934,20 @@ sub __on_table {
             my $all_arrayref = $sth->fetchall_arrayref;
             unshift @$all_arrayref, $col_names;
             print $self->{info}{clear_screen};
-            return $all_arrayref;
+            # return $sql explicitly even it is passed by reference since
+            # after a `$sql = clone( $backup )` $sql refers to a different hash.
+            return $all_arrayref, $sql;
         }
         elsif ( $custom eq $customize{'commit'} ) {
             my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
             local $| = 1;
             print $self->{info}{clear_screen};
             print 'Database : ...' . "\n" if $self->{opt}{progress_bar};
+            my %map_sql_types = (
+                Insert => "INSERT INTO",
+                Update => "UPDATE",
+                Delete => "DELETE",
+            );
             my $stmt = $map_sql_types{$sql_type};
             my $to_execute;
             my $transaction;

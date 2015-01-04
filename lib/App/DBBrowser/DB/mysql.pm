@@ -18,7 +18,14 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'mysql';
     $opt->{driver_prefix} = 'mysql';
+    $opt->{plugin_api_version} = 1.0;
     bless $opt, $class;
+}
+
+
+sub plugin_api_version {
+    my ( $self ) = @_;
+    return $self->{plugin_api_version};
 }
 
 

@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.991
+Version 0.992
 
 =cut
 
@@ -415,11 +415,6 @@ Supported file formats: CSV files and the spreadsheet formats supported by L<Spr
 
 =back
 
-=head4 Input filter
-
-Enable the col-row input filter. If this option is enabled and the input mode is set to "Multirow" or "File", the user
-can choose which columns/rows from the input to use as insert values.
-
 =head4 CSV parse module
 
 Set which module to use for parsing text files or for parsing the "Multirow" input.
@@ -576,7 +571,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2012-2014 Matthäus Kiem.
+Copyright 2012-2015 Matthäus Kiem.
 
 This program is free software; you can redistribute it and/or modify it under the same terms as Perl 5.10.0. For
 details, see the full text of the licenses in the file LICENSE.

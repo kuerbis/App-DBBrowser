@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -132,7 +132,7 @@ sub __prepare_connect_parameter {
     my $db_key    = $db_plugin . '_' . $db;
     for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
         my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
-        if ( $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+        if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
             $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
         }
         else {
@@ -168,10 +168,18 @@ sub run {
             last DB_PLUGIN if ! defined $db_plugin;
         }
         $self->{info}{db_plugin} = $db_plugin;
-        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        my $db_driver = $obj_db->db_driver(); #
-        $self->{info}{db_driver} = $db_driver;
-        $self->{info}{driver_prefix} = $obj_db->driver_prefix();
+        my $obj_db;
+        if ( ! eval {
+            $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+            $self->{info}{db_driver} = $obj_db->db_driver();
+            die "No database driver!" if ! $self->{info}{db_driver};
+            $self->{info}{driver_prefix} = $obj_db->driver_prefix();
+            1 }
+        ) {
+            $auxil->__print_error_message( $@, 'DB plugin - driver - prefix' );
+            next DB_PLUGIN;
+        }
+        my $db_driver = $self->{info}{db_driver};
 
         # DATABASES
 
@@ -181,7 +189,7 @@ sub run {
             my ( $user_db, $system_db ) = $obj_db->available_databases( $connect_parameter );
             $system_db = [] if ! defined $system_db;
             if ( $db_driver eq 'SQLite' ) {
-                $databases = [ @$user_db, @$system_db ]; #
+                $databases = [ @$user_db, @$system_db ];
             }
             else {
                 $databases = [ map( "- $_", @$user_db ), map( "  $_", @$system_db ) ];
@@ -201,15 +209,6 @@ sub run {
 
         my $db;
         my $old_idx_db = 0;
-        my $back;
-        if ( $db_driver eq 'SQLite' ) {
-            $back = $auto_one ? $self->{info}{quit} : $self->{info}{back};
-        }
-        else {
-            $back = $auto_one ? $self->{info}{_quit} : $self->{info}{_back};
-        }
-        my $prompt = 'Choose Database:';
-        my $choices_db = [ undef, @$databases ];
 
         DATABASE: while ( 1 ) {
 
@@ -218,6 +217,15 @@ sub run {
             #    $auto_one++ if $auto_one == 1;
             #}
             #else {
+                my $back;
+                if ( $db_driver eq 'SQLite' ) {
+                    $back = $auto_one ? $self->{info}{quit} : $self->{info}{back};
+                }
+                else {
+                    $back = $auto_one ? $self->{info}{_quit} : $self->{info}{_back};
+                }
+                my $prompt = 'Choose Database:';
+                my $choices_db = [ undef, @$databases ];
                 # Choose
                 my $idx_db = $lyt_3->choose(
                     $choices_db,
@@ -260,20 +268,17 @@ sub run {
             # SCHEMAS
 
             my $data = {};
-            my @schemas = ();
+            my @schemas;
             if ( ! eval {
-                my ( $user_schema, $system_schema ) = $obj_db->get_schema_names( $dbh, $db );
-                $system_schema = [] if ! defined $system_schema;
-                @schemas = ( map( "- $_", @$user_schema ), map( "  $_", @$system_schema ) );
+                my ( $user_schemas, $system_schemas ) = $obj_db->get_schema_names( $dbh, $db );
+                $system_schemas = [] if ! defined $system_schemas;
+                @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$system_schemas ) );
                 1 }
             ) {
                 $auxil->__print_error_message( $@, 'Get schema names' );
                 next DATABASE;
             }
             my $old_idx_sch = 0;
-            my $choices_schema = [ undef, @schemas ];
-            my $back = $auto_one == 2 ? $self->{info}{_quit} : $self->{info}{_back};
-            my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
 
             SCHEMA: while ( 1 ) {
 
@@ -283,6 +288,9 @@ sub run {
                     $auto_one++ if $auto_one == 2
                 }
                 else {
+                    my $back   = $auto_one == 2 ? $self->{info}{_quit} : $self->{info}{_back};
+                    my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
+                    my $choices_schema = [ undef, @schemas ];
                     # Choose
                     my $idx_sch = $lyt_3->choose(
                         $choices_schema,
@@ -309,26 +317,25 @@ sub run {
 
                 # TABLES
 
-                my $choices_table = [];
+                my @tables;
                 if ( ! eval {
                     my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema );
                     $system_tbl = [] if ! defined $system_tbl;
                     $data->{$db}{$schema}{tables} = [ @$user_tbl, @$system_tbl ];
-                    $choices_table = [ map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) ];
+                    @tables = ( map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) );
                     1 }
                 ) {
                     $auxil->__print_error_message( $@, 'Get table names' );
                     next DATABASE;
                 }
                 my $old_idx_tbl = 0;
-                my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
-                unshift @$choices_table, undef;
-                push    @$choices_table, $join, $union, $db_setting;
-                my $back = $auto_one == 3 ? $self->{info}{_quit} : $self->{info}{_back};
-                my $prompt = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
 
                 TABLE: while ( 1 ) {
 
+                    my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
+                    my $choices_table = [ undef, @tables, $join, $union, $db_setting ];
+                    my $back   = $auto_one == 3 ? $self->{info}{_quit} : $self->{info}{_back};
+                    my $prompt = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
                     # Choose
                     my $idx_tbl = $lyt_3->choose(
                         $choices_table,
@@ -383,7 +390,7 @@ sub run {
                             require App::DBBrowser::Join_Union;
                             my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
                             $multi_table = $obj_ju->__union_tables( $dbh, $db, $schema, $data );
-                            if ( $obj_ju->{union_all} ) { #
+                            if ( $obj_ju->{union_all} ) {
                                 $table = 'union_all_tables';
                             }
                             else {
@@ -450,7 +457,7 @@ sub __browse_the_table {
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
         if ( ! eval {
-            $all_arrayref = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
+            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Print table' );
@@ -480,7 +487,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.991
+Version 0.992
 
 =head1 DESCRIPTION
 
@@ -497,7 +504,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2014 Matthäus Kiem.
+Copyright (C) 2012-2015 Matthäus Kiem.
 
 This program is free software; you can redistribute it and/or modify it under the same terms as Perl 5.10.0. For
 details, see the full text of the licenses in the file LICENSE.

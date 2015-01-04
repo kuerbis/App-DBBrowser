@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -54,6 +54,9 @@ sub __insert_into {
             $choices,
             { prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
         );
+        if ( ! defined $idx[0] ) {
+            return;
+        }
         my $c = 0;
         for my $i ( @idx ) {
             last if ! @cols;
@@ -96,17 +99,19 @@ sub __insert_into {
             $input_mode = $self->{opt}{input_modes}[0];
         }
         else {
+            my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
-            $input_mode = $stmt_h->choose(
-                [ undef, @{$self->{opt}{input_modes}} ],
-                { prompt => 'Input mode: ' }
+            $input_mode = $stmt_v->choose(
+                [ undef, map( "- $_", @{$self->{opt}{input_modes}} ) ],
+                { prompt => 'Input mode: ', justify => 0 }
             );
             if ( ! defined $input_mode ) {
                 $sql->{quote}{chosen_cols} = [];
                 $sql->{print}{chosen_cols} = [];
                 return;
             }
+            $input_mode =~ s/^-\ //;
         }
         if ( $input_mode =~ /^(?:Cols|Rows)\z/ ) {
             my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
@@ -190,21 +195,19 @@ sub __insert_into {
                     }
                     next VALUES;
                 }
-                if ( $self->{opt}{row_col_filter} ) {
-                    $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
-                    if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                        if ( @{$self->{opt}{input_modes}} == 1 ) {
-                            $sql->{quote}{chosen_cols} = [];
-                            $sql->{print}{chosen_cols} = [];
-                            return;
-                        }
-                        next VALUES;
+                $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
+                if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                    if ( @{$self->{opt}{input_modes}} == 1 ) {
+                        $sql->{quote}{chosen_cols} = [];
+                        $sql->{print}{chosen_cols} = [];
+                        return;
                     }
+                    next VALUES;
                 }
             }
             elsif ( $input_mode eq 'File' ) {
                 FILE: while ( 1 ) {
-                    my @files = ();
+                    my @files;
                     if ( $self->{opt}{max_files} && -e $self->{info}{input_files} ) {
                         open my $fh_in, '<', $self->{info}{input_files} or die $!;
                         while ( my $f = <$fh_in> ) {
@@ -214,7 +217,6 @@ sub __insert_into {
                         }
                         close $fh_in;
                     }
-                    ###
                     my @files_sorted = sort map { decode 'locale_fs', $_ } @files;
                     if ( length $file ) {
                         my $i = first_index { decode( 'locale_fs', $file ) eq $_ } @files_sorted;
@@ -223,7 +225,6 @@ sub __insert_into {
                         }
                         unshift @files_sorted, decode 'locale_fs', $file;
                     }
-                    ###
                     my $add_file = 'New file';
                     if ( @files_sorted ) {
                         $auxil->__print_sql_statement( $sql, $table, $sql_type );
@@ -288,11 +289,9 @@ sub __insert_into {
                         $cm->choose( [ 'empty file!' ] );
                         next FILE;
                     }
-                    if ( $self->{opt}{row_col_filter} ) {
-                        $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
-                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                            next FILE;
-                        }
+                    $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
+                    if ( ! @{$sql->{quote}{insert_into_args}} ) {
+                        next FILE;
                     }
                     last FILE;
                 }
@@ -348,11 +347,11 @@ sub __parse_file {
         if ( $sheet_idx ) {
             return [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ], $sheet_idx;
         }
-        if ( @$book < 2 ) {
+        if ( @$book < 2 ) { # first sheet in $book contains meta info
             $cm->choose( [ $file_dc . ' : no sheets!' ] );
             return;
         }
-        elsif ( @$book == 2 ) { # first sheet in $book contains meta info
+        elsif ( @$book == 2 ) {
             $sheet_idx = 1;
         }
         else {
@@ -406,7 +405,7 @@ sub __filter_input {
             return;
         }
         elsif ( $choice eq $input_cols  ) {
-            my @col_idx = ();
+            my @col_idx;
 
             COLS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
@@ -416,11 +415,11 @@ sub __filter_input {
                 $prompt .= join ',', map { $_ + 1 } @col_idx if @col_idx;
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
-                my @col_nr = $stmt_h->choose(
+                my @chosen = $stmt_h->choose(
                     $choices,
                     { prompt => $prompt, no_spacebar => [ 0 .. $#pre ] }
                 );
-                if ( ! defined $col_nr[0] ) {
+                if ( ! defined $chosen[0] ) {
                     if ( @col_idx ) {
                         @col_idx = ();
                         next COLS;
@@ -429,9 +428,9 @@ sub __filter_input {
                         next FILTER;
                     }
                 }
-                if ( $col_nr[0] eq $self->{info}{ok} ) {
-                    shift @col_nr;
-                    for my $col ( @col_nr ) {
+                if ( $chosen[0] eq $self->{info}{ok} ) {
+                    shift @chosen;
+                    for my $col ( @chosen ) {
                         $col =~ s/^col_//;
                         push @col_idx, $col - 1;
                     }
@@ -444,35 +443,34 @@ sub __filter_input {
                     }
                     next FILTER;
                 }
-                for my $col ( @col_nr ) {
+                for my $col ( @chosen ) {
                     $col =~ s/^col_//;
                     push @col_idx, $col - 1;
                 }
             }
         }
         elsif ( $choice eq $input_rows_range ) {
-            my @pre = ();
-            unshift @pre, undef if $self->{opt}{sssc_mode};
-            #my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
+            my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
+            my @pre = ( undef );
             my $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
-            my $first_row = $stmt_h->choose(
+            my $first_idx = $stmt_v->choose(
                 $choices,
-                { prompt => "First row:\n\n", layout => 3, index => 1 }
+                { prompt => "First row:\n", index => 1, undef => '<<' }
             );
-            next FILTER if ! defined $first_row;
-            $first_row -= @pre;
+            next FILTER if ! defined $first_idx;
+            my $first_row = $first_idx - @pre;
             next FILTER if $first_row < 0;
             $choices->[$first_row + @pre] = '* ' . $choices->[$first_row + @pre];
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
-            my $last_row = $stmt_h->choose(
+            my $last_idx = $stmt_v->choose(
                 $choices,
-                { prompt => "Last row:\n\n", default => $first_row, layout => 3, index => 1 }
+                { prompt => "Last row:\n", default => $first_row, index => 1, undef => '<<' }
             );
-            next FILTER if ! defined $last_row;
-            $last_row -= @pre;
+            next FILTER if ! defined $last_idx;
+            my $last_row = $last_idx - @pre;
             next FILTER if $last_row < 0;
             if ( $last_row < $first_row ) {
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
@@ -487,17 +485,17 @@ sub __filter_input {
             next FILTER;
         }
         elsif ( $choice eq $input_rows_choose ) {
-            my @pre = ();
-            unshift @pre, undef if $self->{opt}{sssc_mode};
-            #my $choices = [ @pre, map { "@$_" } @{$sql->{quote}{insert_into_args}} ];
+            my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
+            my @pre = ( undef );
             my $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
-            my @row_idx = $stmt_h->choose(
+            my @idx = $stmt_v->choose(
                 $choices,
-                { prompt => 'Choose rows:', layout => 3, justify => 0, index => 1, no_spacebar => [ 0 .. $#pre ] }
+                { prompt => 'Choose rows:', index => 1, no_spacebar => [ 0 .. $#pre ], undef => '<<' }
             );
-            next FILTER if ! defined $row_idx[0];
+            next FILTER if ! defined $idx[0];
+            my @row_idx = map{ $_ - @pre } @idx;
             $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[@row_idx] ];
             next FILTER;
         }

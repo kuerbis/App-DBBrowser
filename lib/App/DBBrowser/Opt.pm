@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -50,7 +50,6 @@ sub defaults {
         operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
         parentheses_w        => 0,
         parentheses_h        => 0,
-        #regexp_case          => 0,
         keep_header          => 0,
         progress_bar         => 40_000,
         min_col_width        => 30,
@@ -58,7 +57,6 @@ sub defaults {
         undef                => '',
         binary_string        => 'BNRY',
         input_modes          => [ 'Cols', 'Multirow', 'File' ],
-        row_col_filter       => 1,
         csv_read             => 0,
         encoding_csv_file    => 'UTF-8',
         max_files            => 15,
@@ -177,7 +175,6 @@ sub __menus {
         ],
         config_insert => [
             [ 'input_modes',       "- Input modes" ],
-            [ 'row_col_filter',    "- Input filter" ],
             [ 'csv_read',          "- CSV parse module" ],
             [ 'encoding_csv_file', "- CSV file encoding" ],
             [ 'sep_char',          "- csv sep_char" ],
@@ -195,15 +192,13 @@ sub __menus {
 
 sub __config_insert {
     my ( $self, $write_to_file ) = @_;
-    my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
-    my $no_yes = [ 'NO', 'YES' ];
-    my $group = 'config_insert';
-    my @pre = ( undef, $self->{info}{_confirm} );
-    my $menu = $self->__menus( $group );
-    my @real = map( $_->[1], @$menu );
     my $old_idx = 0;
 
     OPTION_INSERT: while ( 1 ) {
+        my $group  = 'config_insert';
+        my @pre    = ( undef, $self->{info}{_confirm} );
+        my $menu   = $self->__menus( $group );
+        my @real   = map( $_->[1], @$menu );
         # Choose
         my $idx = choose(
             [ @pre, @real ],
@@ -227,6 +222,7 @@ sub __config_insert {
                 next OPTION_INSERT;
             }
         }
+        my $no_yes = [ 'NO', 'YES' ];
         if ( $key eq $self->{info}{_confirm} ) {
             if ( $self->{info}{write_config} ) {
                 $self->__write_config_files() if $write_to_file;
@@ -237,11 +233,6 @@ sub __config_insert {
         elsif ( $key eq 'input_modes' ) {
                 my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
                 $self->__opt_choose_a_list( $key, $available );
-        }
-        elsif ( $key eq 'row_col_filter' ) {
-            my $list = $no_yes;
-            my $prompt = 'Enable col-row input filter';
-            $self->__opt_choose_index( $key, $prompt, $list );
         }
         elsif ( $key eq 'csv_read' ) {
             my $list = [ 'Text::CSV', 'Text::ParseWords', 'Spreadsheet::Read' ];
@@ -289,18 +280,17 @@ sub __config_insert {
 
 sub set_options {
     my ( $self ) = @_;
-    my $no_yes = [ 'NO', 'YES' ];
     my $group = 'main';
     my $backup_old_idx;
     my $old_idx = 0;
 
     GROUP: while ( 1 ) {
-        my @pre = ( undef, $group eq 'main' ? $self->{info}{_continue} : $self->{info}{_confirm} );
         my $menu = $self->__menus( $group );
-        my @real = map( $_->[1], @$menu );
 
         OPTION: while ( 1 ) {
-            my $back = $group eq 'main' ? $self->{info}{_quit} : $self->{info}{_back};
+            my $back =          $group eq 'main' ? $self->{info}{_quit}     : $self->{info}{_back};
+            my @pre  = ( undef, $group eq 'main' ? $self->{info}{_continue} : $self->{info}{_confirm} );
+            my @real = map( $_->[1], @$menu );
             # Choose
             my $idx = choose(
                 [ @pre, @real ],
@@ -341,8 +331,9 @@ sub set_options {
                 $group = $key;
                 redo GROUP;
             }
+            my $no_yes = [ 'NO', 'YES' ];
             if ( $key eq $self->{info}{_continue} ) {
-                return $self->{opt}; #
+                return $self->{opt};
             }
             elsif ( $key eq $self->{info}{_confirm} ) {
                 if ( $self->{info}{write_config} ) {
@@ -613,7 +604,7 @@ sub database_setting {
                 delete $self->{opt}{$section};
             }
             else {
-                my @databases = ();
+                my @databases;
                 for my $section ( keys %{$self->{opt}} ) {
                     push @databases, $1 if $section =~ /^\Q$db_driver\E_(.+)\z/;
                 }
@@ -642,7 +633,6 @@ sub database_setting {
             return;
         }
         my $no_yes = [ 'NO', 'YES' ];
-
         if ( $db_driver eq "SQLite" ) {
             if ( $key eq 'sqlite_unicode' ) {
                 my $prompt = 'Unicode';

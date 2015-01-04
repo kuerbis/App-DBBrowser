@@ -1,6 +1,14 @@
 Revision history for App-DBBrowser
 
 
+0.992   2015-01-04
+        - Bugfix: "sssc_mode" in "Insert".
+        - Bugfix: column menu in "union".
+        - New plugin method "plugin_api_version".
+        - Removed option "Input filter" (now always enabled).
+        - Code refactoring.
+        - Update documentation.
+
 0.991   2014-12-24
         - Bugfix in hidden menu.
         - Use 'catfile' to build the glob pattern for the search of the installed db drivers.

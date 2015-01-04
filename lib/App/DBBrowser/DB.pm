@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.991';
+our $VERSION = '0.992';
 
 
 
@@ -16,11 +16,9 @@ App::DBBrowser database plugin documentation.
 
 =head1 VERSION
 
-Version 0.991
+Version 0.992
 
 =head1 DESCRIPTION
-
-The API described below is new a may be changed.
 
 A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches the
 regex pattern C</^App::DBBrowser::DB::[\w_]+\z/> and which is located in one of the C<@INC> directories as a database
@@ -33,6 +31,10 @@ selecting I<DB> and then I<DB Plugins>.
 A suitable database plugin provides the methods named in this documentation.
 
 Column names passed as arguments are already quoted with the C<DBI> C<quote_identifier> method.
+
+=head1 PLUGIN API VERSION
+
+This documentation describes the plugin API version C<1.0>.
 
 =head1 METHODS
 
@@ -89,6 +91,34 @@ sub new {
         login_mode_pass     => $opt->{login_pass},
     } );
     bless { Plugin => $plugin }, $class;
+}
+
+
+
+
+
+=head2 plugin_api_version
+
+=over
+
+=item Arguments
+
+none
+
+=item return
+
+The version of the plugin-API to which the plugin refers.
+
+See L</PLUGIN API VERSION> for the plugin API version described by this documentation.
+
+=back
+
+=cut
+
+sub plugin_api_version {
+    my ( $self ) = @_;
+    my $plugin_api_version = $self->{Plugin}->plugin_api_version();
+    return $plugin_api_version;
 }
 
 
@@ -230,8 +260,8 @@ If the option I<metadata> is not true, C<get_schema_names> returns only the "use
 
 sub get_schema_names {
     my ( $self, $dbh, $db ) = @_;
-    my ( $user_sma, $system_sma ) = $self->{Plugin}->get_schema_names( $dbh, $db );
-    return $user_sma, $system_sma;
+    my ( $user_schemas, $system_schemas ) = $self->{Plugin}->get_schema_names( $dbh, $db );
+    return $user_schemas, $system_schemas;
 }
 
 
@@ -361,6 +391,8 @@ sub primary_and_foreign_keys {
 =item Arguments
 
 Column name, C<$do_not_match_regexp> (true/false), C<$case_sensitive> (true/false).
+
+Use the placeholder instead of the string which should match or not match the regexp.
 
 =item return
 
