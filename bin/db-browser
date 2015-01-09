@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.992';
+our $VERSION = '0.993';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =cut
 
@@ -289,33 +289,59 @@ set, the global (to the database plugin) I<DB Settings> are use instead.
 
 =over
 
-=item Enable utf8
+=item Login Mode
 
-If I<Enable utf8> is enabled, the utf8 flag will be turned on for character data coming from the database.
+Determine how to gather the login data:
 
-For a more driver specific explanation see the documentation of the chosen Perl DBI driver.
+=over
 
-With the C<Pg> driver in use it is available - apart from the "YES/NO" choices - also an "AUTO" choice. If the
-L<DBD::Pg> version is less than 3.0.0, "AUTO" is mapped to "YES". For the meaning of "AUTO" look in
-L<pg_enable_utf8|https://metacpan.org/pod/DBD::Pg#pg_enable_utf8-integer> for the value C<-1>.
+=item
 
-=item See if it's a number
+Ask
 
-If set to "YES", C<DBD::SQLite> tries to see if the bind values are numbers or not, and does not quote if they are
-numbers.
+Ask for the data of a field when connecting to a database.
 
-See L<DBD::SQLite> for details. This is a SQLite-only option.
+=item
 
+Use DBI_....
 
-=item "Binary Filter"
+Use the relevant environment variable to connect if available else ask the user for the required data.
 
-Print "BNRY" instead of arbitrary binary data.
+=item
 
-If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
+Don't set
 
-Printing arbitrary binary data could break the output.
+If a field is not required for a database connection one can select the entry I<Don't set> for that field. The field is
+then not used for the database connection. For example if the field is "port" I<Don't set> could mean: form the
+C<DBI> C<DSN> without the "port" entry.
 
-=item Search directories
+=back
+
+Possible fields could be "host", "port", "user", "password" and others.
+
+It depends on the database plugin which fields are offered to set and whether the selections made by the user a considered.
+
+=item Login Data
+
+The entered data for a field is saved with the field in a configuration file. If the configuration file contains a field
+with a defined value, the value is used for that field to connect instead to ask the user for the value.
+
+It depends on the database plugin which fields are offered to set and whether the selections made by the user a
+considered.
+
+=item DB Options
+
+All options in this sub-menu - apart the last one - are connection attributes. For the meaning of the different
+attributes see the documentation of the DBI database driver.
+
+Setting I<binary_filter> (the last item in the sub-menu) to C<1> means: print "BNRY" instead of arbitrary binary data. If
+data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data. Printing arbitrary
+binary data could break the output.
+
+It depends on the database plugin which connection attributes are offered to set and whether the selections made by the
+user a considered.
+
+=item SQLite directories
 
 This is a SQLite-only option.
 
@@ -328,51 +354,9 @@ any. If the list of chosen directories is empty, "C< < >" goes back without chan
 
 This setting can not be overwritten in a single database.
 
-=item RESET
-
-I<RESET> resets the database settings.
+It depends on the database plugin if this setting is considered.
 
 =back
-
-=head4 DB Login Mode
-
-Determine how to gather the login data:
-
-=over
-
-=item
-
-Ask
-
-Ask for login data when connecting to a database.
-
-=item
-
-Use DBI_....
-
-Use the environment variable
-
-- DBI_HOST to set the host
-
-- DBI_PORT to set the port
-
-- DBI_USER as the username
-
-- DBI_PASS as the password
-
-If an environment variable doesn't exist, the users is asked for the data.
-
-=item
-
-Don't set
-
-If I<Don't set> is selected for the host entry, the C<DBI> C<DSN> is formed without the host.
-
-If I<Don't set> is selected for the port entry, the C<DBI> C<DSN> is formed without the port.
-
-=back
-
-The option I<DB Login Mode> has no meaning if the SQLite driver is in use.
 
 =head3 Insert
 
@@ -503,7 +487,7 @@ Sub-members (keys):
         sqlite_unicode              (0,1)           user                              user
         sqlite_see_if_its_a_number  (0,1)           host                              host
         binary_filter               (0,1)           port                              port
-        db_search_path¹                             mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
+        directories_sqlite¹                         mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
                                                     binary_filter      (0,1)          binary_filter   (0,1)
 
 ¹ only with the C<SQLite> driver: expects an array-reference as its value. C<db-browser> searches for SQLite databases in the
@@ -516,7 +500,7 @@ Examples
     {                                                           {
         "*SQLite" : {                                               "*mysql" : {
             "binary_filter" : 0,                                        "binary_filter" : 0,
-            "db_search_path" : [                                        "host" : "localhost",
+            "directories_sqlite" : [                                    "host" : "localhost",
                 "/home/my/Documents",                                   "mysql_enable_utf8" : 1,
                 "/home/my/databases"                                    "port" : null,
             ],                                                          "user" : "name"

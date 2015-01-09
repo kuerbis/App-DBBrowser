@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.992';
+our $VERSION = '0.993';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser database plugin documentation.
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =head1 DESCRIPTION
 
@@ -34,7 +34,10 @@ Column names passed as arguments are already quoted with the C<DBI> C<quote_iden
 
 =head1 PLUGIN API VERSION
 
-This documentation describes the plugin API version C<1.0>.
+This documentation describes the plugin API version C<1.1>.
+
+Plugins which comply with the plugin API version C<1.0> are still supported partially but the support for these plugins
+will be removed soon so it is recommended to update these plugins to comply with the plugin API version C<1.1>.
 
 =head1 METHODS
 
@@ -48,21 +51,14 @@ The constructor method.
 
 A reference to a hash. The hash entries are:
 
-        app_dir             # path application directoriy
+        app_dir             # path to the application directoriy
         db_plugin           # name of the database plugin
         metadata            # true or false
-
-                            # ask     use environment variable    don't ask
-        login_mode_host     # 0       1                           2
-        login_mode_port     # 0       1                           2
-        login_mode_user     # 0       1
-        login_mode_pass     # 0       1
-
 
         # SQLite only:
         sqlite_search       if true, don't use cached database names
         db_cache_file       path to the file with the cached database names
-        db_search_path      directories where to search for databases
+        directories_sqlite  directories where to search for databases
 
 =item return
 
@@ -84,11 +80,14 @@ sub new {
         sqlite_search       => $info->{sqlite_search},
         clear_screen        => $info->{clear_screen},
         metadata            => $opt->{metadata},
-        db_search_path      => $opt->{SQLite}{db_search_path},
-        login_mode_host     => $opt->{login_host},
-        login_mode_port     => $opt->{login_port},
-        login_mode_user     => $opt->{login_user},
-        login_mode_pass     => $opt->{login_pass},
+        directories_sqlite  => $opt->{SQLite}{directories_sqlite},
+        ##################################### 1.0 ###################################
+        db_search_path  => $opt->{SQLite}{directories_sqlite},
+        login_mode_host => 0, #$opt->{login_host},
+        login_mode_port => 0, #$opt->{login_port},
+        login_mode_user => 0, #$opt->{login_user},
+        login_mode_pass => 0, #$opt->{login_pass},
+        #############################################################################
     } );
     bless { Plugin => $plugin }, $class;
 }
@@ -133,7 +132,7 @@ none
 
 =item return
 
-The C<DBI> database driver name used by the plugin.
+The name of the C<DBI> database driver used by the plugin.
 
 =back
 
@@ -166,8 +165,107 @@ The driver-private prefix.
 sub driver_prefix {
     my ( $self ) = @_;
     my $driver_prefix = $self->{Plugin}->driver_prefix();
-    $driver_prefix .= '_' if $driver_prefix !~ /_\z/;
+    if ( defined $driver_prefix && $driver_prefix !~ /_\z/ ) {
+        $driver_prefix .= '_';
+    }
     return $driver_prefix;
+}
+
+
+
+=head2 login_data
+
+=over
+
+=item Arguments
+
+none
+
+=item return
+
+A reference to an array of hashes. The hashes have three key-value pairs:
+
+    { name => 'string', prompt => 'string', keep_secret => true/false }
+
+C<name> holds the name of the login data for example like "user" or "host".
+
+The value of C<prompt> is used as the prompt string, when the user is asked for the login data.
+
+If C<keep_secret> is true, the user input should not be echoed to the terminal. Also the login data is not stored in the
+plugin configuration file if C<keep_secret> is true.
+
+=back
+
+An example C<login_data> method:
+
+    sub login_data {
+        my ( $self ) = @_;
+        return [
+            { name => 'host', prompt => "Host",     keep_secret => 0 },
+            { name => 'port', prompt => "Port",     keep_secret => 0 },
+            { name => 'user', prompt => "User",     keep_secret => 0 },
+            { name => 'pass', prompt => "Password", keep_secret => 1 },
+        ];
+    }
+
+The information returned by method C<login_data> is used to build the entries of the C<db-browser> options I<DB Login Mode> and
+I<DB Login Data>.
+
+=cut
+
+sub login_data {
+    my ( $self ) = @_;
+    ############################################# 1.0 ##############################
+    my $plugin_api_version = $self->{Plugin}->plugin_api_version();
+    return if $plugin_api_version && $plugin_api_version == 1.0;
+    ################################################################################
+    my $login_data = $self->{Plugin}->login_data();
+    return $login_data;
+}
+
+
+
+
+=head2 connect_attributes
+
+=over
+
+=item Arguments
+
+none
+
+=item return
+
+A reference to an array of hashes. The hashes have three key-value pairs:
+
+    { name => 'string', default_index => index, avail_values => [ value_1, value_2, value_3, ... ] }
+
+The value of C<name> is the name of the database connection attribute.
+
+C<avail_values> holds the available values for that connection attribute as an array reference.
+
+The C<avail_values> array entry of the index position C<default_index> is used as default value.
+
+=back
+
+Example form the plugin C<App::DBBrowser::DB::SQLite>:
+
+    sub connect_attributes {
+        my ( $self ) = @_;
+        return [
+            { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
+            { name => 'sqlite_see_if_its_a_number', default_index => 1, avail_values => [ 0, 1 ] },
+        ];
+    }
+
+=cut
+
+sub connect_attributes {
+    my ( $self ) = @_;
+    return [] if ! $self->{Plugin}->can( 'connect_attributes' );
+    my $connect_attributes = $self->{Plugin}->connect_attributes();
+    return [] if ! defined $connect_attributes;
+    return $connect_attributes;
 }
 
 
@@ -179,7 +277,7 @@ sub driver_prefix {
 =item Arguments
 
 A reference to a hash. If C<available_databases> uses the C<get_db_handle> method, the hash reference can be
-passed to C<get_db_handle> as the second argument.
+passed to C<get_db_handle> as the second argument. See L</get_db_handle> for more info.
 
 =item return
 
@@ -206,22 +304,58 @@ sub available_databases {
 
 =item Arguments
 
-The database name and a hash reference with connection data.
+The database name and a reference to a hash of hashes.
 
-The hash reference provides the settings from the option I<Database settings>.
+The hash of hashes provides the settings gathered from the option I<Database settings>.
 
-The hash entry C<attributes> holds connection attributes as a hash reference.
-
-    {
-        host       => 'host',
-        port       => 'port',
-        user       => 'user',
+    $connect_parameter = {
         attributes => {
-            key => value,
+            connect_attribute => chosen value,
+            connect_attribute => chosen value,
             ...
         },
-        ...
-    }
+        login_mode => {         # ask   use environment variable   don't ask
+            name => 0, 1 or 2,  # 0     1                          2
+            name => 0, 1 or 2,  # 0     1                          2
+            ...
+        },
+        login_data => {
+            name => user input,
+            name => user input,
+            ...
+        },
+        keep_secret = {
+            name => true or false,
+            name => true or false,
+            ...
+        },
+    };
+
+For example for the plugin C<mysql> the hash of hashes held by C<$connect_parameter> could look like this:
+
+    $connect_parameter = {
+        login_data => {
+            host => undef,
+            pass => undef,
+            user => 'db_user_name',
+            port => undef
+        },
+        attributes => {
+            mysql_enable_utf8 => 1
+        },
+        login_mode => {
+            port => 2,      # don't ask
+            user => 1,      # use environment variable if available
+            pass => 1,      # use environment variable if available
+            host => 2       # don't ask
+        },
+        keep_secret => {
+            port => 0,
+            host => 0,
+            pass => 1,
+            user => 0
+        }
+    };
 
 =item return
 

@@ -18,7 +18,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'Pg';
     $opt->{driver_prefix} = 'pg';
-    $opt->{plugin_api_version} = 1.0;
+    $opt->{plugin_api_version} = 1.1;
     bless $opt, $class;
 }
 
@@ -41,13 +41,35 @@ sub driver_prefix {
 }
 
 
+sub login_data {
+    my ( $self ) = @_;
+    return [
+        { name => 'host', prompt => "Host",     keep_secret => 0 },
+        { name => 'port', prompt => "Port",     keep_secret => 0 },
+        { name => 'user', prompt => "User",     keep_secret => 0 },
+        { name => 'pass', prompt => "Password", keep_secret => 1 },
+    ];
+}
+
+
+sub connect_attributes {
+    my ( $self ) = @_;
+    return [
+        { name => 'pg_enable_utf8', default_index => 2, avail_values => [ 0, 1, -1 ] },
+    ];
+}
+
+
 sub get_db_handle {
     my ( $self, $db, $connect_parameter ) = @_;
-    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( { connect_arg => $connect_parameter } );
-    my $host   = $obj_db_cred->get_login( 'host', $self->{login_mode_host} );
-    my $port   = $obj_db_cred->get_login( 'port', $self->{login_mode_port} );
-    my $user   = $obj_db_cred->get_login( 'user', $self->{login_mode_user} );
-    my $passwd = $obj_db_cred->get_login( 'pass', $self->{login_mode_pass} );
+    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( {
+        connect_parameter => $connect_parameter,
+        plugin_api_version => $self->plugin_api_version()
+    } );
+    my $host   = $obj_db_cred->get_login( 'host' );
+    my $port   = $obj_db_cred->get_login( 'port' );
+    my $user   = $obj_db_cred->get_login( 'user' );
+    my $passwd = $obj_db_cred->get_login( 'pass' );
     my $dsn  = "dbi:$self->{db_driver}:dbname=$db";
     $dsn .= ";host=$host" if length $host;
     $dsn .= ";port=$port" if length $port;

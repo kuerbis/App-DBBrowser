@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.992';
+our $VERSION = '0.993';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -127,22 +127,69 @@ sub __init {
 
 sub __prepare_connect_parameter {
     my ( $self, $db ) = @_;
-    my $connect_parameter = { attributes => {} };
-    my $db_plugin = $self->{info}{db_plugin};
-    my $db_key    = $db_plugin . '_' . $db;
-    for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
-        my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
-        if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+    ######################################################## 1.0 ###############################################
+    my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+    my $plugin_api_version = $obj_db->plugin_api_version();
+    if ( defined $plugin_api_version && $plugin_api_version == 1.0 ) {
+        my $connect_parameter = { attributes => {} };
+        my $db_plugin = $self->{info}{db_plugin};
+        my $db_key    = $db_plugin . '_' . $db;
+        for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
+            my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
+            if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+                $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
+            }
+            else {
+                next if $self->{opt}{$db_plugin}{error} && $option =~ /^(?:host|port|user|pass)/;
+                $connect_parameter->{$option} = $self->{opt}{$section}{$option};
+            }
+        }
+        delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error};
+        return $connect_parameter;
+    }
+    else {
+    ############################################################################################################
+        #my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        my $connect_attr = $obj_db->connect_attributes();
+        my $login_data = $obj_db->login_data();
+        my @keys_attr  = map { $_->{name} } @$connect_attr;
+        my @keys_login = map { $_->{name} } @$login_data;
+        my $connect_parameter = {
+            attributes => {},
+            login_data => {},
+            login_mode => {},
+        };
+        my $db_plugin = $self->{info}{db_plugin};
+        my $db_key    = $db_plugin . '_' . $db;
+        for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
+            my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
+            if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
+                $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
+            }
+        }
+        for my $option ( @keys_attr ) {
+            my $section = defined $self->{opt}{$db_key}{$option} ? $db_key : $db_plugin;
             $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
         }
-        else {
-            next if $self->{opt}{$db_plugin}{error} && $option =~ /^(?:host|port|user|pass)/;
-            $connect_parameter->{$option} = $self->{opt}{$section}{$option};
+        for my $item ( @$login_data ) {
+            my $name = $item->{name};
+            my $login_mode_key = 'login_mode_' . $name;
+            $connect_parameter->{keep_secret}{$name} = $item->{keep_secret};
+            my $section = defined $self->{opt}{$db_key}{$login_mode_key} ? $db_key : $db_plugin;
+            $connect_parameter->{login_mode}{$name} = $self->{opt}{$section}{$login_mode_key};
+            if ( ! $self->{opt}{$db_plugin}{error} ) {
+                my $section = defined $self->{opt}{$db_key}{$name} ? $db_key : $db_plugin;
+                $connect_parameter->{login_data}{$name} = $self->{opt}{$section}{$name};
+            }
         }
-    }
-    delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error};
-    return $connect_parameter;
+        delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error};
+        return $connect_parameter;
+    } ###########
 }
+
+
+
+
 
 
 sub run {
@@ -163,7 +210,7 @@ sub run {
             # Choose
             $db_plugin = $lyt_3->choose(
                 [ undef, @{$self->{opt}{db_plugins}} ],
-                { %{$self->{info}{lyt_1}}, prompt => 'Database Driver: ', undef => $self->{info}{quit} }
+                { %{$self->{info}{lyt_1}}, prompt => 'DB Plugin: ', undef => $self->{info}{quit} }
             );
             last DB_PLUGIN if ! defined $db_plugin;
         }
@@ -173,7 +220,33 @@ sub run {
             $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
             $self->{info}{db_driver} = $obj_db->db_driver();
             die "No database driver!" if ! $self->{info}{db_driver};
-            $self->{info}{driver_prefix} = $obj_db->driver_prefix();
+            $self->{info}{driver_prefix} = $obj_db->driver_prefix(); #
+            #############################################  1.0 ####################################################
+            $self->{info}{plugin_api_version} = $obj_db->plugin_api_version();
+            if ( ! $self->{info}{plugin_api_version} || $self->{info}{plugin_api_version} > 1.0 ) {
+                my $connect_attr = $obj_db->connect_attributes();
+                for my $item ( @$connect_attr ) {
+                    if ( ! defined $self->{opt}{$db_plugin}{$item->{name}} ) {
+                        $self->{opt}{$db_plugin}{$item->{name}} = $item->{default_index};
+                    }
+                }
+                my $login_mode = $obj_db->login_data();
+                for my $item ( @$login_mode ) {
+                    my $login_mode_key = 'login_mode_' . $item->{name};
+                    if ( ! defined $self->{opt}{$db_plugin}{$login_mode_key} ) {
+                        $self->{opt}{$db_plugin}{$login_mode_key} = 0;
+                    }
+                }
+                if ( ! defined $self->{opt}{$db_plugin}{binary_filter} ) {
+                    $self->{opt}{$db_plugin}{binary_filter} = 0;
+                }
+                if ( $self->{info}{db_driver} eq 'SQLite' ) {
+                    if ( ! exists $self->{opt}{$db_plugin}{directories_sqlite} ) {
+                        $self->{opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
+                    }
+                }
+            }
+            #######################################################################################################
             1 }
         ) {
             $auxil->__print_error_message( $@, 'DB plugin - driver - prefix' );
@@ -487,7 +560,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =head1 DESCRIPTION
 

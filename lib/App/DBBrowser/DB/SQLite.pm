@@ -23,7 +23,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.0;
+    $opt->{plugin_api_version} = 1.1;
     bless $opt, $class;
 }
 
@@ -43,6 +43,21 @@ sub db_driver {
 sub driver_prefix {
     my ( $self ) = @_;
     return $self->{driver_prefix};
+}
+
+
+sub login_data {
+    my ( $self ) = @_;
+    return [];
+}
+
+
+sub connect_attributes {
+    my ( $self ) = @_;
+    return [
+        { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
+        { name => 'sqlite_see_if_its_a_number', default_index => 1, avail_values => [ 0, 1 ] },
+    ];
 }
 
 
@@ -86,7 +101,7 @@ sub get_db_handle {
 sub available_databases {
     my ( $self ) = @_;
     return \@ARGV if @ARGV;
-    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$self->{db_search_path}};
+    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$self->{directories_sqlite}};
     my $auxil = App::DBBrowser::Auxil->new();
     my $db_cache = $auxil->read_json( $self->{db_cache_file} );
     if ( $self->{sqlite_search} ) {
@@ -95,7 +110,7 @@ sub available_databases {
     my $databases = [];
     if ( ! defined $db_cache->{$cache_key} ) {
         print 'Searching...' . "\n";
-        for my $dir ( @{$self->{db_search_path}} ) {
+        for my $dir ( @{$self->{directories_sqlite}} ) {
             File::Find::find( {
                 wanted => sub {
                     my $file = $_;

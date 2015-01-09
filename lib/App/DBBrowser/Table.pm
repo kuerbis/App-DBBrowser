@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.992';
+our $VERSION = '0.993';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -802,7 +802,7 @@ sub __on_table {
                 my @pre = ( undef, $self->{info}{_confirm} );
                 my $prompt = 'Choose:';
                 if ( $sql_type eq 'Select' ) {
-                    unshift @pre, $choose_type if $pre[0] ne $choose_type;
+                    unshift @pre, $choose_type if ! defined $pre[0] || $pre[0] ne $choose_type;
                     $prompt = '';
                     $default = 1;
                 }
@@ -934,8 +934,7 @@ sub __on_table {
             my $all_arrayref = $sth->fetchall_arrayref;
             unshift @$all_arrayref, $col_names;
             print $self->{info}{clear_screen};
-            # return $sql explicitly even it is passed by reference since
-            # after a `$sql = clone( $backup )` $sql refers to a different hash.
+            # return $sql explicitly since after a `$sql = clone( $backup )` $sql refers to a different hash.
             return $all_arrayref, $sql;
         }
         elsif ( $custom eq $customize{'commit'} ) {
