@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.994';
+our $VERSION = '0.995';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -46,7 +46,6 @@ sub __insert_into {
 
     COL_NAMES: while ( 1 ) {
         my @pre = ( $self->{info}{ok} );
-        unshift @pre, undef if $self->{opt}{G}{sssc_mode};
         my $choices = [ @pre, @cols ];
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
@@ -139,7 +138,6 @@ sub __insert_into {
                     push @{$sql->{quote}{insert_into_args}}, [ $csv->fields() ];
                 }
                 my $choices = [ $last, $add, $del ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 my $default = ( all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ) ? 2 : 1;
 
                 ASK: while ( 1 ) {
@@ -409,7 +407,6 @@ sub __filter_input {
 
             COLS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my $choices = [ @pre, map { "col_$_" } 1 .. @{$sql->{quote}{insert_into_args}[0]} ];
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', map { $_ + 1 } @col_idx if @col_idx;

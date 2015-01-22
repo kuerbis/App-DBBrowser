@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.994';
+our $VERSION = '0.995';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -122,7 +122,6 @@ sub __init {
             $self->{info}{$key}{mouse} = $self->{opt}{G}{mouse};
         }
     }
-    $self->{info}{ok} = '<OK>' if $self->{opt}{G}{sssc_mode};
 }
 
 
@@ -526,7 +525,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.994
+Version 0.995
 
 =head1 DESCRIPTION
 

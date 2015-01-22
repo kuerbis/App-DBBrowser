@@ -1,9 +1,13 @@
 Revision history for App-DBBrowser
 
 
+0.995   2015-01-22
+        - Removed option "sssc_mode".
+        - Update documentation.
+
 0.994   2015-01-22
-        - Bufixes database setting default values.
-        - Bufixes if "__read_confi_files" and "__write_config_files".
+        - Bugfixes database setting default values.
+        - Bugfixes in "__read_config_files" and "__write_config_files".
         - Code refactoring.
         - Update documentation.
 

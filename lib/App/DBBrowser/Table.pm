@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.994';
+our $VERSION = '0.995';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -129,7 +129,6 @@ sub __on_table {
 
             COLUMNS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my $choices = [ @pre, @cols ];
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -174,7 +173,6 @@ sub __on_table {
 
             DISTINCT: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, $DISTINCT, $ALL ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $select_distinct = $stmt_h->choose(
@@ -209,7 +207,6 @@ sub __on_table {
 
             AGGREGATE: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @{$self->{info}{avail_aggregate}} ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $aggr = $stmt_h->choose(
@@ -245,7 +242,6 @@ sub __on_table {
                     $sql->{print}{aggr_cols}[$i] = $aggr . "(";
                     if ( $aggr eq 'COUNT' ) {
                         my $choices = [ $ALL, $DISTINCT ];
-                        unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                         $auxil->__print_sql_statement( $sql, $table, $sql_type );
                         # Choose
                         my $all_or_distinct = $stmt_h->choose(
@@ -262,7 +258,6 @@ sub __on_table {
                         }
                     }
                     my $choices = [ @cols ];
-                    unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                     $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     my $print_col = $stmt_h->choose(
@@ -294,7 +289,6 @@ sub __on_table {
 
             SET: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my $choices = [ @pre, @cols ];
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -359,7 +353,6 @@ sub __on_table {
 
             WHERE: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my @choices = @cols;
                 if ( $self->{opt}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -401,7 +394,6 @@ sub __on_table {
                 }
                 if ( $count > 0 && $sql->{quote}{where_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
-                    unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                     $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
@@ -454,7 +446,6 @@ sub __on_table {
 
             GROUP_BY: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my $choices = [ @pre, @cols ];
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -518,7 +509,6 @@ sub __on_table {
 
             HAVING: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my @choices = ( @{$self->{info}{avail_aggregate}}, map( '@' . $_, @{$sql->{print}{aggr_cols}} ) );
                 if ( $self->{opt}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -560,7 +550,6 @@ sub __on_table {
                 }
                 if ( $count > 0 && $sql->{quote}{having_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
-                    unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                     $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
@@ -607,7 +596,6 @@ sub __on_table {
                     $quote_aggr                 =           $aggr . "(";
                     $print_aggr                 =           $aggr . "(";
                     my $choices = [ @cols ];
-                    unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                     $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Choose
                     $print_col = $stmt_h->choose(
@@ -653,7 +641,6 @@ sub __on_table {
 
             ORDER_BY: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @cols ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
@@ -683,7 +670,6 @@ sub __on_table {
                 $sql->{quote}{order_by_stmt} .= $col_sep . $quote_col;
                 $sql->{print}{order_by_stmt} .= $col_sep . $print_col;
                 $choices = [ $ASC, $DESC ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $direction = $stmt_h->choose(
@@ -709,7 +695,6 @@ sub __on_table {
             LIMIT: while ( 1 ) {
                 my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
                 my $choices = [ $self->{info}{ok}, $only_limit, $offset_and_limit ];
-                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
                 my $choice = $stmt_h->choose(
@@ -1071,7 +1056,6 @@ sub __set_operator_sql {
         $args = 'having_args';
     }
     my $choices = [ @{$self->{opt}{G}{operators}} ];
-    unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
     $auxil->__print_sql_statement( $sql, $table, $sql_type );
     # Choose
     my $operator = $stmt_h->choose(
@@ -1197,7 +1181,6 @@ sub __set_operator_sql {
         $sql->{quote}{$stmt} .= ' ' . $operator;
         $sql->{print}{$stmt} .= ' ' . $operator;
         my $choices = [ @$cols ];
-        unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my $print_col = $stmt_h->choose(

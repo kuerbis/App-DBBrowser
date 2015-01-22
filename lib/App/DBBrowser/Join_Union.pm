@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.994';
+our $VERSION = '0.995';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -105,7 +105,6 @@ sub __union_tables {
             my ( $all_cols, $privious_cols, $void ) = ( q['*'], q['^'], q[' '] );
             my @short_cuts = ( ( @{$union->{saved_cols}} ? $privious_cols : $void ), $all_cols );
             my @pre_col = ( $self->{info}{ok}, @short_cuts );
-            unshift @pre_col, undef if $self->{opt}{G}{sssc_mode};
             my $choices = [ @pre_col, @{$u->{col_names}{$union_table}} ];
             $self->__print_union_statement( $union );
             # Choose
@@ -129,13 +128,11 @@ sub __union_tables {
             }
             elsif ( $col[0] eq $privious_cols ) {
                 $union->{used_cols}{$union_table} = $union->{saved_cols};
-                next UNION_COLUMN if $self->{opt}{G}{sssc_mode};
                 last UNION_COLUMN;
             }
             elsif ( $col[0] eq $all_cols ) {
                 @{$union->{used_cols}{$union_table}} = @{$u->{col_names}{$union_table}};
                 $union->{saved_cols} = $union->{used_cols}{$union_table};
-                next UNION_COLUMN if $self->{opt}{G}{sssc_mode};
                 last UNION_COLUMN;
             }
             elsif ( $col[0] eq $self->{info}{ok} ) {

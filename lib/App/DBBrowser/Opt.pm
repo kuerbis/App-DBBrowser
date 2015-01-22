@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.994';
+our $VERSION = '0.995';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -37,7 +37,6 @@ sub defaults {
             menu_sql_memory      => 0,
             menus_db_memory      => 0,
             table_expand         => 1,
-            sssc_mode            => 0,
             lock_stmt            => 0,
             mouse                => 0,
             thsd_sep             => ',',
@@ -254,7 +253,6 @@ sub __menus {
             [ '_menu_memory',  "- Menu Memory" ],
             [ '_table_expand', "- Table" ],
             [ 'mouse',         "- Mouse Mode" ],
-            [ 'sssc_mode',     "- Sssc Mode" ],
         ],
         config_sql => [
             [ 'max_rows',     "- Max Rows" ],
@@ -403,12 +401,6 @@ sub set_options {
             }
             elsif ( $name eq '_db_defaults' ) {
                 $self->database_setting();
-            }
-            elsif ( $name eq 'sssc_mode' ) {
-                my $prompt = 'Sssc mode: ';
-                my $list = [ 'simple', 'compat' ];
-                my $sub_menu = [ [ $name, "  Sssc Mode", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
             }
             elsif ( $name eq 'operators' ) {
                 my $available = $self->{info}{avail_operators};
