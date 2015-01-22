@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+0.994   2015-01-22
+        - Bufixes database setting default values.
+        - Bufixes if "__read_confi_files" and "__write_config_files".
+        - Code refactoring.
+        - Update documentation.
+
 0.993   2015-01-09
         - Bugfix: Table/hidden menu.
         - Plugin API version 1.1.

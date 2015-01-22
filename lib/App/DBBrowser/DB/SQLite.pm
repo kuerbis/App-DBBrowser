@@ -23,7 +23,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.1;
+    $opt->{plugin_api_version} = 1.2;
     bless $opt, $class;
 }
 
@@ -99,9 +99,9 @@ sub get_db_handle {
 
 
 sub available_databases {
-    my ( $self ) = @_;
+    my ( $self, $connect_parameter ) = @_;
     return \@ARGV if @ARGV;
-    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$self->{directories_sqlite}};
+    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$connect_parameter->{dir_sqlite}};
     my $auxil = App::DBBrowser::Auxil->new();
     my $db_cache = $auxil->read_json( $self->{db_cache_file} );
     if ( $self->{sqlite_search} ) {
@@ -154,12 +154,12 @@ sub get_table_names {
     my ( $self, $dbh, $schema ) = @_;
     my $regexp_system_tbl = '^sqlite_';
     my $stmt = "SELECT name FROM sqlite_master WHERE type = 'table'";
-    if ( ! $self->{metadata} ) {
+    if ( ! $self->{add_metadata} ) {
         $stmt .= " AND name NOT REGEXP ?";
     }
     $stmt .= " ORDER BY name";
-    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : ( $regexp_system_tbl ) );
-    if ( $self->{metadata} ) {
+    my $tables = $dbh->selectcol_arrayref( $stmt, {}, $self->{add_metadata} ? () : ( $regexp_system_tbl ) );
+    if ( $self->{add_metadata} ) {
         my $user_tbl   = [];
         my $system_tbl = [];
         for my $table ( @{$tables} ) {

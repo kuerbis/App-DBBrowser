@@ -18,7 +18,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'Pg';
     $opt->{driver_prefix} = 'pg';
-    $opt->{plugin_api_version} = 1.1;
+    $opt->{plugin_api_version} = 1.2;
     bless $opt, $class;
 }
 
@@ -89,7 +89,7 @@ sub available_databases {
     return \@ARGV if @ARGV;
     my @regex_system_db = ( '^postgres$', '^template0$', '^template1$' );
     my $stmt = "SELECT datname FROM pg_database";
-    if ( ! $self->{metadata} ) {
+    if ( ! $self->{add_metadata} ) {
         $stmt .= " WHERE " . join( " AND ", ( "datname !~ ?" ) x @regex_system_db );
     }
     $stmt .= " ORDER BY datname";
@@ -97,9 +97,9 @@ sub available_databases {
     print $self->{clear_screen};
     print "DB: $info_database\n";
     my $dbh = $self->get_db_handle( $info_database, $connect_parameter );
-    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
+    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{add_metadata} ? () : @regex_system_db );
     $dbh->disconnect(); ##
-    if ( $self->{metadata} ) {
+    if ( $self->{add_metadata} ) {
         my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
         my $system_db = [];
@@ -123,12 +123,12 @@ sub get_schema_names {
     my ( $self, $dbh, $db ) = @_;
     my @regex_system_sma = ( '^pg_', '^information_schema$' );;
     my $stmt = "SELECT schema_name FROM information_schema.schemata";
-    if ( ! $self->{metadata} ) {
+    if ( ! $self->{add_metadata} ) {
         $stmt .= " WHERE " . join( " AND ", ( "schema_name !~ ?" ) x @regex_system_sma );
     }
     $stmt .= " ORDER BY schema_name";
-    my $schemas = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_sma );
-    if ( $self->{metadata} ) {
+    my $schemas = $dbh->selectcol_arrayref( $stmt, {}, $self->{add_metadata} ? () : @regex_system_sma );
+    if ( $self->{add_metadata} ) {
         my $regexp = join '|', @regex_system_sma;
         my $user_sma   = [];
         my $system_sma = [];

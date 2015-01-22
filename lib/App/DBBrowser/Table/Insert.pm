@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.993';
+our $VERSION = '0.994';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -46,7 +46,7 @@ sub __insert_into {
 
     COL_NAMES: while ( 1 ) {
         my @pre = ( $self->{info}{ok} );
-        unshift @pre, undef if $self->{opt}{sssc_mode};
+        unshift @pre, undef if $self->{opt}{G}{sssc_mode};
         my $choices = [ @pre, @cols ];
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
@@ -95,15 +95,15 @@ sub __insert_into {
 
     VALUES: while ( 1 ) {
         my $input_mode;
-        if ( @{$self->{opt}{input_modes}} == 1 ) {
-            $input_mode = $self->{opt}{input_modes}[0];
+        if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
+            $input_mode = $self->{opt}{insert}{input_modes}[0];
         }
         else {
             my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
             $input_mode = $stmt_v->choose(
-                [ undef, map( "- $_", @{$self->{opt}{input_modes}} ) ],
+                [ undef, map( "- $_", @{$self->{opt}{insert}{input_modes}} ) ],
                 { prompt => 'Input mode: ', justify => 0 }
             );
             if ( ! defined $input_mode ) {
@@ -126,7 +126,7 @@ sub __insert_into {
                     }
                 }
                 elsif ( $input_mode eq 'Rows' ) {
-                    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
+                    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{insert}{$_} } @{$self->{info}{csv_opt}} } );
                     $auxil->__print_sql_statement( $sql, $table, $sql_type );
                     # Readline
                     my $row = $trs->readline( 'Row: ' );
@@ -139,7 +139,7 @@ sub __insert_into {
                     push @{$sql->{quote}{insert_into_args}}, [ $csv->fields() ];
                 }
                 my $choices = [ $last, $add, $del ];
-                unshift @$choices, undef if $self->{opt}{sssc_mode};
+                unshift @$choices, undef if $self->{opt}{G}{sssc_mode};
                 my $default = ( all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ) ? 2 : 1;
 
                 ASK: while ( 1 ) {
@@ -178,17 +178,17 @@ sub __insert_into {
                 # STDIN
                 my $input = read_file( \*STDIN );
                 ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
-                binmode $fh, ':encoding(' . $self->{opt}{encoding_csv_file} . ')';
+                binmode $fh, ':encoding(' . $self->{opt}{insert}{encoding_csv_file} . ')';
                 print $fh $input;
                 seek $fh, 0, 0;
-                if ( $self->{opt}{csv_read} < 2 ) {
+                if ( $self->{opt}{insert}{csv_read} < 2 ) {
                     $file = $fh;
                 }
                 ( $sql->{quote}{insert_into_args}, $sheet_idx ) = $self->__parse_file( $file );
                 if ( ! @{$sql->{quote}{insert_into_args}} ) {
                     my $cm = Term::Choose->new( { prompt => 'Press ENTER' } );
                     $cm->choose( [ 'empty sheet!' ] );
-                    if ( @{$self->{opt}{input_modes}} == 1 ) {
+                    if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                         $sql->{quote}{chosen_cols} = [];
                         $sql->{print}{chosen_cols} = [];
                         return;
@@ -197,7 +197,7 @@ sub __insert_into {
                 }
                 $self->__filter_input( $sql, $table, $sql_type, $file, $sheet_idx );
                 if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                    if ( @{$self->{opt}{input_modes}} == 1 ) {
+                    if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                         $sql->{quote}{chosen_cols} = [];
                         $sql->{print}{chosen_cols} = [];
                         return;
@@ -208,7 +208,7 @@ sub __insert_into {
             elsif ( $input_mode eq 'File' ) {
                 FILE: while ( 1 ) {
                     my @files;
-                    if ( $self->{opt}{max_files} && -e $self->{info}{input_files} ) {
+                    if ( $self->{opt}{insert}{max_files} && -e $self->{info}{input_files} ) {
                         open my $fh_in, '<', $self->{info}{input_files} or die $!;
                         while ( my $f = <$fh_in> ) {
                             chomp $f;
@@ -234,7 +234,7 @@ sub __insert_into {
                             { %{$self->{info}{lyt_stmt_v}} }
                         );
                         if ( ! defined $file ) {
-                            if ( @{$self->{opt}{input_modes}} == 1 ) {
+                            if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                                 $sql->{quote}{chosen_cols} = [];
                                 $sql->{print}{chosen_cols} = [];
                                 return;
@@ -248,7 +248,7 @@ sub __insert_into {
                         # Readline
                         $file = $trs->readline( 'Path to file: ' );
                         if ( ! defined $file || ! length $file ) {
-                            if ( @{$self->{opt}{input_modes}} == 1 ) {
+                            if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                                 $sql->{quote}{chosen_cols} = [];
                                 $sql->{print}{chosen_cols} = [];
                                 return;
@@ -256,13 +256,13 @@ sub __insert_into {
                             next VALUES;
                         }
                         $file = realpath encode 'locale_fs', $file;
-                        if ( $self->{opt}{max_files} ) {
+                        if ( $self->{opt}{insert}{max_files} ) {
                             my $i = first_index { $file eq $_ } @files;
                             if ( $i > -1  ) {
                                 splice @files, $i, 1;
                             }
                             push @files, $file;
-                            while ( @files > $self->{opt}{max_files} ) {
+                            while ( @files > $self->{opt}{insert}{max_files} ) {
                                 shift @files;
                             }
                             open my $fh_out, '>', $self->{info}{input_files} or die $!;
@@ -275,8 +275,8 @@ sub __insert_into {
                     else {
                         $file = realpath encode 'locale_fs', $file;
                     }
-                    if ( $self->{opt}{csv_read} < 2 && -T $file ) {
-                        open my $fh, '<:encoding(' . $self->{opt}{encoding_csv_file} . ')', $file or die $!;
+                    if ( $self->{opt}{insert}{csv_read} < 2 && -T $file ) {
+                        open my $fh, '<:encoding(' . $self->{opt}{insert}{encoding_csv_file} . ')', $file or die $!;
                         $file = $fh;
                     }
                     ( $sql->{quote}{insert_into_args}, $sheet_idx ) = $self->__parse_file( $file );
@@ -308,8 +308,8 @@ sub __parse_file {
     if ( ref $file eq 'GLOB' ) {
         seek $file, 0, 0;
         my $tmp = [];
-        if ( $self->{opt}{csv_read} == 0 ) {
-            my $csv = Text::CSV->new( { map { $_ => $self->{opt}{$_} } @{$self->{info}{csv_opt}} } );
+        if ( $self->{opt}{insert}{csv_read} == 0 ) {
+            my $csv = Text::CSV->new( { map { $_ => $self->{opt}{insert}{$_} } @{$self->{info}{csv_opt}} } );
             while ( my $row = $csv->getline( $file ) ) {
                 push @$tmp, $row;
             }
@@ -317,8 +317,8 @@ sub __parse_file {
         else {
             while ( my $row = <$file> ) {
                 chomp $row;
-                push @$tmp, [ parse_line( $self->{opt}{delim}, $self->{opt}{keep}, $row ) ];
-                #push @$tmp, [ split $self->{opt}{delim}, $row ];
+                push @$tmp, [ parse_line( $self->{opt}{insert}{delim}, $self->{opt}{insert}{keep}, $row ) ];
+                #push @$tmp, [ split $self->{opt}{insert}{delim}, $row ];
             }
         }
         return $tmp;
@@ -409,7 +409,7 @@ sub __filter_input {
 
             COLS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
-                unshift @pre, undef if $self->{opt}{sssc_mode};
+                unshift @pre, undef if $self->{opt}{G}{sssc_mode};
                 my $choices = [ @pre, map { "col_$_" } 1 .. @{$sql->{quote}{insert_into_args}[0]} ];
                 my $prompt = 'Cols: ';
                 $prompt .= join ',', map { $_ + 1 } @col_idx if @col_idx;

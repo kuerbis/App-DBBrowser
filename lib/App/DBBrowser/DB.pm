@@ -6,17 +6,17 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.993';
+our $VERSION = '0.994';
 
 
 
 =head1 NAME
 
-App::DBBrowser database plugin documentation.
+App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.993
+Version 0.994
 
 =head1 DESCRIPTION
 
@@ -34,10 +34,18 @@ Column names passed as arguments are already quoted with the C<DBI> C<quote_iden
 
 =head1 PLUGIN API VERSION
 
-This documentation describes the plugin API version C<1.1>.
+This documentation describes the plugin API version C<1.2>.
 
-Plugins which comply with the plugin API version C<1.0> are still supported partially but the support for these plugins
-will be removed soon so it is recommended to update these plugins to comply with the plugin API version C<1.1>.
+New in C<1.2>:
+
+- the former object attribute "metadata" is now called "add_metadata".
+
+- the SQLite directories are passed directly to the C<available_databases> method (see C<$connect_parameter>) instead to
+the constructor C<new>.
+
+Supported plugin API versions: C<1.2>, C<1.1>.
+
+Support for the version C<1.1> will be removed soon.
 
 =head1 METHODS
 
@@ -53,12 +61,11 @@ A reference to a hash. The hash entries are:
 
         app_dir             # path to the application directoriy
         db_plugin           # name of the database plugin
-        metadata            # true or false
+        add_metadata        # true or false
 
         # SQLite only:
         sqlite_search       if true, don't use cached database names
         db_cache_file       path to the file with the cached database names
-        directories_sqlite  directories where to search for databases
 
 =item return
 
@@ -70,28 +77,41 @@ The object.
 
 sub new {
     my ( $class, $info, $opt ) = @_; #
-    die "Invalid character in the DB plugin name: $info->{db_plugin}" if $info->{db_plugin} !~ /^[\w_]+\z/;
+    if ( $info->{db_plugin} !~ /^[\w_]+\z/ ) {
+        die "Invalid character in the DB plugin name: $info->{db_plugin}";
+    }
+
     my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
     eval "require $db_module" or die $@;
+
+    my $directories_sqlite = $opt->{$info->{db_plugin}}{directories_sqlite};      ### 1.1
+    $directories_sqlite = [ $info->{home_dir} ] if ! defined $directories_sqlite; ### 1.1
+
+
     my $plugin = $db_module->new( {
         app_dir             => $info->{app_dir},
+        home_dir            => $info->{home_dir},
         db_plugin           => $info->{db_plugin},
         db_cache_file       => $info->{db_cache_file},
         sqlite_search       => $info->{sqlite_search},
         clear_screen        => $info->{clear_screen},
-        metadata            => $opt->{metadata},
-        directories_sqlite  => $opt->{SQLite}{directories_sqlite},
-        ##################################### 1.0 ###################################
-        db_search_path  => $opt->{SQLite}{directories_sqlite},
-        login_mode_host => 0, #$opt->{login_host},
-        login_mode_port => 0, #$opt->{login_port},
-        login_mode_user => 0, #$opt->{login_user},
-        login_mode_pass => 0, #$opt->{login_pass},
-        #############################################################################
+        metadata            => $opt->{G}{metadata}, ### 1.1
+        add_metadata        => $opt->{G}{metadata},
+        directories_sqlite  => $directories_sqlite, ### 1.1
     } );
+
+    my $minimum_pav = 1.1;
+
+    my $pav;
+    $pav = $plugin->plugin_api_version() if $plugin->can( 'plugin_api_version' );
+    if ( defined $pav && $pav < $minimum_pav ) {
+        print "Database plugin \"$info->{db_plugin}\" complies to the plugin API version $pav.\n";
+        print "Supported minimum plugin API version is $minimum_pav!\n";
+        exit;
+    }
+
     bless { Plugin => $plugin }, $class;
 }
-
 
 
 
@@ -160,6 +180,12 @@ The driver-private prefix.
 
 =back
 
+Example for the database driver C<Pg>:
+
+    sub driver_prefix {
+        return 'pg';
+    }
+
 =cut
 
 sub driver_prefix {
@@ -215,10 +241,7 @@ I<DB Login Data>.
 
 sub login_data {
     my ( $self ) = @_;
-    ############################################# 1.0 ##############################
-    my $plugin_api_version = $self->{Plugin}->plugin_api_version();
-    return if $plugin_api_version && $plugin_api_version == 1.0;
-    ################################################################################
+    return [] if ! $self->{Plugin}->can( 'login_data' );
     my $login_data = $self->{Plugin}->login_data();
     return $login_data;
 }
@@ -277,14 +300,15 @@ sub connect_attributes {
 =item Arguments
 
 A reference to a hash. If C<available_databases> uses the C<get_db_handle> method, the hash reference can be
-passed to C<get_db_handle> as the second argument. See L</get_db_handle> for more info.
+passed to C<get_db_handle> as the second argument. See L</get_db_handle> for more info about the passed hash reference.
 
 =item return
 
-If the option I<metadata> is true, C<available_databases> returns the "user-databases" as an array-reference and the
-"system-databases" (if any) as an array-reference.
+If the object attribute I<add_metadata> is true, C<available_databases> returns the "user-databases" as an
+array-reference and the "system-databases" (if any) as an array-reference.
 
-If the option I<metadata> is not true, C<available_databases> returns only the "user-databases" as an array-reference.
+If the object attribute I<add_metadata> is not true, C<available_databases> returns only the "user-databases" as an
+array-reference.
 
 =back
 
@@ -329,6 +353,10 @@ The hash of hashes provides the settings gathered from the option I<Database set
             name => true or false,
             ...
         },
+        dir_sqlite => [     # array reference with directories where to search for SQLite databases
+            /path/dir,
+            ...
+        ]
     };
 
 For example for the plugin C<mysql> the hash of hashes held by C<$connect_parameter> could look like this:
@@ -354,7 +382,7 @@ For example for the plugin C<mysql> the hash of hashes held by C<$connect_parame
             host => 0,
             pass => 1,
             user => 0
-        }
+        },
     };
 
 =item return
@@ -383,10 +411,11 @@ The database handle and the database name.
 
 =item return
 
-If the option I<metadata> is true, C<get_schema_names> returns the "user-schemas" as an array-reference and the
-"system-schemas" (if any) as an array-reference.
+If the object attribute I<add_metadata> is true, C<get_schema_names> returns the "user-schemas" as an array-reference
+and the "system-schemas" (if any) as an array-reference.
 
-If the option I<metadata> is not true, C<get_schema_names> returns only the "user-schemas" as an array-reference.
+If the object attribute I<add_metadata> is not true, C<get_schema_names> returns only the "user-schemas" as an
+array-reference.
 
 =back
 
@@ -410,10 +439,11 @@ The database handle and the schema name.
 
 =item return
 
-If the option I<metadata> is true, C<get_table_names> returns the "user-tables" as an array-reference and the
-"system-tables" (if any) as an array-reference.
+If the object attribute I<add_metadata> is true, C<get_table_names> returns the "user-tables" as an array-reference and
+the "system-tables" (if any) as an array-reference.
 
-If the option I<metadata> is not true, C<get_table_names> returns only the "user-tables" as an array-reference.
+If the object attribute I<add_metadata> is not true, C<get_table_names> returns only the "user-tables" as
+an array-reference.
 
 =back
 

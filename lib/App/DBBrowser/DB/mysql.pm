@@ -18,7 +18,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'mysql';
     $opt->{driver_prefix} = 'mysql';
-    $opt->{plugin_api_version} = 1.1;
+    $opt->{plugin_api_version} = 1.2;
     bless $opt, $class;
 }
 
@@ -51,10 +51,12 @@ sub login_data {
     ];
 }
 
+
 sub connect_attributes {
     my ( $self ) = @_;
     return [
-        { name => 'mysql_enable_utf8', default_index => 1, avail_values => [ 0, 1 ] },
+        { name => 'mysql_enable_utf8',        default_index => 1, avail_values => [ 0, 1 ] },
+        { name => 'mysql_bind_type_guessing', default_index => 1, avail_values => [ 0, 1 ] },
     ];
 }
 
@@ -88,7 +90,7 @@ sub available_databases {
     return \@ARGV if @ARGV;
     my @regex_system_db = ( '^mysql$', '^information_schema$', '^performance_schema$' );
     my $stmt = "SELECT schema_name FROM information_schema.schemata";
-    if ( ! $self->{metadata} ) {
+    if ( ! $self->{add_metadata} ) {
         $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @regex_system_db );
     }
     $stmt .= " ORDER BY schema_name";
@@ -96,9 +98,9 @@ sub available_databases {
     print $self->{clear_screen};
     print "DB: $info_database\n";
     my $dbh = $self->get_db_handle( $info_database, $connect_parameter );
-    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{metadata} ? () : @regex_system_db );
+    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{add_metadata} ? () : @regex_system_db );
     $dbh->disconnect(); #
-    if ( $self->{metadata} ) {
+    if ( $self->{add_metadata} ) {
         my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
         my $system_db = [];
