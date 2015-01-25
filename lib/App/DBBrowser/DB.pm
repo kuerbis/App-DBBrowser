@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.995
+Version 0.996
 
 =head1 DESCRIPTION
 
@@ -64,8 +64,8 @@ A reference to a hash. The hash entries are:
         add_metadata        # true or false
 
         # SQLite only:
-        sqlite_search       if true, don't use cached database names
-        db_cache_file       path to the file with the cached database names
+        sqlite_search       # if true, don't use cached database names
+        db_cache_file       # path to the file with the cached database names
 
 =item return
 
@@ -84,10 +84,6 @@ sub new {
     my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
     eval "require $db_module" or die $@;
 
-    my $directories_sqlite = $opt->{$info->{db_plugin}}{directories_sqlite};      ### 1.1
-    $directories_sqlite = [ $info->{home_dir} ] if ! defined $directories_sqlite; ### 1.1
-
-
     my $plugin = $db_module->new( {
         app_dir             => $info->{app_dir},
         home_dir            => $info->{home_dir},
@@ -95,9 +91,9 @@ sub new {
         db_cache_file       => $info->{db_cache_file},
         sqlite_search       => $info->{sqlite_search},
         clear_screen        => $info->{clear_screen},
-        metadata            => $opt->{G}{metadata}, ### 1.1
+        metadata            => $opt->{G}{metadata},           ### 1.1
         add_metadata        => $opt->{G}{metadata},
-        directories_sqlite  => $directories_sqlite, ### 1.1
+        directories_sqlite  => $opt->{G}{sqlite_directories}, ### 1.1
     } );
 
     my $minimum_pav = 1.1;
@@ -359,6 +355,9 @@ The hash of hashes provides the settings gathered from the option I<Database set
         ]
     };
 
+If I<login_mode> is set to C<1>, the name of the used environment variable is the uppercase of "name" prefixed with
+"DBI_".
+
 For example for the plugin C<mysql> the hash of hashes held by C<$connect_parameter> could look like this:
 
     $connect_parameter = {
@@ -373,8 +372,8 @@ For example for the plugin C<mysql> the hash of hashes held by C<$connect_parame
         },
         login_mode => {
             port => 2,      # don't ask
-            user => 1,      # use environment variable if available
-            pass => 1,      # use environment variable if available
+            user => 1,      # use the environment variable DBI_USER if available
+            pass => 1,      # use the environment variable DBI_PASS if available
             host => 2       # don't ask
         },
         keep_secret => {

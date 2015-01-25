@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -23,8 +23,8 @@ use App::DBBrowser::Auxil;
 
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class, $info, $opt, $db_opt ) = @_;
+    bless { info => $info, opt => $opt, db_opt => $db_opt }, $class;
 }
 
 
@@ -36,15 +36,17 @@ sub defaults {
             menus_config_memory  => 0,
             menu_sql_memory      => 0,
             menus_db_memory      => 0,
-            table_expand         => 1,
-            lock_stmt            => 0,
-            mouse                => 0,
             thsd_sep             => ',',
             metadata             => 0,
-            max_rows             => 50_000,
+            lock_stmt            => 0,
             operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
             parentheses_w        => 0,
             parentheses_h        => 0,
+        },
+        table => {
+            table_expand         => 1,
+            mouse                => 0,
+            max_rows             => 50_000,
             keep_header          => 0,
             progress_bar         => 40_000,
             min_col_width        => 30,
@@ -83,20 +85,20 @@ sub __sub_menus_insert {
     my ( $self, $group ) = @_;
     my $sub_menus_insert = {
         main_insert => [
-            [ 'input_modes',             "- Input modes" ],
-            [ 'csv_read',                "- Parse module" ],
-            [ 'encoding_csv_file',       "- File encoding" ],
-            [ '_module_text_csv',        "- Text::CSV" ],
-            [ '_module_text_parsewords', "- Text::ParseWords" ],
-            [ 'max_files',               "- File history" ],
+            { name => 'input_modes',             text => "- Input modes",      section => 'insert' },
+            { name => 'csv_read',                text => "- Parse module",     section => 'insert' },
+            { name => 'encoding_csv_file',       text => "- File encoding",    section => 'insert' },
+            { name => '_module_text_csv',        text => "- Text::CSV",        section => 'insert' },
+            { name => '_module_text_parsewords', text => "- Text::ParseWords", section => 'insert' },
+            { name => 'max_files',               text => "- File history",     section => 'insert' },
         ],
         _module_text_csv => [
-            [ '_csv_char',               "- *_char attributes" ],
-            [ '_options_csv',            "-  Other attributes" ],
+            { name => '_csv_char',    text => "- *_char attributes", section => 'insert' },
+            { name => '_options_csv', text => "-  Other attributes", section => 'insert' },
         ],
         _module_text_parsewords => [
-            [ 'delim',                   "- \$delim" ],
-            [ 'keep',                    "- \$keep" ],
+            { name => 'delim', text => "- \$delim", section => 'insert' },
+            { name => 'keep',  text => "- \$keep",  section => 'insert' },
         ],
     };
     return $sub_menus_insert->{$group};
@@ -114,7 +116,7 @@ sub __config_insert {
 
         OPTION_INSERT: while ( 1 ) {
             my @pre    = ( undef );
-            my @real   = map( $_->[1], @$sub_menu_insert );
+            my @real   = map( $_->{text}, @$sub_menu_insert );
             # Choose
             my $idx = choose(
                 [ @pre, @real ],
@@ -147,30 +149,30 @@ sub __config_insert {
                     next OPTION_INSERT;
                 }
             }
-            my $section = 'insert';
-            my $name = $idx <= $#pre ? $pre[$idx] : $sub_menu_insert->[$idx - @pre][0];
-            if ( $name =~ /^_module_/ ) {
+            my $option = $idx <= $#pre ? $pre[$idx] : $sub_menu_insert->[$idx - @pre]{name};
+            if ( $option =~ /^_module_/ ) {
                 $backup_old_idx = $old_idx;
                 $old_idx = 0;
-                $group = $name;
+                $group = $option;
                 redo GROUP_INSERT;
             }
-            my $no_yes = [ 'NO', 'YES' ];
-            if ( $name eq 'input_modes' ) {
+            my $section = $sub_menu_insert->[$idx - @pre]{section};
+            my $no_yes  = [ 'NO', 'YES' ];
+            if ( $option eq 'input_modes' ) {
                     my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
-                    $self->__opt_choose_a_list( $section, $name, $available );
+                    $self->__opt_choose_a_list( $section, $option, $available );
             }
-            elsif ( $name eq 'csv_read' ) {
+            elsif ( $option eq 'csv_read' ) {
                 my $prompt = 'Parsing CSV files: ';
                 my $list = [ 'Text::CSV', 'Text::ParseWords', 'Spreadsheet::Read' ];
-                my $sub_menu = [ [ $name, "  Use", $list ] ];
+                my $sub_menu = [ [ $option, "  Use", $list ] ];
                 $self->__opt_choose_multi( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'encoding_csv_file' ) {
+            elsif ( $option eq 'encoding_csv_file' ) {
                 my $prompt = 'Encoding CSV files';
-                $self->__opt_readline( 'insert', $name, $prompt );
+                $self->__opt_readline( 'insert', $option, $prompt );
             }
-            elsif ( $name eq '_csv_char' ) {
+            elsif ( $option eq '_csv_char' ) {
                 my $items = [
                     { name => 'sep_char',    prompt => "sep_char   " },
                     { name => 'quote_char',  prompt => "quote_char " },
@@ -179,57 +181,35 @@ sub __config_insert {
                 my $prompt = 'Text::CSV:';
                 $self->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $name eq '_options_csv' ) {
+            elsif ( $option eq '_options_csv' ) {
                 my $prompt = 'Text::CSV:';
-                my $sub_menu = $self->__multi_choose( $name );
+                my $sub_menu = [
+                    [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
+                    [ 'allow_loose_quotes',  "- allow_loose_quotes",  [ 'NO', 'YES' ] ],
+                    [ 'allow_whitespace',    "- allow_whitespace",    [ 'NO', 'YES' ] ],
+                    [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
+                    [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
+                ];
                 $self->__opt_choose_multi( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'delim' ) {
+            elsif ( $option eq 'delim' ) {
                 my $prompt = 'Text::ParseWords delimiter (regexp)';
-                $self->__opt_readline( $section, $name, $prompt );
+                $self->__opt_readline( $section, $option, $prompt );
             }
-            elsif ( $name eq 'keep' ) {
+            elsif ( $option eq 'keep' ) {
                 my $prompt = 'Text::ParseWords: ';
                 my $list = $no_yes;
-                my $sub_menu = [ [ $name, "  Enable option '\$keep'", $list ] ];
+                my $sub_menu = [ [ $option, "  Enable option '\$keep'", $list ] ];
                 $self->__opt_choose_multi( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'max_files' ) {
+            elsif ( $option eq 'max_files' ) {
                 my $digits = 3;
                 my $prompt = 'Save the last x input file names';
-                $self->__opt_number_range( $section, $name, $prompt, $digits );
+                $self->__opt_number_range( $section, $option, $prompt, $digits );
             }
-            else { die "Unknown option: $name" }
+            else { die "Unknown option: $option" }
         }
     }
-}
-
-
-sub __multi_choose {
-    my ( $self, $key ) = @_;
-    my $multi_choose = {
-       _menu_memory  => [
-            [ 'menus_config_memory', "- Config Menus", [ 'Simple', 'Memory' ] ],
-            [ 'menu_sql_memory',     "- SQL    Menu",  [ 'Simple', 'Memory' ] ],
-            [ 'menus_db_memory',     "- DB     Menus", [ 'Simple', 'Memory' ] ],
-        ],
-       _table_expand => [
-            [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand'    ] ],
-            [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
-        ],
-        _parentheses => [
-            [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
-            [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
-        ],
-        _options_csv => [
-            [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
-            [ 'allow_loose_quotes',  "- allow_loose_quotes",  [ 'NO', 'YES' ] ],
-            [ 'allow_whitespace',    "- allow_whitespace",    [ 'NO', 'YES' ] ],
-            [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
-            [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
-        ],
-    };
-    return $multi_choose->{$key};
 }
 
 
@@ -237,36 +217,36 @@ sub __menus {
     my ( $self, $group ) = @_;
     my $menus = {
         main => [
-            [ 'help',            "  HELP" ],
-            [ 'path',            "  Path" ],
-            [ 'config_database', "- DB" ],
-            [ 'config_menu',     "- Menu" ],
-            [ 'config_sql',      "- SQL" ],
-            [ 'config_output',   "- Output" ],
-            [ 'config_insert',   "- Insert" ],
+            { name => 'help',            text => "  HELP"   },
+            { name => 'path',            text => "  Path"   },
+            { name => 'config_database', text => "- DB"     },
+            { name => 'config_menu',     text => "- Menu"   },
+            { name => 'config_sql',      text => "- SQL",   },
+            { name => 'config_output',   text => "- Output" },
+            { name => 'config_insert',   text => "- Insert" },
         ],
         config_database => [
-            [ '_db_defaults', "- DB Settings" ],
-            [ 'db_plugins',   "- DB Plugins" ],
+            { name => '_db_defaults', text => "- DB Settings"                },
+            { name => 'db_plugins',   text => "- DB Plugins", section => 'G' },
         ],
         config_menu => [
-            [ '_menu_memory',  "- Menu Memory" ],
-            [ '_table_expand', "- Table" ],
-            [ 'mouse',         "- Mouse Mode" ],
+            { name => '_menu_memory',  text => "- Menu Memory", section => 'G' },
+            { name => '_table_expand', text => "- Table",       section => 'table' },
+            { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
-            [ 'max_rows',     "- Max Rows" ],
-            [ 'metadata',     "- Metadata" ],
-            [ 'operators',    "- Operators" ],
-            [ 'lock_stmt',    "- Lock Mode" ],
-            [ '_parentheses', "- Parentheses" ],
+            { name => 'max_rows',     text => "- Max Rows",    section => 'table' },
+            { name => 'metadata',     text => "- Metadata",    section => 'G' },
+            { name => 'operators',    text => "- Operators",   section => 'G' },
+            { name => 'lock_stmt',    text => "- Lock Mode",   section => 'G' },
+            { name => '_parentheses', text => "- Parentheses", section => 'G' },
 
         ],
         config_output => [
-            [ 'min_col_width', "- Colwidth" ],
-            [ 'progress_bar',  "- ProgressBar" ],
-            [ 'tab_width',     "- Tabwidth" ],
-            [ 'undef',         "- Undef" ],
+            { name => 'min_col_width', text => "- Colwidth",    section => 'table' },
+            { name => 'progress_bar',  text => "- ProgressBar", section => 'table' },
+            { name => 'tab_width',     text => "- Tabwidth",    section => 'table' },
+            { name => 'undef',         text => "- Undef",       section => 'table' },
         ],
     };
     return $menus->{$group};
@@ -285,15 +265,15 @@ sub set_options {
         OPTION: while ( 1 ) {
             my $back =          $group eq 'main' ? $self->{info}{_quit}     : $self->{info}{conf_back};
             my @pre  = ( undef, $group eq 'main' ? $self->{info}{_continue} : () );
-            my @real = map( $_->[1], @$menu );
+            my @real = map( $_->{text}, @$menu );
             # Choose
             my $idx = choose(
                 [ @pre, @real ],
                 { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $back }
             );
             exit if ! defined $idx;
-            my $name = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre][0];
-            if ( ! defined $name ) {
+            my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
+            if ( ! defined $option ) {
                 if ( $group =~ /^config_/ ) {
                     $old_idx = $backup_old_idx;
                     $group = 'main';
@@ -320,34 +300,34 @@ sub set_options {
                     next OPTION;
                 }
             }
-            if ( $name eq 'config_insert' ) {
+            if ( $option eq 'config_insert' ) {
                 $self->__config_insert( 1 );
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;
             }
-            if ( $name =~ /^config_/ ) {
+            if ( $option =~ /^config_/ ) {
                 $backup_old_idx = $old_idx;
                 $old_idx = 0;
-                $group = $name;
+                $group = $option;
                 redo GROUP;
             }
-            my $section = 'G';
-            my $no_yes = [ 'NO', 'YES' ];
-            if ( $name eq $self->{info}{_continue} ) {
+
+            if ( $option eq $self->{info}{_continue} ) {
                 if ( $self->{info}{write_config} ) {
                     $self->__write_config_files();
                     delete $self->{info}{write_config};
                 }
-                return $self->{opt};
+                return $self->{opt}, $self->{db_opt};
             }
-            elsif ( $name eq 'help' ) {
+            if ( $option eq 'help' ) {
                 require Pod::Usage;
                 Pod::Usage::pod2usage( {
                     -exitval => 'NOEXIT',
                     -verbose => 2 } );
+                next OPTION;
             }
-            elsif ( $name eq 'path' ) {
+            if ( $option eq 'path' ) {
                 my $version = 'version';
                 my $bin     = '  bin  ';
                 my $app_dir = 'app-dir';
@@ -358,85 +338,100 @@ sub set_options {
                 };
                 my $names = [ $version, $bin, $app_dir ];
                 print_hash( $path, { keys => $names, preface => ' Close with ENTER' } );
+                next OPTION;
             }
-            elsif ( $name eq 'tab_width' ) {
+            if ( $option eq '_db_defaults' ) {
+                $self->database_setting();
+                next OPTION;
+            }
+            my $section     = $menu->[$idx - @pre]{section};
+            my $ref_section = $self->{opt}{$section};
+            my $no_yes      = [ 'NO', 'YES' ];
+            if ( $option eq 'tab_width' ) {
                 my $digits = 3;
                 my $prompt = 'Tab width';
-                $self->__opt_number_range( $section, $name, $prompt, $digits );
+                $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
-            elsif ( $name eq 'min_col_width' ) {
+            elsif ( $option eq 'min_col_width' ) {
                 my $digits = 3;
                 my $prompt = 'Minimum Column width';
-                $self->__opt_number_range( $section, $name, $prompt, $digits );
+                $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
-            elsif ( $name eq 'undef' ) {
+            elsif ( $option eq 'undef' ) {
                 my $prompt = 'Print replacement for undefined table vales';
-                $self->__opt_readline( $section, $name, $prompt );
+                $self->__opt_readline( $ref_section, $option, $prompt );
             }
-            elsif ( $name eq 'progress_bar' ) {
+            elsif ( $option eq 'progress_bar' ) {
                 my $digits = 7;
                 my $prompt = '"Threshold ProgressBar"';
-                $self->__opt_number_range( $section, $name, $prompt, $digits );
+                $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
-            elsif ( $name eq 'max_rows' ) {
+            elsif ( $option eq 'max_rows' ) {
                 my $digits = 7;
                 my $prompt = '"Max rows"';
-                $self->__opt_number_range( $section, $name, $prompt, $digits );
+                $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
-            elsif ( $name eq 'lock_stmt' ) {
+            elsif ( $option eq 'lock_stmt' ) {
                 my $prompt = 'SQL statement: ';
                 my $list = [ 'Lk0', 'Lk1' ];
-                my $sub_menu = [ [ $name, "  Lock Mode", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                my $sub_menu = [ [ $option, "  Lock Mode", $list ] ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'metadata' ) {
+            elsif ( $option eq 'metadata' ) {
                 my $prompt = 'DB/schemas/tables: ';
                 my $list = $no_yes;
-                my $sub_menu = [ [ $name, "  Add metadata", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                my $sub_menu = [ [ $option, "  Add metadata", $list ] ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_parentheses' ) {
-                my $sub_menu = $self->__multi_choose( $name );
-                $self->__opt_choose_multi( $section, $sub_menu );
+            elsif ( $option eq '_parentheses' ) {
+                my $sub_menu = [
+                    [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
+                    [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
+                ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu );
             }
-            elsif ( $name eq '_db_defaults' ) {
-                $self->database_setting();
-            }
-            elsif ( $name eq 'operators' ) {
+            elsif ( $option eq 'operators' ) {
                 my $available = $self->{info}{avail_operators};
-                $self->__opt_choose_a_list( $section, $name, $available );
+                $self->__opt_choose_a_list( $ref_section, $option, $available );
             }
-            elsif ( $name eq 'db_plugins' ) {
+            elsif ( $option eq 'db_plugins' ) {
                 my %installed_db_driver;
                 for my $dir ( @INC ) {
                     my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
                     map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
                 }
-                $self->__opt_choose_a_list( $section, $name, [ sort keys %installed_db_driver ] );
+                $self->__opt_choose_a_list( $ref_section, $option, [ sort keys %installed_db_driver ] );
             }
-            elsif ( $name eq 'mouse' ) {
+            elsif ( $option eq 'mouse' ) {
                 my $prompt = 'Mouse mode: ';
                 my $list = [ 0, 1, 2, 3, 4 ];
-                my $sub_menu = [ [ $name, "  Mouse mode", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                my $sub_menu = [ [ $option, "  Mouse mode", $list ] ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_menu_memory' ) {
-                my $sub_menu = $self->__multi_choose( $name );
-                $self->__opt_choose_multi( $section, $sub_menu );
+            elsif ( $option eq '_menu_memory' ) {
+                my $sub_menu = [
+                    [ 'menus_config_memory', "- Config Menus", [ 'Simple', 'Memory' ] ],
+                    [ 'menu_sql_memory',     "- SQL    Menu",  [ 'Simple', 'Memory' ] ],
+                    [ 'menus_db_memory',     "- DB     Menus", [ 'Simple', 'Memory' ] ],
+                ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu );
             }
-            elsif ( $name eq '_table_expand' ) {
-                my $sub_menu = $self->__multi_choose( $name );
-                $self->__opt_choose_multi( $section, $sub_menu );
+            elsif ( $option eq '_table_expand' ) {
+                my $sub_menu = [
+                    [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand'    ] ],
+                    [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
+                ];
+                $self->__opt_choose_multi( $ref_section, $sub_menu );
             }
-            else { die "Unknown option: $name" }
+            else { die "Unknown option: $option" }
         }
     }
 }
 
 
 sub __opt_choose_multi {
-    my ( $self, $section, $sub_menu, $prompt ) = @_;
-    my $val = $self->{opt}{$section};
+    my ( $self, $ref_section, $sub_menu, $prompt ) = @_;
+    my $val = $ref_section;
     my $changed = choose_multi( $sub_menu, $val, {  prompt => $prompt } );#, simple => 1, back => '<='
     return if ! $changed;
     $self->{info}{write_config}++;
@@ -444,33 +439,33 @@ sub __opt_choose_multi {
 
 
 sub __opt_choose_a_list {
-    my ( $self, $section, $name, $available, $index ) = @_;
-    my $current = $self->{opt}{$section}{$name};
+    my ( $self, $ref_section, $option, $available, $index ) = @_;
+    my $current = $ref_section->{$option};
     # Choose_list
     my $list = choose_a_subset( $available, { current => $current, index => $index } );
     return if ! defined $list;
     return if ! @$list;
-    $self->{opt}{$section}{$name} = $list;
+    $ref_section->{$option} = $list;
     $self->{info}{write_config}++;
     return;
 }
 
 
 sub __opt_number_range {
-    my ( $self, $section, $name, $prompt, $digits ) = @_;
-    my $current = $self->{opt}{$section}{$name};
+    my ( $self, $ref_section, $option, $prompt, $digits ) = @_;
+    my $current = $ref_section->{$option};
     $current = insert_sep( $current, $self->{opt}{G}{thsd_sep} );
     # Choose_a_number
     my $choice = choose_a_number( $digits, { name => $prompt, current => $current } );
     return if ! defined $choice;
-    $self->{opt}{$section}{$name} = $choice eq '--' ? undef : $choice;
+    $ref_section->{$option} = $choice eq '--' ? undef : $choice;
     $self->{info}{write_config}++;
     return;
 }
 
 
 sub __group_readline {
-    my ( $self, $section, $items, $prompt ) = @_;
+    my ( $self, $ref_section, $items, $prompt ) = @_;
     my $old_idx = 0;
 
     OPTION: while ( 1 ) {
@@ -478,7 +473,7 @@ sub __group_readline {
         my @real = map {
                 '- '
             . $_->{prompt}
-            . ( $self->{opt}{$section}{$_->{name}} ? ": $self->{opt}{$section}{$_->{name}}" : ":" )
+            . ( $ref_section->{$_->{name}} ? ": $ref_section->{$_->{name}}" : ":" )
         } @{$items};
         my $choices = [ @pre, @real ];
         # Choose
@@ -500,35 +495,35 @@ sub __group_readline {
             }
         }
         $idx -= @pre;
-        my $name = $items->[$idx]{name};
+        my $option = $items->[$idx]{name};
         my $readline_prompt = $items->[$idx]{prompt};
         $readline_prompt =~ s/\s+\z//;
-        $self->__opt_readline( $section, $name, $readline_prompt );
+        $self->__opt_readline( $ref_section, $option, $readline_prompt );
     }
 }
 
 
 sub __opt_readline {
-    my ( $self, $section, $name, $prompt ) = @_;
-    my $current = $self->{opt}{$section}{$name};
+    my ( $self, $ref_section, $option, $prompt ) = @_;
+    my $current = $ref_section->{$option};
     my $trs = Term::ReadLine::Simple->new();
     # Readline
     my $choice = $trs->readline( $prompt . ': ', { default => $current } );
     return if ! defined $choice;
-    $self->{opt}{$section}{$name} = $choice;
+    $ref_section->{$option} = $choice;
     $self->{info}{write_config}++;
     return;
 }
 
 
 sub __opt_choose_dirs {
-    my ( $self, $section, $name ) = @_;
-    my $current = $self->{opt}{$section}{$name};
+    my ( $self, $ref_section, $option ) = @_;
+    my $current = $ref_section->{$option};
     # Choose_dirs
     my $dirs = choose_dirs( { mouse => $self->{opt}{G}{mouse}, current => $current } );
     return if ! defined $dirs;
     return if ! @$dirs;
-    $self->{opt}{$section}{$name} = $dirs;
+    $ref_section->{$option} = $dirs;
     $self->{info}{write_config}++;
     return;
 }
@@ -543,10 +538,10 @@ sub database_setting {
             $db_plugin = $self->{info}{db_plugin};
             $db_driver = $self->{info}{db_driver};
             $section   = $db_plugin . '_' . $db;
-            for my $name ( keys %{$self->{opt}{$db_plugin}} ) {
-                next if $name eq 'directories_sqlite';
-                if ( ! defined $self->{opt}{$section}{$name} ) {
-                    $self->{opt}{$section}{$name} = $self->{opt}{$db_plugin}{$name};
+            for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
+                next if $option eq 'directories_sqlite';
+                if ( ! defined $self->{opt}{$section}{$option} ) {
+                    $self->{opt}{$section}{$option} = $self->{opt}{$db_plugin}{$option};
                 }
             }
         }
@@ -589,6 +584,7 @@ sub database_setting {
         push @groups, [ 'sqlite_dir',   "- Sqlite directories" ] if $db_driver eq 'SQLite';
         my $prompt = defined $db ? 'DB: "' . ( $db_driver eq 'SQLite' ? basename $db : $db )
                                  : 'Plugin: ' . $db_plugin;
+        my $ref_section = $self->{db_opt}{$section};
         my $old_idx_group = 0;
 
         GROUP: while ( 1 ) {
@@ -622,7 +618,7 @@ sub database_setting {
             }
             if ( $choices->[$idx_group] eq $reset ) {
                 my @databases;
-                for my $section ( keys %{$self->{opt}} ) {
+                for my $section ( keys %{$self->{db_opt}} ) {
                     push @databases, $1 if $section =~ /^\Q$db_plugin\E_(.+)\z/;
                 }
                 if ( ! @databases ) {
@@ -641,7 +637,7 @@ sub database_setting {
                 }
                 for my $db ( @$choices ) {
                     my $section = $db_plugin . '_' . $db;
-                    delete $self->{opt}{$section};
+                    delete $self->{db_opt}{$section};
                 }
                 $self->{info}{write_config}++;
                 next GROUP;;
@@ -652,30 +648,31 @@ sub database_setting {
                 for my $item ( @{$items->{$group}} ) {
                     my $login_mode_key = $item->{name};
                     push @$sub_menu, [ $login_mode_key, '- ' . $item->{prompt}, $item->{avail_values} ];
-                    if ( ! defined $self->{opt}{$section}{$login_mode_key} ) {
-                        $self->{opt}{$section}{$login_mode_key} = 0;
+                    if ( ! defined $ref_section->{$login_mode_key} ) {
+                        $ref_section->{$login_mode_key} = 0;
                     }
                 }
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
                 next GROUP;
             }
             elsif ( $group eq 'login_data' ) {
-                $self->__group_readline( $section, $items->{$group}, $prompt );
+                $self->__group_readline( $ref_section, $items->{$group}, $prompt );
             }
             elsif ( $group eq 'connect_attr' ) {
                 my $sub_menu = [];
                 for my $item ( @{$items->{$group}} ) {
-                    push @$sub_menu, [ $item->{name}, '- ' . $item->{name}, $item->{avail_values} ];
-                    if ( ! defined $self->{opt}{$section}{$item->{name}} ) {
-                        $self->{opt}{$section}{$item->{name}} = $item->{avail_values}[$item->{default_index}];
+                    my $option = $item->{name};
+                    push @$sub_menu, [ $option, '- ' . $option, $item->{avail_values} ];
+                    if ( ! defined $ref_section->{$option} ) {
+                        $ref_section->{$option} = $item->{avail_values}[$item->{default_index}];
                     }
                 }
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
                 next GROUP;
             }
             elsif ( $group eq 'sqlite_dir' ) {
-                my $name = 'directories_sqlite';
-                $self->__opt_choose_dirs( $section, $name );
+                my $option = 'directories_sqlite';
+                $self->__opt_choose_dirs( $ref_section, $option );
                 next GROUP;
             }
         }
@@ -687,13 +684,13 @@ sub __write_config_files {
     my ( $self ) = @_;
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
-    for my $section ( 'G', 'insert' ) {
-        for my $name ( keys %{$self->{opt}{$section}} ) {
-            #next if $name =~ /^_/;
-            $tmp->{$section}{$name} = $self->{opt}{$section}{$name};
+    for my $section ( keys %{$self->{opt}} ) {
+        for my $option ( keys %{$self->{opt}{$section}} ) {
+            #next if $option =~ /^_/;
+            $tmp->{$section}{$option} = $self->{opt}{$section}{$option};
         }
     }
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $file_name = $self->{info}{config_generic};
     $auxil->write_json( sprintf( $fmt, $file_name ), $tmp  );
 }
@@ -704,17 +701,17 @@ sub __write_db_config_files {
     my $regexp_db_plugins = join '|', map quotemeta, @{$self->{opt}{G}{db_plugins}};
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
-    for my $section ( sort keys %{$self->{opt}} ) {
+    for my $section ( sort keys %{$self->{db_opt}} ) {
         if ( $section =~ /^($regexp_db_plugins)(?:_(.+))?\z/ ) { #
             my ( $db_plugin, $conf_sect ) = ( $1, $2 );
             $conf_sect = '*' . $db_plugin if ! defined $conf_sect;
-            for my $name ( keys %{$self->{opt}{$section}} ) {
-                #next if $name =~ /^_/;
-                $tmp->{$db_plugin}{$conf_sect}{$name} = $self->{opt}{$section}{$name};
+            for my $option ( keys %{$self->{db_opt}{$section}} ) {
+                #next if $option =~ /^_/;
+                $tmp->{$db_plugin}{$conf_sect}{$option} = $self->{db_opt}{$section}{$option};
             }
         }
     }
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     for my $section ( keys %$tmp ) {
         my $file_name =  $section;
         $auxil->write_json( sprintf( $fmt, $file_name ), $tmp->{$section}  );
@@ -726,30 +723,50 @@ sub read_config_files {
     my ( $self ) = @_;
     $self->{opt} = $self->defaults();
     my $fmt = $self->{info}{conf_file_fmt};
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $file =  sprintf( $fmt, $self->{info}{config_generic} );
     if ( -f $file && -s $file ) {
         my $tmp = $auxil->read_json( $file );
         for my $section ( keys %$tmp ) {
-            for my $name ( keys %{$tmp->{$section}} ) {
-                $self->{opt}{$section}{$name} = $tmp->{$section}{$name} if exists $self->{opt}{$section}{$name};
+            for my $option ( keys %{$tmp->{$section}} ) {
+                $self->{opt}{$section}{$option} = $tmp->{$section}{$option} if exists $self->{opt}{$section}{$option};
             }
         }
     }
+    return $self->{opt};
+}
+
+
+sub read_db_config_files {
+    my ( $self ) = @_;
+    my $fmt = $self->{info}{conf_file_fmt};
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     for my $db_plugin ( @{$self->{opt}{G}{db_plugins}} ) {
         my $file = sprintf( $fmt, $db_plugin );
         if ( -f $file && -s $file ) {
             my $tmp = $auxil->read_json( $file );
             for my $conf_sect ( keys %$tmp ) {
                 my $section = $db_plugin . ( $conf_sect =~ /^\*\Q$db_plugin\E\z/ ? '' : '_' . $conf_sect );
-                for my $name ( keys %{$tmp->{$conf_sect}} ) {
-                    $self->{opt}{$section}{$name} = $tmp->{$conf_sect}{$name};
+                for my $option ( keys %{$tmp->{$conf_sect}} ) {
+                    $self->{db_opt}{$section}{$option} = $tmp->{$conf_sect}{$option};
                 }
             }
         }
     }
-    return $self->{opt};
+    return $self->{db_opt};
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

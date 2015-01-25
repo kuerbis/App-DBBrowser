@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use Encode qw( encode );
 
@@ -20,10 +20,8 @@ use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    $info = {} if ! defined $info;
-    $opt  = {} if ! defined $opt;
-    bless { info => $info, opt => $opt }, $class;
+    my ( $class, $info ) = @_;
+    bless { info => $info }, $class;
 }
 
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -31,7 +31,7 @@ sub new {
 
 sub __on_table {
     my ( $self, $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
         Select => [ qw( print_table columns aggregate distinct where group_by having order_by limit lock ) ],
@@ -727,7 +727,7 @@ sub __on_table {
                 my $limit = choose_a_number( $digits, { name => '"LIMIT"' } );
                 next LIMIT if ! defined $limit || $limit eq '--';
                 push @{$sql->{quote}{limit_args}}, $limit;
-                $self->{opt}{G}{max_rows} = $limit + 1;
+                $self->{opt}{table}{max_rows} = $limit + 1;
                 $sql->{quote}{limit_stmt} .= ' ' . '?';
                 $sql->{print}{limit_stmt} .= ' ' . insert_sep( $limit, $self->{opt}{G}{thsd_sep} );
                 if ( $choice eq $offset_and_limit ) {
@@ -747,7 +747,7 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'hidden'} ) {
             if ( $sql_type eq 'Insert' ) {
-                my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
+                my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert( 0 );
                 $sql = clone( $backup_sql ); ###
                 next CUSTOMIZE;
@@ -906,13 +906,13 @@ sub __on_table {
             $select .= $sql->{quote}{order_by_stmt};
             $select .= $sql->{quote}{limit_stmt};
             my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}}, @{$sql->{quote}{limit_args}} );
-            if ( ! $sql->{quote}{limit_stmt} && $self->{opt}{G}{max_rows} ) {
+            if ( ! $sql->{quote}{limit_stmt} && $self->{opt}{table}{max_rows} ) {
                 $select .= " LIMIT ?";
-                push @arguments, $self->{opt}{G}{max_rows};
+                push @arguments, $self->{opt}{table}{max_rows};
             }
             local $| = 1;
             print $self->{info}{clear_screen};
-            print 'Database : ...' . "\n" if $self->{opt}{G}{progress_bar};
+            print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
             my $sth = $dbh->prepare( $select );
             $sth->execute( @arguments );
             my $col_names = $sth->{NAME};
@@ -926,7 +926,7 @@ sub __on_table {
             my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
             local $| = 1;
             print $self->{info}{clear_screen};
-            print 'Database : ...' . "\n" if $self->{opt}{G}{progress_bar};
+            print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
             my %map_sql_types = (
                 Insert => "INSERT INTO",
                 Update => "UPDATE",
@@ -1044,7 +1044,7 @@ sub __unambiguous_key {
 
 sub __set_operator_sql {
     my ( $self, $sql, $clause, $table, $cols, $qt_columns, $quote_col, $sql_type ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my ( $stmt, $args );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     if ( $clause eq 'where' ) {

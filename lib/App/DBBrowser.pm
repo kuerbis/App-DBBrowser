@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -83,43 +83,44 @@ sub __init {
     $self->{info}{input_files}   = catfile $app_dir, 'file_history.txt';
 
     if ( ! eval {
-        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, {} );
-        $self->{opt} = $obj_opt->read_config_files();
+        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, {}, {} );
+        $self->{opt}    = $obj_opt->read_config_files();
+        $self->{db_opt} = $obj_opt->read_db_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,
             's|search' => \$self->{info}{sqlite_search},
         );
         if ( $help ) {
-            if ( $self->{opt}{G}{mouse} ) {
+            if ( $self->{opt}{table}{mouse} ) {
                 for my $key ( keys %{$self->{info}} ) {
                     next if $key !~ /^lyt_/;
-                    $self->{info}{$key}{mouse} = $self->{opt}{G}{mouse};
+                    $self->{info}{$key}{mouse} = $self->{opt}{table}{mouse};
                 }
             }
-            $self->{opt} = $obj_opt->set_options();
-            if ( defined $self->{opt}{G}{mouse} ) {
+            ( $self->{opt}, $self->{db_opt} ) = $obj_opt->set_options();
+            if ( defined $self->{opt}{table}{mouse} ) {
                 for my $key ( keys %{$self->{info}} ) {
                     next if $key !~ /^lyt_/;
-                    $self->{info}{$key}{mouse} = $self->{opt}{G}{mouse};
+                    $self->{info}{$key}{mouse} = $self->{opt}{table}{mouse};
                 }
             }
         }
         1 }
     ) {
-        my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+        my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
         $auxil->__print_error_message( $@, 'Configfile/Options' );
-        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
-        $self->{opt}{G} = $obj_opt->defaults( 'G' );
+        my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, {}, {} );
+        $self->{opt} = $obj_opt->defaults();
         while ( $ARGV[0] && $ARGV[0] =~ /^-/ ) {
             my $arg = shift @ARGV;
             last if $arg eq '--';
         }
     }
-    if ( $self->{opt}{G}{mouse} ) {
+    if ( $self->{opt}{table}{mouse} ) {
         for my $key ( keys %{$self->{info}} ) {
             next if $key !~ /^lyt_/;
-            $self->{info}{$key}{mouse} = $self->{opt}{G}{mouse};
+            $self->{info}{$key}{mouse} = $self->{opt}{table}{mouse};
         }
     }
 }
@@ -138,47 +139,47 @@ sub __prepare_connect_parameter {
     };
     my $db_plugin = $self->{info}{db_plugin};
     my $section = $db ? $db_plugin . '_' . $db : $db_plugin;
-    for my $option ( keys %{$self->{opt}{$db_plugin}} ) {
-        if ( defined $db && ! defined $self->{opt}{$section}{$option} ) {
+    for my $option ( keys %{$self->{db_opt}{$db_plugin}} ) {
+        if ( defined $db && ! defined $self->{db_opt}{$section}{$option} ) {
             $section = $db_plugin;
         }
         if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
-            $connect_parameter->{attributes}{$option} = $self->{opt}{$section}{$option};
+            $connect_parameter->{attributes}{$option} = $self->{db_opt}{$section}{$option};
         }
     }
     for my $attr ( @$connect_attr ) {
         my $name = $attr->{name};
-        if ( defined $db && ! defined $self->{opt}{$section}{$name} ) {
+        if ( defined $db && ! defined $self->{db_opt}{$section}{$name} ) {
             $section = $db_plugin;
         }
-        if ( ! defined $self->{opt}{$section}{$name} ) {
-            $self->{opt}{$section}{$name} = $attr->{avail_values}[$attr->{default_index}];
+        if ( ! defined $self->{db_opt}{$section}{$name} ) {
+            $self->{db_opt}{$section}{$name} = $attr->{avail_values}[$attr->{default_index}];
         }
-        $connect_parameter->{attributes}{$name} = $self->{opt}{$section}{$name};
+        $connect_parameter->{attributes}{$name} = $self->{db_opt}{$section}{$name};
     }
     for my $item ( @$login_data ) {
         my $name = $item->{name};
         my $login_mode_key = 'login_mode_' . $name;
         $connect_parameter->{keep_secret}{$name} = $item->{keep_secret};
-        if ( defined $db && ! defined $self->{opt}{$section}{$login_mode_key} ) {
+        if ( defined $db && ! defined $self->{db_opt}{$section}{$login_mode_key} ) {
             $section = $db_plugin;
         }
-        if ( ! defined $self->{opt}{$section}{$login_mode_key} ) {
-            $self->{opt}{$section}{$login_mode_key} = 0;
+        if ( ! defined $self->{db_opt}{$section}{$login_mode_key} ) {
+            $self->{db_opt}{$section}{$login_mode_key} = 0;
         }
-        $connect_parameter->{login_mode}{$name} = $self->{opt}{$section}{$login_mode_key};
-        if ( ! $self->{opt}{$db_plugin}{error} ) {
-            if ( defined $db && ! defined $self->{opt}{$section}{$name} ) {
+        $connect_parameter->{login_mode}{$name} = $self->{db_opt}{$section}{$login_mode_key};
+        if ( ! $self->{info}{error} ) {
+            if ( defined $db && ! defined $self->{db_opt}{$section}{$name} ) {
                 $section = $db_plugin;
             }
-            $connect_parameter->{login_data}{$name} = $self->{opt}{$section}{$name};
+            $connect_parameter->{login_data}{$name} = $self->{db_opt}{$section}{$name};
         }
     }
-    if ( ! defined $self->{opt}{$db_plugin}{directories_sqlite} ) {
-        $self->{opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
+    if ( ! defined $self->{db_opt}{$db_plugin}{directories_sqlite} ) {
+        $self->{db_opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
     }
-    $connect_parameter->{dir_sqlite} = $self->{opt}{$db_plugin}{directories_sqlite};
-    delete $self->{opt}{$db_plugin}{error} if exists $self->{opt}{$db_plugin}{error}; # info
+    $connect_parameter->{dir_sqlite} = $self->{db_opt}{$db_plugin}{directories_sqlite};
+    delete $self->{info}{error} if exists $self->{info}{error};
     return $connect_parameter;
 }
 
@@ -187,7 +188,7 @@ sub run {
     my ( $self ) = @_;
     $self->__init();
     my $lyt_3 = Term::Choose->new( $self->{info}{lyt_3} );
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $auto_one = 0;
 
     DB_PLUGIN: while ( 1 ) {
@@ -218,6 +219,9 @@ sub run {
             next DB_PLUGIN;
         }
         my $db_driver = $self->{info}{db_driver};
+        ###
+        $self->{opt}{G}{sqlite_directories} = $self->{db_opt}{$db_plugin}{directories_sqlite};                              ### 1.1
+        $self->{opt}{G}{sqlite_directories} = [ $self->{info}{home_dir} ] if ! defined $self->{opt}{G}{sqlite_directories}; ### 1.1
 
         # DATABASES
 
@@ -236,7 +240,7 @@ sub run {
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Available databases' );
-            $self->{opt}{$self->{info}{db_plugin}}{error} = 1;
+            $self->{info}{error} = 1;
             next DB_PLUGIN;
         }
         if ( ! @$databases ) {
@@ -299,7 +303,7 @@ sub run {
             ) {
                 $auxil->__print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
-                $self->{opt}{$self->{info}{db_plugin}}{error} = 1;
+                $self->{info}{error} = 1;
                 next DATABASE;
             }
 
@@ -400,7 +404,7 @@ sub run {
                     if ( $table eq $db_setting ) {
                         my $new_db_settings;
                         if ( ! eval {
-                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
+                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
                             $new_db_settings = $obj_opt->database_setting( $db );
                             1 }
                         ) {
@@ -461,7 +465,7 @@ sub run {
 
 sub __browse_the_table {
     my ( $self, $dbh, $db, $schema, $table, $multi_table ) = @_;
-    my $auxil     = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil     = App::DBBrowser::Auxil->new( $self->{info} );
     my $db_plugin = $self->{info}{db_plugin};
     my $qt_columns = {};
     my $pr_columns = [];
@@ -488,9 +492,10 @@ sub __browse_the_table {
         }
     }
     my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
-    $self->{opt}{G}{_db_browser_mode} = 1;
-    $self->{opt}{G}{binary_filter}    =    $self->{opt}{$db_plugin . '_' . $db}{binary_filter}
-                                        || $self->{opt}{$db_plugin}{binary_filter} || 0;
+    $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin . '_' . $db}{binary_filter};
+    if ( ! defined $self->{opt}{table}{binary_filter} ) {
+        $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin}{binary_filter};
+    }
 
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
@@ -503,7 +508,7 @@ sub __browse_the_table {
         }
         last PRINT_TABLE if ! defined $all_arrayref;
         delete @{$self->{info}}{qw(width_head width_cols not_a_number)};
-        print_table( $all_arrayref, $self->{opt}{G} );
+        print_table( $all_arrayref, $self->{opt}{table} );
     }
 }
 
@@ -525,7 +530,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.995
+Version 0.996
 
 =head1 DESCRIPTION
 

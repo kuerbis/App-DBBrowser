@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -36,7 +36,7 @@ sub new {
 
 sub __insert_into {
     my ( $self, $sql, $table, $qt_columns, $pr_columns ) = @_;
-    my $auxil   = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil   = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my @cols = ( @$pr_columns );
     $sql->{quote}{insert_into_args} = [];
@@ -377,7 +377,7 @@ sub __parse_file {
 
 sub __filter_input {
     my ( $self, $sql, $table, $sql_type, $file, $sheet_idx ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info}, $self->{opt} );
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     #my $backup = clone $sql->{quote}{insert_into_args};
 

@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.995';
+our $VERSION = '0.996';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.995
+Version 0.996
 
 =cut
 
@@ -300,7 +300,12 @@ Ask for the data of a field when connecting to a database.
 
 Use DBI_....
 
-Use the relevant environment variable to connect if available else ask the user for the required data.
+Use the environment variable to connect if available else ask the user for the required data.
+
+The name of the environment variable:
+
+    $environment_variable = 'DBI_' . uc($name_of_the_field);
+
 
 =item
 
@@ -350,6 +355,10 @@ any. If the list of chosen directories is empty, "C< < >" goes back without chan
 This setting can not be overwritten in a single database.
 
 It depends on the database plugin if this setting is considered.
+
+=item Reset DB
+
+Reset database specific parameter to the global I<DB Settings>.
 
 =back
 

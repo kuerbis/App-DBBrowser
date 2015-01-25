@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.996   2015-01-25
+        - Code refactoring.
+        - Update documentation.
+
 0.995   2015-01-22
         - Removed option "sssc_mode".
         - Update documentation.
@@ -8,6 +12,7 @@ Revision history for App-DBBrowser
 0.994   2015-01-22
         - Bugfixes database setting default values.
         - Bugfixes in "__read_config_files" and "__write_config_files".
+        - Plugin API version 1.2.
         - Code refactoring.
         - Update documentation.
 
