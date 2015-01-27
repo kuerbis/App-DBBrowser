@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -29,7 +29,7 @@ sub new {
 sub __union_tables {
     my ( $self, $dbh, $db, $schema, $data ) = @_;
     my $no_lyt = Term::Choose->new();
-    my $u = $data->{$db}{$schema};
+    my $u = $data;
     if ( ! defined $u->{col_names} || ! defined $u->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
         ( $u->{col_names}, $u->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} );
@@ -292,7 +292,7 @@ sub __join_tables {
     my $join = {};
     $join->{quote}{stmt} = "SELECT * FROM";
     $join->{print}{stmt} = "SELECT * FROM";
-    my $j = $data->{$db}{$schema};
+    my $j = $data;
     if ( ! defined $j->{col_names} || ! defined $j->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
         ( $j->{col_names}, $j->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );

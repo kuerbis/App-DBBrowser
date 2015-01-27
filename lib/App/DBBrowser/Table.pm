@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -31,7 +31,7 @@ sub new {
 
 sub __on_table {
     my ( $self, $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
+    my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
         Select => [ qw( print_table columns aggregate distinct where group_by having order_by limit lock ) ],
@@ -648,7 +648,6 @@ sub __on_table {
                 );
                 if ( ! defined $print_col ) {
                     if ( $sql->{quote}{order_by_stmt} ne " ORDER BY" ) {
-                        $sql->{quote}{order_by_args} = [];
                         $sql->{quote}{order_by_stmt} = " ORDER BY";
                         $sql->{print}{order_by_stmt} = " ORDER BY";
                         $col_sep = ' ';
@@ -676,7 +675,6 @@ sub __on_table {
                     $choices
                 );
                 if ( ! defined $direction ){
-                    $sql->{quote}{order_by_args} = [];
                     $sql->{quote}{order_by_stmt} = " ORDER BY";
                     $sql->{print}{order_by_stmt} = " ORDER BY";
                     $col_sep = ' ';
@@ -688,7 +686,6 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'limit'} ) {
-            $sql->{quote}{limit_args} = [];
             $sql->{quote}{limit_stmt} = " LIMIT";
             $sql->{print}{limit_stmt} = " LIMIT";
 
@@ -701,8 +698,7 @@ sub __on_table {
                     $choices
                 );
                 if ( ! defined $choice ) {
-                    if ( @{$sql->{quote}{limit_args}} ) {
-                        $sql->{quote}{limit_args} = [];
+                    if ( $sql->{quote}{limit_stmt} ne " LIMIT" ) {
                         $sql->{quote}{limit_stmt} = " LIMIT";
                         $sql->{print}{limit_stmt} = " LIMIT";
                         next LIMIT;
@@ -713,34 +709,29 @@ sub __on_table {
                     }
                 }
                 if ( $choice eq $self->{info}{ok} ) {
-                    if ( ! @{$sql->{quote}{limit_args}} ) {
+                    if ( $sql->{quote}{limit_stmt} eq " LIMIT" ) {
                         $sql->{quote}{limit_stmt} = '';
                         $sql->{print}{limit_stmt} = '';
                     }
                     last LIMIT;
                 }
-                $sql->{quote}{limit_args} = [];
                 $sql->{quote}{limit_stmt} = " LIMIT";
                 $sql->{print}{limit_stmt} = " LIMIT";
                 my $digits = 7;
                 # Choose_a_number
                 my $limit = choose_a_number( $digits, { name => '"LIMIT"' } );
                 next LIMIT if ! defined $limit || $limit eq '--';
-                push @{$sql->{quote}{limit_args}}, $limit;
-                $self->{opt}{table}{max_rows} = $limit + 1;
-                $sql->{quote}{limit_stmt} .= ' ' . '?';
+                $sql->{quote}{limit_stmt} .= ' ' . sprintf '%d', $limit;
                 $sql->{print}{limit_stmt} .= ' ' . insert_sep( $limit, $self->{opt}{G}{thsd_sep} );
                 if ( $choice eq $offset_and_limit ) {
                     # Choose_a_number
                     my $offset = choose_a_number( $digits, { name => '"OFFSET"' } );
                     if ( ! defined $offset || $offset eq '--' ) {
-                        $sql->{quote}{limit_args} = [];
                         $sql->{quote}{limit_stmt} = " LIMIT";
                         $sql->{print}{limit_stmt} = " LIMIT";
                         next LIMIT;
                     }
-                    push @{$sql->{quote}{limit_args}}, $offset;
-                    $sql->{quote}{limit_stmt} .= " OFFSET " . '?';
+                    $sql->{quote}{limit_stmt} .= " OFFSET " . sprintf '%d', $offset;
                     $sql->{print}{limit_stmt} .= " OFFSET " . insert_sep( $offset, $self->{opt}{G}{thsd_sep} );
                 }
             }
@@ -863,7 +854,6 @@ sub __on_table {
                 $function =~ s/^\s\s//;
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                #my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
                 my ( $quote_hidd, $print_hidd ) = $self->__col_functions( $function, $quote_col, $print_col );
                 if ( ! defined $quote_hidd ) {
                     next HIDDEN;
@@ -905,10 +895,14 @@ sub __on_table {
             $select .= $sql->{quote}{having_stmt};
             $select .= $sql->{quote}{order_by_stmt};
             $select .= $sql->{quote}{limit_stmt};
-            my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}}, @{$sql->{quote}{limit_args}} );
-            if ( ! $sql->{quote}{limit_stmt} && $self->{opt}{table}{max_rows} ) {
-                $select .= " LIMIT ?";
-                push @arguments, $self->{opt}{table}{max_rows};
+            my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}} );
+            if ( $self->{opt}{table}{max_rows} ) {
+                if ( ! $sql->{quote}{limit_stmt} ) {
+                    $select .= sprintf " LIMIT %d", $self->{opt}{table}{max_rows};
+                }
+                else {
+                    $self->{info}{backup_max_rows} = delete $self->{opt}{table}{max_rows};
+                }
             }
             local $| = 1;
             print $self->{info}{clear_screen};

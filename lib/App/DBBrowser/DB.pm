@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.996
+Version 0.997
 
 =head1 DESCRIPTION
 
@@ -34,7 +34,11 @@ Column names passed as arguments are already quoted with the C<DBI> C<quote_iden
 
 =head1 PLUGIN API VERSION
 
-This documentation describes the plugin API version C<1.2>.
+This documentation describes the plugin API version C<1.3>.
+
+New in C<1.3>:
+
+- method C<column_names_and_types> is not optional (required in union and join ).
 
 New in C<1.2>:
 
@@ -43,9 +47,9 @@ New in C<1.2>:
 - the SQLite directories are passed directly to the C<available_databases> method (see C<$connect_parameter>) instead to
 the constructor C<new>.
 
-Supported plugin API versions: C<1.2>, C<1.1>.
+Supported plugin API versions: C<1.3>, C<1.2>, C<1.1>.
 
-Support for the version C<1.1> will be removed soon.
+Support for the version C<1.1> and C<1.2> will be removed soon.
 
 =head1 METHODS
 
@@ -60,6 +64,7 @@ The constructor method.
 A reference to a hash. The hash entries are:
 
         app_dir             # path to the application directoriy
+        home_dir
         db_plugin           # name of the database plugin
         add_metadata        # true or false
 
@@ -76,7 +81,7 @@ The object.
 =cut
 
 sub new {
-    my ( $class, $info, $opt ) = @_; #
+    my ( $class, $info, $opt ) = @_;
     if ( $info->{db_plugin} !~ /^[\w_]+\z/ ) {
         die "Invalid character in the DB plugin name: $info->{db_plugin}";
     }
@@ -108,7 +113,6 @@ sub new {
 
     bless { Plugin => $plugin }, $class;
 }
-
 
 
 
@@ -458,8 +462,6 @@ sub get_table_names {
 
 =head2 column_names_and_types
 
-The method C<column_names_and_types> is optional.
-
 =over
 
 =item Arguments
@@ -488,7 +490,6 @@ Two hash references - one for the column names and one for the column types:
 
 sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
-    return if ! $self->{Plugin}->can( 'column_names_and_types' );
     my ( $col_names, $col_types ) = $self->{Plugin}->column_names_and_types( $dbh, $db, $schema, $tables );
     for my $table ( keys %$col_types ) {
         for ( @{$col_types->{$table}} ) {
@@ -675,7 +676,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 
     sub epoch_to_date {
         my ( $self, $col, $interval ) = @_;
-        return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')"; # example MySQL
+        return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')";
     }
 
 =cut

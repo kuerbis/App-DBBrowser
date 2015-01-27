@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -254,11 +254,11 @@ sub run {
 
         DATABASE: while ( 1 ) {
 
-            #if ( @$databases == 1 ) {
-            #    $db = $databases->[0];
-            #    $auto_one++ if $auto_one == 1;
-            #}
-            #else {
+            if ( @$databases == 1 ) {
+                $db = $databases->[0];
+                $auto_one++ if $auto_one == 1;
+            }
+            else {
                 my $back;
                 if ( $db_driver eq 'SQLite' ) {
                     $back = $auto_one ? $self->{info}{quit} : $self->{info}{back};
@@ -288,7 +288,7 @@ sub run {
                         $old_idx_db = $idx_db;
                     }
                 }
-            #}
+            }
             $db =~ s/^[-\ ]\s// if $db_driver ne 'SQLite';
 
             # DB-HANDLE
@@ -296,7 +296,7 @@ sub run {
             my $dbh;
             if ( ! eval {
                 print $self->{info}{clear_screen};
-                print "DB: $db\n";
+                print 'DB: "'. basename( $db ) . '"' . "\n";
                 my $connect_parameter = $self->__prepare_connect_parameter( $db );
                 $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
                 1 }
@@ -309,12 +309,16 @@ sub run {
 
             # SCHEMAS
 
-            my $data = {};
             my @schemas;
             if ( ! eval {
                 my ( $user_schemas, $system_schemas ) = $obj_db->get_schema_names( $dbh, $db );
                 $system_schemas = [] if ! defined $system_schemas;
-                @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$system_schemas ) );
+                if ( ( @$user_schemas + @$system_schemas ) > 1 ) {
+                    @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$system_schemas ) );
+                }
+                else {
+                    @schemas = ( @$user_schemas , @$system_schemas );
+                }
                 1 }
             ) {
                 $auxil->__print_error_message( $@, 'Get schema names' );
@@ -340,10 +344,9 @@ sub run {
                     );
                     $schema = $choices_schema->[$idx_sch] if defined $idx_sch;
                     if ( ! defined $schema ) {
-                        next DATABASE;
-                        #next DATABASE  if @$databases                 > 1;
-                        #next DB_PLUGIN if @{$self->{opt}{G}{db_plugins}} > 1;
-                        #last DB_PLUGIN;
+                        next DATABASE  if @$databases                    > 1;
+                        next DB_PLUGIN if @{$self->{opt}{G}{db_plugins}} > 1;
+                        last DB_PLUGIN;
                     }
                     if ( $self->{opt}{G}{menus_db_memory} ) {
                         if ( $old_idx_sch == $idx_sch ) {
@@ -354,16 +357,17 @@ sub run {
                             $old_idx_sch = $idx_sch;
                         }
                     }
+                    $schema =~ s/^[-\ ]\s//;
                 }
-                $schema =~ s/^[-\ ]\s//;
 
                 # TABLES
 
+                my $data = {};
                 my @tables;
                 if ( ! eval {
                     my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema );
                     $system_tbl = [] if ! defined $system_tbl;
-                    $data->{$db}{$schema}{tables} = [ @$user_tbl, @$system_tbl ];
+                    $data->{tables} = [ @$user_tbl, @$system_tbl ];
                     @tables = ( map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) );
                     1 }
                 ) {
@@ -385,11 +389,10 @@ sub run {
                     );
                     my $table = $choices_table->[$idx_tbl] if defined $idx_tbl;
                     if ( ! defined $table ) {
-                        next SCHEMA    if @schemas > 1;
-                        next DATABASE;
-                        #next DATABASE  if @$databases                 > 1;
-                        #next DB_PLUGIN if @{$self->{opt}{G}{db_plugins}} > 1;
-                        #last DB_PLUGIN;
+                        next SCHEMA    if @schemas                       > 1;
+                        next DATABASE  if @$databases                    > 1;
+                        next DB_PLUGIN if @{$self->{opt}{G}{db_plugins}} > 1;
+                        last DB_PLUGIN;
                     }
                     if ( $self->{opt}{G}{menus_db_memory} ) {
                         if ( $old_idx_tbl == $idx_tbl ) {
@@ -401,7 +404,7 @@ sub run {
                         }
                     }
                     my $multi_table;
-                    if ( $table eq $db_setting ) {
+                    if ( $table eq $db_setting && defined $db ) {
                         my $new_db_settings;
                         if ( ! eval {
                             my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
@@ -471,7 +474,7 @@ sub __browse_the_table {
     my $pr_columns = [];
     my $sql        = {};
     $sql->{strg_keys} = [ qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt ) ];
-    $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args limit_args insert_into_args ) ];
+    $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_into_args ) ];
     $auxil->__reset_sql( $sql );
     $self->{info}{lock} = $self->{opt}{G}{lock_stmt};
     my $select_from_stmt = '';
@@ -509,6 +512,9 @@ sub __browse_the_table {
         last PRINT_TABLE if ! defined $all_arrayref;
         delete @{$self->{info}}{qw(width_head width_cols not_a_number)};
         print_table( $all_arrayref, $self->{opt}{table} );
+        if ( defined $self->{info}{backup_max_rows} ) {
+            $self->{opt}{table}{max_rows} = delete $self->{info}{backup_max_rows};
+        }
     }
 }
 
@@ -530,7 +536,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.996
+Version 0.997
 
 =head1 DESCRIPTION
 

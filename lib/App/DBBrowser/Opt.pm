@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -432,7 +432,7 @@ sub set_options {
 sub __opt_choose_multi {
     my ( $self, $ref_section, $sub_menu, $prompt ) = @_;
     my $val = $ref_section;
-    my $changed = choose_multi( $sub_menu, $val, {  prompt => $prompt } );#, simple => 1, back => '<='
+    my $changed = choose_multi( $sub_menu, $val, {  prompt => $prompt } );
     return if ! $changed;
     $self->{info}{write_config}++;
 }
@@ -566,9 +566,11 @@ sub database_setting {
         my $login_data = $obj_db->login_data();
         my $connect_attr = $obj_db->connect_attributes();
         my $items = {
-            login_mode   => [ map { { name         => 'login_mode_' . $_->{name},
-                                      prompt       => $_->{prompt},
-                                      avail_values => [ 'Ask', 'Use DBI_HOST', 'Don\'t set' ] } } @$login_data ],
+            login_mode   => [ map {
+                { name         => 'login_mode_' . $_->{name},
+                  prompt       => $_->{prompt},
+                  avail_values => [ 'Ask', 'Use DBI_' . uc $_->{name}, 'Don\'t set' ] }
+             } @$login_data ],
             login_data   => [ grep { ! $_->{keep_secret} } @$login_data ],
             connect_attr => $connect_attr,
         };
@@ -686,7 +688,6 @@ sub __write_config_files {
     my $tmp = {};
     for my $section ( keys %{$self->{opt}} ) {
         for my $option ( keys %{$self->{opt}{$section}} ) {
-            #next if $option =~ /^_/;
             $tmp->{$section}{$option} = $self->{opt}{$section}{$option};
         }
     }
@@ -702,11 +703,10 @@ sub __write_db_config_files {
     my $fmt = $self->{info}{conf_file_fmt};
     my $tmp = {};
     for my $section ( sort keys %{$self->{db_opt}} ) {
-        if ( $section =~ /^($regexp_db_plugins)(?:_(.+))?\z/ ) { #
+        if ( $section =~ /^($regexp_db_plugins)(?:_(.+))?\z/ ) {
             my ( $db_plugin, $conf_sect ) = ( $1, $2 );
             $conf_sect = '*' . $db_plugin if ! defined $conf_sect;
             for my $option ( keys %{$self->{db_opt}{$section}} ) {
-                #next if $option =~ /^_/;
                 $tmp->{$db_plugin}{$conf_sect}{$option} = $self->{db_opt}{$section}{$option};
             }
         }
