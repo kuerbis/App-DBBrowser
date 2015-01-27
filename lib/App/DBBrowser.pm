@@ -404,7 +404,7 @@ sub run {
                         }
                     }
                     my $multi_table;
-                    if ( $table eq $db_setting && defined $db ) {
+                    if ( $table eq $db_setting ) {
                         my $new_db_settings;
                         if ( ! eval {
                             my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
