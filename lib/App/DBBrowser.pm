@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.997';
+our $VERSION = '0.998';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -312,6 +312,7 @@ sub run {
             my @schemas;
             if ( ! eval {
                 my ( $user_schemas, $system_schemas ) = $obj_db->get_schema_names( $dbh, $db );
+                $user_schemas   = [] if ! defined $user_schemas;
                 $system_schemas = [] if ! defined $system_schemas;
                 if ( ( @$user_schemas + @$system_schemas ) > 1 ) {
                     @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$system_schemas ) );
@@ -329,7 +330,7 @@ sub run {
             SCHEMA: while ( 1 ) {
 
                 my $schema;
-                if ( @schemas == 1 ) {
+                if ( @schemas <= 1 ) {
                     $schema = $schemas[0];
                     $auto_one++ if $auto_one == 2
                 }
@@ -536,7 +537,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.997
+Version 0.998
 
 =head1 DESCRIPTION
 

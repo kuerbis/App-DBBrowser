@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.997';
+our $VERSION = '0.998';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.997
+Version 0.998
 
 =head1 DESCRIPTION
 
@@ -426,6 +426,7 @@ array-reference.
 
 sub get_schema_names {
     my ( $self, $dbh, $db ) = @_;
+    return [] if ! $self->{Plugin}->can( 'get_schema_names' );
     my ( $user_schemas, $system_schemas ) = $self->{Plugin}->get_schema_names( $dbh, $db );
     return $user_schemas, $system_schemas;
 }

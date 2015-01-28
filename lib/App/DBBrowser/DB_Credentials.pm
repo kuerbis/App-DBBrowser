@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.997';
+our $VERSION = '0.998';
 
 use Term::ReadLine::Simple qw();
 

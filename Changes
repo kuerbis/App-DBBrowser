@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+0.998   2015-01-28
+        - Bugfix in"App::DBBrowser::DB::SQLite" (search directories).
+        - Code refactoring (schema).
+
 0.997   2015-01-27
         - Bugfix in LIMIT;
         - Don't ask to choose if only one database.

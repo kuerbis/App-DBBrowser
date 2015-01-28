@@ -101,7 +101,8 @@ sub get_db_handle {
 sub available_databases {
     my ( $self, $connect_parameter ) = @_;
     return \@ARGV if @ARGV;
-    my $cache_key = $self->{db_plugin} . '_' . join ' ', @{$connect_parameter->{dir_sqlite}};
+    my $dirs = $connect_parameter->{dir_sqlite};
+    my $cache_key = $self->{db_plugin} . '_' . join ' ', @$dirs;
     my $auxil = App::DBBrowser::Auxil->new();
     my $db_cache = $auxil->read_json( $self->{db_cache_file} );
     if ( $self->{sqlite_search} ) {
@@ -110,7 +111,7 @@ sub available_databases {
     my $databases = [];
     if ( ! defined $db_cache->{$cache_key} ) {
         print 'Searching...' . "\n";
-        for my $dir ( @{$self->{directories_sqlite}} ) {
+        for my $dir ( @$dirs ) {
             File::Find::find( {
                 wanted => sub {
                     my $file = $_;
