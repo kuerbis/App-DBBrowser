@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.998';
+our $VERSION = '0.999';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -301,7 +301,6 @@ sub __on_table {
                         $sql->{quote}{set_stmt} = " SET";
                         $sql->{print}{set_stmt} = " SET";
                         $col_sep = ' ';
-                        #delete $sql->{pr_backup_in_hidd}{set_args};
                         next SET;
                     }
                     else {
@@ -313,7 +312,6 @@ sub __on_table {
                     if ( $col_sep eq ' ' ) {
                         $sql->{quote}{set_stmt} = '';
                         $sql->{print}{set_stmt} = '';
-                        #delete $sql->{pr_backup_in_hidd}{set_args};
                     }
                     last SET;
                 }
@@ -740,7 +738,7 @@ sub __on_table {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert( 0 );
-                $sql = clone( $backup_sql ); ###
+                $sql = clone( $backup_sql ); #
                 next CUSTOMIZE;
             }
             my @functions = @{$self->{info}{keys_hidd_func_pr}};
@@ -754,8 +752,8 @@ sub __on_table {
                 $stmt_key = 'chosen_cols';
             }
             if ( $stmt_key eq 'chosen_cols' ) {
-                if ( ! $sql->{pr_backup_in_hidd}{$stmt_key} ) {
-                    @{$sql->{pr_backup_in_hidd}{$stmt_key}} = @{$sql->{print}{$stmt_key}};
+                if ( ! $sql->{pr_backup_in_hidd}{chosen_cols} ) {
+                    @{$sql->{pr_backup_in_hidd}{'chosen_cols'}} = @{$sql->{print}{chosen_cols}};
                 }
             }
             else {
@@ -770,7 +768,7 @@ sub __on_table {
 
             HIDDEN: while ( 1 ) {
                 my @cols = $stmt_key eq 'chosen_cols'
-                    ? ( @{$sql->{print}{$stmt_key}}                                  )
+                    ? ( @{$sql->{print}{chosen_cols}}                                  )
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
 
                 my $default = 0;
@@ -1065,11 +1063,11 @@ sub __set_operator_sql {
     }
     $operator =~ s/^\s+|\s+\z//g;
     if ( $operator !~ /\s%?col%?\z/ ) {
-        my $trs = Term::ReadLine::Simple->new();
         if ( $operator !~ /REGEXP(_i)?\z/ ) {
             $sql->{quote}{$stmt} .= ' ' . $operator;
             $sql->{print}{$stmt} .= ' ' . $operator;
         }
+        my $trs = Term::ReadLine::Simple->new();
         if ( $operator =~ /NULL\z/ ) {
             # do nothing
         }
@@ -1146,10 +1144,19 @@ sub __set_operator_sql {
             $sql->{quote}{$stmt} =~ s/.*\K\s\Q$quote_col\E//;
             my $do_not_match_regexp = $operator =~ /^NOT/       ? 1 : 0;
             my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
-            my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-            $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
-            $sql->{print}{$stmt} .= ' ' . "'$value'";
-            push @{$sql->{quote}{$args}}, $value;
+            if ( ! eval {
+                my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+                $sql->{quote}{$stmt} .= $obj_db->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
+                $sql->{print}{$stmt} .= ' ' . "'$value'";
+                push @{$sql->{quote}{$args}}, $value;
+                1 }
+            ) {
+                $auxil->__print_error_message( $@, $operator );
+                $sql->{quote}{$args} = [];
+                $sql->{quote}{$stmt} = '';
+                $sql->{print}{$stmt} = '';
+                return
+            }
         }
         else {
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
@@ -1189,25 +1196,33 @@ sub __set_operator_sql {
             return;
         }
         ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-        my ( @qt_args, @pr_args );
-        if ( $arg =~ /^(%)col/ ) {
-            push @qt_args, "'$1'";
-            push @pr_args, "'$1'";
-        }
-        push @qt_args, $quote_col;
-        push @pr_args, $print_col;
-        if ( $arg =~ /col(%)\z/ ) {
-            push @qt_args, "'$1'";
-            push @pr_args, "'$1'";
-        }
-        if ( $operator =~ /LIKE\z/ ) {
-            my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-            $sql->{quote}{$stmt} .= ' ' . $obj_db->concatenate( \@qt_args );
-            $sql->{print}{$stmt} .= ' ' . join( '+', @pr_args );
-        }
-        else {
+        if ( $operator !~ /LIKE\z/ ) {
             $sql->{quote}{$stmt} .= ' ' . $quote_col;
             $sql->{print}{$stmt} .= ' ' . $print_col;
+        }
+        else {
+            my ( @qt_args, @pr_args );
+            if ( $arg =~ /^(%)col/ ) {
+                push @qt_args, "'$1'";
+                push @pr_args, "'$1'";
+            }
+            push @qt_args, $quote_col;
+            push @pr_args, $print_col;
+            if ( $arg =~ /col(%)\z/ ) {
+                push @qt_args, "'$1'";
+                push @pr_args, "'$1'";
+            }
+            if ( ! eval {
+                my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+                $sql->{quote}{$stmt} .= ' ' . $obj_db->concatenate( \@qt_args );
+                $sql->{print}{$stmt} .= ' ' . join( '+', @pr_args );
+                1 }
+            ) {
+                $auxil->__print_error_message( $@, $operator . ' ' . $arg );
+                $sql->{quote}{$stmt} = '';
+                $sql->{print}{$stmt} = '';
+                return;
+            }
         }
     }
     return;

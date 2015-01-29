@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+0.999   2015-01-29
+        - Changed available operators.
+        - Handle missing "sql_regexp" and "concatenate" method.
+        - Code refactoring.
+
 0.998   2015-01-28
         - Bugfix in"App::DBBrowser::DB::SQLite" (search directories).
         - Code refactoring (schema).

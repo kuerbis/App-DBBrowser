@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.998';
+our $VERSION = '0.999';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.998
+Version 0.999
 
 =head1 DESCRIPTION
 
@@ -190,6 +190,7 @@ Example for the database driver C<Pg>:
 
 sub driver_prefix {
     my ( $self ) = @_;
+    return if ! $self->{Plugin}->can( 'driver_prefix' );
     my $driver_prefix = $self->{Plugin}->driver_prefix();
     if ( defined $driver_prefix && $driver_prefix !~ /_\z/ ) {
         $driver_prefix .= '_';
@@ -243,6 +244,7 @@ sub login_data {
     my ( $self ) = @_;
     return [] if ! $self->{Plugin}->can( 'login_data' );
     my $login_data = $self->{Plugin}->login_data();
+    return [] if ! defined $login_data;
     return $login_data;
 }
 
@@ -809,7 +811,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2012-2014 Matthäus Kiem.
+Copyright 2012-2015 Matthäus Kiem.
 
 This program is free software; you can redistribute it and/or modify it under the same terms as Perl 5.10.0. For
 details, see the full text of the licenses in the file LICENSE.

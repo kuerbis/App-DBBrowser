@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.998';
+our $VERSION = '0.999';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -51,10 +51,12 @@ sub new {
         config_generic    => 'Generic',
         stmt_init_tab     => 4,
         avail_aggregate   => [ "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" ],
-        avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
-                               "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
-                               "LIKE col", "NOT LIKE col", "LIKE %col%", "NOT LIKE %col%", " = col", " != col", " <> col",
-                               " < col", " > col", " >= col", " <= col" ], # "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col"
+        avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
+                               "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
+                               " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
+                               " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
+                               "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
+                               # "LIKE col", "NOT LIKE col"
         hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                                Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
@@ -229,6 +231,7 @@ sub run {
         if ( ! eval {
             my $connect_parameter = $self->__prepare_connect_parameter();
             my ( $user_db, $system_db ) = $obj_db->available_databases( $connect_parameter );
+            $user_db   = [] if ! defined $user_db;
             $system_db = [] if ! defined $system_db;
             if ( $db_driver eq 'SQLite' ) {
                 $databases = [ @$user_db, @$system_db ];
@@ -367,6 +370,7 @@ sub run {
                 my @tables;
                 if ( ! eval {
                     my ( $user_tbl, $system_tbl ) = $obj_db->get_table_names( $dbh, $schema );
+                    $user_tbl   = [] if ! defined $user_tbl;
                     $system_tbl = [] if ! defined $system_tbl;
                     $data->{tables} = [ @$user_tbl, @$system_tbl ];
                     @tables = ( map( "- $_", @$user_tbl ), map( "  $_", @$system_tbl ) );
@@ -537,7 +541,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.998
+Version 0.999
 
 =head1 DESCRIPTION
 
