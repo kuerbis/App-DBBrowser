@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 0.999
+Version 1.001
 
 =head1 DESCRIPTION
 
@@ -114,6 +114,10 @@ sub new {
     bless { Plugin => $plugin }, $class;
 }
 
+sub message_method_undef_return {
+    my ( $self, $method ) = @_;
+    return sprintf '%s method %s: no return value', ref $self->{Plugin}, $method;
+}
 
 
 =head2 plugin_api_version
@@ -161,6 +165,7 @@ The name of the C<DBI> database driver used by the plugin.
 sub db_driver {
     my ( $self ) = @_;
     my $db_driver = $self->{Plugin}->db_driver();
+    die $self->message_method_undef_return( 'db_driver' ) if ! defined $db_driver;
     return $db_driver;
 }
 
@@ -309,7 +314,7 @@ passed to C<get_db_handle> as the second argument. See L</get_db_handle> for mor
 If the object attribute I<add_metadata> is true, C<available_databases> returns the "user-databases" as an
 array-reference and the "system-databases" (if any) as an array-reference.
 
-If the object attribute I<add_metadata> is not true, C<available_databases> returns only the "user-databases" as an
+If I<add_metadata> is not true, C<available_databases> returns only the "user-databases" as an
 array-reference.
 
 =back
@@ -401,6 +406,7 @@ Database handle.
 sub get_db_handle {
     my ( $self, $db, $connect_parameter ) = @_;
     my $dbh = $self->{Plugin}->get_db_handle( $db, $connect_parameter );
+    die $self->message_method_undef_return( 'get_db_handle' ) if ! defined $dbh;
     return $dbh;
 }
 
@@ -416,10 +422,10 @@ The database handle and the database name.
 
 =item return
 
-If the object attribute I<add_metadata> is true, C<get_schema_names> returns the "user-schemas" as an array-reference
+If I<add_metadata> is true, C<get_schema_names> returns the "user-schemas" as an array-reference
 and the "system-schemas" (if any) as an array-reference.
 
-If the object attribute I<add_metadata> is not true, C<get_schema_names> returns only the "user-schemas" as an
+If I<add_metadata> is not true, C<get_schema_names> returns only the "user-schemas" as an
 array-reference.
 
 =back
@@ -445,10 +451,10 @@ The database handle and the schema name.
 
 =item return
 
-If the object attribute I<add_metadata> is true, C<get_table_names> returns the "user-tables" as an array-reference and
+If I<add_metadata> is true, C<get_table_names> returns the "user-tables" as an array-reference and
 the "system-tables" (if any) as an array-reference.
 
-If the object attribute I<add_metadata> is not true, C<get_table_names> returns only the "user-tables" as
+If I<add_metadata> is not true, C<get_table_names> returns only the "user-tables" as
 an array-reference.
 
 =back
@@ -494,6 +500,8 @@ Two hash references - one for the column names and one for the column types:
 sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
     my ( $col_names, $col_types ) = $self->{Plugin}->column_names_and_types( $dbh, $db, $schema, $tables );
+    die $self->message_method_undef_return( 'column_names_and_types' ) if ! defined $col_names;
+    $col_types = {} if ! defined $col_types;
     for my $table ( keys %$col_types ) {
         for ( @{$col_types->{$table}} ) {
             s/integer/int/i;
@@ -586,6 +594,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 sub sql_regexp {
     my ( $self, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
     my $sql_regexp = $self->{Plugin}->sql_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
+    die $self->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
     $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
     return $sql_regexp;
 }
@@ -618,6 +627,7 @@ Example form the plugin C<App::DBBrowser::DB::Pg>:
 sub concatenate {
     my ( $self, $arg ) = @_;
     my $concatenated = $self->{Plugin}->concatenate( $arg );
+    die $self->message_method_undef_return( 'concatenate' ) if ! defined $concatenated;
     return $concatenated;
 }
 
@@ -654,6 +664,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 sub epoch_to_datetime {
     my ( $self, $quote_col, $interval ) = @_;
     my $quote_f = $self->{Plugin}->epoch_to_datetime( $quote_col, $interval );
+    die $self->message_method_undef_return( 'epoch_to_datetime' ) if ! defined $quote_f;
     return $quote_f;
 }
 
@@ -687,6 +698,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 sub epoch_to_date {
     my ( $self, $quote_col, $interval ) = @_;
     my $quote_f = $self->{Plugin}->epoch_to_date( $quote_col, $interval );
+    die $self->message_method_undef_return( 'epoch_to_date' ) if ! defined $quote_f;
     return $quote_f;
 }
 
@@ -718,6 +730,7 @@ Example form the plugin C<App::DBBrowser::DB::mysql>:
 sub truncate {
     my ( $self, $quote_col, $precision ) = @_;
     my $quote_f = $self->{Plugin}->truncate( $quote_col, $precision );
+    die $self->message_method_undef_return( 'truncate' ) if ! defined $quote_f;
     return $quote_f;
 }
 
@@ -752,6 +765,7 @@ The sql bit length substatement.
 sub bit_length {
     my ( $self, $quote_col ) = @_;
     my $quote_f = $self->{Plugin}->bit_length( $quote_col );
+    die $self->message_method_undef_return( 'bit_length' ) if ! defined $quote_f;
     return $quote_f;
 }
 
@@ -784,6 +798,7 @@ Example form the plugin C<App::DBBrowser::DB::Pg>:
 sub char_length {
     my ( $self, $quote_col ) = @_;
     my $quote_f = $self->{Plugin}->char_length( $quote_col );
+    die $self->message_method_undef_return( 'char_length' ) if ! defined $quote_f;
     return $quote_f;
 }
 

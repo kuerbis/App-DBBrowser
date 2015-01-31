@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -39,8 +39,6 @@ sub __on_table {
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
     };
-    my $sql_types = [ 'Insert', 'Update', 'Delete' ];
-    my $sql_type = 'Select';
     my $lk = [ '  Lk0', '  Lk1' ];
     my %customize = (
         hidden          => 'Customize:',
@@ -62,7 +60,9 @@ sub __on_table {
     if ( $self->{info}{lock} == 0 ) {
         $auxil->__reset_sql( $sql );
     }
-    my $backup_sql = clone( $sql ); #
+    my $sql_types = [ 'Insert', 'Update', 'Delete' ];
+    my $sql_type = 'Select';
+    my $backup_sql;
     my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
@@ -140,7 +140,7 @@ sub __on_table {
                     if ( @{$sql->{quote}{chosen_cols}} ) {
                         $sql->{quote}{chosen_cols} = [];
                         $sql->{print}{chosen_cols} = [];
-                        delete $sql->{pr_backup_in_hidd}{chosen_cols};
+                        delete $sql->{scalar_func_backup_pr_col}{chosen_cols};
                         next COLUMNS;
                     }
                     else {
@@ -157,8 +157,8 @@ sub __on_table {
                     if ( ! @{$sql->{quote}{chosen_cols}} ) {
                         $sql->{select_type} = '*';
                     }
-                    delete $sql->{pr_backup_in_hidd}{chosen_cols};
-                    $sql->{pr_col_with_hidd_func} = [];
+                    delete $sql->{scalar_func_backup_pr_col}{chosen_cols};
+                    $sql->{pr_col_with_scalar_func} = [];
                     last COLUMNS;
                 }
                 for my $print_col ( @print_col ) {
@@ -216,7 +216,7 @@ sub __on_table {
                     if ( @{$sql->{quote}{aggr_cols}} ) {
                         $sql->{quote}{aggr_cols} = [];
                         $sql->{print}{aggr_cols} = [];
-                        delete $sql->{pr_backup_in_hidd}{aggr_cols};
+                        delete $sql->{scalar_func_backup_pr_col}{aggr_cols};
                         next AGGREGATE;
                     }
                     else {
@@ -225,7 +225,7 @@ sub __on_table {
                     }
                 }
                 if ( $aggr eq $self->{info}{ok} ) {
-                    delete $sql->{pr_backup_in_hidd}{aggr_cols};
+                    delete $sql->{scalar_func_backup_pr_col}{aggr_cols};
                     if ( ! @{$sql->{quote}{aggr_cols}} && ! @{$sql->{quote}{group_by_cols}} ) {
                         $sql->{select_type} = '*';
                     }
@@ -273,6 +273,7 @@ sub __on_table {
                     $sql->{quote}{aggr_cols}[$i] .= $quote_col . ")";
                 }
                 $sql->{print}{aggr_cols}[$i] = $self->__unambiguous_key( $sql->{print}{aggr_cols}[$i], $pr_columns );
+                # alias to get aggregat function with a column name without quotes in the tableprint (optional):
                 $sql->{quote}{aggr_cols}[$i] .= " AS " . $dbh->quote_identifier( $sql->{print}{aggr_cols}[$i] );
                 my $print_aggr = $sql->{print}{aggr_cols}[$i];
                 my $quote_aggr = $sql->{quote}{aggr_cols}[$i];
@@ -341,7 +342,7 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'where'} ) {
-            my @cols = ( @$pr_columns, @{$sql->{pr_col_with_hidd_func}} );
+            my @cols = ( @$pr_columns, @{$sql->{pr_col_with_scalar_func}} );
             my $AND_OR = ' ';
             $sql->{quote}{where_args} = [];
             $sql->{quote}{where_stmt} = " WHERE";
@@ -354,9 +355,6 @@ sub __on_table {
                 my @choices = @cols;
                 if ( $self->{opt}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
-                }
-                elsif ( $self->{opt}{G}{parentheses_w} == 2 ) {
-                    push @choices, $unclosed ? ')' : '(';
                 }
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -418,7 +416,7 @@ sub __on_table {
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $sql->{quote}{where_stmt} .= $AND_OR . $quote_col;
                 $sql->{print}{where_stmt} .= $AND_OR . $print_col;
-                $self->__set_operator_sql( $sql, 'where', $table, \@cols, $qt_columns, $quote_col, $sql_type ); #
+                $self->__set_operator_sql( $sql, 'where', $table, \@cols, $qt_columns, $quote_col, $sql_type );
                 if ( ! $sql->{quote}{where_stmt} ) {
                     $sql->{quote}{where_args} = [];
                     $sql->{quote}{where_stmt} = " WHERE";
@@ -458,7 +456,7 @@ sub __on_table {
                         $sql->{quote}{group_by_cols} = [];
                         $sql->{print}{group_by_cols} = [];
                         $col_sep = ' ';
-                        delete $sql->{pr_backup_in_hidd}{group_by_cols};
+                        delete $sql->{scalar_func_backup_pr_col}{group_by_cols};
                         next GROUP_BY;
                     }
                     else {
@@ -482,7 +480,7 @@ sub __on_table {
                         if ( ! @{$sql->{quote}{aggr_cols}} ) {
                             $sql->{select_type} = '*';
                         }
-                        delete $sql->{pr_backup_in_hidd}{group_by_cols};
+                        delete $sql->{scalar_func_backup_pr_col}{group_by_cols};
                     }
                     last GROUP_BY;
                 }
@@ -510,9 +508,6 @@ sub __on_table {
                 my @choices = ( @{$self->{info}{avail_aggregate}}, map( '@' . $_, @{$sql->{print}{aggr_cols}} ) );
                 if ( $self->{opt}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
-                }
-                elsif ( $self->{opt}{G}{parentheses_h} == 2 ) {
-                    push @choices, $unclosed ? ')' : '(';
                 }
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -613,7 +608,7 @@ sub __on_table {
                     $quote_aggr                .= $quote_col . ")";
                     $print_aggr                .= $print_col . ")";
                 }
-                $self->__set_operator_sql( $sql, 'having', $table, \@cols, $qt_columns, $quote_aggr, $sql_type ); #
+                $self->__set_operator_sql( $sql, 'having', $table, \@cols, $qt_columns, $quote_aggr, $sql_type );
                 if ( ! $sql->{quote}{having_stmt} ) {
                     $sql->{quote}{having_args} = [];
                     $sql->{quote}{having_stmt} = " HAVING";
@@ -626,12 +621,12 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'order_by'} ) {
-            my @functions = @{$self->{info}{hidd_func_pr}}{@{$self->{info}{keys_hidd_func_pr}}};
+            my @functions = @{$self->{info}{scalar_func_h}}{@{$self->{info}{scalar_func_keys}}};
             my $f = join '|', map quotemeta, @functions;
             my @not_hidd = map { /^(?:$f)\((.*)\)\z/ ? $1 : () } @{$sql->{print}{aggr_cols}};
             my @cols =
                 ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' )
-                ? ( @$pr_columns, @{$sql->{pr_col_with_hidd_func}} )
+                ? ( @$pr_columns, @{$sql->{pr_col_with_scalar_func}} )
                 : ( @{$sql->{print}{group_by_cols}}, @{$sql->{print}{aggr_cols}}, @not_hidd );
             my $col_sep = ' ';
             $sql->{quote}{order_by_stmt} = " ORDER BY";
@@ -738,10 +733,10 @@ sub __on_table {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert( 0 );
-                $sql = clone( $backup_sql ); #
+                $sql = clone( $backup_sql );
                 next CUSTOMIZE;
             }
-            my @functions = @{$self->{info}{keys_hidd_func_pr}};
+            my @functions = @{$self->{info}{scalar_func_keys}};
             my $stmt_key = '';
             if ( $sql->{select_type} eq '*' ) {
                 @{$sql->{quote}{chosen_cols}} = map { $qt_columns->{$_} } @$pr_columns;
@@ -752,93 +747,91 @@ sub __on_table {
                 $stmt_key = 'chosen_cols';
             }
             if ( $stmt_key eq 'chosen_cols' ) {
-                if ( ! $sql->{pr_backup_in_hidd}{chosen_cols} ) {
-                    @{$sql->{pr_backup_in_hidd}{'chosen_cols'}} = @{$sql->{print}{chosen_cols}};
+                if ( ! $sql->{scalar_func_backup_pr_col}{chosen_cols} ) {
+                    @{$sql->{scalar_func_backup_pr_col}{'chosen_cols'}} = @{$sql->{print}{chosen_cols}};
                 }
             }
             else {
-                if ( @{$sql->{print}{aggr_cols}} && ! $sql->{pr_backup_in_hidd}{aggr_cols} ) {
-                    @{$sql->{pr_backup_in_hidd}{'aggr_cols'}} = @{$sql->{print}{aggr_cols}};
+                if ( @{$sql->{print}{aggr_cols}} && ! $sql->{scalar_func_backup_pr_col}{aggr_cols} ) {
+                    @{$sql->{scalar_func_backup_pr_col}{'aggr_cols'}} = @{$sql->{print}{aggr_cols}};
                 }
-                if ( @{$sql->{print}{group_by_cols}} && ! $sql->{pr_backup_in_hidd}{group_by_cols} ) {
-                    @{$sql->{pr_backup_in_hidd}{'group_by_cols'}} = @{$sql->{print}{group_by_cols}};
+                if ( @{$sql->{print}{group_by_cols}} && ! $sql->{scalar_func_backup_pr_col}{group_by_cols} ) {
+                    @{$sql->{scalar_func_backup_pr_col}{'group_by_cols'}} = @{$sql->{print}{group_by_cols}};
                 }
             }
             my $changed = 0;
 
-            HIDDEN: while ( 1 ) {
+            COL_SCALAR_FUNC: while ( 1 ) {
                 my @cols = $stmt_key eq 'chosen_cols'
                     ? ( @{$sql->{print}{chosen_cols}}                                  )
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
 
                 my $default = 0;
-                my $choose_type = 'Your choice:';
+                my $choose_SQL_type = 'Your choice:';
                 my @pre = ( undef, $self->{info}{_confirm} );
                 my $prompt = 'Choose:';
                 if ( $sql_type eq 'Select' ) {
-                    unshift @pre, $choose_type if ! defined $pre[0] || $pre[0] ne $choose_type;
+                    unshift @pre, $choose_SQL_type if ! defined $pre[0] || $pre[0] ne $choose_SQL_type;
                     $prompt = '';
                     $default = 1;
                 }
                 my $choices = [ @pre, map( "- $_", @cols ) ];
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
-                my $i = $stmt_h->choose(
+                my $idx = $stmt_h->choose(
                     $choices,
                     { %{$self->{info}{lyt_stmt_v}}, index => 1, default => $default, prompt => $prompt }
                 );
-                if ( ! defined $i ) {
+                if ( ! defined $idx ) {
                     $sql = clone( $backup_sql );
-                    last HIDDEN;
+                    last COL_SCALAR_FUNC;
                 }
-                my $print_col = $choices->[$i];
-                if ( ! defined $print_col ) {
+                if ( ! defined $choices->[$idx] ) {
                     $sql = clone( $backup_sql );
-                    last HIDDEN;
+                    last COL_SCALAR_FUNC;
                 }
-                if ( $print_col eq $choose_type ) {
-                    my $choices = [ undef, map( "- $_", @$sql_types ) ];
+                if ( $choices->[$idx] eq $choose_SQL_type ) {
+                    my $ch_types = [ undef, map( "- $_", @$sql_types ) ];
                     # Choose
-                    my $st = $stmt_h->choose(
-                        $choices,
+                    my $type_choice = $stmt_h->choose(
+                        $ch_types,
                         { %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0, clear_screen => 1 }
                     );
-                    if ( defined $st ) {
-                        $st =~ s/^-\ //;
-                        $sql_type = $st;
+                    if ( defined $type_choice ) {
+                        ( $sql_type = $type_choice ) =~ s/^-\ //;
                         $old_idx = 1;
                         $auxil->__reset_sql( $sql );
                     }
-                    last HIDDEN;
+                    last COL_SCALAR_FUNC;
                 }
-                if ( $print_col eq $self->{info}{_confirm} ) {
+                if ( $choices->[$idx] eq $self->{info}{_confirm} ) {
                     if ( ! $changed ) {
                         $sql = clone( $backup_sql );
-                        last HIDDEN;
+                        last COL_SCALAR_FUNC;
                     }
                     $sql->{select_type} = $stmt_key if $sql->{select_type} eq '*';
-                    last HIDDEN;
+                    last COL_SCALAR_FUNC;
                 }
-                $print_col =~ s/^\-\s//;
-                $i -= @pre;
+                ( my $print_col = $choices->[$idx] ) =~ s/^\-\s//;
+                $idx -= @pre;
                 if ( $stmt_key ne 'chosen_cols' ) {
-                    if ( $i - @{$sql->{print}{aggr_cols}} >= 0 ) {
-                        $i -= @{$sql->{print}{aggr_cols}};
+                    if ( $idx - @{$sql->{print}{aggr_cols}} >= 0 ) {
+                        $idx -= @{$sql->{print}{aggr_cols}};
                         $stmt_key = 'group_by_cols';
                     }
                     else {
                         $stmt_key = 'aggr_cols';
                     }
                 }
-                if ( $sql->{print}{$stmt_key}[$i] ne $sql->{pr_backup_in_hidd}{$stmt_key}[$i] ) {
+                if ( $sql->{print}{$stmt_key}[$idx] ne $sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx] ) {
                     if ( $stmt_key ne 'aggr_cols' ) {
-                        my $i = first_index { $sql->{print}{$stmt_key}[$i] eq $_ } @{$sql->{pr_col_with_hidd_func}};
-                        splice( @{$sql->{pr_col_with_hidd_func}}, $i, 1 );
+                        my $i = first_index { $sql->{print}{$stmt_key}[$idx] eq $_ } @{$sql->{pr_col_with_scalar_func}};
+                        splice( @{$sql->{pr_col_with_scalar_func}}, $i, 1 );
                     }
-                    $sql->{print}{$stmt_key}[$i] = $sql->{pr_backup_in_hidd}{$stmt_key}[$i];
-                    $sql->{quote}{$stmt_key}[$i] = $qt_columns->{$sql->{pr_backup_in_hidd}{$stmt_key}[$i]};
+                    $sql->{print}{$stmt_key}[$idx] = $sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx];
+                    $sql->{quote}{$stmt_key}[$idx] = $qt_columns->{$sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx]};
                     $changed++;
-                    next HIDDEN;
+                    next COL_SCALAR_FUNC;
                 }
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -847,29 +840,32 @@ sub __on_table {
                     { %{$self->{info}{lyt_stmt_v}} }
                 );
                 if ( ! defined $function ) {
-                    next HIDDEN;
+                    next COL_SCALAR_FUNC;
                 }
                 $function =~ s/^\s\s//;
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                my ( $quote_hidd, $print_hidd ) = $self->__col_functions( $function, $quote_col, $print_col );
-                if ( ! defined $quote_hidd ) {
-                    next HIDDEN;
+                my ( $qt_scalar_func, $pr_scalar_func ) = $self->__col_functions( $function, $quote_col, $print_col );
+                if ( ! defined $qt_scalar_func ) {
+                    next COL_SCALAR_FUNC;
                 }
-                $print_hidd = $self->__unambiguous_key( $print_hidd, $pr_columns );
+                $pr_scalar_func = $self->__unambiguous_key( $pr_scalar_func, $pr_columns );
                 if ( $stmt_key eq 'group_by_cols' ) {
-                    $sql->{quote}{$stmt_key}[$i] = $quote_hidd;
+                    $sql->{quote}{$stmt_key}[$idx] = $qt_scalar_func;
+                    $sql->{print}{$stmt_key}[$idx] = $pr_scalar_func;
                     $sql->{quote}{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{quote}{$stmt_key}} );
                     $sql->{print}{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{print}{$stmt_key}} );
                 }
-                $sql->{quote}{$stmt_key}[$i] = $quote_hidd . ' AS ' . $dbh->quote_identifier( $print_hidd );
-                $sql->{print}{$stmt_key}[$i] = $print_hidd;
-                $qt_columns->{$print_hidd} = $quote_hidd;
-                if ( $stmt_key ne 'aggr_cols' ) { # WHERE: aggregate functions are not allowed
-                    push @{$sql->{pr_col_with_hidd_func}}, $print_hidd;
+                $sql->{quote}{$stmt_key}[$idx] = $qt_scalar_func;
+                # alias to get a shorter scalar funtion column name in the tableprint (optional):
+                $sql->{quote}{$stmt_key}[$idx] .= ' AS ' . $dbh->quote_identifier( $pr_scalar_func );
+                $sql->{print}{$stmt_key}[$idx] = $pr_scalar_func;
+                $qt_columns->{$pr_scalar_func} = $qt_scalar_func;
+                if ( $stmt_key ne 'aggr_cols' ) { # aggregate functions are not allowed in WHERE clauses
+                    push @{$sql->{pr_col_with_scalar_func}}, $pr_scalar_func;
                 }
                 $changed++;
-                next HIDDEN;
+                next COL_SCALAR_FUNC;
             }
         }
         elsif ( $custom eq $customize{'print_table'} ) {
@@ -1196,26 +1192,20 @@ sub __set_operator_sql {
             return;
         }
         ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-        if ( $operator !~ /LIKE\z/ ) {
+        if ( $arg !~ /%/ ) {
             $sql->{quote}{$stmt} .= ' ' . $quote_col;
             $sql->{print}{$stmt} .= ' ' . $print_col;
         }
         else {
-            my ( @qt_args, @pr_args );
-            if ( $arg =~ /^(%)col/ ) {
-                push @qt_args, "'$1'";
-                push @pr_args, "'$1'";
-            }
-            push @qt_args, $quote_col;
-            push @pr_args, $print_col;
-            if ( $arg =~ /col(%)\z/ ) {
-                push @qt_args, "'$1'";
-                push @pr_args, "'$1'";
-            }
             if ( ! eval {
                 my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-                $sql->{quote}{$stmt} .= ' ' . $obj_db->concatenate( \@qt_args );
-                $sql->{print}{$stmt} .= ' ' . join( '+', @pr_args );
+                my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
+                my $qt_arg = $obj_db->concatenate( \@el );
+                my $pr_arg = join ' + ', @el;
+                $qt_arg =~ s/'col'/$quote_col/;
+                $pr_arg =~ s/'col'/$print_col/;
+                $sql->{quote}{$stmt} .= ' ' . $qt_arg;
+                $sql->{print}{$stmt} .= ' ' . $pr_arg;
                 1 }
             ) {
                 $auxil->__print_error_message( $@, $operator . ' ' . $arg );
@@ -1234,7 +1224,7 @@ sub __col_functions {
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
     my $obj_ch = Term::Choose->new();
     my ( $quote_f, $print_f );
-    $print_f = $self->{info}{hidd_func_pr}{$func} . '(' . $print_col . ')';
+    $print_f = $self->{info}{scalar_func_h}{$func} . '(' . $print_col . ')';
     if ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
         my $prompt = "$print_f\nInterval:";
         my ( $microseconds, $milliseconds, $seconds ) = (

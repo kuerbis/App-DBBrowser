@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -57,11 +57,11 @@ sub new {
                                " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
                                "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
                                # "LIKE col", "NOT LIKE col"
-        hidd_func_pr      => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
-                               Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
-        keys_hidd_func_pr => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
-        csv_opt           => [ qw( allow_loose_escapes allow_loose_quotes allow_whitespace auto_diag
-                                   blank_is_undef binary empty_is_undef eol escape_char quote_char sep_char ) ],
+        scalar_func_h    => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
+                              Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
+        scalar_func_keys => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
+        csv_opt          => [ qw( allow_loose_escapes allow_loose_quotes allow_whitespace auto_diag
+                                  blank_is_undef binary empty_is_undef eol escape_char quote_char sep_char ) ],
     };
     return bless { info => $info }, $class;
 }
@@ -541,7 +541,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 0.999
+Version 1.001
 
 =head1 DESCRIPTION
 

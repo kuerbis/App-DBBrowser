@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use Encode qw( encode );
 
@@ -96,8 +96,8 @@ sub __reset_sql {
     @{$sql->{quote}}{ @{$sql->{strg_keys}} } = ( '' ) x  @{$sql->{strg_keys}};
     @{$sql->{print}}{ @{$sql->{list_keys}} } = map{ [] } @{$sql->{list_keys}};
     @{$sql->{quote}}{ @{$sql->{list_keys}} } = map{ [] } @{$sql->{list_keys}};
-    $sql->{pr_col_with_hidd_func} = [];
-    delete $sql->{pr_backup_in_hidd};
+    $sql->{pr_col_with_scalar_func} = [];
+    delete $sql->{scalar_func_backup_pr_col};
 }
 
 

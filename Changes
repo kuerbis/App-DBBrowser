@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.001   2015-01-31
+        - Read db configuration file if db_plugin settings have changed.
+        - Bugfix options insert.
+        - Code refactoring.
+        - Update documentation.
+
 0.999   2015-01-29
         - Changed available operators.
         - Handle missing "sql_regexp" and "concatenate" method.

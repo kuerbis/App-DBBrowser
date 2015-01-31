@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -181,7 +181,7 @@ sub __union_tables {
         $union->{quote}{stmt} .= " FROM " . $dbh->quote_identifier( undef, $schema, $table );
         $union->{quote}{stmt} .= $c < @{$union->{used_tables}} ? " UNION ALL " : " )";
     }
-    if ( $self->{union_all} ) {
+    if ( $self->{union_all} ) {  # alias: required if mysql, Pg, ...
         $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_ALL_TABLES' );
     }
     else {
@@ -241,10 +241,13 @@ sub __get_tables_info {
     my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} );
     for my $table ( @{$u_or_j->{tables}} ) {
         push @{$tables_info->{$table}}, 'Table => ' . $table;
-        if ( defined $u_or_j->{col_names} ) {
+        if ( defined $u_or_j->{col_types}{$table} ) {
             push @{$tables_info->{$table}}, join( ' | ', map {
                             lc( $u_or_j->{col_types}{$table}[$_] )
                         . ' ' . $u_or_j->{col_names}{$table}[$_]   } 0 .. $#{$u_or_j->{col_names}{$table}} );
+        }
+        else {
+            push @{$tables_info->{$table}}, join ' | ',  @{$u_or_j->{col_names}{$table}};
         }
         if ( $type eq 'join' ) {
             if ( defined $pk && @{$pk->{$table}} ) {
@@ -261,9 +264,6 @@ sub __get_tables_info {
                     }
                 }
             }
-        }
-        if ( @{$tables_info->{$table}} == 1 ) {
-            push @{$tables_info->{$table}}, 'No INFO available.';
         }
     }
     return $tables_info;
@@ -464,8 +464,9 @@ sub __join_tables {
                 next;
             }
             #if ( any { $_ eq $col_pr } @not_unique_col ) {
-                $col_pr .= '_' . $table;
-                $col_qt .= " AS " . $dbh->quote_identifier( $col_pr );
+            #    $col_pr .= '_' . $table;
+            #    # alias: add the table name to the column name (optional):
+            #    $col_qt .= " AS " . $dbh->quote_identifier( $col_pr );
             #}
             push @{$join->{pr_columns}}, $col_pr;
             $join->{qt_columns}{$col_pr} = $col_qt;

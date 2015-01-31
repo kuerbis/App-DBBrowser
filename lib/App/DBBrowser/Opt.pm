@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -157,20 +157,24 @@ sub __config_insert {
                 redo GROUP_INSERT;
             }
             my $section = $sub_menu_insert->[$idx - @pre]{section};
+            my $ref_section = $self->{opt}{$section};
             my $no_yes  = [ 'NO', 'YES' ];
             if ( $option eq 'input_modes' ) {
                     my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
-                    $self->__opt_choose_a_list( $section, $option, $available );
+                    $self->__opt_choose_a_list( $ref_section, $option, $available );
             }
             elsif ( $option eq 'csv_read' ) {
                 my $prompt = 'Parsing CSV files: ';
                 my $list = [ 'Text::CSV', 'Text::ParseWords', 'Spreadsheet::Read' ];
                 my $sub_menu = [ [ $option, "  Use", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
             elsif ( $option eq 'encoding_csv_file' ) {
+                my $items = [
+                    { name => 'encoding_csv_file', prompt => "encoding_csv_file" },
+                ];
                 my $prompt = 'Encoding CSV files';
-                $self->__opt_readline( 'insert', $option, $prompt );
+                $self->__group_readline( $ref_section, $items, $prompt );
             }
             elsif ( $option eq '_csv_char' ) {
                 my $items = [
@@ -179,7 +183,7 @@ sub __config_insert {
                     { name => 'escape_char', prompt => "escape_char" },
                 ];
                 my $prompt = 'Text::CSV:';
-                $self->__group_readline( $section, $items, $prompt );
+                $self->__group_readline( $ref_section, $items, $prompt );
             }
             elsif ( $option eq '_options_csv' ) {
                 my $prompt = 'Text::CSV:';
@@ -190,22 +194,25 @@ sub __config_insert {
                     [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
                     [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
                 ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
             elsif ( $option eq 'delim' ) {
+                my $items = [
+                    { name => 'delim', prompt => "delim" },
+                ];
                 my $prompt = 'Text::ParseWords delimiter (regexp)';
-                $self->__opt_readline( $section, $option, $prompt );
+                $self->__group_readline( $ref_section, $items, $prompt );
             }
             elsif ( $option eq 'keep' ) {
                 my $prompt = 'Text::ParseWords: ';
                 my $list = $no_yes;
                 my $sub_menu = [ [ $option, "  Enable option '\$keep'", $list ] ];
-                $self->__opt_choose_multi( $section, $sub_menu, $prompt );
+                $self->__opt_choose_multi( $ref_section, $sub_menu, $prompt );
             }
             elsif ( $option eq 'max_files' ) {
                 my $digits = 3;
                 my $prompt = 'Save the last x input file names';
-                $self->__opt_number_range( $section, $option, $prompt, $digits );
+                $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
             else { die "Unknown option: $option" }
         }
@@ -235,7 +242,6 @@ sub __menus {
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
-            { name => 'max_rows',     text => "- Max Rows",    section => 'table' },
             { name => 'metadata',     text => "- Metadata",    section => 'G' },
             { name => 'operators',    text => "- Operators",   section => 'G' },
             { name => 'lock_stmt',    text => "- Lock Mode",   section => 'G' },
@@ -243,6 +249,7 @@ sub __menus {
 
         ],
         config_output => [
+            { name => 'max_rows',      text => "- Max Rows",    section => 'table' },
             { name => 'min_col_width', text => "- Colwidth",    section => 'table' },
             { name => 'progress_bar',  text => "- ProgressBar", section => 'table' },
             { name => 'tab_width',     text => "- Tabwidth",    section => 'table' },
@@ -358,8 +365,12 @@ sub set_options {
                 $self->__opt_number_range( $ref_section, $option, $prompt, $digits );
             }
             elsif ( $option eq 'undef' ) {
-                my $prompt = 'Print replacement for undefined table vales';
-                $self->__opt_readline( $ref_section, $option, $prompt );
+                my $items = [
+                    { name => 'undef', prompt => "undef" },
+                ];
+                my $prompt = 'Print replacement for undefined table values.';
+                $self->__group_readline( $ref_section, $items, $prompt );
+
             }
             elsif ( $option eq 'progress_bar' ) {
                 my $digits = 7;
@@ -385,8 +396,8 @@ sub set_options {
             }
             elsif ( $option eq '_parentheses' ) {
                 my $sub_menu = [
-                    [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', '(YES', 'YES(' ] ],
-                    [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', '(YES', 'YES(' ] ],
+                    [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', 'YES' ] ],
+                    [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', 'YES' ] ],
                 ];
                 $self->__opt_choose_multi( $ref_section, $sub_menu );
             }
@@ -401,6 +412,7 @@ sub set_options {
                     map { $installed_db_driver{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
                 }
                 $self->__opt_choose_a_list( $ref_section, $option, [ sort keys %installed_db_driver ] );
+                $self->read_db_config_files();
             }
             elsif ( $option eq 'mouse' ) {
                 my $prompt = 'Mouse mode: ';
@@ -467,20 +479,24 @@ sub __opt_number_range {
 sub __group_readline {
     my ( $self, $ref_section, $items, $prompt ) = @_;
     my $old_idx = 0;
+    my $tmp = {};
 
     OPTION: while ( 1 ) {
-        my @pre = ( undef );
+        my $confirm = '  CONFIRM';
+        my @pre = ( undef, $confirm );
         my @real = map {
                 '- '
             . $_->{prompt}
-            . ( $ref_section->{$_->{name}} ? ": $ref_section->{$_->{name}}" : ":" )
+            . (   defined $tmp->{$_->{name}} ? ": $tmp->{$_->{name}}"
+                : $ref_section->{$_->{name}} ? ": $ref_section->{$_->{name}}"
+                : ':' )
         } @{$items};
         my $choices = [ @pre, @real ];
         # Choose
         my $idx = choose(
             $choices,
             { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx,
-              prompt => $prompt, undef => $self->{info}{conf_back} }
+              prompt => $prompt, undef => $self->{info}{_back} }
         );
         if ( ! $idx ) {
             return;
@@ -494,25 +510,26 @@ sub __group_readline {
                 $old_idx = $idx;
             }
         }
+        if ( $choices->[$idx] eq $confirm ) {
+            for my $key ( keys %$tmp ) {
+                $ref_section->{$key} = $tmp->{$key};
+            }
+            $self->{info}{write_config}++;
+            return;
+        }
         $idx -= @pre;
         my $option = $items->[$idx]{name};
         my $readline_prompt = $items->[$idx]{prompt};
         $readline_prompt =~ s/\s+\z//;
-        $self->__opt_readline( $ref_section, $option, $readline_prompt );
+        my $current = $ref_section->{$option};
+        my $trs = Term::ReadLine::Simple->new();
+        # Readline
+        my $choice = $trs->readline( $readline_prompt . ': ', { default => $current } );
+        if ( ! defined $choice ) {
+            next OPTION;
+        }
+        $tmp->{$option} = $choice;
     }
-}
-
-
-sub __opt_readline {
-    my ( $self, $ref_section, $option, $prompt ) = @_;
-    my $current = $ref_section->{$option};
-    my $trs = Term::ReadLine::Simple->new();
-    # Readline
-    my $choice = $trs->readline( $prompt . ': ', { default => $current } );
-    return if ! defined $choice;
-    $ref_section->{$option} = $choice;
-    $self->{info}{write_config}++;
-    return;
 }
 
 
@@ -755,18 +772,6 @@ sub read_db_config_files {
     }
     return $self->{db_opt};
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

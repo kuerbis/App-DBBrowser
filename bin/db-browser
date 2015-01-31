@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '0.999';
+our $VERSION = '1.001';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 0.999
+Version 1.001
 
 =cut
 
@@ -51,11 +51,11 @@ Version 0.999
 When the C<db-browser> is called with the argument C<-h|--help>, it shows a menu. The menu entry I<HELP> shows this
 documentation - see L</OPTIONS>.
 
-C<db-browser> called without arguments uses its own method to find the available databases. If the C<SQLite> driver is
-in use, the option I<Search directories> determines where to search for C<SQLite> databases (defaults to the home
-directory).
+If C<db-browser> called without arguments, the user can choose from the databases offered by the database plugin. The
+database is chosen automatically if it is available only one database. With the C<SQLite> driver is in use, the option
+I<Search directories> tells the database plugin where to search for C<SQLite> databases (defaults to the home directory).
 
-If C<db-browser> is called with arguments, the arguments are use as the available databases.
+If C<db-browser> is called with arguments, the arguments are used as the available databases.
 
 =head2 SQLite
 
@@ -65,8 +65,9 @@ C<db-browser> called with C<-s|--search> causes a new search of SQLite databases
 
 =head1 DESCRIPTION
 
-Search and read in SQLite/MySQL/PostgreSQL databases. With the C<db-browser> one can browse databases and their tables
-interactively. The supported DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
+Search and read in SQL databases. With the C<db-browser> one can browse databases and their tables interactively.
+
+The supported DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
 
 To be able to browse the database-, schema- and table-lists and the content of tables the user must have the database
 privileges required for fetching the requested data.
@@ -182,93 +183,6 @@ Show this Info.
 
 Shows the version and the path of the running C<db-browser> and the path of the application directory.
 
-=head3 Output
-
-=head4 Colwidth
-
-Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
-all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
-
-=head4 ProgressBar
-
-Set the progress bar threshold. If the number of fields (rows x columns) is higher than the threshold, a progress bar is
-shown while preparing the data for the output.
-
-=head4 Tabwidth
-
-Set the number of spaces between columns.
-
-=head4 Undef
-
-Set the string that will be shown on the screen instead of an undefined field.
-
-On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
-C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
-a machine with 'MSWin32' OS.
-
-=head3 Menu
-
-=head4 Menu Memory
-
-Set the behavior of the interactive menus:
-
-- setting I<Config Menus> to "Memory" means: save the selected configuration menu position while entering in a config
-sub menu.
-
-- setting I<SQL Menu> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
-
-- setting I<DB Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
-entering in a sub menu.
-
-=head4 Table expand
-
-- setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
-in its own line.
-
-- setting I<Table Header> to "Each page" means: print the table header on top of each page.
-
-=head4 Lock
-
-Set the default I<lock> value:
-
-- Lk0: Reset the SQL-statement after each "PrintTable".
-
-- Lk1: Reset the SQL-statement only when a table is selected.
-
-=head4 Mouse Mode
-
-Set the I<mouse mode> (see L<Term::Choose/mouse>).
-
-=head3 SQL
-
-=head4 Max Rows
-
-Set the maximum number of fetched table rows. This can be overwritten by setting a SQL C<LIMIT> statement.
-
-The fetched table rows are kept in memory.
-
-To disable the automatic limit set I<Max Rows> to 0.
-
-=head4 Metadata
-
-If I<Metadata> is enabled, system tables/schemas/databases are appended to the respective list.
-
-=head4 Operators
-
-Choose the required operators.
-
-There are two REGEXP entries: "REGEXP" matches case sensitive while "REGEXP_i" matches case insensitive.
-
-With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
-
-=head4 Parentheses
-
-Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
-
-- C<(YES>: the position of "(" in the menu is before the column names.
-
-- C<YES(>: the position of "(" in the menu is after the column names.
-
 =head3 Database
 
 =head4 DB Plugins
@@ -326,8 +240,7 @@ It depends on the database plugin which fields are offered to set and whether th
 The entered data for a field is saved with the field in a configuration file. If the configuration file contains a field
 with a defined value, the value is used for that field to connect instead to ask the user for the value.
 
-It depends on the database plugin which fields are offered to set and whether the selections made by the user a
-considered.
+It depends on the database plugin which fields are offered to set and whether the user given data is considered.
 
 =item DB Options
 
@@ -361,6 +274,89 @@ It depends on the database plugin if this setting is considered.
 Reset database specific parameter to the global I<DB Settings>.
 
 =back
+
+=head3 Menu
+
+=head4 Menu Memory
+
+Set the behavior of the interactive menus:
+
+- setting I<Config Menus> to "Memory" means: save the selected configuration menu position while entering in a config
+sub menu.
+
+- setting I<SQL Menu> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
+
+- setting I<DB Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
+entering in a sub menu.
+
+=head4 Table expand
+
+- setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
+in its own line.
+
+- setting I<Table Header> to "Each page" means: print the table header on top of each page.
+
+=head4 Lock
+
+Set the default I<lock> value:
+
+- Lk0: Reset the SQL-statement after each "PrintTable".
+
+- Lk1: Reset the SQL-statement only when a table is selected.
+
+=head4 Mouse Mode
+
+Set the I<mouse mode> (see L<Term::Choose/mouse>).
+
+=head3 SQL
+
+=head4 Metadata
+
+If I<Metadata> is enabled, system tables/schemas/databases are appended to the respective list.
+
+=head4 Operators
+
+Choose the required operators.
+
+There are two REGEXP entries: "REGEXP" matches case sensitive while "REGEXP_i" matches case insensitive.
+
+With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
+
+=head4 Parentheses
+
+Enable parentheses in C<WHERE> and/or C<HAVING TO> clauses.
+
+=head3 Output
+
+=head4 Max Rows
+
+Set the maximum number of fetched table rows. This can be overwritten by setting a SQL C<LIMIT> statement.
+
+The fetched table rows are kept in memory.
+
+To disable the automatic limit set I<Max Rows> to C<0>.
+
+=head4 Colwidth
+
+Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
+all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
+
+=head4 ProgressBar
+
+Set the progress bar threshold. If the number of fields (rows x columns) is higher than the threshold, a progress bar is
+shown while preparing the data for the output.
+
+=head4 Tabwidth
+
+Set the number of spaces between columns.
+
+=head4 Undef
+
+Set the string that will be shown on the screen instead of an undefined field.
+
+On MSWin32 only single-byte character sets are supported when setting I<Undef>, I<user>, I<host> or I<port> with the
+C<db-browser>. Edit the configuration files directly if multi-byte encoded characters are required for these settings on
+a machine with 'MSWin32' OS.
 
 =head3 Insert
 
@@ -405,7 +401,7 @@ Supported file formats: CSV files and the spreadsheet formats supported by L<Spr
 
 =head4 CSV parse module
 
-Set which module to use for parsing text files or for parsing the "Multirow" input.
+Set which module to use for parsing text files and the "Multirow" input.
 
 Files where C<-T $filename> returns true are considered text files.
 
@@ -416,8 +412,6 @@ If a file is not a text file, then it is always used C<Spreadsheet::Read> to par
 =item
 
 Text::CSV
-
-The following csv options are used if L<Text::CSV> is chosen.
 
 To decode the file it is used the I<CSV file encoding>
 
@@ -446,33 +440,17 @@ The following csv settings have no meaning when L<Spreadsheet::Read> is in use.
 
 How to decode csv files.
 
-=head4 csv sep_char
+=head4 Text::CSV
 
-Set the csv sep_char.
+Set C<Text::CSV> options.
 
-=head4 csv quote_char
+=head4 Text::ParseWords
 
-Set the csv quote_char.
-
-=head4 csv escape_char
-
-Set the csv escape_char.
-
-=head4 csv various
-
-Other different csv options.
-
-=head4 T::PW: $delim
-
-C<Text::ParseWords>: set the delimiter (C<$delim>). Can be a regexp.
-
-=head4 T::PW: $keep
-
-See L<Text::ParseWords> for more information for the option C<$keep>.
+Set C<Text::ParseWords> options.
 
 =head4 File history
 
-Set how many input file names should be saved. A value of 0 disables the file history.
+Set how many input file names should be saved. A value of C<0> disables the file history.
 
 =head2 CONFIGURATION FILES
 
