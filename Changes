@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.002   2015-02-03
+        - Bugfix options.
+        - DB plugins: "AutoCommit" to 0.
+
 1.001   2015-01-31
         - Read db configuration file if db_plugin settings have changed.
         - Bugfix options insert.
