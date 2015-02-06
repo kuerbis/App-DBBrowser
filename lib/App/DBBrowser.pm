@@ -178,7 +178,7 @@ sub __prepare_connect_parameter {
             $connect_parameter->{login_data}{$name} = $self->{db_opt}{$section}{$name};
         }
     }
-    if ( ! defined $self->{db_opt}{$db_plugin}{directories_sqlite} ) {
+    if ( $self->{info}{db_driver} eq 'SQLite' && ! defined $self->{db_opt}{$db_plugin}{directories_sqlite} ) {
         $self->{db_opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
     }
     $connect_parameter->{dir_sqlite} = $self->{db_opt}{$db_plugin}{directories_sqlite};
@@ -413,7 +413,7 @@ sub run {
                     if ( $table eq $db_setting ) {
                         my $new_db_settings;
                         if ( ! eval {
-                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
+                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
                             $new_db_settings = $obj_opt->database_setting( $db );
                             1 }
                         ) {
