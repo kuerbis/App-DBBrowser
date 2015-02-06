@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -53,6 +53,7 @@ sub defaults {
             tab_width            => 2,
             undef                => '',
             binary_string        => 'BNRY',
+            binary_filter        => 0,
         },
         insert => {
             input_modes          => [ 'Cols', 'Multirow', 'File' ],
@@ -120,7 +121,7 @@ sub __config_insert {
             # Choose
             my $idx = choose(
                 [ @pre, @real ],
-                { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{conf_back} }
+                { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{back_short} }
             );
             if ( ! $idx ) {
                 if ( $group =~ /^_module_/ ) {
@@ -130,8 +131,8 @@ sub __config_insert {
                 }
                 else {
                     if ( $self->{info}{write_config} ) {
-                        $self->__write_config_files();
-                        delete $self->{info}{write_config} if $write_to_file;
+                        $self->__write_config_files() if $write_to_file;
+                        delete $self->{info}{write_config};
                     }
                     return
                 }
@@ -270,7 +271,7 @@ sub set_options {
         my $menu = $self->__menus( $group );
 
         OPTION: while ( 1 ) {
-            my $back =          $group eq 'main' ? $self->{info}{_quit}     : $self->{info}{conf_back};
+            my $back =          $group eq 'main' ? $self->{info}{_quit}     : $self->{info}{back_short};
             my @pre  = ( undef, $group eq 'main' ? $self->{info}{_continue} : () );
             my @real = map( $_->{text}, @$menu );
             # Choose
@@ -537,7 +538,7 @@ sub __opt_choose_dirs {
     my ( $self, $opt_type, $section, $option ) = @_;
     my $current = $self->{$opt_type}{$section}{$option};
     # Choose_dirs
-    my $dirs = choose_dirs( { mouse => $self->{opt}{G}{mouse}, current => $current } );
+    my $dirs = choose_dirs( { mouse => $self->{opt}{table}{mouse}, current => $current } );
     return if ! defined $dirs;
     return if ! @$dirs;
     $self->{$opt_type}{$section}{$option} = $dirs;
@@ -570,7 +571,7 @@ sub database_setting {
                 # Choose
                 $db_plugin = choose(
                     [ undef, map( "- $_", @{$self->{opt}{G}{db_plugins}} ) ],
-                    { %{$self->{info}{lyt_3}}, undef => $self->{info}{conf_back} }
+                    { %{$self->{info}{lyt_3}}, undef => $self->{info}{back_short} }
                 );
                 return if ! defined $db_plugin;
             }
@@ -615,7 +616,7 @@ sub database_setting {
             my $idx_group = choose(
                 $choices,
                 { %{$self->{info}{lyt_3}}, prompt => $prompt, index => 1,
-                  default => $old_idx_group, undef => $self->{info}{conf_back} }
+                  default => $old_idx_group, undef => $self->{info}{back_short} }
             );
             if ( ! $idx_group ) {
                 if ( $self->{info}{write_config} ) {

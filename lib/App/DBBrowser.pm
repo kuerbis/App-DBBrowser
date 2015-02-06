@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -37,15 +37,15 @@ sub new {
         lyt_3      => {                      layout => 3,             justify => 0, clear_screen => 1, mouse => 0, undef => '  BACK' },
         lyt_stmt_v => { prompt => 'Choose:', layout => 3,             justify => 0, clear_screen => 0, mouse => 0, undef => '  BACK' },
         lyt_stop   => {                                                             clear_screen => 0, mouse => 0                    },
-        quit      => 'QUIT',
-        back      => 'BACK',
-        _quit     => '  QUIT',
-        _back     => '  BACK',
-        _continue => '  CONTINUE',
-        _confirm  => '  CONFIRM',
-        _reset    => '  RESET',
-        ok        => '- OK -',
-        conf_back => '  <=',
+        quit       => 'QUIT',
+        back       => 'BACK',
+        _quit      => '  QUIT',
+        _back      => '  BACK',
+        _continue  => '  CONTINUE',
+        _confirm   => '  CONFIRM',
+        _reset     => '  RESET',
+        ok         => '- OK -',
+        back_short => '  <=',
         clear_screen      => "\e[H\e[J",
         line_fold         => { Charset=> 'utf8', OutputCharset => '_UNICODE_', Urgent => 'FORCE' },
         config_generic    => 'Generic',
@@ -57,6 +57,7 @@ sub new {
                                " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
                                "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
                                # "LIKE col", "NOT LIKE col"
+        lock             => 0,
         scalar_func_h    => { Epoch_to_Date => 'DATE', Truncate => 'TRUNC', Epoch_to_DateTime => 'DATETIME',
                               Bit_Length => 'BIT_LENGTH', Char_Length => 'CHAR_LENGTH' },
         scalar_func_keys => [ qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) ],
@@ -170,7 +171,7 @@ sub __prepare_connect_parameter {
             $self->{db_opt}{$section}{$login_mode_key} = 0;
         }
         $connect_parameter->{login_mode}{$name} = $self->{db_opt}{$section}{$login_mode_key};
-        if ( ! $self->{info}{error} ) {
+        if ( ! $self->{info}{login_error} ) {
             if ( defined $db && ! defined $self->{db_opt}{$section}{$name} ) {
                 $section = $db_plugin;
             }
@@ -181,7 +182,7 @@ sub __prepare_connect_parameter {
         $self->{db_opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
     }
     $connect_parameter->{dir_sqlite} = $self->{db_opt}{$db_plugin}{directories_sqlite};
-    delete $self->{info}{error} if exists $self->{info}{error};
+    delete $self->{info}{login_error} if exists $self->{info}{login_error};
     return $connect_parameter;
 }
 
@@ -243,7 +244,7 @@ sub run {
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Available databases' );
-            $self->{info}{error} = 1;
+            $self->{info}{login_error} = 1;
             next DB_PLUGIN;
         }
         if ( ! @$databases ) {
@@ -306,7 +307,7 @@ sub run {
             ) {
                 $auxil->__print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
-                $self->{info}{error} = 1;
+                $self->{info}{login_error} = 1;
                 next DATABASE;
             }
 
@@ -412,7 +413,7 @@ sub run {
                     if ( $table eq $db_setting ) {
                         my $new_db_settings;
                         if ( ! eval {
-                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
+                            my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt} );
                             $new_db_settings = $obj_opt->database_setting( $db );
                             1 }
                         ) {
@@ -515,11 +516,14 @@ sub __browse_the_table {
             next PRINT_TABLE;
         }
         last PRINT_TABLE if ! defined $all_arrayref;
-        delete @{$self->{info}}{qw(width_head width_cols not_a_number)};
         print_table( $all_arrayref, $self->{opt}{table} );
         if ( defined $self->{info}{backup_max_rows} ) {
             $self->{opt}{table}{max_rows} = delete $self->{info}{backup_max_rows};
         }
+    }
+    if ( $db_plugin eq 'Debug' ) {
+        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
+        $obj_db->debug( $dbh, $self->{info}, $self->{opt}, $self->{db_opt} );
     }
 }
 
@@ -541,7 +545,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.002
+Version 1.003
 
 =head1 DESCRIPTION
 

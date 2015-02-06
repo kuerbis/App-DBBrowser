@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.003   2015-02-06
+        - Bugfix option "mouse".
+        - Support Debug plugin.
+        - Update "INSERT" menu.
+        - Update documentation.
+
 1.002   2015-02-03
         - Bugfix options.
         - DB plugins: "AutoCommit" to 0.

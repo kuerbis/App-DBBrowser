@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.002
+Version 1.003
 
 =head1 DESCRIPTION
 
@@ -117,6 +117,12 @@ sub new {
 sub message_method_undef_return {
     my ( $self, $method ) = @_;
     return sprintf '%s method %s: no return value', ref $self->{Plugin}, $method;
+}
+
+sub debug {
+    my ( $self, $dbh, $info, $opt, $db_opt ) = @_;
+    return if ! $self->{Plugin}->can( 'debug' );
+    $self->{Plugin}->debug( $dbh, $info, $opt, $db_opt );
 }
 
 

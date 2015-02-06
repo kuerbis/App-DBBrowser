@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -383,8 +383,8 @@ sub __filter_input {
 
     FILTER: while ( 1 ) {
         my @pre = ( undef, $self->{info}{ok} );
-        my ( $input_cols, $input_rows_range, $input_rows_choose, $reset ) = ( 'Columns', 'Rows-range', 'Rows-choose', 'Reset' );
-        my $choices = [ @pre, $input_cols, $input_rows_range, $input_rows_choose, $reset ];
+        my ( $input_cols, $input_rows_choose, $input_rows_range, $reset ) = ( 'Columns', 'Rows-choose', 'Rows-range', 'Reset' );
+        my $choices = [ @pre, $input_cols, $input_rows_choose, $input_rows_range, $reset ];
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
         # Choose
         my $choice = $stmt_h->choose(

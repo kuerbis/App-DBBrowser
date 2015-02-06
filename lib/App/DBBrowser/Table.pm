@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -46,7 +46,7 @@ sub __on_table {
         commit          => '  Confirm SQL',
         columns         => '- SELECT',
         set             => '- SET',
-        insert          => '  Columns and values',
+        insert          => '  Form SQL',
         aggregate       => '- AGGREGATE',
         distinct        => '- DISTINCT',
         where           => '- WHERE',

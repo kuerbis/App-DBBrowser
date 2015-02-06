@@ -17,6 +17,7 @@ MANIFEST			This list of files
 README
 t/compile.t
 xt/cntrl_db_browser.t
+xt/Debug.pm
 xt/manifest.t
 xt/perl_minimum_version.t
 xt/pod-coverage.t

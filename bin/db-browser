@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.002
+Version 1.003
 
 =cut
 
@@ -67,7 +67,8 @@ C<db-browser> called with C<-s|--search> causes a new search of SQLite databases
 
 Search and read in SQL databases. With the C<db-browser> one can browse databases and their tables interactively.
 
-The supported DBI drivers are C<DBD::SQLite>, C<DBD::mysql> and C<DBD::Pg>.
+The database plugins bundled with C<App::DBBrowser> provide support for the DBI drivers C<DBD::SQLite>, C<DBD::mysql>
+and C<DBD::Pg>. See L<App::DBBrowser::DB> how to write a database plugin.
 
 To be able to browse the database-, schema- and table-lists and the content of tables the user must have the database
 privileges required for fetching the requested data.
@@ -413,7 +414,7 @@ If a file is not a text file, then it is always used C<Spreadsheet::Read> to par
 
 Text::CSV
 
-To decode the file it is used the I<CSV file encoding>
+Use L<Text::CSV> to parse text files and the "Multirow" input. To decode the files it is used the I<CSV file encoding>.
 
 =item
 
@@ -432,7 +433,7 @@ If L<Spreadsheet::Read> is chosen, the default settings from C<Spreadsheet::Read
 C<Spreadsheet::Read> will use the first line of the file to auto-detect the separation character if the file is a CSV
 file.
 
-The following csv settings have no meaning when L<Spreadsheet::Read> is in use.
+The following csv settings have no meaning when C<Spreadsheet::Read> is in use.
 
 =back
 
