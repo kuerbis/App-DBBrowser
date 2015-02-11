@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.004   2015-02-11
+        - JOIN: add the tablename to the column names.
+
 1.003   2015-02-06
         - Bugfix option "mouse".
         - Support Debug plugin.

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.003';
+our $VERSION = '1.004';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -464,9 +464,9 @@ sub __join_tables {
                 next;
             }
             #if ( any { $_ eq $col_pr } @not_unique_col ) {
-            #    $col_pr .= '_' . $table;
-            #    # alias: add the table name to the column name (optional):
-            #    $col_qt .= " AS " . $dbh->quote_identifier( $col_pr );
+                $col_pr .= '.' . $table;
+                # alias: add the table name to the column name (optional):
+                $col_qt .= " AS " . $dbh->quote_identifier( $col_pr );
             #}
             push @{$join->{pr_columns}}, $col_pr;
             $join->{qt_columns}{$col_pr} = $col_qt;
