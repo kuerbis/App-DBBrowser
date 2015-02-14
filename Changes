@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.005   2015-02-14
+        - Re-enable "AutoCommit" because no "commit"s in db plugins (if required: "begin_work" disables "AutoCommit" automatically).
+
 1.004   2015-02-11
         - JOIN: add the tablename to the column names.
 

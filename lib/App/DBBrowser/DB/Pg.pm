@@ -76,7 +76,7 @@ sub get_db_handle {
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,
         RaiseError => 1,
-        AutoCommit => 0,
+        AutoCommit => 1,
         ShowErrorStatement => 1,
         %{$connect_parameter->{attributes}},
     } ) or die DBI->errstr;
