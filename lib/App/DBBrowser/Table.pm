@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.005';
+our $VERSION = '1.006';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -30,7 +30,10 @@ sub new {
 
 
 sub __on_table {
-    my ( $self, $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns ) = @_;
+    my ( $self, $sql, $dbh, $table, $stmt_info ) = @_;
+    my $select_from_stmt = $stmt_info->{quote}{stmt};
+    my $pr_columns       = $stmt_info->{pr_columns};
+    my $qt_columns       = $stmt_info->{qt_columns};
     my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
@@ -116,7 +119,7 @@ sub __on_table {
         elsif ( $custom eq $customize{'insert'} ) {
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
-            $tbl_in->__insert_into( $sql, $table,$qt_columns, $pr_columns );
+            $tbl_in->__insert_into( $sql, $table, $qt_columns, $pr_columns );
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
@@ -782,11 +785,7 @@ sub __on_table {
                     $choices,
                     { %{$self->{info}{lyt_stmt_v}}, index => 1, default => $default, prompt => $prompt }
                 );
-                if ( ! defined $idx ) {
-                    $sql = clone( $backup_sql );
-                    last COL_SCALAR_FUNC;
-                }
-                if ( ! defined $choices->[$idx] ) {
+                if ( ! defined $idx || ! defined $choices->[$idx] ) {
                     $sql = clone( $backup_sql );
                     last COL_SCALAR_FUNC;
                 }

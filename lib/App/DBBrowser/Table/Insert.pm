@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.005';
+our $VERSION = '1.006';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -53,8 +53,14 @@ sub __insert_into {
             $choices,
             { prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
         );
-        if ( ! defined $idx[0] ) {
-            return;
+        if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
+            if ( ! @{$sql->{quote}{chosen_cols}} ) {
+                return;
+            }
+            $sql->{quote}{chosen_cols} = [];
+            $sql->{print}{chosen_cols} = [];
+            @cols = ( @$pr_columns );
+            next COL_NAMES;
         }
         my $c = 0;
         for my $i ( @idx ) {
@@ -64,15 +70,6 @@ sub __insert_into {
             ++$c;
         }
         my @print_col = map { $choices->[$_] } @idx;
-        if ( ! defined $print_col[0] ) {
-            if ( ! @{$sql->{quote}{chosen_cols}} ) {
-                return;
-            }
-            $sql->{quote}{chosen_cols} = [];
-            $sql->{print}{chosen_cols} = [];
-            @cols = ( @$pr_columns );
-            next COL_NAMES;
-        }
         if ( $print_col[0] eq $self->{info}{ok} ) {
             shift @print_col;
             for my $print_col ( @print_col ) {
@@ -355,14 +352,16 @@ sub __parse_file {
         else {
             my @sheets = map { '- ' . ( length $book->[$_]{label} ? $book->[$_]{label} : 'sheet_' . $_ ) } 1 .. $#$book;
             my $c_sheet = Term::Choose->new();
+            my @pre = ( undef );
+            my $choices = [ @pre, @sheets ];
             # Choose
             $sheet_idx = $c_sheet->choose(
-                [ undef, @sheets ],
+                $choices,
                 { %{$self->{info}{lyt_stmt_v}}, index => 1, prompt => 'Choose a sheet' }
             );
-            return if ! defined $sheet_idx;
-            return if $sheet_idx == 0;
-
+            if ( ! defined $sheet_idx || ! defined $choices->[$sheet_idx] ) {
+                return;
+            }
         }
         if ( $book->[$sheet_idx]{maxrow} == 0 ) {
             my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
@@ -456,9 +455,13 @@ sub __filter_input {
                 $choices,
                 { prompt => "First row:\n", index => 1, undef => '<<' }
             );
-            next FILTER if ! defined $first_idx;
+            if ( ! defined $first_idx || ! defined $choices->[$first_idx] ) {
+                next FILTER;
+            }
             my $first_row = $first_idx - @pre;
-            next FILTER if $first_row < 0;
+            if ( $first_row < 0 ) {
+                next FILTER;
+            }
             $choices->[$first_row + @pre] = '* ' . $choices->[$first_row + @pre];
             $auxil->__print_sql_statement( $sql, $table, $sql_type );
             # Choose
@@ -466,9 +469,13 @@ sub __filter_input {
                 $choices,
                 { prompt => "Last row:\n", default => $first_row, index => 1, undef => '<<' }
             );
-            next FILTER if ! defined $last_idx;
+            if ( ! defined $last_idx || ! defined $choices->[$last_idx] ) {
+                next FILTER;
+            }
             my $last_row = $last_idx - @pre;
-            next FILTER if $last_row < 0;
+            if ( $last_row < 0 ) {
+                next FILTER;
+            }
             if ( $last_row < $first_row ) {
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -491,7 +498,9 @@ sub __filter_input {
                 $choices,
                 { prompt => 'Choose rows:', index => 1, no_spacebar => [ 0 .. $#pre ], undef => '<<' }
             );
-            next FILTER if ! defined $idx[0];
+            if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
+                next FILTER;
+            }
             my @row_idx = map{ $_ - @pre } @idx;
             $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[@row_idx] ];
             next FILTER;

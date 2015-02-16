@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.005';
+our $VERSION = '1.006';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -116,14 +116,14 @@ sub __config_insert {
         my $sub_menu_insert = $self->__sub_menus_insert( $group );
 
         OPTION_INSERT: while ( 1 ) {
-            my @pre    = ( undef );
-            my @real   = map( $_->{text}, @$sub_menu_insert );
+            my @pre     = ( undef );
+            my $choices = [ @pre, map( $_->{text}, @$sub_menu_insert ) ];
             # Choose
             my $idx = choose(
-                [ @pre, @real ],
+                $choices,
                 { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $self->{info}{back_short} }
             );
-            if ( ! $idx ) {
+            if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $group =~ /^_module_/ ) {
                     $old_idx = $backup_old_idx;
                     $group = 'main_insert';
@@ -273,15 +273,13 @@ sub set_options {
         OPTION: while ( 1 ) {
             my $back =          $group eq 'main' ? $self->{info}{_quit}     : $self->{info}{back_short};
             my @pre  = ( undef, $group eq 'main' ? $self->{info}{_continue} : () );
-            my @real = map( $_->{text}, @$menu );
+            my $choices = [ @pre, map( $_->{text}, @$menu ) ];
             # Choose
             my $idx = choose(
-                [ @pre, @real ],
+                $choices,
                 { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx, undef => $back }
             );
-            exit if ! defined $idx;
-            my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
-            if ( ! defined $option ) {
+            if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $group =~ /^config_/ ) {
                     $old_idx = $backup_old_idx;
                     $group = 'main';
@@ -308,34 +306,34 @@ sub set_options {
                     next OPTION;
                 }
             }
+            my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
             if ( $option eq 'config_insert' ) {
                 $self->__config_insert( 1 );
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;
             }
-            if ( $option =~ /^config_/ ) {
+            elsif ( $option =~ /^config_/ ) {
                 $backup_old_idx = $old_idx;
                 $old_idx = 0;
                 $group = $option;
                 redo GROUP;
             }
-
-            if ( $option eq $self->{info}{_continue} ) {
+            elsif ( $option eq $self->{info}{_continue} ) {
                 if ( $self->{info}{write_config} ) {
                     $self->__write_config_files();
                     delete $self->{info}{write_config};
                 }
                 return $self->{opt}, $self->{db_opt};
             }
-            if ( $option eq 'help' ) {
+            elsif ( $option eq 'help' ) {
                 require Pod::Usage;
                 Pod::Usage::pod2usage( {
                     -exitval => 'NOEXIT',
                     -verbose => 2 } );
                 next OPTION;
             }
-            if ( $option eq 'path' ) {
+            elsif ( $option eq 'path' ) {
                 my $version = 'version';
                 my $bin     = '  bin  ';
                 my $app_dir = 'app-dir';
@@ -348,7 +346,7 @@ sub set_options {
                 print_hash( $path, { keys => $names, preface => ' Close with ENTER' } );
                 next OPTION;
             }
-            if ( $option eq '_db_defaults' ) {
+            elsif ( $option eq '_db_defaults' ) {
                 $self->database_setting();
                 next OPTION;
             }
@@ -498,7 +496,7 @@ sub __group_readline {
             { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx,
               prompt => $prompt, undef => $self->{info}{_back} }
         );
-        if ( ! $idx ) {
+        if ( ! defined $idx || ! defined $choices->[$idx] ) {
             return;
         }
         if ( $self->{opt}{G}{menus_config_memory} ) {
@@ -618,7 +616,7 @@ sub database_setting {
                 { %{$self->{info}{lyt_3}}, prompt => $prompt, index => 1,
                   default => $old_idx_group, undef => $self->{info}{back_short} }
             );
-            if ( ! $idx_group ) {
+            if ( ! defined $idx_group || ! defined $choices->[$idx_group] ) {
                 if ( $self->{info}{write_config} ) {
                     $self->__write_db_config_files();
                     delete $self->{info}{write_config};

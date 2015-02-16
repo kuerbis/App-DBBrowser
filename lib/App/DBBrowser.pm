@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.005';
+our $VERSION = '1.006';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -483,21 +483,18 @@ sub __browse_the_table {
     $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_into_args ) ];
     $auxil->__reset_sql( $sql );
     $self->{info}{lock} = $self->{opt}{G}{lock_stmt};
-    my $select_from_stmt = '';
+    my $stmt_info;
     if ( $multi_table ) {
-        $select_from_stmt = $multi_table->{quote}{stmt};
-        for my $col ( @{$multi_table->{pr_columns}} ) {
-            $qt_columns->{$col} = $multi_table->{qt_columns}{$col};
-            push @$pr_columns, $col;
-        }
+        $stmt_info = $multi_table;
     }
     else {
-        $select_from_stmt = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $table );
-        my $sth = $dbh->prepare( $select_from_stmt . " LIMIT 0" );
+        my $stmt = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $table );
+        $stmt_info->{quote}{stmt} = $stmt;
+        my $sth = $dbh->prepare( $stmt . " LIMIT 0" );
         $sth->execute();
         for my $col ( @{$sth->{NAME}} ) {
-            $qt_columns->{$col} = $dbh->quote_identifier( $col );
-            push @$pr_columns, $col;
+            $stmt_info->{qt_columns}{$col} = $dbh->quote_identifier( $col );
+            push @{$stmt_info->{pr_columns}}, $col;
         }
     }
     my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
@@ -509,7 +506,7 @@ sub __browse_the_table {
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
         if ( ! eval {
-            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh, $table, $select_from_stmt, $qt_columns, $pr_columns );
+            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh, $table, $stmt_info );
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Print table' );
@@ -545,7 +542,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.005
+Version 1.006
 
 =head1 DESCRIPTION
 
