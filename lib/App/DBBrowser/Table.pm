@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.006';
+our $VERSION = '1.007';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -30,7 +30,7 @@ sub new {
 
 
 sub __on_table {
-    my ( $self, $sql, $dbh, $table, $stmt_info ) = @_;
+    my ( $self, $sql, $db_driver, $dbh, $table, $stmt_info ) = @_;
     my $select_from_stmt = $stmt_info->{quote}{stmt};
     my $pr_columns       = $stmt_info->{pr_columns};
     my $qt_columns       = $stmt_info->{qt_columns};
@@ -63,7 +63,15 @@ sub __on_table {
     if ( $self->{info}{lock} == 0 ) {
         $auxil->__reset_sql( $sql );
     }
-    my $sql_types = [ 'Insert', 'Update', 'Delete' ];
+    my $sql_types = {
+        single => [ 'Insert', 'Update', 'Delete'  ],
+        join   => [],
+        union  => [],
+    };
+    if ( $db_driver eq 'mysql' ) {
+        $sql_types->{join} = [ 'Update' ];
+    }
+    #my $sql_types = [ 'Insert', 'Update', 'Delete' ];
     my $sql_type = 'Select';
     my $backup_sql;
     my $old_idx = 1;
@@ -765,19 +773,28 @@ sub __on_table {
             my $changed = 0;
 
             COL_SCALAR_FUNC: while ( 1 ) {
-                my @cols = $stmt_key eq 'chosen_cols'
-                    ? ( @{$sql->{print}{chosen_cols}}                                  )
-                    : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
-
                 my $default = 0;
                 my $choose_SQL_type = 'Your choice:';
                 my @pre = ( undef, $self->{info}{_confirm} );
                 my $prompt = 'Choose:';
                 if ( $sql_type eq 'Select' ) {
-                    unshift @pre, $choose_SQL_type if ! defined $pre[0] || $pre[0] ne $choose_SQL_type;
+                    if ( ! defined $pre[0] || $pre[0] ne $choose_SQL_type ) {
+                        unshift @pre, $choose_SQL_type;
+                    }
                     $prompt = '';
                     $default = 1;
                 }
+                my @choices_sql_types = @{$sql_types->{$stmt_info->{type}}};
+                #if ( ! @choices_sql_types ) {
+                #    if ( defined $pre[0] && $pre[0] eq $choose_SQL_type ) {
+                #        shift @pre;
+                #    }
+                #    $prompt = 'Your choice:';
+                #    $default = 0;
+                #}
+                my @cols = $stmt_key eq 'chosen_cols'
+                    ? ( @{$sql->{print}{chosen_cols}} )
+                    : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
                 my $choices = [ @pre, map( "- $_", @cols ) ];
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 # Choose
@@ -790,7 +807,11 @@ sub __on_table {
                     last COL_SCALAR_FUNC;
                 }
                 if ( $choices->[$idx] eq $choose_SQL_type ) {
-                    my $ch_types = [ undef, map( "- $_", @$sql_types ) ];
+                    if ( ! @choices_sql_types ) {
+                        next COL_SCALAR_FUNC;
+                    }
+                    #my $ch_types = [ undef, map( "- $_", @$sql_types ) ];
+                    my $ch_types = [ undef, map( "- $_", @choices_sql_types ) ];
                     # Choose
                     my $type_choice = $stmt_h->choose(
                         $ch_types,
@@ -801,6 +822,22 @@ sub __on_table {
                         $old_idx = 1;
                         $auxil->__reset_sql( $sql );
                     }
+                    #if ( $stmt_info->{type} eq 'union' ) {
+                    #    if ( $sql_type =~ /^(?:Insert|Delete|Update)\z/ ) {
+                    #        $auxil->__print_error_message( sprintf "%s: no support for UNION statement\n", uc $sql_type );
+                    #        $sql_type = 'Select';
+                    #    }
+                    #}
+                    #if ( $stmt_info->{type} eq 'join' ) {
+                    #    if ( $sql_type =~ /^(?:Insert|Delete)\z/ ) {
+                    #        $auxil->__print_error_message( sprintf "%s: no support for JOIN statement\n", uc $sql_type );
+                    #        $sql_type = 'Select';
+                    #    }
+                    #    if ( $sql_type eq 'Update' && $db_driver ne 'mysql' ) {
+                    #        $auxil->__print_error_message( sprintf "INSERT - JOIN: no support for db driver %s\n", $db_driver );
+                    #     $sql_type = 'Select';
+                    #    }
+                    #}
                     last COL_SCALAR_FUNC;
                 }
                 if ( $choices->[$idx] eq $self->{info}{_confirm} ) {
@@ -891,7 +928,7 @@ sub __on_table {
             my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}} );
             if ( $self->{opt}{table}{max_rows} ) {
                 if ( ! $sql->{quote}{limit_stmt} ) {
-                    # don't fetch any more rows than "print_table" would use to save time
+                    # don't fetch any more rows than "print_table" would use (to save time/memory)
                     $select .= sprintf " LIMIT %d", $self->{opt}{table}{max_rows};
                 }
                 else {

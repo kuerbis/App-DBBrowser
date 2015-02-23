@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.006';
+our $VERSION = '1.007';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.006
+Version 1.007
 
 =cut
 
@@ -137,8 +137,11 @@ Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
 
 =head3 Delete, Update and Insert
 
-To get to the C<DELETE>, C<UPDATE> or C<INSERT INTO> statements select the prompt "I<Customize:>" in the SQL menu
- and then select the prompt "I<Your choice:>".
+To set C<DELETE>, C<UPDATE> or C<INSERT INTO> select the prompt "I<Customize:>" in the SQL menu  and then select the
+prompt "I<Your choice:>".
+
+C<DELETE>, C<UPDATE> or C<INSERT INTO> are not available with C<JOIN> and C<UNION> statements (except C<INSERT> with
+C<mysql> and C<JOIN>).
 
 =head3 Scalar functions
 

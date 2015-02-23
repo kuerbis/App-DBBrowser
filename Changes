@@ -1,8 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.007   2015-02-23
+        - Do not offer "Insert", "Update", "Delete" when not supported (union, join).
+        - Update documentation.
+
 1.006   2015-02-16
-        - Code refactoring.
+        - Code refactoring (join alias tables/idx).
 
 1.005   2015-02-14
         - Re-enable "AutoCommit" because no "commit"s in db plugins (where required: "begin_work" disables "AutoCommit" automatically).

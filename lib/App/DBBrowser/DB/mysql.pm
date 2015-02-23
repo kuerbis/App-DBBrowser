@@ -71,7 +71,7 @@ sub get_db_handle {
     my $port   = $obj_db_cred->get_login( 'port' );
     my $user   = $obj_db_cred->get_login( 'user' );
     my $passwd = $obj_db_cred->get_login( 'pass' );
-    my $dsn  = "dbi:$self->{db_driver}:dbname=$db";
+    my $dsn = "dbi:$self->{db_driver}:dbname=$db";
     $dsn .= ";host=$host" if length $host;
     $dsn .= ";port=$port" if length $port;
     my $dbh = DBI->connect( $dsn, $user, $passwd, {

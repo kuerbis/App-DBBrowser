@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.006';
+our $VERSION = '1.007';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -186,6 +186,7 @@ sub __union_tables {
     else {
         $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_SELECTED_TABLES' );
     }
+    $union->{type} = 'union';
     return $union;
 }
 
@@ -330,14 +331,10 @@ sub __join_tables {
         ( my $master = splice( @tables, $idx, 1 ) ) =~ s/^-\s//;
         $join->{used_tables}  = [ $master ];
         $join->{avail_tables} = [ @tables ];
-        #$join->{quote}{stmt}  = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $master );                              # a
-        #$join->{print}{stmt}  = "SELECT * FROM " .                                         $master  ;                              # a
-        $join->{table_alias} = 'a';                                                                                                   # b
-        $join->{quote}{stmt}  = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $master ) . " AS " . $join->{table_alias}; # b
-        $join->{print}{stmt}  = "SELECT * FROM " .                                         $master   . " AS " . $join->{table_alias}; # b
-        $join->{alias}{$master} = $join->{table_alias};                                                                               # b
-        $join->{primary_keys} = [];
-        $join->{foreign_keys} = [];
+        $join->{table_alias} = 'a';
+        $join->{quote}{stmt}  = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $master ) . " AS " . $join->{table_alias};
+        $join->{print}{stmt}  = "SELECT * FROM " .                                         $master   . " AS " . $join->{table_alias};
+        $join->{alias}{$master} = $join->{table_alias};
         my $backup_master = clone( $join );
 
         JOIN: while ( 1 ) {
@@ -384,23 +381,19 @@ sub __join_tables {
             }
             $idx -= @pre;
             ( my $slave = splice( @{$join->{avail_tables}}, $idx, 1 ) ) =~ s/^-\s//;
-            #$join->{quote}{stmt} .= " LEFT OUTER JOIN " . $dbh->quote_identifier( undef, $schema, $slave ) . " ON";                              # a
-            #$join->{print}{stmt} .= " LEFT OUTER JOIN " .                                         $slave   . " ON";                              # a
-            $join->{table_alias}++;                                                                                                                 # b
-            $join->{quote}{stmt} .= " LEFT OUTER JOIN " . $dbh->quote_identifier( undef, $schema, $slave ) . " AS " . $join->{table_alias} . " ON"; # b
-            $join->{print}{stmt} .= " LEFT OUTER JOIN " .                                         $slave   . " AS " . $join->{table_alias} . " ON"; # b
-            $join->{alias}{$slave} = $join->{table_alias};                                                                                          # b
+            $join->{table_alias}++;
+            $join->{quote}{stmt} .= " LEFT OUTER JOIN " . $dbh->quote_identifier( undef, $schema, $slave ) . " AS " . $join->{table_alias} . " ON";
+            $join->{print}{stmt} .= " LEFT OUTER JOIN " .                                         $slave   . " AS " . $join->{table_alias} . " ON";
+            $join->{alias}{$slave} = $join->{table_alias};
             my %avail_pk_cols;
             for my $used_table ( @{$join->{used_tables}} ) {
                 for my $col ( @{$j->{col_names}{$used_table}} ) {
-                    #$avail_pk_cols{ $used_table . '.' . $col } = $dbh->quote_identifier( undef, $used_table, $col );                              # a
-                    $avail_pk_cols{ $join->{alias}{$used_table} . '.' . $col } = $dbh->quote_identifier( undef, $join->{alias}{$used_table}, $col ); # b
+                    $avail_pk_cols{ $join->{alias}{$used_table} . '.' . $col } = $dbh->quote_identifier( undef, $join->{alias}{$used_table}, $col );
                 }
             }
             my %avail_fk_cols;
             for my $col ( @{$j->{col_names}{$slave}} ) {
-                #$avail_fk_cols{ $slave . '.' . $col } = $dbh->quote_identifier( undef, $slave, $col );                              # a
-                $avail_fk_cols{ $join->{alias}{$slave} . '.' . $col } = $dbh->quote_identifier( undef, $join->{alias}{$slave}, $col ); # b
+                $avail_fk_cols{ $join->{alias}{$slave} . '.' . $col } = $dbh->quote_identifier( undef, $join->{alias}{$slave}, $col );
             }
             my $AND = '';
 
@@ -462,15 +455,12 @@ sub __join_tables {
     my $col_stmt = '';
     for my $table ( @{$join->{used_tables}} ) {
         for my $col ( @{$j->{col_names}{$table}} ) {
-            #my $col_qt = $dbh->quote_identifier( undef, $table, $col );              # a
-            my $col_qt = $dbh->quote_identifier( undef, $join->{alias}{$table}, $col ); # b
+            my $col_qt = $dbh->quote_identifier( undef, $join->{alias}{$table}, $col );
             if ( any { $_ eq $col_qt } @{$join->{foreign_keys}} ) {
                 next;
             }
-            #my $col_pr = $table . '.' . $col;              # a
-            my $col_pr = $join->{alias}{$table} . '.' . $col; # b
+            my $col_pr = $join->{alias}{$table} . '.' . $col;
             #if ( any { $_ eq $col_pr } @not_unique_col ) {
-                # alias: add the table name to the column name (optional):
                 $col_qt .= " AS " . $dbh->quote_identifier( $col . '-' . $table );
             #}
             push @{$join->{pr_columns}}, $col_pr;
@@ -480,6 +470,7 @@ sub __join_tables {
     }
     $col_stmt =~ s/^,\s//;
     $join->{quote}{stmt} =~ s/\s\*\s/ $col_stmt /;
+    $join->{type} = 'join';
     return $join;
 }
 

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.006';
+our $VERSION = '1.007';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -458,7 +458,7 @@ sub run {
                         $table =~ s/^[-\ ]\s//;
                     }
                     #if ( ! eval {
-                         $self->__browse_the_table( $dbh, $db, $schema, $table, $multi_table );
+                         $self->__browse_the_table( $db_driver, $dbh, $db, $schema, $table, $multi_table );
                     #    1 }
                     #) {
                     #    $auxil->__print_error_message( $@, 'Browse table' );
@@ -473,7 +473,7 @@ sub run {
 
 
 sub __browse_the_table {
-    my ( $self, $dbh, $db, $schema, $table, $multi_table ) = @_;
+    my ( $self, $db_driver, $dbh, $db, $schema, $table, $multi_table ) = @_;
     my $auxil     = App::DBBrowser::Auxil->new( $self->{info} );
     my $db_plugin = $self->{info}{db_plugin};
     my $qt_columns = {};
@@ -496,6 +496,7 @@ sub __browse_the_table {
             $stmt_info->{qt_columns}{$col} = $dbh->quote_identifier( $col );
             push @{$stmt_info->{pr_columns}}, $col;
         }
+        $stmt_info->{type} = 'single';
     }
     my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
     $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin . '_' . $db}{binary_filter};
@@ -506,7 +507,7 @@ sub __browse_the_table {
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
         if ( ! eval {
-            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh, $table, $stmt_info );
+            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $db_driver, $dbh, $table, $stmt_info );
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Print table' );
@@ -542,7 +543,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.006
+Version 1.007
 
 =head1 DESCRIPTION
 
