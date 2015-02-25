@@ -216,7 +216,7 @@ none
 
 =item return
 
-A reference to an array of hashes. The hashes have two or three  key-value pairs:
+A reference to an array of hashes. The hashes have two or three key-value pairs:
 
     { name => 'string', prompt => 'string', keep_secret => true/false }
 

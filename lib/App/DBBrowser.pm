@@ -133,8 +133,8 @@ sub __prepare_connect_parameter {
     my ( $self, $db ) = @_;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
     my $env_variables = $obj_db->environment_variables();
-    my $read_arg    = $obj_db->read_arguments();
-    my $chosen_arg  = $obj_db->choose_arguments();
+    my $read_arg      = $obj_db->read_arguments();
+    my $chosen_arg    = $obj_db->choose_arguments();
     my $connect_parameter = {
         use_env_var => {},
         required    => {},
@@ -177,7 +177,7 @@ sub __prepare_connect_parameter {
             $section = $db_plugin;
         }
         if ( ! defined $self->{db_opt}{$section}{$required_field} ) {
-            $self->{db_opt}{$section}{$required_field} = 1;
+            $self->{db_opt}{$section}{$required_field} = 1; # All fields required by default
         }
         $connect_parameter->{required}{$name} = $self->{db_opt}{$section}{$required_field};
         if ( ! $self->{info}{login_error} ) {

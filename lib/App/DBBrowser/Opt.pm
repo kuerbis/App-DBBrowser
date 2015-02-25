@@ -484,7 +484,7 @@ sub __group_readline {
         my @pre = ( undef, $confirm );
         my @real = map {
                 '- '
-            . ( exists $_->{prompt} ? $_->{prompt} :$_->{name} )
+            . ( exists $_->{prompt} ? $_->{prompt} : $_->{name} )
             . (   defined $tmp->{$_->{name}} ? ": $tmp->{$_->{name}}"
                 : $self->{$opt_type}{$section}{$_->{name}} ? ": $self->{$opt_type}{$section}{$_->{name}}"
                 : ':' )
@@ -606,7 +606,7 @@ sub database_setting {
         my @groups;
         push @groups, [ 'required',        "- Fields"             ] if @{$items->{required}};
         push @groups, [ 'env_variables',   "- ENV Variables"      ] if @{$items->{env_variables}};
-        push @groups, [ 'read_argument',   "- Login Data"       ] if @{$items->{read_argument}};
+        push @groups, [ 'read_argument',   "- Login Data"         ] if @{$items->{read_argument}};
         push @groups, [ 'choose_argument', "- DB Options"         ];
         push @groups, [ 'sqlite_dir',      "- Sqlite directories" ] if $db_driver eq 'SQLite';
         my $prompt = defined $db ? 'DB: "' . ( $db_driver eq 'SQLite' ? basename $db : $db )
@@ -680,7 +680,7 @@ sub database_setting {
                             $self->{db_opt}{$section}{$required} = $self->{db_opt}{$db_plugin}{$required};
                         }
                         else {
-                            $self->{db_opt}{$section}{$required} = 1;
+                            $self->{db_opt}{$section}{$required} = 1;  # All fields required by default
                         }
                     }
                 }
