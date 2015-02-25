@@ -23,7 +23,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.2;
+    $opt->{plugin_api_version} = 1.4;
     bless $opt, $class;
 }
 
@@ -46,13 +46,19 @@ sub driver_prefix {
 }
 
 
-sub login_data {
-    my ( $self ) = @_;
-    return [];
-}
+#sub environment_variables {
+#    my ( $self ) = @_;
+#    return [];
+#}
 
 
-sub connect_attributes {
+#sub read_arguments {
+#    my ( $self ) = @_;
+#    return [];
+#}
+
+
+sub choose_arguments {
     my ( $self ) = @_;
     return [
         { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
@@ -69,7 +75,7 @@ sub get_db_handle {
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$connect_parameter->{attributes}},
+        %{$connect_parameter->{chosen_arg}},
     } ) or die DBI->errstr;
     $dbh->sqlite_create_function( 'regexp', 3, sub {
             my ( $regex, $string, $case_sensitive ) = @_;

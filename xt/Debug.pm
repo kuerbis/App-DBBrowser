@@ -25,7 +25,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.2;
+    $opt->{plugin_api_version} = 1.3;
     bless $opt, $class;
 }
 
@@ -81,7 +81,6 @@ my $opt_check = {
         operators
         parentheses_h
         parentheses_w
-        sqlite_directories
         thsd_sep
     ) ],
     insert => [ qw(
@@ -270,7 +269,7 @@ sub driver_prefix {
 }
 
 
-sub login_data {
+sub read_argument {
     my ( $self ) = @_;
     return [
         { name => 'field', prompt => "Field",    keep_secret => 0 },
@@ -282,7 +281,7 @@ sub login_data {
 }
 
 
-sub connect_attributes {
+sub choose_argument {
     my ( $self ) = @_;
     return [
         { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },

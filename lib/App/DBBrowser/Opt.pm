@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.007';
+our $VERSION = '1.008';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -442,7 +442,7 @@ sub set_options {
 
 sub __opt_choose_multi {
     my ( $self, $opt_type, $section, $sub_menu, $prompt ) = @_;
-    my $changed = choose_multi( $sub_menu, $self->{$opt_type}{$section}, {  prompt => $prompt } );
+    my $changed = choose_multi( $sub_menu, $self->{$opt_type}{$section}, { prompt => $prompt } );
     return if ! $changed;
     $self->{info}{write_config}++;
 }
@@ -484,7 +484,7 @@ sub __group_readline {
         my @pre = ( undef, $confirm );
         my @real = map {
                 '- '
-            . $_->{prompt}
+            . ( exists $_->{prompt} ? $_->{prompt} :$_->{name} )
             . (   defined $tmp->{$_->{name}} ? ": $tmp->{$_->{name}}"
                 : $self->{$opt_type}{$section}{$_->{name}} ? ": $self->{$opt_type}{$section}{$_->{name}}"
                 : ':' )
@@ -579,27 +579,36 @@ sub database_setting {
         }
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
         $db_driver = $obj_db->db_driver() if ! $db_driver;
-        my $login_data = $obj_db->login_data();
-        my $connect_attr = $obj_db->connect_attributes();
+        my $env_variables = $obj_db->environment_variables();
+        my $login_data    = $obj_db->read_arguments();
+        my $connect_attr  = $obj_db->choose_arguments();
         my $items = {
-            login_mode   => [ map {
-                { name         => 'login_mode_' . $_->{name},
-                  prompt       => $_->{prompt},
-                  avail_values => [ 'Ask', 'Use DBI_' . uc $_->{name}, 'Don\'t set' ] }
-             } @$login_data ],
-            login_data   => [ grep { ! $_->{keep_secret} } @$login_data ],
-            connect_attr => $connect_attr,
+            required => [ map { {
+                    name         => 'field_' . $_->{name},
+                    prompt       => exists $_->{prompt} ? $_->{prompt} : $_->{name},
+                    avail_values => [ 'NO', 'YES' ]
+                } } @$login_data ],
+            env_variables => [ map { {
+                    name         => $_,
+                    prompt       => $_,
+                    avail_values => [ 'NO', 'YES' ]
+                } } @$env_variables ],
+            read_argument   => [
+                    grep { ! $_->{keep_secret} } @$login_data
+                ],
+            choose_argument => $connect_attr,
         };
-        push @{$items->{connect_attr}}, {
+        push @{$items->{choose_argument}}, {
             name          => 'binary_filter',
             avail_values  => [ 0, 1 ],
             default_index => 0,
         };
         my @groups;
-        push @groups, [ 'login_mode',   "- Login Mode"         ] if @{$items->{login_mode}};
-        push @groups, [ 'login_data',   "- Login Data"         ] if @{$items->{login_data}};
-        push @groups, [ 'connect_attr', "- DB Options"         ];
-        push @groups, [ 'sqlite_dir',   "- Sqlite directories" ] if $db_driver eq 'SQLite';
+        push @groups, [ 'required',        "- Fields"             ] if @{$items->{required}};
+        push @groups, [ 'env_variables',   "- ENV Variables"      ] if @{$items->{env_variables}};
+        push @groups, [ 'read_argument',   "- Login Data"       ] if @{$items->{read_argument}};
+        push @groups, [ 'choose_argument', "- DB Options"         ];
+        push @groups, [ 'sqlite_dir',      "- Sqlite directories" ] if $db_driver eq 'SQLite';
         my $prompt = defined $db ? 'DB: "' . ( $db_driver eq 'SQLite' ? basename $db : $db )
                                  : 'Plugin: ' . $db_plugin;
         my $opt_type = 'db_opt';
@@ -661,28 +670,64 @@ sub database_setting {
                 next GROUP;;
             }
             my $group  = $groups[$idx_group-@pre][0];
-            if ( $group eq 'login_mode' ) {
+            if ( $group eq 'required' ) {
                 my $sub_menu = [];
                 for my $item ( @{$items->{$group}} ) {
-                    my $login_mode_key = $item->{name};
-                    push @$sub_menu, [ $login_mode_key, '- ' . $item->{prompt}, $item->{avail_values} ];
-                    if ( ! defined $self->{db_opt}{$section}{$login_mode_key} ) {
-                        $self->{db_opt}{$section}{$login_mode_key} = 0;
+                    my $required = $item->{name};
+                    push @$sub_menu, [ $required, '- ' . $item->{prompt}, $item->{avail_values} ];
+                    if ( ! defined $self->{db_opt}{$section}{$required} ) {
+                        if ( defined $self->{db_opt}{$db_plugin}{$required} ) {
+                            $self->{db_opt}{$section}{$required} = $self->{db_opt}{$db_plugin}{$required};
+                        }
+                        else {
+                            $self->{db_opt}{$section}{$required} = 1;
+                        }
                     }
                 }
                 $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
                 next GROUP;
             }
-            elsif ( $group eq 'login_data' ) {
+            elsif ( $group eq 'env_variables' ) {
+                my $sub_menu = [];
+                for my $item ( @{$items->{$group}} ) {
+                    my $env_variable = $item->{name};
+                    push @$sub_menu, [ $env_variable, '- ' . $item->{prompt}, $item->{avail_values} ];
+                    if ( ! defined $self->{db_opt}{$section}{$env_variable} ) {
+                        if ( defined $self->{db_opt}{$db_plugin}{$env_variable} ) {
+                            $self->{db_opt}{$section}{$env_variable} = $self->{db_opt}{$db_plugin}{$env_variable};
+                        }
+                        else {
+                            $self->{db_opt}{$section}{$env_variable} = 0;
+                        }
+                    }
+                }
+                $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
+                next GROUP;
+            }
+            elsif ( $group eq 'read_argument' ) {
+               for my $item ( @{$items->{$group}} ) {
+                    my $option = $item->{name};
+                    if ( ! defined $self->{db_opt}{$section}{$option} ) {
+                        if ( defined $self->{db_opt}{$db_plugin}{$option} ) {
+                            $self->{db_opt}{$section}{$option} = $self->{db_opt}{$db_plugin}{$option};
+                        }
+                    }
+                }
                 $self->__group_readline( $opt_type, $section, $items->{$group}, $prompt );
             }
-            elsif ( $group eq 'connect_attr' ) {
+            elsif ( $group eq 'choose_argument' ) {
                 my $sub_menu = [];
                 for my $item ( @{$items->{$group}} ) {
                     my $option = $item->{name};
-                    push @$sub_menu, [ $option, '- ' . $option, $item->{avail_values} ];
+                    my $prompt = '- ' . ( exists $item->{prompt} ? $item->{prompt} : $item->{name} );
+                    push @$sub_menu, [ $option, $prompt, $item->{avail_values} ];
                     if ( ! defined $self->{db_opt}{$section}{$option} ) {
-                        $self->{db_opt}{$section}{$option} = $item->{avail_values}[$item->{default_index}];
+                        if ( defined $self->{db_opt}{$db_plugin}{$option} ) {
+                            $self->{db_opt}{$section}{$option} = $self->{db_opt}{$db_plugin}{$option};
+                        }
+                        else {
+                            $self->{db_opt}{$section}{$option} = $item->{avail_values}[$item->{default_index}];
+                        }
                     }
                 }
                 $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );

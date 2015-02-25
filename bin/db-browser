@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.007';
+our $VERSION = '1.008';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.007
+Version 1.008
 
 =cut
 
@@ -200,63 +200,31 @@ I<DB Settings> are used as default database settings.
 There is also in each database sub-menu the menu entry "Database settings". If these database specific parameter are not
 set, the global (to the database plugin) I<DB Settings> are use instead.
 
-=over
-
-=item Login Mode
-
-Determine how to gather the login data:
+It depends on the database plugin which items are offered to set in each option and whether the selections made by the
+user a considered.
 
 =over
 
-=item
+=item ENV Variables
 
-Ask
+Which environment variables should be used.
 
-Ask for the data of a field when connecting to a database.
+=item Fields
 
-=item
-
-Use DBI_....
-
-Use the environment variable to connect if available else ask the user for the required data.
-
-The name of the environment variable:
-
-    $environment_variable = 'DBI_' . uc($name_of_the_field);
-
-
-=item
-
-Don't set
-
-If a field is not required for a database connection one can select the entry I<Don't set> for that field. The field is
-then not used for the database connection. For example if the field is "port" I<Don't set> could mean: form the
-C<DBI> C<DSN> without the "port" entry.
-
-=back
-
-Possible fields could be "host", "port", "user", "password" and others.
-
-It depends on the database plugin which fields are offered to set and whether the selections made by the user a considered.
+Set which fields are required to connect to a database.
 
 =item Login Data
 
 The entered data for a field is saved with the field in a configuration file. If the configuration file contains a field
 with a defined value, the value is used for that field to connect instead to ask the user for the value.
 
-It depends on the database plugin which fields are offered to set and whether the user given data is considered.
-
 =item DB Options
 
-All options in this sub-menu - apart the last one - are connection attributes. For the meaning of the different
-attributes see the documentation of the DBI database driver.
+For the meaning of the different attributes (apart I<binary_filter>) see the documentation of the DBI database driver.
 
-Setting I<binary_filter> (the last item in the sub-menu) to C<1> means: print "BNRY" instead of arbitrary binary data. If
-data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data. Printing arbitrary
-binary data could break the output.
-
-It depends on the database plugin which connection attributes are offered to set and whether the selections made by the
-user a considered.
+The last entry of this sub-menu is I<binary_filter>. Setting it to C<1> means: print "BNRY" instead of arbitrary binary
+data. If data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data. Printing
+arbitrary binary data could break the output.
 
 =item SQLite directories
 
@@ -270,8 +238,6 @@ entry. To confirm the made choices select "C< = >". The ( "C< < >" ) menu entry 
 any. If the list of chosen directories is empty, "C< < >" goes back without changing anything.
 
 This setting can not be overwritten in a single database.
-
-It depends on the database plugin if this setting is considered.
 
 =item Reset DB
 

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.007';
+our $VERSION = '1.008';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -132,25 +132,34 @@ sub __init {
 sub __prepare_connect_parameter {
     my ( $self, $db ) = @_;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my $connect_attr = $obj_db->connect_attributes();
-    my $login_data = $obj_db->login_data();
+    my $env_variables = $obj_db->environment_variables();
+    my $read_arg    = $obj_db->read_arguments();
+    my $chosen_arg  = $obj_db->choose_arguments();
     my $connect_parameter = {
-        attributes => {},
-        login_data => {},
-        login_mode => {},
-        dir_sqlite => [],
+        use_env_var => {},
+        required    => {},
+        keep_secret => {},
+        read_arg    => {},
+        chosen_arg  => {},
+        dir_sqlite  => [],
     };
     my $db_plugin = $self->{info}{db_plugin};
     my $section = $db ? $db_plugin . '_' . $db : $db_plugin;
+    for my $env_var ( @$env_variables ) {
+        if ( defined $db && ! defined $self->{db_opt}{$section}{$env_var} ) {
+            $section = $db_plugin;
+        }
+        $connect_parameter->{use_env_var}{$env_var} = $self->{db_opt}{$section}{$env_var};
+    }
     for my $option ( keys %{$self->{db_opt}{$db_plugin}} ) {
         if ( defined $db && ! defined $self->{db_opt}{$section}{$option} ) {
             $section = $db_plugin;
         }
         if ( defined $self->{info}{driver_prefix} && $option =~ /^\Q$self->{info}{driver_prefix}\E/ ) {
-            $connect_parameter->{attributes}{$option} = $self->{db_opt}{$section}{$option};
+            $connect_parameter->{chosen_arg}{$option} = $self->{db_opt}{$section}{$option};
         }
     }
-    for my $attr ( @$connect_attr ) {
+    for my $attr ( @$chosen_arg ) {
         my $name = $attr->{name};
         if ( defined $db && ! defined $self->{db_opt}{$section}{$name} ) {
             $section = $db_plugin;
@@ -158,31 +167,62 @@ sub __prepare_connect_parameter {
         if ( ! defined $self->{db_opt}{$section}{$name} ) {
             $self->{db_opt}{$section}{$name} = $attr->{avail_values}[$attr->{default_index}];
         }
-        $connect_parameter->{attributes}{$name} = $self->{db_opt}{$section}{$name};
+        $connect_parameter->{chosen_arg}{$name} = $self->{db_opt}{$section}{$name};
     }
-    for my $item ( @$login_data ) {
+    for my $item ( @$read_arg ) {
         my $name = $item->{name};
-        my $login_mode_key = 'login_mode_' . $name;
+        my $required_field = 'field_' . $name;
         $connect_parameter->{keep_secret}{$name} = $item->{keep_secret};
-        if ( defined $db && ! defined $self->{db_opt}{$section}{$login_mode_key} ) {
+        if ( defined $db && ! defined $self->{db_opt}{$section}{$required_field} ) {
             $section = $db_plugin;
         }
-        if ( ! defined $self->{db_opt}{$section}{$login_mode_key} ) {
-            $self->{db_opt}{$section}{$login_mode_key} = 0;
+        if ( ! defined $self->{db_opt}{$section}{$required_field} ) {
+            $self->{db_opt}{$section}{$required_field} = 1;
         }
-        $connect_parameter->{login_mode}{$name} = $self->{db_opt}{$section}{$login_mode_key};
+        $connect_parameter->{required}{$name} = $self->{db_opt}{$section}{$required_field};
         if ( ! $self->{info}{login_error} ) {
             if ( defined $db && ! defined $self->{db_opt}{$section}{$name} ) {
                 $section = $db_plugin;
             }
-            $connect_parameter->{login_data}{$name} = $self->{db_opt}{$section}{$name};
+            $connect_parameter->{read_arg}{$name} = $self->{db_opt}{$section}{$name};
         }
     }
     if ( $self->{info}{db_driver} eq 'SQLite' && ! defined $self->{db_opt}{$db_plugin}{directories_sqlite} ) {
         $self->{db_opt}{$db_plugin}{directories_sqlite} = [ $self->{info}{home_dir} ];
     }
     $connect_parameter->{dir_sqlite} = $self->{db_opt}{$db_plugin}{directories_sqlite};
-    delete $self->{info}{login_error} if exists $self->{info}{login_error};
+    if ( exists $self->{info}{login_error} ) {
+        delete $self->{info}{login_error};
+    }
+
+    #################################################################### 1.3
+    if ( $obj_db->plugin_api_version() < 1.4 ) {
+        $connect_parameter->{attributes} = { %{$connect_parameter->{chosen_arg}} };
+        $connect_parameter->{login_data} = { %{$connect_parameter->{read_arg}}   };
+        for my $item ( @$read_arg ) {
+            my $name = $item->{name};
+            my $required_field = 'field_' . $name;
+            if ( defined $db && ! defined $self->{db_opt}{$section}{$required_field} ) {
+                $section = $db_plugin;
+            }
+            if ( ! defined $self->{db_opt}{$section}{$required_field} ) {
+                $self->{db_opt}{$section}{$required_field} = 0;
+            }
+            if ( $self->{db_opt}{$section}{$required_field} == 0 ) {
+                $connect_parameter->{login_mode}{$name} = 2;
+            }
+            else {
+                if ( $self->{db_opt}{$section}{'DBI_' . uc($name)} == 1 ) {
+                    $connect_parameter->{login_mode}{$name} = 1;
+                }
+                else {
+                    $connect_parameter->{login_mode}{$name} = 0;
+                }
+            }
+        }
+    }
+    #################################################################### 1.3
+
     return $connect_parameter;
 }
 
@@ -222,9 +262,6 @@ sub run {
             next DB_PLUGIN;
         }
         my $db_driver = $self->{info}{db_driver};
-        ###
-        $self->{opt}{G}{sqlite_directories} = $self->{db_opt}{$db_plugin}{directories_sqlite};                              ### 1.1
-        $self->{opt}{G}{sqlite_directories} = [ $self->{info}{home_dir} ] if ! defined $self->{opt}{G}{sqlite_directories}; ### 1.1
 
         # DATABASES
 
@@ -543,7 +580,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.007
+Version 1.008
 
 =head1 DESCRIPTION
 

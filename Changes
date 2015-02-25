@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.008   2015-02-25
+        - New plugin api (1.4).
+        - Removed support for the plugin api version "1.1" and "1.2".
+        - Bugfix "Database settings": display the global setting if database specific setting is undefined.
+        - Update documentation.
+
 1.007   2015-02-23
         - Do not offer "Insert", "Update", "Delete" when not supported (union, join).
         - Update documentation.

@@ -18,7 +18,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'Pg';
     $opt->{driver_prefix} = 'pg';
-    $opt->{plugin_api_version} = 1.2;
+    $opt->{plugin_api_version} = 1.4;
     bless $opt, $class;
 }
 
@@ -41,7 +41,13 @@ sub driver_prefix {
 }
 
 
-sub login_data {
+sub environment_variables {
+    my ( $self ) = @_;
+    return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
+}
+
+
+sub read_arguments {
     my ( $self ) = @_;
     return [
         { name => 'host', prompt => "Host",     keep_secret => 0 },
@@ -52,7 +58,7 @@ sub login_data {
 }
 
 
-sub connect_attributes {
+sub choose_arguments {
     my ( $self ) = @_;
     return [
         { name => 'pg_enable_utf8', default_index => 2, avail_values => [ 0, 1, -1 ] },
@@ -66,19 +72,22 @@ sub get_db_handle {
         connect_parameter => $connect_parameter,
         plugin_api_version => $self->plugin_api_version()
     } );
-    my $host   = $obj_db_cred->get_login( 'host' );
-    my $port   = $obj_db_cred->get_login( 'port' );
+    my $dsn;
+    if ( ! ( $connect_parameter->{use_env_var}{DBI_DSN} &&  exists $ENV{DBI_DSN} ) ) {
+        my $host = $obj_db_cred->get_login( 'host' );
+        my $port = $obj_db_cred->get_login( 'port' );
+        $dsn = "dbi:$self->{db_driver}:dbname=$db";
+        $dsn .= ";host=$host" if length $host;
+        $dsn .= ";port=$port" if length $port;
+    }
     my $user   = $obj_db_cred->get_login( 'user' );
     my $passwd = $obj_db_cred->get_login( 'pass' );
-    my $dsn  = "dbi:$self->{db_driver}:dbname=$db";
-    $dsn .= ";host=$host" if length $host;
-    $dsn .= ";port=$port" if length $port;
     my $dbh = DBI->connect( $dsn, $user, $passwd, {
         PrintError => 0,
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$connect_parameter->{attributes}},
+        %{$connect_parameter->{chosen_arg}},
     } ) or die DBI->errstr;
     return $dbh;
 }

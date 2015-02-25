@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.007';
+our $VERSION = '1.008';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.007
+Version 1.008
 
 =head1 DESCRIPTION
 
@@ -30,26 +30,23 @@ selecting I<DB> and then I<DB Plugins>.
 
 A suitable database plugin provides the methods named in this documentation.
 
-Column names passed as arguments are already quoted with the C<DBI> C<quote_identifier> method.
+Column names passed as arguments to plugin methods are already quoted with the C<DBI> C<quote_identifier> method.
 
 =head1 PLUGIN API VERSION
 
-This documentation describes the plugin API version C<1.3>.
+This documentation describes the plugin API version C<1.4>.
 
-New in C<1.3>:
+New in C<1.4>:
 
-- method C<column_names_and_types> is not optional (required in union and join ).
+- from C<login_data()> to C<read_arguments()> and C<environment_variables()>.
 
-New in C<1.2>:
+- from C<connect_attribute()> to C<choose_arguments()>.
 
-- the former object attribute "metadata" is now called "add_metadata".
+- changed keys in the argument C<$connect_parameter>.
 
-- the SQLite directories are passed directly to the C<available_databases> method (see C<$connect_parameter>) instead to
-the constructor C<new>.
+Supported plugin API versions: C<1.4>, C<1.3>.
 
-Supported plugin API versions: C<1.3>, C<1.2>, C<1.1>.
-
-Support for the version C<1.1> and C<1.2> will be removed soon.
+Support for the version C<1.3> will be removed soon.
 
 =head1 METHODS
 
@@ -96,12 +93,10 @@ sub new {
         db_cache_file       => $info->{db_cache_file},
         sqlite_search       => $info->{sqlite_search},
         clear_screen        => $info->{clear_screen},
-        metadata            => $opt->{G}{metadata},           ### 1.1
         add_metadata        => $opt->{G}{metadata},
-        directories_sqlite  => $opt->{G}{sqlite_directories}, ### 1.1
     } );
 
-    my $minimum_pav = 1.1;
+    my $minimum_pav = 1.3;
 
     my $pav;
     $pav = $plugin->plugin_api_version() if $plugin->can( 'plugin_api_version' );
@@ -211,7 +206,7 @@ sub driver_prefix {
 
 
 
-=head2 login_data
+=head2 read_arguments
 
 =over
 
@@ -221,22 +216,23 @@ none
 
 =item return
 
-A reference to an array of hashes. The hashes have three key-value pairs:
+A reference to an array of hashes. The hashes have two or three  key-value pairs:
 
     { name => 'string', prompt => 'string', keep_secret => true/false }
 
-C<name> holds the name of the login data for example like "user" or "host".
+C<name> holds the field name for example like "user" or "host".
 
-The value of C<prompt> is used as the prompt string, when the user is asked for the login data.
+The value of C<prompt> is used as the prompt string, when the user is asked for the data. The C<prompt> entry is
+optional. If C<prompt> doesn't exist, the value of C<name> is used instead.
 
-If C<keep_secret> is true, the user input should not be echoed to the terminal. Also the login data is not stored in the
+If C<keep_secret> is true, the user input should not be echoed to the terminal. Also the data is not stored in the
 plugin configuration file if C<keep_secret> is true.
 
 =back
 
-An example C<login_data> method:
+An example C<read_arguments> method:
 
-    sub login_data {
+    sub read_arguments {
         my ( $self ) = @_;
         return [
             { name => 'host', prompt => "Host",     keep_secret => 0 },
@@ -246,23 +242,33 @@ An example C<login_data> method:
         ];
     }
 
-The information returned by method C<login_data> is used to build the entries of the C<db-browser> options I<DB Login Mode> and
-I<DB Login Data>.
+The information returned by the method C<read_arguments> is used to build the entries of the C<db-browser> options
+I<Fields> and I<Login Data>.
+
+    read_arguments()  =>  option "Fields"      =>  $connect_parameter->{required}
+                          option "Login Data"  =>  $connect_parameter->{read_arg}
+                                               =>  $connect_parameter->{keep_secret}
+
 
 =cut
 
-sub login_data {
+sub read_arguments {
     my ( $self ) = @_;
-    return [] if ! $self->{Plugin}->can( 'login_data' );
-    my $login_data = $self->{Plugin}->login_data();
-    return [] if ! defined $login_data;
-    return $login_data;
+    if ( $self->plugin_api_version < 1.4 ) {                    # 1.3
+        return [] if ! $self->{Plugin}->can( 'login_data' );    # 1.3
+        my $data = $self->{Plugin}->login_data();               # 1.3
+        return [] if ! defined $data;                           # 1.3
+        return $data;                                           # 1.3
+    }                                                           # 1.3
+    return [] if ! $self->{Plugin}->can( 'read_arguments' );
+    my $data = $self->{Plugin}->read_arguments();
+    return [] if ! defined $data;
+    return $data;
 }
 
 
 
-
-=head2 connect_attributes
+=head2 environment_variables
 
 =over
 
@@ -272,21 +278,68 @@ none
 
 =item return
 
-A reference to an array of hashes. The hashes have three key-value pairs:
+A reference to an array of environment variables.
 
-    { name => 'string', default_index => index, avail_values => [ value_1, value_2, value_3, ... ] }
+=back
+
+An example C<environment_variables> method:
+
+    sub environment_variables {
+        my ( $self ) = @_;
+        return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
+    }
+
+See the C<db-browser> option I<ENV Variables>.
+
+    environment_variables()  =>  option "ENV Variables"  =>  $connect_parameter->{use_env_var}
+
+=cut
+
+sub environment_variables {
+    my ( $self ) = @_;
+    if ( $self->plugin_api_version < 1.4 ) {                            # 1.3
+        return [] if ! $self->{Plugin}->can( 'login_data' );            # 1.3
+        my $data = $self->{Plugin}->login_data();                       # 1.3
+        return [] if ! defined $data;                                   # 1.3
+        my $env_variables = [ map { 'DBI_' . uc $_->{name} } @$data ];  # 1.3
+        return $env_variables;                                          # 1.3
+    }                                                                   # 1.3
+    return [] if ! $self->{Plugin}->can( 'environment_variables' );
+    my $env_variables = $self->{Plugin}->environment_variables();
+    return [] if ! defined $env_variables;
+    return $env_variables;
+}
+
+
+
+=head2 choose_arguments
+
+=over
+
+=item Arguments
+
+none
+
+=item return
+
+A reference to an array of hashes. The hashes have three or four key-value pairs:
+
+    { name => 'string', prompt => 'string', default_index => index, avail_values => [ value_1, value_2, value_3, ... ] }
 
 The value of C<name> is the name of the database connection attribute.
 
-C<avail_values> holds the available values for that connection attribute as an array reference.
+The value of C<prompt> is used as the prompt string. The C<prompt> entry is optional. If C<prompt> doesn't exist, the
+value of C<name> is used instead.
 
-The C<avail_values> array entry of the index position C<default_index> is used as default value.
+C<avail_values> holds the available values for that attribute as an array reference.
+
+The C<avail_values> array entry of the index position C<default_index> is used as the default value.
 
 =back
 
 Example form the plugin C<App::DBBrowser::DB::SQLite>:
 
-    sub connect_attributes {
+    sub choose_arguments {
         my ( $self ) = @_;
         return [
             { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
@@ -294,12 +347,22 @@ Example form the plugin C<App::DBBrowser::DB::SQLite>:
         ];
     }
 
+See the C<db-browser> option I<DB Options>.
+
+    choose_arguments()  =>  option "DB Options"  =>  $connect_parameter->{chosen_arg}
+
 =cut
 
-sub connect_attributes {
+sub choose_arguments {
     my ( $self ) = @_;
-    return [] if ! $self->{Plugin}->can( 'connect_attributes' );
-    my $connect_attributes = $self->{Plugin}->connect_attributes();
+    if ( $self->plugin_api_version < 1.4 ) {                            # 1.3
+        return [] if ! $self->{Plugin}->can( 'connect_attributes' );    # 1.3
+        my $data = $self->{Plugin}->connect_attributes();               # 1.3
+        return [] if ! defined $data;                                   # 1.3
+        return $data;                                                   # 1.3
+    }                                                                   # 1.3
+    return [] if ! $self->{Plugin}->can( 'choose_arguments' );
+    my $connect_attributes = $self->{Plugin}->choose_arguments();
     return [] if ! defined $connect_attributes;
     return $connect_attributes;
 }
@@ -346,17 +409,22 @@ The database name and a reference to a hash of hashes.
 The hash of hashes provides the settings gathered from the option I<Database settings>.
 
     $connect_parameter = {
-        attributes => {
-            connect_attribute => chosen value,
-            connect_attribute => chosen value,
+        use_env_var => {
+            env_var => true or false,
+            env_var => true or false,
             ...
         },
-        login_mode => {         # ask   use environment variable   don't ask
-            name => 0, 1 or 2,  # 0     1                          2
-            name => 0, 1 or 2,  # 0     1                          2
+        chosen_arg => {
+            attribute => chosen value,
+            attribute => chosen value,
             ...
         },
-        login_data => {
+        required => {
+            name => true or false,
+            name => true or false,
+            ...
+        },
+        read_arg => {
             name => user input,
             name => user input,
             ...
@@ -372,26 +440,28 @@ The hash of hashes provides the settings gathered from the option I<Database set
         ]
     };
 
-If I<login_mode> is set to C<1>, the name of the used environment variable is the uppercase of "name" prefixed with
-"DBI_".
-
 For example for the plugin C<mysql> the hash of hashes held by C<$connect_parameter> could look like this:
 
     $connect_parameter = {
-        login_data => {
+        use_env_var => {
+            DBI_HOST => 1,
+            DBI_USER => 0,
+            DBI_PASS => 0,
+        },
+        read_arg => {
             host => undef,
             pass => undef,
             user => 'db_user_name',
             port => undef
         },
-        attributes => {
+        chosen_arg => {
             mysql_enable_utf8 => 1
         },
-        login_mode => {
-            port => 2,      # don't ask
-            user => 1,      # use the environment variable DBI_USER if available
-            pass => 1,      # use the environment variable DBI_PASS if available
-            host => 2       # don't ask
+        required => {
+            port => 0,
+            user => 1,
+            pass => 1,
+            host => 1
         },
         keep_secret => {
             port => 0,
