@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.008';
+our $VERSION = '1.009';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -476,58 +476,22 @@ sub __opt_number_range {
 
 sub __group_readline {
     my ( $self, $opt_type, $section, $items, $prompt ) = @_;
-    my $old_idx = 0;
-    my $tmp = {};
-
-    OPTION: while ( 1 ) {
-        my $confirm = '  CONFIRM';
-        my @pre = ( undef, $confirm );
-        my @real = map {
-                '- '
-            . ( exists $_->{prompt} ? $_->{prompt} : $_->{name} )
-            . (   defined $tmp->{$_->{name}} ? ": $tmp->{$_->{name}}"
-                : $self->{$opt_type}{$section}{$_->{name}} ? ": $self->{$opt_type}{$section}{$_->{name}}"
-                : ':' )
-        } @{$items};
-        my $choices = [ @pre, @real ];
-        # Choose
-        my $idx = choose(
-            $choices,
-            { %{$self->{info}{lyt_3}}, index => 1, default => $old_idx,
-              prompt => $prompt, undef => $self->{info}{_back} }
-        );
-        if ( ! defined $idx || ! defined $choices->[$idx] ) {
-            return;
+    my $list = [ map {
+        [
+            exists $_->{prompt} ? $_->{prompt} : $_->{name},
+            $self->{$opt_type}{$section}{$_->{name}} 
+        ]
+    } @{$items} ];
+    my $trs = Term::ReadLine::Simple->new();
+    my $new_list = $trs->fill_form( 
+        $list,
+        { prompt => $prompt, auto_up => 1, confirm => $self->{info}{confirm}, back => $self->{info}{back} }
+    );
+    if ( $new_list ) {
+        for my $i ( 0 .. $#$items ) {
+            $self->{$opt_type}{$section}{$items->[$i]{name}}= $new_list->[$i][1];
         }
-        if ( $self->{opt}{G}{menus_config_memory} ) {
-            if ( $old_idx == $idx ) {
-                $old_idx = 0;
-                next OPTION;;
-            }
-            else {
-                $old_idx = $idx;
-            }
-        }
-        if ( $choices->[$idx] eq $confirm ) {
-            for my $key ( keys %$tmp ) {
-                $self->{$opt_type}{$section}{$key}= $tmp->{$key};
-
-            }
-            $self->{info}{write_config}++;
-            return;
-        }
-        $idx -= @pre;
-        my $option = $items->[$idx]{name};
-        my $readline_prompt = $items->[$idx]{prompt};
-        $readline_prompt =~ s/\s+\z//;
-        my $current = $self->{$opt_type}{$section}{$option};
-        my $trs = Term::ReadLine::Simple->new();
-        # Readline
-        my $choice = $trs->readline( $readline_prompt . ': ', { default => $current } );
-        if ( ! defined $choice ) {
-            next OPTION;
-        }
-        $tmp->{$option} = $choice;
+        $self->{info}{write_config}++;
     }
 }
 

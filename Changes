@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.009   2015-03-19
+        - "Term::ReadLine::Simple" minimum version "0.208".
+        - Code refactoring.
+
 1.008   2015-02-25
         - New plugin api (1.4).
         - Removed support for the plugin api version "1.1" and "1.2".
