@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.009';
+our $VERSION = '1.010';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.009
+Version 1.010
 
 =cut
 
@@ -205,13 +205,13 @@ user a considered.
 
 =over
 
-=item ENV Variables
-
-Which environment variables should be used.
-
 =item Fields
 
 Set which fields are required to connect to a database.
+
+=item ENV Variables
+
+Which environment variables should be used.
 
 =item Login Data
 
@@ -259,24 +259,16 @@ sub menu.
 - setting I<DB Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
 entering in a sub menu.
 
-=head4 Table expand
+=head4 Table
 
 - setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
 in its own line.
 
 - setting I<Table Header> to "Each page" means: print the table header on top of each page.
 
-=head4 Lock
-
-Set the default I<lock> value:
-
-- Lk0: Reset the SQL-statement after each "PrintTable".
-
-- Lk1: Reset the SQL-statement only when a table is selected.
-
 =head4 Mouse Mode
 
-Set the I<mouse mode> (see L<Term::Choose/mouse>).
+Set the I<Mouse Mode> (see L<Term::Choose/mouse>).
 
 =head3 SQL
 
@@ -291,6 +283,14 @@ Choose the required operators.
 There are two REGEXP entries: "REGEXP" matches case sensitive while "REGEXP_i" matches case insensitive.
 
 With MySQL the sensitive match is achieved by enabling the C<BINARY> operator.
+
+=head4 Lock
+
+Set the default I<lock> value:
+
+- Lk0: Reset the SQL-statement after each "PrintTable".
+
+- Lk1: Reset the SQL-statement only when a table is selected.
 
 =head4 Parentheses
 
@@ -333,7 +333,7 @@ a machine with 'MSWin32' OS.
 These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-menu by selecting the prompt
 "I<Customize:>".
 
-=head4 Input modes
+=head4 Input Modes
 
 C<INSERT>ing data into a tables - select the input modes:
 
@@ -418,7 +418,7 @@ Set C<Text::CSV> options.
 
 Set C<Text::ParseWords> options.
 
-=head4 File history
+=head4 File History
 
 Set how many input file names should be saved. A value of C<0> disables the file history.
 

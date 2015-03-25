@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.010   2015-03-25
+        - Refactoring options.
+        - Removed dependency on "File::Slurp" [RT #103037 - Karen Etheridge (ETHER)].
+        - "Term::Choose::Util" minimum version "0.025".
+        - Update documentation.
+
 1.009   2015-03-19
         - "Term::ReadLine::Simple" minimum version "0.208".
         - Code refactoring.

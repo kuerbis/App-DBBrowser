@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.009';
+our $VERSION = '1.010';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -14,7 +14,6 @@ use File::Temp qw( tempfile );
 use List::Util qw( all );
 
 #use Clone                  qw( clone );
-use File::Slurp            qw( read_file );
 use List::MoreUtils        qw( first_index );
 use Encode::Locale         qw();
 #use Spreadsheet::Read      qw( ReadData rows ); # "require"d
@@ -168,13 +167,14 @@ sub __insert_into {
         else {
             my ( $file, $sheet_idx );
             if ( $input_mode eq 'Multirow' ) {
+                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
+                binmode $fh, ':encoding(' . $self->{opt}{insert}{encoding_csv_file} . ')';
                 $auxil->__print_sql_statement( $sql, $table, $sql_type );
                 print 'Multirow: ' . "\n";
                 # STDIN
-                my $input = read_file( \*STDIN );
-                ( my $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
-                binmode $fh, ':encoding(' . $self->{opt}{insert}{encoding_csv_file} . ')';
-                print $fh $input;
+                while ( my $row = <STDIN> ) {
+                    print $fh $row;
+                }
                 seek $fh, 0, 0;
                 if ( $self->{opt}{insert}{csv_read} < 2 ) {
                     $file = $fh;
