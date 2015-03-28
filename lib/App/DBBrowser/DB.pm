@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.010';
+our $VERSION = '1.011';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.010
+Version 1.011
 
 =head1 DESCRIPTION
 

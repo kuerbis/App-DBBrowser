@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.010';
+our $VERSION = '1.011';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -495,7 +495,7 @@ sub __group_readline {
     my $trs = Term::ReadLine::Simple->new();
     my $new_list = $trs->fill_form(
         $list,
-        { prompt => $prompt, auto_up => 1, confirm => $self->{info}{_confirm}, back => $self->{info}{_back} }
+        { prompt => $prompt, auto_up => 2, confirm => $self->{info}{_confirm}, back => $self->{info}{_back} }
     );
     if ( $new_list ) {
         for my $i ( 0 .. $#$items ) {
