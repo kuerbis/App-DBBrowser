@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.012   2015-04-13
+        - New dependency "File::Which";
+        - config dir is $XDG_CONFIG_HOME if which( xdg-user-dir ).
+        - the config dir is now called "db_browser" instead of "db_browser_conf".
+        - Update documentation.
+
 1.011   2015-03-28
         - "Term::ReadLine::Simple" minimum version "0.300".
 

@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.011';
+our $VERSION = '1.012';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.011
+Version 1.012
 
 =cut
 
@@ -478,10 +478,6 @@ Requires Perl version 5.8.3 or greater.
 =head2 Decoded strings
 
 C<db-browser> expects decoded strings.
-
-=head2 Encoding layer for STDOUT
-
-For a correct output it is required an appropriate encoding layer for STDOUT matching the terminal's character set.
 
 =head2 Terminal
 

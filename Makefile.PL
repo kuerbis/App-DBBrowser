@@ -44,6 +44,7 @@ WriteMakefile(
         'File::HomeDir'          => 0,
         'File::Spec::Functions'  => 0,
         'File::Temp'             => 0,
+        'File::Which'            => 0,
         'FindBin'                => 0,
         'Getopt::Long'           => 0,
         'JSON'                   => 0,

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.011';
+our $VERSION = '1.012';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -499,7 +499,7 @@ sub __group_readline {
     );
     if ( $new_list ) {
         for my $i ( 0 .. $#$items ) {
-            $self->{$opt_type}{$section}{$items->[$i]{name}}= $new_list->[$i][1];
+            $self->{$opt_type}{$section}{$items->[$i]{name}} = $new_list->[$i][1];
         }
         $self->{info}{write_config}++;
     }

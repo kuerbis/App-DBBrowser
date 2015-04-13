@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.011';
+our $VERSION = '1.012';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -14,6 +14,7 @@ use Getopt::Long          qw( GetOptions );
 
 use Encode::Locale   qw( decode_argv );
 use File::HomeDir    qw();
+use File::Which      qw( which ); #######
 use Term::Choose     qw();
 use Term::TablePrint qw( print_table );
 
@@ -77,8 +78,27 @@ sub __init {
         print "'db-browser' requires a home directory\n";
         exit;
     }
-    my $my_data = decode( 'locale', File::HomeDir->my_data() );
-    my $app_dir = $my_data ? catdir( $my_data, 'db_browser_conf' ) : catdir( $home, '.db_browser_conf' );
+    my $config_home;
+    if ( which( 'xdg-user-dir' ) ) {
+        $config_home = decode 'locale_fs', File::HomeDir::FreeDesktop->my_config();
+    }
+    else {
+        $config_home = decode 'locale_fs', File::HomeDir->my_data();
+    }
+    my $app_dir = $config_home ? catdir( $config_home, 'db_browser' ) : catdir( $home, '.db_browser' );
+
+    ##### keep this for some time #######
+    if ( ! -d $app_dir ) {
+        require Term::Choose;
+        my $prompt = "The location and the name of the configuration directory has changed!\n";
+        $prompt .= "Call 'db_browser -h' and select 'Path' the see the new name/location.";
+        Term::Choose::choose(
+            [ 'Continue with ENTER' ],
+            { prompt => $prompt }
+        );
+    }
+    #####################################
+
     mkdir $app_dir or die $! if ! -d $app_dir;
     $self->{info}{home_dir}      = $home;
     $self->{info}{app_dir}       = $app_dir;
@@ -581,7 +601,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.011
+Version 1.012
 
 =head1 DESCRIPTION
 
