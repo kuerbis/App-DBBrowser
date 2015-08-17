@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.014   2015-08-17
+        - Raised "Term::TablePrint" minimum version to "0.024".
+
 1.013   2015-08-17
         - Removed support for the plugin api version "1.3".
         - The option "Table rows" has now 3 different settings instead of 2. The default behavior has changed.
