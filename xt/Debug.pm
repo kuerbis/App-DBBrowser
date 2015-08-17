@@ -19,13 +19,13 @@ use List::MoreUtils qw( none );
 
 use App::DBBrowser::Auxil;
 
-BEGIN { $SIG{__WARN__} = sub { die @_ } }
+$SIG{__WARN__} = sub { die @_ };
 
 sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.3;
+    $opt->{plugin_api_version} = 1.4;
     bless $opt, $class;
 }
 
@@ -123,15 +123,19 @@ my $db_opt_check = {
         host
         port
         user
-        login_mode_field
-        login_mode_host
-        login_mode_pass
-        login_mode_port
-        login_mode_user
         sqlite_see_if_its_a_number
         sqlite_unicode
     ) ],
 };
+
+
+#        login_mode_field
+#        login_mode_host
+#        login_mode_pass
+#        login_mode_port
+#        login_mode_user
+
+
 
 sub debug {
     my ( $self, $dbh, $info, $opt, $db_opt ) = @_;
@@ -281,7 +285,7 @@ sub read_argument {
 }
 
 
-sub choose_argument {
+sub choose_arguments {
     my ( $self ) = @_;
     return [
         { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
@@ -293,24 +297,12 @@ sub choose_argument {
 sub get_db_handle {
     my ( $self, $db, $connect_parameter ) = @_;
     my $dsn = "dbi:$self->{db_driver}:dbname=$db";
-    # test
-    use App::DBBrowser::DB_Credentials;
-    my $obj_db_cred = App::DBBrowser::DB_Credentials->new( {
-        connect_parameter  => $connect_parameter,
-        plugin_api_version => $self->plugin_api_version()
-    } );
-    my $field  = $obj_db_cred->get_login( 'field' );
-    my $host   = $obj_db_cred->get_login( 'host' );
-    my $port   = $obj_db_cred->get_login( 'port' );
-    my $user   = $obj_db_cred->get_login( 'user' );
-    my $passwd = $obj_db_cred->get_login( 'pass' );
-    #
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
         RaiseError => 1,
-        AutoCommit => 0,
+        AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$connect_parameter->{attributes}},
+        %{$connect_parameter->{chosen_arg}},
     } ) or die DBI->errstr;
     $dbh->sqlite_create_function( 'regexp', 3, sub {
             my ( $regex, $string, $case_sensitive ) = @_;

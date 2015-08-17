@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.013   2015-08-17
+        - Removed support for the plugin api version "1.3".
+        - The option "Table rows" has now 3 different settings instead of 2. The default behavior has changed.
+
 1.012   2015-04-13
         - New dependency "File::Which";
         - config dir is $XDG_CONFIG_HOME if which( xdg-user-dir ).

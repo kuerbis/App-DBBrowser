@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.012';
+our $VERSION = '1.013';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -14,7 +14,7 @@ use Getopt::Long          qw( GetOptions );
 
 use Encode::Locale   qw( decode_argv );
 use File::HomeDir    qw();
-use File::Which      qw( which ); #######
+use File::Which      qw( which );
 use Term::Choose     qw();
 use Term::TablePrint qw( print_table );
 
@@ -215,35 +215,6 @@ sub __prepare_connect_parameter {
     if ( exists $self->{info}{login_error} ) {
         delete $self->{info}{login_error};
     }
-
-    #################################################################### 1.3
-    if ( $obj_db->plugin_api_version() < 1.4 ) {
-        $connect_parameter->{attributes} = { %{$connect_parameter->{chosen_arg}} };
-        $connect_parameter->{login_data} = { %{$connect_parameter->{read_arg}}   };
-        for my $item ( @$read_arg ) {
-            my $name = $item->{name};
-            my $required_field = 'field_' . $name;
-            if ( defined $db && ! defined $self->{db_opt}{$section}{$required_field} ) {
-                $section = $db_plugin;
-            }
-            if ( ! defined $self->{db_opt}{$section}{$required_field} ) {
-                $self->{db_opt}{$section}{$required_field} = 0;
-            }
-            if ( $self->{db_opt}{$section}{$required_field} == 0 ) {
-                $connect_parameter->{login_mode}{$name} = 2;
-            }
-            else {
-                if ( $self->{db_opt}{$section}{'DBI_' . uc($name)} == 1 ) {
-                    $connect_parameter->{login_mode}{$name} = 1;
-                }
-                else {
-                    $connect_parameter->{login_mode}{$name} = 0;
-                }
-            }
-        }
-    }
-    #################################################################### 1.3
-
     return $connect_parameter;
 }
 
@@ -601,7 +572,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.012
+Version 1.013
 
 =head1 DESCRIPTION
 

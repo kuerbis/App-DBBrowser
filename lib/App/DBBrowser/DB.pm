@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.012';
+our $VERSION = '1.013';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.012
+Version 1.013
 
 =head1 DESCRIPTION
 
@@ -36,17 +36,7 @@ Column names passed as arguments to plugin methods are already quoted with the C
 
 This documentation describes the plugin API version C<1.4>.
 
-New in C<1.4>:
-
-- from C<login_data()> to C<read_arguments()> and C<environment_variables()>.
-
-- from C<connect_attribute()> to C<choose_arguments()>.
-
-- changed keys in the argument C<$connect_parameter>.
-
-Supported plugin API versions: C<1.4>, C<1.3>.
-
-Support for the version C<1.3> will be removed soon.
+Supported plugin API versions: C<1.4>.
 
 =head1 METHODS
 
@@ -96,7 +86,7 @@ sub new {
         add_metadata        => $opt->{G}{metadata},
     } );
 
-    my $minimum_pav = 1.3;
+    my $minimum_pav = 1.4;
 
     my $pav;
     $pav = $plugin->plugin_api_version() if $plugin->can( 'plugin_api_version' );
@@ -254,12 +244,6 @@ I<Fields> and I<Login Data>.
 
 sub read_arguments {
     my ( $self ) = @_;
-    if ( $self->plugin_api_version < 1.4 ) {                    # 1.3
-        return [] if ! $self->{Plugin}->can( 'login_data' );    # 1.3
-        my $data = $self->{Plugin}->login_data();               # 1.3
-        return [] if ! defined $data;                           # 1.3
-        return $data;                                           # 1.3
-    }                                                           # 1.3
     return [] if ! $self->{Plugin}->can( 'read_arguments' );
     my $data = $self->{Plugin}->read_arguments();
     return [] if ! defined $data;
@@ -297,13 +281,6 @@ See the C<db-browser> option I<ENV Variables>.
 
 sub environment_variables {
     my ( $self ) = @_;
-    if ( $self->plugin_api_version < 1.4 ) {                            # 1.3
-        return [] if ! $self->{Plugin}->can( 'login_data' );            # 1.3
-        my $data = $self->{Plugin}->login_data();                       # 1.3
-        return [] if ! defined $data;                                   # 1.3
-        my $env_variables = [ map { 'DBI_' . uc $_->{name} } @$data ];  # 1.3
-        return $env_variables;                                          # 1.3
-    }                                                                   # 1.3
     return [] if ! $self->{Plugin}->can( 'environment_variables' );
     my $env_variables = $self->{Plugin}->environment_variables();
     return [] if ! defined $env_variables;
@@ -355,12 +332,6 @@ See the C<db-browser> option I<DB Options>.
 
 sub choose_arguments {
     my ( $self ) = @_;
-    if ( $self->plugin_api_version < 1.4 ) {                            # 1.3
-        return [] if ! $self->{Plugin}->can( 'connect_attributes' );    # 1.3
-        my $data = $self->{Plugin}->connect_attributes();               # 1.3
-        return [] if ! defined $data;                                   # 1.3
-        return $data;                                                   # 1.3
-    }                                                                   # 1.3
     return [] if ! $self->{Plugin}->can( 'choose_arguments' );
     my $connect_attributes = $self->{Plugin}->choose_arguments();
     return [] if ! defined $connect_attributes;

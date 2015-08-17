@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.012';
+our $VERSION = '1.013';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -440,7 +440,7 @@ sub set_options {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
                     [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
-                    [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand'    ] ],
+                    [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand fast back', 'Expand' ] ],
                 ];
                 $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
             }

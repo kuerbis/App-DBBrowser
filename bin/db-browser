@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.012';
+our $VERSION = '1.013';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.012
+Version 1.013
 
 =cut
 
@@ -262,7 +262,7 @@ entering in a sub menu.
 =head4 Table
 
 - setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
-in its own line.
+in its own line. "Expand fast back" does not expand the first row if the cursor auto-jumped to the first row.
 
 - setting I<Table Header> to "Each page" means: print the table header on top of each page.
 
