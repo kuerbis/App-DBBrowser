@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.014';
+our $VERSION = '1.015';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -56,9 +56,9 @@ sub defaults {
             binary_filter        => 0,
         },
         insert => {
-            input_modes          => [ 'Cols', 'Multirow', 'File' ],
-            csv_read             => 0,
-            encoding_csv_file    => 'UTF-8',
+            input_modes          => [ 'Cols', 'Paste clipboard', 'File' ],
+            parse_mode           => 0,
+            file_encoding        => 'UTF-8',
             max_files            => 15,
         # Text::CSV:
             sep_char             => ',',
@@ -71,9 +71,9 @@ sub defaults {
             blank_is_undef       => 1,
             binary               => 1,
             empty_is_undef       => 0,
-        # Text::ParseWords:
-            delim                => ',',
-            keep                 => 0,
+        # split:
+            i_r_s                => '\n',
+            i_f_s                => ',',
         }
     };
     return $defaults                   if ! $section;
@@ -86,20 +86,16 @@ sub __sub_menus_insert {
     my ( $self, $group ) = @_;
     my $sub_menus_insert = {
         main_insert => [
-            { name => 'input_modes',             text => "- Input Modes",      section => 'insert' },
-            { name => 'csv_read',                text => "- Parse Module",     section => 'insert' },
-            { name => 'encoding_csv_file',       text => "- File Encoding",    section => 'insert' },
-            { name => '_module_Text_CSV',        text => "- Text::CSV",        section => 'insert' },
-            { name => '_module_Text_ParseWords', text => "- Text::ParseWords", section => 'insert' },
-            { name => 'max_files',               text => "- File History",     section => 'insert' },
+            { name => 'input_modes',       text => "- Read",          section => 'insert' },
+            { name => 'parse_mode',        text => "- Parse-mode",    section => 'insert' },
+            { name => '_module_Text_CSV',  text => "- conf T::CSV",   section => 'insert' },
+            { name => '_parse_with_split', text => "- conf 'split'",  section => 'insert' },
+            { name => 'file_encoding',     text => "- File Encoding", section => 'insert' },
+            { name => 'max_files',         text => "- File History",  section => 'insert' },
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'insert' },
             { name => '_options_csv', text => "-  Other attributes", section => 'insert' },
-        ],
-        _module_Text_ParseWords => [
-            { name => 'delim', text => "- \$delim", section => 'insert' },
-            { name => 'keep',  text => "- \$keep",  section => 'insert' },
         ],
     };
     return $sub_menus_insert->{$group};
@@ -107,7 +103,7 @@ sub __sub_menus_insert {
 
 
 sub __config_insert {
-    my ( $self, $write_to_file ) = @_;
+    my ( $self ) = @_;
     my $old_idx = 0;
     my $backup_old_idx = 0;
     my $group  = 'main_insert';
@@ -136,7 +132,7 @@ sub __config_insert {
                 }
                 else {
                     if ( $self->{info}{write_config} ) {
-                        $self->__write_config_files() if $write_to_file;
+                        $self->__write_config_files();
                         delete $self->{info}{write_config};
                     }
                     return
@@ -166,19 +162,19 @@ sub __config_insert {
             my $opt_type = 'opt';
             my $no_yes   = [ 'NO', 'YES' ];
             if ( $option eq 'input_modes' ) {
-                    my $available = [ 'Cols', 'Rows', 'Multirow', 'File' ];
+                    my $available = [ 'Cols', 'Rows', 'Paste', 'File' ];
                     my $prompt = 'Input Modes:';
                     $self->__opt_choose_a_list( $opt_type, $section, $option, $available, $prompt );
             }
-            elsif ( $option eq 'csv_read' ) {
+            elsif ( $option eq 'parse_mode' ) {
                 my $prompt = 'Parsing CSV files';
-                my $list = [ 'Text::CSV', 'Text::ParseWords', 'Spreadsheet::Read' ];
+                my $list = [ 'Text::CSV', 'split', 'Spreadsheet::Read' ];
                 my $sub_menu = [ [ $option, "  Use", $list ] ];
                 $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
             }
-            elsif ( $option eq 'encoding_csv_file' ) {
+            elsif ( $option eq 'file_encoding' ) {
                 my $items = [
-                    { name => 'encoding_csv_file', prompt => "encoding_csv_file" },
+                    { name => 'file_encoding', prompt => "file_encoding" },
                 ];
                 my $prompt = 'Encoding CSV files';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
@@ -203,18 +199,13 @@ sub __config_insert {
                 ];
                 $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
             }
-            elsif ( $option eq 'delim' ) {
+            elsif ( $option eq '_parse_with_split' ) {
                 my $items = [
-                    { name => 'delim', prompt => "delim" },
+                    { name => 'i_r_s', prompt => "IRS" },
+                    { name => 'i_f_s', prompt => "IFS" },
                 ];
-                my $prompt = '"Text::ParseWords" delimiter (regexp)';
+                my $prompt = 'Separators (regexp)';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
-            }
-            elsif ( $option eq 'keep' ) {
-                my $prompt = '"Text::ParseWords"';
-                my $list = $no_yes;
-                my $sub_menu = [ [ $option, "  Enable option '\$keep'", $list ] ];
-                $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq 'max_files' ) {
                 my $digits = 3;
@@ -314,7 +305,7 @@ sub set_options {
             }
             my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
             if ( $option eq 'config_insert' ) {
-                $self->__config_insert( 1 );
+                $self->__config_insert();
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;

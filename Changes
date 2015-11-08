@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+1.015   2015-11-08
+        - Update Insert-package.
+        - Removed the "location of the configuration directory has changed"-message.
+        - Update documentation.
+
 1.014   2015-08-17
         - Raised "Term::TablePrint" minimum version to "0.024".
 

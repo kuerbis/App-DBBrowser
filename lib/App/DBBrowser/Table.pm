@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.014';
+our $VERSION = '1.015';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -49,7 +49,7 @@ sub __on_table {
         commit          => '  Confirm SQL',
         columns         => '- SELECT',
         set             => '- SET',
-        insert          => '  Form SQL',
+        insert          => '  Form    SQL',
         aggregate       => '- AGGREGATE',
         distinct        => '- DISTINCT',
         where           => '- WHERE',
@@ -79,11 +79,12 @@ sub __on_table {
     CUSTOMIZE: while ( 1 ) {
         $backup_sql = clone( $sql ) if $sql_type eq 'Select';
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
+        my $prompt = '';
         my $choices = [ $customize{hidden}, undef, @customize{@{$sub_stmts->{$sql_type}}} ];
         # Choose
         my $idx = $stmt_h->choose(
             $choices,
-            { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx,
+            { %{$self->{info}{lyt_stmt_v}}, prompt => $prompt, index => 1, default => $old_idx,
             undef => $sql_type ne 'Select' ? $self->{info}{_back} : $self->{info}{back} }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
@@ -743,7 +744,7 @@ sub __on_table {
         elsif ( $custom eq $customize{'hidden'} ) {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
-                $obj_opt->__config_insert( 0 );
+                $obj_opt->__config_insert();
                 $sql = clone( $backup_sql );
                 next CUSTOMIZE;
             }
@@ -1010,11 +1011,12 @@ sub __on_table {
                         $auxil->__reset_sql( $sql );
                         next CUSTOMIZE;
                     }
-                    1;
-                    }
+                    1 }
                 ) {
-                    $auxil->__print_error_message( "$@rolling back ...\n", 'Commit' );
+                    $auxil->__print_error_message( "$@Rolling back ...\n", 'Commit' );
                     eval { $dbh->rollback };#
+                    $auxil->__reset_sql( $sql );
+                    next CUSTOMIZE;
                 }
             }
             else {
@@ -1034,10 +1036,17 @@ sub __on_table {
                     $choices,
                     { %{$self->{info}{lyt_stmt_v}}, undef => '  Rollback', prompt => '' }
                 );
-                if ( defined $choice && $choice eq $commit_ok ) {;
-                    my $sth = $dbh->prepare( $stmt );
-                    for my $values ( @$to_execute ) {
-                        $sth->execute( @$values );
+                if ( defined $choice && $choice eq $commit_ok ) {
+                    if ( ! eval {
+                        my $sth = $dbh->prepare( $stmt );
+                        for my $values ( @$to_execute ) {
+                            $sth->execute( @$values );
+                        }
+                        1 }
+                    ) {
+                        $auxil->__print_error_message( $@, 'Commit' );
+                        $auxil->__reset_sql( $sql );
+                        next CUSTOMIZE;
                     }
                 }
                 else {

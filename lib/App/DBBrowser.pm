@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.014';
+our $VERSION = '1.015';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -86,19 +86,6 @@ sub __init {
         $config_home = decode 'locale_fs', File::HomeDir->my_data();
     }
     my $app_dir = $config_home ? catdir( $config_home, 'db_browser' ) : catdir( $home, '.db_browser' );
-
-    ##### keep this for some time #######
-    if ( ! -d $app_dir ) {
-        require Term::Choose;
-        my $prompt = "The location and the name of the configuration directory has changed!\n";
-        $prompt .= "Call 'db_browser -h' and select 'Path' the see the new name/location.";
-        Term::Choose::choose(
-            [ 'Continue with ENTER' ],
-            { prompt => $prompt }
-        );
-    }
-    #####################################
-
     mkdir $app_dir or die $! if ! -d $app_dir;
     $self->{info}{home_dir}      = $home;
     $self->{info}{app_dir}       = $app_dir;
@@ -572,7 +559,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.014
+Version 1.015
 
 =head1 DESCRIPTION
 

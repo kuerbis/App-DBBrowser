@@ -59,7 +59,6 @@ WriteMakefile(
         'Term::TablePrint'       => '0.024',
         'Text::CSV'              => 0,
         'Text::LineFold'         => 0,
-        'Text::ParseWords'       => 0,
         %prereqs_os_specific,
     },
     dist  => {

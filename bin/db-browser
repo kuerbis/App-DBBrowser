@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.014';
+our $VERSION = '1.015';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.014
+Version 1.015
 
 =cut
 
@@ -330,12 +330,11 @@ a machine with 'MSWin32' OS.
 
 =head3 Insert
 
-These I<Insert> settings can also be set temporarily in the C<INSERT INTO> sub-menu by selecting the prompt
-"I<Customize:>".
+These I<Insert> settings can also be set in the C<INSERT INTO> sub-menu by selecting the prompt "I<Customize:>".
 
 =head4 Input Modes
 
-C<INSERT>ing data into a tables - select the input modes:
+For C<INSERT>ing data into a table - choose the available input modes:
 
 =over
 
@@ -355,9 +354,9 @@ To parse the rows it is used C<Text::CSV>.
 
 =item
 
-Multirow
+Paste clipboard
 
-Enter all rows at once.
+Enter many rows. Reads until the EOF (Unix: one or two times C<Ctrl-D>).
 
 =item
 
@@ -365,17 +364,15 @@ File
 
 Read the input from am file.
 
-Supported file formats: CSV files and the spreadsheet formats supported by L<Spreadsheet::Read>.
+Supported file formats: csv-files and the spreadsheet formats supported by L<Spreadsheet::Read>.
 
 =back
 
-=head4 CSV parse module
+=head4 Parse mode
 
-Set which module to use for parsing text files and the "Multirow" input.
-
-Files where C<-T $filename> returns true are considered text files.
-
-If a file is not a text file, then it is always used C<Spreadsheet::Read> to parse the file regardless of this setting.
+Set how to parse text files or the "paste clipboard" input. Files where C<-T $filename> returns true are considered text
+files. If a file is not a text file, then it is always used C<Spreadsheet::Read> to parse the file regardless of this
+setting.
 
 =over
 
@@ -383,15 +380,48 @@ If a file is not a text file, then it is always used C<Spreadsheet::Read> to par
 
 Text::CSV
 
-Use L<Text::CSV> to parse text files and the "Multirow" input. To decode the files it is used the I<CSV file encoding>.
+Use L<Text::CSV> to parse text files and the "paste clipboard" input. To decode the files it is used the I<File encoding>.
+
+Advantages:
+
+=over
 
 =item
 
-Text::ParseWords
+Maybe the fastest with the smallest memory footprint.
 
-With L<Text::ParseWords> it is possible to use a regexp as delimiter - see the option I<T::PW: $delim>.
+=item
 
-To decode the file it is used the I<CSV file encoding>
+Allows to set different csv-related options.
+
+=back
+
+=back
+
+=over
+
+=item
+
+split
+
+Reads to whole input at once and splits the input with the input record separator (IRS) to get the records (rows). Then
+it splits the records with the input field separator (IFS) to get the fields (columns) of each record.
+
+To decode the files it is used the I<File encoding>.
+
+Advantages:
+
+=over
+
+=item
+
+The values assigned to the IRS and the IFS are treated as regexps.
+
+=back
+
+=back
+
+=over
 
 =item
 
@@ -399,24 +429,50 @@ Spreadsheet::Read
 
 If L<Spreadsheet::Read> is chosen, the default settings from C<Spreadsheet::Read> are used.
 
-C<Spreadsheet::Read> will use the first line of the file to auto-detect the separation character if the file is a CSV
-file.
+C<Spreadsheet::Read> will use the first line of the file to auto-detect the separation character if the file is a
+csv-file.
 
-The following csv settings have no meaning when C<Spreadsheet::Read> is in use.
+Advantages:
+
+=over
+
+=item
+
+Auto-detects the separation character for csv-files
 
 =back
 
-=head4 CSV file encoding
+=back
+
+=over
+
+=back
+
+=head4 File encoding
 
 How to decode csv files.
 
-=head4 Text::CSV
+=head4 Conf T::CSV
 
-Set C<Text::CSV> options.
+Set different L<Text::CSV> options.
 
-=head4 Text::ParseWords
+=head4 Conf 'split'
 
-Set C<Text::ParseWords> options.
+=over
+
+=item
+
+IRS
+
+Set the input record separator (regexp).
+
+=item
+
+IFS
+
+Set the input field separator (regexp).
+
+=back
 
 =head4 File History
 
