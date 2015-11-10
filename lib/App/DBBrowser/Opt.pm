@@ -56,7 +56,7 @@ sub defaults {
             binary_filter        => 0,
         },
         insert => {
-            input_modes          => [ 'Cols', 'Multi row', 'File' ],
+            input_modes          => [ 'Cols', 'Multi-row', 'File' ],
             parse_mode           => 0,
             file_encoding        => 'UTF-8',
             max_files            => 15,
