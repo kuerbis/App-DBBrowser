@@ -90,14 +90,14 @@ my $opt_check = {
         auto_diag
         binary
         blank_is_undef
-        csv_read
-        delim
         empty_is_undef
-        encoding_csv_file
         escape_char
+        file_encoding
         input_modes
-        keep
+        i_f_s
+        i_r_s
         max_files
+        parse_mode
         quote_char
         sep_char
     ) ],
@@ -114,6 +114,7 @@ my $opt_check = {
         undef
     ) ],
 };
+
 
 my $db_opt_check = {
     Debug => [ qw(
@@ -151,11 +152,11 @@ sub debug {
             return if $file =~ /Debug\.pm/;
             open my $fh, '<', $file or die "$file: $!";
             while ( my $line = <$fh> ) {
-                map { $info_regex->{$_}++ }          $line =~ /self->{info}{([^}{\$]+)}/g;
-                map { $opt_regex->{G}{$_}++ }        $line =~ /self->{opt}{G}{([^}{\$]+)}/g;
-                map { $opt_regex->{insert}{$_}++ }   $line =~ /self->{opt}{insert}{([^}{\$]+)}/g;
-                map { $opt_regex->{table}{$_}++ }    $line =~ /self->{opt}{table}{([^}{\$]+)}/g;
-                map { $db_opt_regex->{Debug}{$_}++ } $line =~ /self->{db_opt}{Debug}{([^}{\$]+)}/g;
+                map { $info_regex->{$_}++ }          $line =~ /self->\{info\}\{([^}{\$]+)\}/g;
+                map { $opt_regex->{G}{$_}++ }        $line =~ /self->\{opt\}\{G\}\{([^}{\$]+)\}/g;
+                map { $opt_regex->{insert}{$_}++ }   $line =~ /self->\{opt\}\{insert\}\{([^}{\$]+)\}/g;
+                map { $opt_regex->{table}{$_}++ }    $line =~ /self->\{opt\}\{table\}\{([^}{\$]+)\}/g;
+                map { $db_opt_regex->{Debug}{$_}++ } $line =~ /self->\{db_opt\}\{Debug\}\{([^}{\$]+)\}/g;
             }
             close $fh;
         },

@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.015';
+our $VERSION = '1.016';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.015
+Version 1.016
 
 =cut
 
@@ -354,9 +354,9 @@ To parse the rows it is used C<Text::CSV>.
 
 =item
 
-Paste clipboard
+Multi row
 
-Enter many rows. Reads until the EOF (Unix: one or two times C<Ctrl-D>).
+Enter many rows. Reads until the end of input. It is OS-depend how to indicate the end of input.
 
 =item
 
@@ -370,7 +370,7 @@ Supported file formats: csv-files and the spreadsheet formats supported by L<Spr
 
 =head4 Parse mode
 
-Set how to parse text files or the "paste clipboard" input. Files where C<-T $filename> returns true are considered text
+Set how to parse text files or the "multi row" input. Files where C<-T $filename> returns true are considered text
 files. If a file is not a text file, then it is always used C<Spreadsheet::Read> to parse the file regardless of this
 setting.
 
@@ -380,7 +380,7 @@ setting.
 
 Text::CSV
 
-Use L<Text::CSV> to parse text files and the "paste clipboard" input. To decode the files it is used the I<File encoding>.
+Use L<Text::CSV> to parse text files and the "multi row" input. To decode the files it is used the I<File encoding>.
 
 Advantages:
 

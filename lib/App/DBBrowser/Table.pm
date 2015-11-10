@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.015';
+our $VERSION = '1.016';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any first_index );
@@ -71,7 +71,6 @@ sub __on_table {
     if ( $db_driver eq 'mysql' ) {
         $sql_types->{join} = [ 'Update' ];
     }
-    #my $sql_types = [ 'Insert', 'Update', 'Delete' ];
     my $sql_type = 'Select';
     my $backup_sql;
     my $old_idx = 1;
@@ -79,12 +78,11 @@ sub __on_table {
     CUSTOMIZE: while ( 1 ) {
         $backup_sql = clone( $sql ) if $sql_type eq 'Select';
         $auxil->__print_sql_statement( $sql, $table, $sql_type );
-        my $prompt = '';
         my $choices = [ $customize{hidden}, undef, @customize{@{$sub_stmts->{$sql_type}}} ];
         # Choose
         my $idx = $stmt_h->choose(
             $choices,
-            { %{$self->{info}{lyt_stmt_v}}, prompt => $prompt, index => 1, default => $old_idx,
+            { %{$self->{info}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx,
             undef => $sql_type ne 'Select' ? $self->{info}{_back} : $self->{info}{back} }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
@@ -786,13 +784,6 @@ sub __on_table {
                     $default = 1;
                 }
                 my @choices_sql_types = @{$sql_types->{$stmt_info->{type}}};
-                #if ( ! @choices_sql_types ) {
-                #    if ( defined $pre[0] && $pre[0] eq $choose_SQL_type ) {
-                #        shift @pre;
-                #    }
-                #    $prompt = 'Your choice:';
-                #    $default = 0;
-                #}
                 my @cols = $stmt_key eq 'chosen_cols'
                     ? ( @{$sql->{print}{chosen_cols}} )
                     : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
@@ -811,7 +802,6 @@ sub __on_table {
                     if ( ! @choices_sql_types ) {
                         next COL_SCALAR_FUNC;
                     }
-                    #my $ch_types = [ undef, map( "- $_", @$sql_types ) ];
                     my $ch_types = [ undef, map( "- $_", @choices_sql_types ) ];
                     # Choose
                     my $type_choice = $stmt_h->choose(
@@ -823,22 +813,6 @@ sub __on_table {
                         $old_idx = 1;
                         $auxil->__reset_sql( $sql );
                     }
-                    #if ( $stmt_info->{type} eq 'union' ) {
-                    #    if ( $sql_type =~ /^(?:Insert|Delete|Update)\z/ ) {
-                    #        $auxil->__print_error_message( sprintf "%s: no support for UNION statement\n", uc $sql_type );
-                    #        $sql_type = 'Select';
-                    #    }
-                    #}
-                    #if ( $stmt_info->{type} eq 'join' ) {
-                    #    if ( $sql_type =~ /^(?:Insert|Delete)\z/ ) {
-                    #        $auxil->__print_error_message( sprintf "%s: no support for JOIN statement\n", uc $sql_type );
-                    #        $sql_type = 'Select';
-                    #    }
-                    #    if ( $sql_type eq 'Update' && $db_driver ne 'mysql' ) {
-                    #        $auxil->__print_error_message( sprintf "INSERT - JOIN: no support for db driver %s\n", $db_driver );
-                    #     $sql_type = 'Select';
-                    #    }
-                    #}
                     last COL_SCALAR_FUNC;
                 }
                 if ( $choices->[$idx] eq $self->{info}{_confirm} ) {
@@ -1014,7 +988,7 @@ sub __on_table {
                     1 }
                 ) {
                     $auxil->__print_error_message( "$@Rolling back ...\n", 'Commit' );
-                    eval { $dbh->rollback };#
+                    $dbh->rollback;
                     $auxil->__reset_sql( $sql );
                     next CUSTOMIZE;
                 }

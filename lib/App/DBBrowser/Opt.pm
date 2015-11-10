@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.015';
+our $VERSION = '1.016';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -56,7 +56,7 @@ sub defaults {
             binary_filter        => 0,
         },
         insert => {
-            input_modes          => [ 'Cols', 'Paste clipboard', 'File' ],
+            input_modes          => [ 'Cols', 'Multi row', 'File' ],
             parse_mode           => 0,
             file_encoding        => 'UTF-8',
             max_files            => 15,
@@ -162,7 +162,7 @@ sub __config_insert {
             my $opt_type = 'opt';
             my $no_yes   = [ 'NO', 'YES' ];
             if ( $option eq 'input_modes' ) {
-                    my $available = [ 'Cols', 'Rows', 'Paste', 'File' ];
+                    my $available = [ 'Cols', 'Rows', 'Multi-row', 'File' ];
                     my $prompt = 'Input Modes:';
                     $self->__opt_choose_a_list( $opt_type, $section, $option, $available, $prompt );
             }

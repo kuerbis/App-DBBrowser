@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+1.016   2015-11-10
+        - Update Insert-package.
+        - Code refactoring and cleanup.
+        - Update documentation.
+
 1.015   2015-11-08
         - Update Insert-package.
         - Removed the "location of the configuration directory has changed"-message.
