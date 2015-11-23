@@ -213,7 +213,6 @@ sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_; # qt_table
     my ( $col_names, $col_types );
     for my $table ( @$tables ) {
-        #my $sth = $dbh->prepare( "SELECT * FROM " . $dbh->quote_identifier( undef, undef, $table ) );
         my $sth = $dbh->prepare( "SELECT * FROM $table" );
         $col_names->{$table} = $sth->{NAME};
         $col_types->{$table} = $sth->{TYPE};

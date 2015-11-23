@@ -348,6 +348,12 @@ For C<INSERT>ing data into a table - choose the available input modes:
 
 =item
 
+Cols
+
+It is prompted for each column.
+
+=item
+
 Rows
 
 Enter a row at a time.

@@ -351,7 +351,7 @@ sub run {
             SCHEMA: while ( 1 ) {
 
                 my $schema;
-                if ( $self->{info}{redo_schema} ) { # test
+                if ( $self->{info}{redo_schema} ) {
                     $schema = $self->{info}{redo_schema};
                     delete $self->{info}{redo_schema};
                 }
@@ -549,7 +549,7 @@ sub run {
                                     next HIDDEN;
                                 }
                                 next HIDDEN if ! $ok;
-                                $self->{info}{redo_schema} = $schema; #
+                                $self->{info}{redo_schema} = $schema;
                                 next SCHEMA;
                             }
                         }
