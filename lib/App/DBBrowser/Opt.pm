@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -56,7 +56,7 @@ sub defaults {
             binary_filter        => 0,
         },
         insert => {
-            input_modes          => [ 'Cols', 'Multi-row', 'File' ],
+            input_modes          => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
             parse_mode           => 0,
             file_encoding        => 'UTF-8',
             max_files            => 15,
@@ -258,7 +258,7 @@ sub __menus {
 }
 
 
-sub set_options {
+sub __set_options {
     my ( $self ) = @_;
     my $group = 'main';
     my $backup_old_idx = 0;
@@ -305,6 +305,7 @@ sub set_options {
             }
             my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
             if ( $option eq 'config_insert' ) {
+                $backup_old_idx = $old_idx;
                 $self->__config_insert();
                 $old_idx = $backup_old_idx;
                 $group = 'main';
@@ -344,7 +345,7 @@ sub set_options {
                 next OPTION;
             }
             elsif ( $option eq '_db_defaults' ) {
-                $self->database_setting();
+                $self->__database_setting();
                 next OPTION;
             }
             my $opt_type = 'opt';
@@ -358,7 +359,7 @@ sub set_options {
                 }
                 my $prompt = 'Choose DB plugins:';
                 $self->__opt_choose_a_list( $opt_type, $section, $option, [ sort keys %installed_db_driver ], $prompt );
-                $self->read_db_config_files();
+                $self->__read_db_config_files();
             }
             elsif ( $option eq 'tab_width' ) {
                 my $digits = 3;
@@ -510,7 +511,7 @@ sub __opt_choose_dirs {
 }
 
 
-sub database_setting {
+sub __database_setting {
     my ( $self, $db ) = @_;
     my $changed = 0;
     SECTION: while ( 1 ) {
@@ -723,7 +724,7 @@ sub __write_config_files {
     }
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $file_name = $self->{info}{config_generic};
-    $auxil->write_json( sprintf( $fmt, $file_name ), $tmp  );
+    $auxil->__write_json( sprintf( $fmt, $file_name ), $tmp  );
 }
 
 
@@ -744,19 +745,19 @@ sub __write_db_config_files {
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     for my $section ( keys %$tmp ) {
         my $file_name =  $section;
-        $auxil->write_json( sprintf( $fmt, $file_name ), $tmp->{$section}  );
+        $auxil->__write_json( sprintf( $fmt, $file_name ), $tmp->{$section}  );
     }
 }
 
 
-sub read_config_files {
+sub __read_config_files {
     my ( $self ) = @_;
     $self->{opt} = $self->defaults();
     my $fmt = $self->{info}{conf_file_fmt};
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $file =  sprintf( $fmt, $self->{info}{config_generic} );
     if ( -f $file && -s $file ) {
-        my $tmp = $auxil->read_json( $file );
+        my $tmp = $auxil->__read_json( $file );
         for my $section ( keys %$tmp ) {
             for my $option ( keys %{$tmp->{$section}} ) {
                 $self->{opt}{$section}{$option} = $tmp->{$section}{$option} if exists $self->{opt}{$section}{$option};
@@ -767,14 +768,14 @@ sub read_config_files {
 }
 
 
-sub read_db_config_files {
+sub __read_db_config_files {
     my ( $self ) = @_;
     my $fmt = $self->{info}{conf_file_fmt};
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     for my $db_plugin ( @{$self->{opt}{G}{db_plugins}} ) {
         my $file = sprintf( $fmt, $db_plugin );
         if ( -f $file && -s $file ) {
-            my $tmp = $auxil->read_json( $file );
+            my $tmp = $auxil->__read_json( $file );
             for my $conf_sect ( keys %$tmp ) {
                 my $section = $db_plugin . ( $conf_sect =~ /^\*\Q$db_plugin\E\z/ ? '' : '_' . $conf_sect );
                 for my $option ( keys %{$tmp->{$conf_sect}} ) {

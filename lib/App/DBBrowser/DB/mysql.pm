@@ -18,7 +18,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'mysql';
     $opt->{driver_prefix} = 'mysql';
-    $opt->{plugin_api_version} = 1.4;
+    $opt->{plugin_api_version} = 1.5;
     bless $opt, $class;
 }
 
@@ -143,6 +143,29 @@ sub get_table_names {
                     # AND table_type = 'BASE TABLE'
     my $tables = $dbh->selectcol_arrayref( $stmt, {}, ( $schema ) );
     return $tables;
+}
+
+
+sub primary_key_auto {
+    return "INT NOT NULL AUTO_INCREMENT PRIMARY KEY";
+}
+
+
+sub create_table {
+    my ( $self, $dbh, $table, $col_type, $add_primay_key ) = @_;
+    my $ct;
+    $ct .= "CREATE TABLE $table ( ";
+    $ct .= join ', ', map { $_->[0] . " " . $_->[1] } @$col_type;
+    $ct .= " )";
+    $dbh->do( $ct );
+    return;
+}
+
+
+sub drop_table {
+    my ( $self, $dbh, $table ) = @_;
+    $dbh->do( "DROP TABLE $table" );
+    return;
 }
 
 

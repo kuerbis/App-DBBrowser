@@ -23,7 +23,7 @@ sub new {
     my ( $class, $opt ) = @_;
     $opt->{db_driver} = 'SQLite';
     $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.4;
+    $opt->{plugin_api_version} = 1.5;
     bless $opt, $class;
 }
 
@@ -110,7 +110,7 @@ sub available_databases {
     my $dirs = $connect_parameter->{dir_sqlite};
     my $cache_key = $self->{db_plugin} . '_' . join ' ', @$dirs;
     my $auxil = App::DBBrowser::Auxil->new();
-    my $db_cache = $auxil->read_json( $self->{db_cache_file} );
+    my $db_cache = $auxil->__read_json( $self->{db_cache_file} );
     if ( $self->{sqlite_search} ) {
         delete $db_cache->{$cache_key};
     }
@@ -186,11 +186,35 @@ sub get_table_names {
 }
 
 
+sub primary_key_auto {
+    return "INTEGER PRIMARY KEY";
+}
+
+
+sub create_table {
+    my ( $self, $dbh, $table, $col_type ) = @_;
+    my $ct;
+    $ct .= "CREATE TABLE $table ( ";
+    $ct .= join ', ', map { $_->[0] . " " . $_->[1] } @$col_type;
+    $ct .= " )";
+    $dbh->do( $ct );
+    return;
+}
+
+
+sub drop_table {
+    my ( $self, $dbh, $table ) = @_;
+    $dbh->do( "DROP TABLE $table" );
+    return;
+}
+
+
 sub column_names_and_types {
-    my ( $self, $dbh, $db, $schema, $tables ) = @_;
+    my ( $self, $dbh, $db, $schema, $tables ) = @_; # qt_table
     my ( $col_names, $col_types );
     for my $table ( @$tables ) {
-        my $sth = $dbh->prepare( "SELECT * FROM " . $dbh->quote_identifier( undef, undef, $table ) );
+        #my $sth = $dbh->prepare( "SELECT * FROM " . $dbh->quote_identifier( undef, undef, $table ) );
+        my $sth = $dbh->prepare( "SELECT * FROM $table" );
         $col_names->{$table} = $sth->{NAME};
         $col_types->{$table} = $sth->{TYPE};
     }

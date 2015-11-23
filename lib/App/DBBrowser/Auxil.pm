@@ -5,15 +5,16 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 use Encode qw( encode );
 
-use Encode::Locale         qw();
-use JSON                   qw( decode_json );
-use Term::Choose           qw( choose );
-use Term::Choose::Util     qw( term_size );
-use Text::LineFold         qw();
+use Encode::Locale     qw();
+use JSON               qw( decode_json );
+use List::MoreUtils    qw( any );
+use Term::Choose       qw( choose );
+use Term::Choose::Util qw( term_size );
+use Text::LineFold     qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -26,17 +27,35 @@ sub new {
 
 
 sub __print_sql_statement {
-    my ( $self, $sql, $table, $sql_type ) = @_;
-    my %type_sql = (
-        Select => "SELECT",
-        Delete => "DELETE",
-        Update => "UPDATE",
-        Insert => "INSERT INTO",
-    );
-    my $str = $type_sql{$sql_type};
+    my ( $self, $sql, $sql_type ) = @_;
+    return if $sql_type eq 'Drop_table';
+    my $db_plugin = $self->{info}{db_plugin};
+    my $table = $sql->{print}{table};
+
+    my $str = '';
+    if ( $sql_type eq 'Create_table' ) {
+        my @cols = @{$sql->{print}{chosen_cols}};
+        unshift @cols, $sql->{print}{primary_key_auto} if length $sql->{print}{primary_key_auto};
+        $str  = "CREATE TABLE $table (";
+        if ( @cols ) {
+            $str .= " " . join( ', ',  map { defined $_ ? $_ : '' } @cols ) . " ";
+        }
+        $str .= ")";
+        $str .= "\n\n";
+        $sql_type = 'Insert';
+    }
+
     if ( $sql_type eq 'Insert' ) {
+        my %type_sql = (
+            Delete => "DELETE",
+            Update => "UPDATE",
+            Insert => "INSERT INTO",
+        );
+        $str .= $type_sql{$sql_type};
         $str .= ' ' . $table . " (";
-        $str .= " " . join( ', ', @{$sql->{print}{chosen_cols}} ) . " " if @{$sql->{print}{chosen_cols}};
+        if ( @{$sql->{print}{chosen_cols}} ) {
+            $str .= " " . join( ', ', map { defined $_ ? $_ : '' } @{$sql->{print}{chosen_cols}} ) . " " ;
+        }
         $str .= ")\n";
         $str .= "  VALUES(\n";
         for my $insert_row ( @{$sql->{quote}{insert_into_args}} ) {
@@ -60,15 +79,16 @@ sub __print_sql_statement {
                 $cols_sql = ' *';
             }
         }
-        $str .= $sql->{print}{distinct_stmt}              if $sql->{print}{distinct_stmt};
-        $str .= $cols_sql                          . "\n" if $cols_sql;
-        $str .= " FROM $table"                     . "\n";
-        $str .= ' ' . $sql->{print}{set_stmt}      . "\n" if $sql->{print}{set_stmt};
-        $str .= ' ' . $sql->{print}{where_stmt}    . "\n" if $sql->{print}{where_stmt};
-        $str .= ' ' . $sql->{print}{group_by_stmt} . "\n" if $sql->{print}{group_by_stmt};
-        $str .= ' ' . $sql->{print}{having_stmt}   . "\n" if $sql->{print}{having_stmt};
-        $str .= ' ' . $sql->{print}{order_by_stmt} . "\n" if $sql->{print}{order_by_stmt};
-        $str .= ' ' . $sql->{print}{limit_stmt}    . "\n" if $sql->{print}{limit_stmt};
+        $str .= "SELECT";
+        $str .= $sql->{print}{distinct_stmt}                   if $sql->{print}{distinct_stmt};
+        $str .= $cols_sql                               . "\n" if $cols_sql;
+        $str .= " FROM " . $table                       . "\n";
+        $str .= ' '      . $sql->{print}{set_stmt}      . "\n" if $sql->{print}{set_stmt};
+        $str .= ' '      . $sql->{print}{where_stmt}    . "\n" if $sql->{print}{where_stmt};
+        $str .= ' '      . $sql->{print}{group_by_stmt} . "\n" if $sql->{print}{group_by_stmt};
+        $str .= ' '      . $sql->{print}{having_stmt}   . "\n" if $sql->{print}{having_stmt};
+        $str .= ' '      . $sql->{print}{order_by_stmt} . "\n" if $sql->{print}{order_by_stmt};
+        $str .= ' '      . $sql->{print}{limit_stmt}    . "\n" if $sql->{print}{limit_stmt};
     }
     $str .= "\n";
     my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
@@ -92,6 +112,10 @@ sub __print_error_message {
 sub __reset_sql {
     my ( $self, $sql ) = @_;
     $sql->{select_type} = '*';
+    $sql->{print}     = {} if ! defined $sql->{print};
+    $sql->{quote}     = {} if ! defined $sql->{quote};
+    $sql->{strg_keys} = [] if ! defined $sql->{strg_keys};
+    $sql->{list_keys} = [] if ! defined $sql->{list_keys};
     @{$sql->{print}}{ @{$sql->{strg_keys}} } = ( '' ) x  @{$sql->{strg_keys}};
     @{$sql->{quote}}{ @{$sql->{strg_keys}} } = ( '' ) x  @{$sql->{strg_keys}};
     @{$sql->{print}}{ @{$sql->{list_keys}} } = map{ [] } @{$sql->{list_keys}};
@@ -101,7 +125,16 @@ sub __reset_sql {
 }
 
 
-sub write_json {
+sub __unambiguous_key {
+    my ( $self, $new_key, $keys ) = @_;
+    while ( any { $new_key eq $_ } @$keys ) {
+        $new_key .= '_';
+    }
+    return $new_key;
+}
+
+
+sub __write_json {
     my ( $self, $file, $h_ref ) = @_;
     my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
     open my $fh, '>', encode( 'locale_fs', $file ) or die $!;
@@ -110,7 +143,7 @@ sub write_json {
 }
 
 
-sub read_json {
+sub __read_json {
     my ( $self, $file ) = @_;
     return {} if ! -f encode( 'locale_fs', $file );
     open my $fh, '<', encode( 'locale_fs', $file ) or die $!;

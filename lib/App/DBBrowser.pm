@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -20,7 +20,8 @@ use Term::TablePrint qw( print_table );
 
 use App::DBBrowser::Opt;
 use App::DBBrowser::DB;
-#use App::DBBrowser::Join_Union;  # "require"-d
+#use App::DBBrowser::Join_Union;  # 'require'-d
+#use App::DBBrowser::CreateTable; # 'require'-d
 use App::DBBrowser::Table;
 use App::DBBrowser::Auxil;
 
@@ -95,8 +96,8 @@ sub __init {
 
     if ( ! eval {
         my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, {}, {} );
-        $self->{opt}    = $obj_opt->read_config_files();
-        $self->{db_opt} = $obj_opt->read_db_config_files();
+        $self->{opt}    = $obj_opt->__read_config_files();
+        $self->{db_opt} = $obj_opt->__read_db_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,
@@ -109,7 +110,7 @@ sub __init {
                     $self->{info}{$key}{mouse} = $self->{opt}{table}{mouse};
                 }
             }
-            ( $self->{opt}, $self->{db_opt} ) = $obj_opt->set_options();
+            ( $self->{opt}, $self->{db_opt} ) = $obj_opt->__set_options();
             if ( defined $self->{opt}{table}{mouse} ) {
                 for my $key ( keys %{$self->{info}} ) {
                     next if $key !~ /^lyt_/;
@@ -350,7 +351,11 @@ sub run {
             SCHEMA: while ( 1 ) {
 
                 my $schema;
-                if ( @schemas <= 1 ) {
+                if ( $self->{info}{redo_schema} ) { # test
+                    $schema = $self->{info}{redo_schema};
+                    delete $self->{info}{redo_schema};
+                }
+                elsif ( @schemas <= 1 ) {
                     $schema = $schemas[0];
                     $auto_one++ if $auto_one == 2
                 }
@@ -396,18 +401,19 @@ sub run {
                     $auxil->__print_error_message( $@, 'Get table names' );
                     next DATABASE;
                 }
-                my $old_idx_tbl = 0;
+                my $old_idx_tbl = 1;
 
                 TABLE: while ( 1 ) {
 
-                    my ( $join, $union, $db_setting ) = ( '  Join', '  Union', '  Database settings' );
-                    my $choices_table = [ undef, @tables, $join, $union, $db_setting ];
-                    my $back   = $auto_one == 3 ? $self->{info}{_quit} : $self->{info}{_back};
-                    my $prompt = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
+                    my $db_string = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
+                    my ( $join, $union, $new, $db_setting ) = ( '  Join', '  Union', '  New', '  Database settings' );
+                    my $hidden = $db_string;
+                    my $choices_table = [ $hidden, undef, @tables, $join, $union, $db_setting ];
+                    my $back = $auto_one == 3 ? $self->{info}{_quit} : $self->{info}{_back};
                     # Choose
                     my $idx_tbl = $lyt_3->choose(
                         $choices_table,
-                        { prompt => $prompt, index => 1, default => $old_idx_tbl, undef => $back }
+                        { prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
                     );
                     my $table = $choices_table->[$idx_tbl] if defined $idx_tbl;
                     if ( ! defined $table ) {
@@ -418,19 +424,18 @@ sub run {
                     }
                     if ( $self->{opt}{G}{menus_db_memory} ) {
                         if ( $old_idx_tbl == $idx_tbl ) {
-                            $old_idx_tbl = 0;
+                            $old_idx_tbl = 1;
                             next TABLE;
                         }
                         else {
                             $old_idx_tbl = $idx_tbl;
                         }
                     }
-                    my $multi_table;
                     if ( $table eq $db_setting ) {
                         my $new_db_settings;
                         if ( ! eval {
                             my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, $self->{db_opt} );
-                            $new_db_settings = $obj_opt->database_setting( $db );
+                            $new_db_settings = $obj_opt->__database_setting( $db );
                             1 }
                         ) {
                             $auxil->__print_error_message( $@, 'Database settings' );
@@ -439,42 +444,132 @@ sub run {
                         next SCHEMA if $new_db_settings;
                         next TABLE;
                     }
-                    elsif ( $table eq $join ) {
+                    my $sql = {
+                        print => {
+                            db     => $db,
+                            schema => $schema,
+                        }
+                    };
+                    if ( $table eq $join ) {
+                        my $ok;
                         if ( ! eval {
                             require App::DBBrowser::Join_Union;
                             my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
-                            $multi_table = $obj_ju->__join_tables( $dbh, $db, $schema, $data );
+                            $ok = $obj_ju->__join_tables( $sql, $dbh, $data );
                             $table = 'joined_tables';
+                            $sql->{print}{table} = $table;
+                            $sql->{from_stmt_type} = 'join';
                             1 }
                         ) {
                             $auxil->__print_error_message( $@, 'Join tables' );
                             next TABLE;
                         }
-                        next TABLE if ! defined $multi_table;
+                        next TABLE if ! $ok;
                     }
                     elsif ( $table eq $union ) {
+                        my $ok;
                         if ( ! eval {
                             require App::DBBrowser::Join_Union;
                             my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
-                            $multi_table = $obj_ju->__union_tables( $dbh, $db, $schema, $data );
-                            if ( $obj_ju->{union_all} ) {
+                            $ok = $obj_ju->__union_tables( $sql, $dbh, $data );
+                            if ( $sql->{union_all} ) {
                                 $table = 'union_all_tables';
                             }
                             else {
                                 $table = 'union_selected_tables';
                             }
+                            delete $sql->{union_all};
+                            $sql->{print}{table} = $table;
+                            $sql->{from_stmt_type} = 'union';
                             1 }
                         ) {
                             $auxil->__print_error_message( $@, 'Union tables' );
                             next TABLE;
                         }
-                        next TABLE if ! defined $multi_table;
+                        next TABLE if ! $ok;
+                    }
+                    elsif ( $table eq $hidden ) {
+                        ####
+                        my $pi_module = "App::DBBrowser::DB::$db_plugin";                                                   # 1.4
+                        my $np = $pi_module->new( $self->{opt} );                                                           # 1.4
+                        if ( ! $np->can( 'create_table' ) || ! $np->can( 'drop_table' ) ) {                                 # 1.4
+                            my $message = qq{"create_table" or "drop_table" not available.\n};                              # 1.4
+                            $auxil->__print_error_message( $message, "App::DBBrowser::DB::$db_plugin" );                    # 1.4
+                            next TABLE;                                                                                     # 1.4
+                        }                                                                                                   # 1.4
+                        ####
+                        $sql->{print}{chosen_cols} = []; #
+                        $sql->{quote}{chosen_cols} = []; #
+                        my $old_idx_hdn = 0;
+
+                        HIDDEN: while ( 1 ) {
+                            my ( $create_table, $drop_table ) = ( '- CREATE table', '- DROP   table' );
+                            my $choices_hidden = [ undef, $create_table, $drop_table ];
+                            # Choose
+                            my $idx_hdn = $lyt_3->choose(
+                                $choices_hidden,
+                                { prompt => $db_string, index => 1, default => $old_idx_hdn, undef => $self->{info}{_back} }
+                            );
+                            my $choice = $choices_hidden->[$idx_hdn] if defined $idx_hdn;
+                            if ( ! defined $choice ) {
+                                next TABLE;
+                            }
+                            if ( $self->{opt}{G}{menus_db_memory} ) {
+                                if ( $old_idx_hdn == $idx_hdn ) {
+                                    $old_idx_hdn = 0;
+                                    next HIDDEN;
+                                }
+                                else {
+                                    $old_idx_hdn = $idx_hdn;
+                                }
+                            }
+                            if ( $choice eq $create_table ) {
+                                if ( ! eval {
+                                    require App::DBBrowser::CreateTable;
+                                    my $obj_ct = App::DBBrowser::CreateTable->new( $self->{info}, $self->{opt} );
+                                    $table = $obj_ct->__create_new_table( $sql, $dbh );
+                                    1 }
+                                ) {
+                                    $auxil->__print_error_message( $@, 'Create table' );
+                                    next HIDDEN;
+                                }
+                                next HIDDEN if ! $table;
+                                $self->{info}{redo_schema} = $schema;
+                                next SCHEMA;
+                            }
+                            elsif ( $choice eq $drop_table ) {
+                                my $ok;
+                                if ( ! eval {
+                                    require App::DBBrowser::CreateTable;
+                                    my $obj_ct = App::DBBrowser::CreateTable->new( $self->{info}, $self->{opt} );
+                                    $ok = $obj_ct->__delete_table( $sql, $dbh );
+                                    1 }
+                                ) {
+                                    $auxil->__print_error_message( $@, 'Drop table' );
+                                    next HIDDEN;
+                                }
+                                next HIDDEN if ! $ok;
+                                $self->{info}{redo_schema} = $schema; #
+                                next SCHEMA;
+                            }
+                        }
                     }
                     else {
                         $table =~ s/^[-\ ]\s//;
+                        my $qt_table = $dbh->quote_identifier( undef, $schema, $table );
+                        my $sth = $dbh->prepare( "SELECT * FROM " . $qt_table . " LIMIT 0" );
+                        $sth->execute();
+                        for my $col ( @{$sth->{NAME}} ) {
+                            $sql->{quote}{columns}{$col} = $dbh->quote_identifier( $col );
+                            push @{$sql->{print}{columns}}, $col;
+                        }
+                        $sql->{quote}{col_stmt} = "*";
+                        $sql->{quote}{table} = $qt_table;
+                        $sql->{print}{table} = $table;
+                        $sql->{from_stmt_type} = 'single';
                     }
                     #if ( ! eval {
-                         $self->__browse_the_table( $db_driver, $dbh, $db, $schema, $table, $multi_table );
+                         $self->__browse_the_table( $dbh, $sql );
                     #    1 }
                     #) {
                     #    $auxil->__print_error_message( $@, 'Browse table' );
@@ -489,31 +584,14 @@ sub run {
 
 
 sub __browse_the_table {
-    my ( $self, $db_driver, $dbh, $db, $schema, $table, $multi_table ) = @_;
-    my $auxil     = App::DBBrowser::Auxil->new( $self->{info} );
+    my ( $self, $dbh, $sql ) = @_;
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $db_plugin = $self->{info}{db_plugin};
-    my $qt_columns = {};
-    my $pr_columns = [];
-    my $sql        = {};
+    my $db = $sql->{print}{db};
     $sql->{strg_keys} = [ qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt ) ];
     $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_into_args ) ];
     $auxil->__reset_sql( $sql );
     $self->{info}{lock} = $self->{opt}{G}{lock_stmt};
-    my $stmt_info;
-    if ( $multi_table ) {
-        $stmt_info = $multi_table;
-    }
-    else {
-        my $stmt = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $table );
-        $stmt_info->{quote}{stmt} = $stmt;
-        my $sth = $dbh->prepare( $stmt . " LIMIT 0" );
-        $sth->execute();
-        for my $col ( @{$sth->{NAME}} ) {
-            $stmt_info->{qt_columns}{$col} = $dbh->quote_identifier( $col );
-            push @{$stmt_info->{pr_columns}}, $col;
-        }
-        $stmt_info->{type} = 'single';
-    }
     my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
     $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin . '_' . $db}{binary_filter};
     if ( ! defined $self->{opt}{table}{binary_filter} ) {
@@ -523,7 +601,7 @@ sub __browse_the_table {
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
         if ( ! eval {
-            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $db_driver, $dbh, $table, $stmt_info );
+            ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh );
             1 }
         ) {
             $auxil->__print_error_message( $@, 'Print table' );
@@ -542,8 +620,6 @@ sub __browse_the_table {
 }
 
 
-
-
 1;
 
 
@@ -559,7 +635,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016
+Version 1.016_01
 
 =head1 DESCRIPTION
 

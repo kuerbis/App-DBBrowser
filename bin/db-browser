@@ -4,7 +4,9 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
+
+BEGIN { $SIG{__WARN__} = sub { die @_ } }
 
 use Encode::Locale qw();
 
@@ -34,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.016
+Version 1.016_01
 
 =cut
 
@@ -137,16 +139,22 @@ Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
 
 =head3 Delete, Update and Insert
 
-To set C<DELETE>, C<UPDATE> or C<INSERT INTO> select the prompt "I<Customize:>" in the SQL menu  and then select the
-prompt "I<Your choice:>".
+To get to the I<Delete>/I<Update>/I<Insert> menu, navigate to the SQL menu and then select two times the prompt.
 
 C<DELETE>, C<UPDATE> or C<INSERT INTO> are not available with C<JOIN> and C<UNION> statements (except C<INSERT> with
 C<mysql> and C<JOIN>).
 
+=head3 Create table, Drop table
+
+To reach the I<Create table>/I<Drop table> menu, select the prompt in the menu where the tables are selected.
+
+To create a table without inserting anything, enter as the first and only row the column names and then choose "Use the
+first row as column names".
+
 =head3 Scalar functions
 
 The scalar functions can be reached in the main SQL menu and also in the C<DELETE> and C<UPDATE> SQL sub-menus by
-selecting the prompt "I<Customize:>".
+selecting the prompt.
 
 The available functions are:
 
@@ -330,19 +338,13 @@ a machine with 'MSWin32' OS.
 
 =head3 Insert
 
-These I<Insert> settings can also be set in the C<INSERT INTO> sub-menu by selecting the prompt "I<Customize:>".
+These I<Insert> settings can also be set in the C<INSERT INTO> sub-menu by selecting the prompt.
 
 =head4 Input Modes
 
 For C<INSERT>ing data into a table - choose the available input modes:
 
 =over
-
-=item
-
-Cols
-
-It is prompted for each column.
 
 =item
 

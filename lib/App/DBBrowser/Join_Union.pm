@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -27,12 +27,14 @@ sub new {
 
 
 sub __union_tables {
-    my ( $self, $dbh, $db, $schema, $data ) = @_;
+    my ( $self, $sql, $dbh, $data ) = @_;
+    my $db     = $sql->{print}{db};
+    my $schema = $sql->{print}{schema};
     my $no_lyt = Term::Choose->new();
     my $u = $data;
     if ( ! defined $u->{col_names} || ! defined $u->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        ( $u->{col_names}, $u->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} );
+        ( $u->{col_names}, $u->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $u->{tables} ); # ###
     }
     my $union = {
         unused_tables => [ map { "- $_" } @{$u->{tables}} ],
@@ -165,29 +167,31 @@ sub __union_tables {
             last UNION_TABLE;
         }
     }
+
+
     # column names in the result-set of a UNION are taken from the first query.
     my $first_table = $union->{used_tables}[0];
-    $union->{pr_columns} = $union->{used_cols}{$first_table};
-    for my $col ( @{$union->{pr_columns}} ) {
-        $union->{qt_columns}{$col} = $dbh->quote_identifier( $col );
+    $sql->{print}{columns} = $union->{used_cols}{$first_table};
+    for my $col ( @{$sql->{print}{columns}} ) {
+        $sql->{quote}{columns}{$col} = $dbh->quote_identifier( $col );
     }
-    $union->{quote}{stmt} = "SELECT * FROM (";
+    $sql->{quote}{col_stmt} = "*";
     my $c;
+    $sql->{quote}{table} = "(";
     for my $table ( @{$union->{used_tables}} ) {
         $c++;
-        $union->{quote}{stmt} .= " SELECT ";
-        $union->{quote}{stmt} .= join( ', ', map { $dbh->quote_identifier( $_ ) } @{$union->{used_cols}{$table}} );
-        $union->{quote}{stmt} .= " FROM " . $dbh->quote_identifier( undef, $schema, $table );
-        $union->{quote}{stmt} .= $c < @{$union->{used_tables}} ? " UNION ALL " : " )";
+        $sql->{quote}{table} .= " SELECT ";
+        $sql->{quote}{table} .= join( ', ', map { $dbh->quote_identifier( $_ ) } @{$union->{used_cols}{$table}} );
+        $sql->{quote}{table} .= " FROM " . $dbh->quote_identifier( undef, $schema, $table );
+        $sql->{quote}{table} .= $c < @{$union->{used_tables}} ? " UNION ALL " : " )";
     }
     if ( $self->{union_all} ) {  # alias: required if mysql, Pg, ...
-        $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_ALL_TABLES' );
+        $sql->{quote}{table} .= " AS UNION_ALL_TABLES";
     }
     else {
-        $union->{quote}{stmt} .= " AS " . $dbh->quote_identifier( 'UNION_SELECTED_TABLES' );
+        $sql->{quote}{table} .= " AS UNION_SELECTED_TABLES";
     }
-    $union->{type} = 'union';
-    return $union;
+    return 1;
 }
 
 
@@ -238,7 +242,7 @@ sub __get_tables_info {
     my $tables_info = {};
     my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} );
+    my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} ); # ###
     for my $table ( @{$u_or_j->{tables}} ) {
         push @{$tables_info->{$table}}, 'Table => ' . $table;
         if ( defined $u_or_j->{col_types}{$table} ) {
@@ -287,12 +291,14 @@ sub __print_tables_info {
 
 
 sub __join_tables {
-    my ( $self, $dbh, $db, $schema, $data ) = @_;
+    my ( $self, $sql, $dbh, $data ) = @_;
+    my $db     = $sql->{print}{db};
+    my $schema = $sql->{print}{schema};
     my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
     my $j = $data;
     if ( ! defined $j->{col_names} || ! defined $j->{col_types} ) {
         my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        ( $j->{col_names}, $j->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} );
+        ( $j->{col_names}, $j->{col_types} ) = $obj_db->column_names_and_types( $dbh, $db, $schema, $j->{tables} ); # ###
     }
     my $join = {};
 
@@ -333,7 +339,7 @@ sub __join_tables {
         $join->{avail_tables} = [ @tables ];
         $join->{table_alias} = 'a';
         $join->{quote}{stmt}  = "SELECT * FROM " . $dbh->quote_identifier( undef, $schema, $master ) . " AS " . $join->{table_alias};
-        $join->{print}{stmt}  = "SELECT * FROM " .                                         $master   . " AS " . $join->{table_alias};
+        $join->{print}{stmt}  = "SELECT * FROM " .                 $master . " AS " . $join->{table_alias};
         $join->{alias}{$master} = $join->{table_alias};
         my $backup_master = clone( $join );
 
@@ -383,7 +389,7 @@ sub __join_tables {
             ( my $slave = splice( @{$join->{avail_tables}}, $idx, 1 ) ) =~ s/^-\s//;
             $join->{table_alias}++;
             $join->{quote}{stmt} .= " LEFT OUTER JOIN " . $dbh->quote_identifier( undef, $schema, $slave ) . " AS " . $join->{table_alias} . " ON";
-            $join->{print}{stmt} .= " LEFT OUTER JOIN " .                                         $slave   . " AS " . $join->{table_alias} . " ON";
+            $join->{print}{stmt} .= " LEFT OUTER JOIN " .                                         $slave .   " AS " . $join->{table_alias} . " ON";
             $join->{alias}{$slave} = $join->{table_alias};
             my %avail_pk_cols;
             for my $used_table ( @{$join->{used_tables}} ) {
@@ -444,14 +450,6 @@ sub __join_tables {
         last MASTER;
     }
 
-    #my @not_unique_col;
-    #my %seen;
-    #for my $table (@{$join->{used_tables}} ) {
-    #    for my $col ( @{$j->{col_names}{$table}} ) {
-    #        $seen{$col}++;
-    #        push @not_unique_col, $col if $seen{$col} == 2;
-    #    }
-    #}
     my $col_stmt = '';
     for my $table ( @{$join->{used_tables}} ) {
         for my $col ( @{$j->{col_names}{$table}} ) {
@@ -463,15 +461,16 @@ sub __join_tables {
             #if ( any { $_ eq $col_pr } @not_unique_col ) {
                 $col_qt .= " AS " . $dbh->quote_identifier( $col . '-' . $table );
             #}
-            push @{$join->{pr_columns}}, $col_pr;
-            $join->{qt_columns}{$col_pr} = $col_qt;
+            push @{$sql->{print}{columns}}, $col_pr;
+            $sql->{quote}{columns}{$col_pr} = $col_qt;
             $col_stmt .= ', ' . $col_qt;
         }
     }
     $col_stmt =~ s/^,\s//;
-    $join->{quote}{stmt} =~ s/\s\*\s/ $col_stmt /;
-    $join->{type} = 'join';
-    return $join;
+    my ( $qt_table ) = $join->{quote}{stmt} =~ /^SELECT\s\*\sFROM\s(.*)\z/;
+    $sql->{quote}{col_stmt} = $col_stmt;
+    $sql->{quote}{table} = $qt_table;
+    return 1;
 }
 
 

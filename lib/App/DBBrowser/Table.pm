@@ -6,20 +6,20 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 use Clone                  qw( clone );
-use List::MoreUtils        qw( any first_index );
+use List::MoreUtils        qw( any );
 use Term::Choose           qw();
-use Term::Choose::Util     qw( choose_a_number choose_multi insert_sep term_size );
+use Term::Choose::Util     qw( choose_a_number insert_sep );
 use Term::ReadLine::Simple qw();
-use Text::LineFold         qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 use App::DBBrowser::DB;
 #use App::DBBrowser::Table::Insert;  # "require"-d
 use App::DBBrowser::Auxil;
+use App::DBBrowser::Table::ColFunc;
 
 
 
@@ -30,10 +30,9 @@ sub new {
 
 
 sub __on_table {
-    my ( $self, $sql, $db_driver, $dbh, $table, $stmt_info ) = @_;
-    my $select_from_stmt = $stmt_info->{quote}{stmt};
-    my $pr_columns       = $stmt_info->{pr_columns};
-    my $qt_columns       = $stmt_info->{qt_columns};
+    my ( $self, $sql, $dbh ) = @_;
+    my $pr_columns = $sql->{print}{columns};
+    my $qt_columns = $sql->{quote}{columns};
     my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
@@ -63,21 +62,13 @@ sub __on_table {
     if ( $self->{info}{lock} == 0 ) {
         $auxil->__reset_sql( $sql );
     }
-    my $sql_types = {
-        single => [ 'Insert', 'Update', 'Delete'  ],
-        join   => [],
-        union  => [],
-    };
-    if ( $db_driver eq 'mysql' ) {
-        $sql_types->{join} = [ 'Update' ];
-    }
     my $sql_type = 'Select';
     my $backup_sql;
     my $old_idx = 1;
 
     CUSTOMIZE: while ( 1 ) {
         $backup_sql = clone( $sql ) if $sql_type eq 'Select';
-        $auxil->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $sql_type );
         my $choices = [ $customize{hidden}, undef, @customize{@{$sub_stmts->{$sql_type}}} ];
         # Choose
         my $idx = $stmt_h->choose(
@@ -126,7 +117,18 @@ sub __on_table {
         elsif ( $custom eq $customize{'insert'} ) {
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
-            $tbl_in->__insert_into( $sql, $table, $qt_columns, $pr_columns );
+            my $col_ok = $tbl_in->__get_insert_columns( $sql, $sql_type );
+            next CUSTOMIZE if ! $col_ok;
+            my $val_ok = $tbl_in->__get_insert_values( $sql, $sql_type );
+            next CUSTOMIZE if ! $val_ok;
+            $qt_columns = {};
+            $pr_columns = [];
+            for my $col ( @{$sql->{print}{chosen_cols}} ) {
+                $qt_columns->{$col} = $dbh->quote_identifier( $col );
+                push @$pr_columns, $col;
+            }
+            #$sql->{quote}{table} = $dbh->quote_identifier( undef, @{$sql->{print}}{'schema','table'} ); # ###
+            $sql->{quote}{col_stmt} = "*";
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
@@ -140,7 +142,7 @@ sub __on_table {
             COLUMNS: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
                 my $choices = [ @pre, @cols ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my @print_col = $stmt_h->choose(
                     $choices,
@@ -183,7 +185,7 @@ sub __on_table {
 
             DISTINCT: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, $DISTINCT, $ALL ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $select_distinct = $stmt_h->choose(
                     $choices
@@ -217,7 +219,7 @@ sub __on_table {
 
             AGGREGATE: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @{$self->{info}{avail_aggregate}} ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $aggr = $stmt_h->choose(
                     $choices
@@ -252,7 +254,7 @@ sub __on_table {
                     $sql->{print}{aggr_cols}[$i] = $aggr . "(";
                     if ( $aggr eq 'COUNT' ) {
                         my $choices = [ $ALL, $DISTINCT ];
-                        $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                        $auxil->__print_sql_statement( $sql, $sql_type );
                         # Choose
                         my $all_or_distinct = $stmt_h->choose(
                             $choices
@@ -268,7 +270,7 @@ sub __on_table {
                         }
                     }
                     my $choices = [ @cols ];
-                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $sql_type );
                     # Choose
                     my $print_col = $stmt_h->choose(
                         $choices
@@ -282,7 +284,7 @@ sub __on_table {
                     $sql->{print}{aggr_cols}[$i] .= $print_col . ")";
                     $sql->{quote}{aggr_cols}[$i] .= $quote_col . ")";
                 }
-                $sql->{print}{aggr_cols}[$i] = $self->__unambiguous_key( $sql->{print}{aggr_cols}[$i], $pr_columns );
+                $sql->{print}{aggr_cols}[$i] = $auxil->__unambiguous_key( $sql->{print}{aggr_cols}[$i], $pr_columns );
                 # alias to get aggregat function with a column name without quotes in the tableprint (optional):
                 $sql->{quote}{aggr_cols}[$i] .= " AS " . $dbh->quote_identifier( $sql->{print}{aggr_cols}[$i] );
                 my $print_aggr = $sql->{print}{aggr_cols}[$i];
@@ -301,7 +303,7 @@ sub __on_table {
             SET: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
                 my $choices = [ @pre, @cols ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     $choices,
@@ -329,7 +331,7 @@ sub __on_table {
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $sql->{quote}{set_stmt} .= $col_sep . $quote_col . ' =';
                 $sql->{print}{set_stmt} .= $col_sep . $print_col . ' =';
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Readline
                 my $value = $trs->readline( $print_col . ': ' );
                 if ( ! defined $value ) {
@@ -366,7 +368,7 @@ sub __on_table {
                 if ( $self->{opt}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     [ @pre, @choices ]
@@ -400,7 +402,7 @@ sub __on_table {
                 }
                 if ( $count > 0 && $sql->{quote}{where_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
-                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
                         $choices
@@ -426,7 +428,7 @@ sub __on_table {
                 ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
                 $sql->{quote}{where_stmt} .= $AND_OR . $quote_col;
                 $sql->{print}{where_stmt} .= $AND_OR . $print_col;
-                $self->__set_operator_sql( $sql, 'where', $table, \@cols, $qt_columns, $quote_col, $sql_type );
+                $self->__set_operator_sql( $sql, 'where', \@cols, $qt_columns, $quote_col, $sql_type );
                 if ( ! $sql->{quote}{where_stmt} ) {
                     $sql->{quote}{where_args} = [];
                     $sql->{quote}{where_stmt} = " WHERE";
@@ -453,7 +455,7 @@ sub __on_table {
             GROUP_BY: while ( 1 ) {
                 my @pre = ( $self->{info}{ok} );
                 my $choices = [ @pre, @cols ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my @print_col = $stmt_h->choose(
                     $choices,
@@ -519,7 +521,7 @@ sub __on_table {
                 if ( $self->{opt}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $aggr = $stmt_h->choose(
                     [ @pre, @choices ]
@@ -553,7 +555,7 @@ sub __on_table {
                 }
                 if ( $count > 0 && $sql->{quote}{having_stmt} !~ /\(\z/ ) {
                     my $choices = [ $AND, $OR ];
-                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $sql_type );
                     # Choose
                     $AND_OR = $stmt_h->choose(
                         $choices
@@ -599,7 +601,7 @@ sub __on_table {
                     $quote_aggr                 =           $aggr . "(";
                     $print_aggr                 =           $aggr . "(";
                     my $choices = [ @cols ];
-                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                    $auxil->__print_sql_statement( $sql, $sql_type );
                     # Choose
                     $print_col = $stmt_h->choose(
                         $choices
@@ -618,7 +620,7 @@ sub __on_table {
                     $quote_aggr                .= $quote_col . ")";
                     $print_aggr                .= $print_col . ")";
                 }
-                $self->__set_operator_sql( $sql, 'having', $table, \@cols, $qt_columns, $quote_aggr, $sql_type );
+                $self->__set_operator_sql( $sql, 'having', \@cols, $qt_columns, $quote_aggr, $sql_type );
                 if ( ! $sql->{quote}{having_stmt} ) {
                     $sql->{quote}{having_args} = [];
                     $sql->{quote}{having_stmt} = " HAVING";
@@ -644,7 +646,7 @@ sub __on_table {
 
             ORDER_BY: while ( 1 ) {
                 my $choices = [ $self->{info}{ok}, @cols ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $print_col = $stmt_h->choose(
                     $choices
@@ -672,7 +674,7 @@ sub __on_table {
                 $sql->{quote}{order_by_stmt} .= $col_sep . $quote_col;
                 $sql->{print}{order_by_stmt} .= $col_sep . $print_col;
                 $choices = [ $ASC, $DESC ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $direction = $stmt_h->choose(
                     $choices
@@ -695,7 +697,7 @@ sub __on_table {
             LIMIT: while ( 1 ) {
                 my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
                 my $choices = [ $self->{info}{ok}, $only_limit, $offset_and_limit ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Choose
                 my $choice = $stmt_h->choose(
                     $choices
@@ -743,147 +745,23 @@ sub __on_table {
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert();
-                $sql = clone( $backup_sql );
+                $sql = clone( $backup_sql ); #
                 next CUSTOMIZE;
             }
-            my @functions = @{$self->{info}{scalar_func_keys}};
-            my $stmt_key = '';
-            if ( $sql->{select_type} eq '*' ) {
-                @{$sql->{quote}{chosen_cols}} = map { $qt_columns->{$_} } @$pr_columns;
-                @{$sql->{print}{chosen_cols}} = @$pr_columns;
-                $stmt_key = 'chosen_cols';
+            my $nh = App::DBBrowser::Table::ColFunc->new( $self->{info}, $self->{opt} );
+            my @ret = $nh->__col_function( $dbh, $sql, $backup_sql, $qt_columns, $pr_columns, $sql_type );
+            if ( @ret == 1 ) {
+                $sql_type = shift @ret;
+                $old_idx = 1;
             }
-            elsif ( $sql->{select_type} eq 'chosen_cols' ) {
-                $stmt_key = 'chosen_cols';
-            }
-            if ( $stmt_key eq 'chosen_cols' ) {
-                if ( ! $sql->{scalar_func_backup_pr_col}{chosen_cols} ) {
-                    @{$sql->{scalar_func_backup_pr_col}{'chosen_cols'}} = @{$sql->{print}{chosen_cols}};
-                }
-            }
-            else {
-                if ( @{$sql->{print}{aggr_cols}} && ! $sql->{scalar_func_backup_pr_col}{aggr_cols} ) {
-                    @{$sql->{scalar_func_backup_pr_col}{'aggr_cols'}} = @{$sql->{print}{aggr_cols}};
-                }
-                if ( @{$sql->{print}{group_by_cols}} && ! $sql->{scalar_func_backup_pr_col}{group_by_cols} ) {
-                    @{$sql->{scalar_func_backup_pr_col}{'group_by_cols'}} = @{$sql->{print}{group_by_cols}};
-                }
-            }
-            my $changed = 0;
-
-            COL_SCALAR_FUNC: while ( 1 ) {
-                my $default = 0;
-                my $choose_SQL_type = 'Your choice:';
-                my @pre = ( undef, $self->{info}{_confirm} );
-                my $prompt = 'Choose:';
-                if ( $sql_type eq 'Select' ) {
-                    if ( ! defined $pre[0] || $pre[0] ne $choose_SQL_type ) {
-                        unshift @pre, $choose_SQL_type;
-                    }
-                    $prompt = '';
-                    $default = 1;
-                }
-                my @choices_sql_types = @{$sql_types->{$stmt_info->{type}}};
-                my @cols = $stmt_key eq 'chosen_cols'
-                    ? ( @{$sql->{print}{chosen_cols}} )
-                    : ( @{$sql->{print}{aggr_cols}}, @{$sql->{print}{group_by_cols}} );
-                my $choices = [ @pre, map( "- $_", @cols ) ];
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                # Choose
-                my $idx = $stmt_h->choose(
-                    $choices,
-                    { %{$self->{info}{lyt_stmt_v}}, index => 1, default => $default, prompt => $prompt }
-                );
-                if ( ! defined $idx || ! defined $choices->[$idx] ) {
-                    $sql = clone( $backup_sql );
-                    last COL_SCALAR_FUNC;
-                }
-                if ( $choices->[$idx] eq $choose_SQL_type ) {
-                    if ( ! @choices_sql_types ) {
-                        next COL_SCALAR_FUNC;
-                    }
-                    my $ch_types = [ undef, map( "- $_", @choices_sql_types ) ];
-                    # Choose
-                    my $type_choice = $stmt_h->choose(
-                        $ch_types,
-                        { %{$self->{info}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0, clear_screen => 1 }
-                    );
-                    if ( defined $type_choice ) {
-                        ( $sql_type = $type_choice ) =~ s/^-\ //;
-                        $old_idx = 1;
-                        $auxil->__reset_sql( $sql );
-                    }
-                    last COL_SCALAR_FUNC;
-                }
-                if ( $choices->[$idx] eq $self->{info}{_confirm} ) {
-                    if ( ! $changed ) {
-                        $sql = clone( $backup_sql );
-                        last COL_SCALAR_FUNC;
-                    }
-                    $sql->{select_type} = $stmt_key if $sql->{select_type} eq '*';
-                    last COL_SCALAR_FUNC;
-                }
-                ( my $print_col = $choices->[$idx] ) =~ s/^\-\s//;
-                $idx -= @pre;
-                if ( $stmt_key ne 'chosen_cols' ) {
-                    if ( $idx - @{$sql->{print}{aggr_cols}} >= 0 ) {
-                        $idx -= @{$sql->{print}{aggr_cols}};
-                        $stmt_key = 'group_by_cols';
-                    }
-                    else {
-                        $stmt_key = 'aggr_cols';
-                    }
-                }
-                if ( $sql->{print}{$stmt_key}[$idx] ne $sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx] ) {
-                    if ( $stmt_key ne 'aggr_cols' ) {
-                        my $i = first_index { $sql->{print}{$stmt_key}[$idx] eq $_ } @{$sql->{pr_col_with_scalar_func}};
-                        splice( @{$sql->{pr_col_with_scalar_func}}, $i, 1 );
-                    }
-                    $sql->{print}{$stmt_key}[$idx] = $sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx];
-                    $sql->{quote}{$stmt_key}[$idx] = $qt_columns->{$sql->{scalar_func_backup_pr_col}{$stmt_key}[$idx]};
-                    $changed++;
-                    next COL_SCALAR_FUNC;
-                }
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                # Choose
-                my $function = $stmt_h->choose(
-                    [ undef, map( "  $_", @functions ) ],
-                    { %{$self->{info}{lyt_stmt_v}} }
-                );
-                if ( ! defined $function ) {
-                    next COL_SCALAR_FUNC;
-                }
-                $function =~ s/^\s\s//;
-                ( my $quote_col = $qt_columns->{$print_col} ) =~ s/\sAS\s\S+\z//;
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                my ( $qt_scalar_func, $pr_scalar_func ) = $self->__col_functions( $function, $quote_col, $print_col );
-                if ( ! defined $qt_scalar_func ) {
-                    next COL_SCALAR_FUNC;
-                }
-                $pr_scalar_func = $self->__unambiguous_key( $pr_scalar_func, $pr_columns );
-                if ( $stmt_key eq 'group_by_cols' ) {
-                    $sql->{quote}{$stmt_key}[$idx] = $qt_scalar_func;
-                    $sql->{print}{$stmt_key}[$idx] = $pr_scalar_func;
-                    $sql->{quote}{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{quote}{$stmt_key}} );
-                    $sql->{print}{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{print}{$stmt_key}} );
-                }
-                $sql->{quote}{$stmt_key}[$idx] = $qt_scalar_func;
-                # alias to get a shorter scalar funtion column name in the tableprint (optional):
-                $sql->{quote}{$stmt_key}[$idx] .= ' AS ' . $dbh->quote_identifier( $pr_scalar_func );
-                $sql->{print}{$stmt_key}[$idx] = $pr_scalar_func;
-                $qt_columns->{$pr_scalar_func} = $qt_scalar_func;
-                if ( $stmt_key ne 'aggr_cols' ) { # aggregate functions are not allowed in WHERE clauses
-                    push @{$sql->{pr_col_with_scalar_func}}, $pr_scalar_func;
-                }
-                $changed++;
-                next COL_SCALAR_FUNC;
+            elsif ( @ret == 2 ) {
+                ( $qt_columns, $pr_columns ) = @ret;
             }
         }
         elsif ( $custom eq $customize{'print_table'} ) {
-            my ( $default_cols_sql, $from_stmt ) = $select_from_stmt =~ /^SELECT\s(.*?)(\sFROM\s.*)\z/;
             my $cols_sql;
             if ( $sql->{select_type} eq '*' ) {
-                $cols_sql = ' ' . $default_cols_sql;
+                $cols_sql = ' ' . $sql->{quote}{col_stmt};
             }
             elsif ( $sql->{select_type} eq 'chosen_cols' ) {
                 $cols_sql = ' ' . join( ', ', @{$sql->{quote}{chosen_cols}} );
@@ -892,9 +770,10 @@ sub __on_table {
                 $cols_sql = ' ' . join( ', ', @{$sql->{quote}{group_by_cols}}, @{$sql->{quote}{aggr_cols}} );
             }
             else { #
-                $cols_sql = ' ' . $default_cols_sql;
+                $cols_sql = ' ' . $sql->{quote}{col_stmt};
             }
-            my $select .= "SELECT" . $sql->{quote}{distinct_stmt} . $cols_sql . $from_stmt;
+            my $select .= "SELECT" . $sql->{quote}{distinct_stmt} . $cols_sql;
+            $select .= " FROM " . $sql->{quote}{table};
             $select .= $sql->{quote}{where_stmt};
             $select .= $sql->{quote}{group_by_stmt};
             $select .= $sql->{quote}{having_stmt};
@@ -924,109 +803,11 @@ sub __on_table {
             return $all_arrayref, $sql;
         }
         elsif ( $custom eq $customize{'commit'} ) {
-            my ( $qt_table ) = $select_from_stmt =~ /^SELECT\s.*?\sFROM\s(.*)\z/;
-            local $| = 1;
-            print $self->{info}{clear_screen};
-            print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
-            my %map_sql_types = (
-                Insert => "INSERT INTO",
-                Update => "UPDATE",
-                Delete => "DELETE",
-            );
-            my $stmt = $map_sql_types{$sql_type};
-            my $to_execute;
-            my $transaction;
-            eval { $transaction = $dbh->begin_work } or do { $dbh->{AutoCommit} = 1; $transaction = 0 };
-            my $dostr = $transaction ? 'COMMIT' : 'EXECUTE';
-            my %commit_fmt = (
-                Delete => qq(  $dostr %d "Delete"),
-                Update => qq(  $dostr %d "Update"),
-                Insert => qq(  $dostr %d "Insert"),
-            );
-            if ( $map_sql_types{$sql_type} eq "INSERT INTO" ) {
-                if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                    $old_idx = 1;
-                    next CUSTOMIZE;
-                }
-                $stmt .= ' ' . $qt_table;
-                $stmt .= " ( " . join( ', ', @{$sql->{quote}{chosen_cols}} ) . " )" if $sql->{quote}{chosen_cols};
-                my $nr_insert_cols = @{$sql->{quote}{chosen_cols}};
-                $stmt .= " VALUES( " . join( ', ', ( '?' ) x $nr_insert_cols ) . " )";
-                $to_execute = $sql->{quote}{insert_into_args};
-            }
-            else {
-                $stmt .= " FROM"                      if $map_sql_types{$sql_type} eq "DELETE";
-                $stmt .= ' ' . $qt_table;
-                $stmt .= $sql->{quote}{set_stmt}      if $sql->{quote}{set_stmt};
-                $stmt .= $sql->{quote}{where_stmt}    if $sql->{quote}{where_stmt};
-                my @arguments = ( @{$sql->{quote}{set_args}}, @{$sql->{quote}{where_args}} );
-                $to_execute = [ \@arguments ];
-            }
-            if ( $transaction ) {
-                if ( ! eval {
-                    my $sth = $dbh->prepare( $stmt );
-                    for my $values ( @$to_execute ) {
-                        $sth->execute( @$values );
-                    }
-                    my $nr_rows   = $sql_type eq 'Insert' ? @$to_execute : $sth->rows;
-                    my $commit_ok = sprintf $commit_fmt{$sql_type}, $nr_rows;
-                    $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                    my $choices = [ undef,  $commit_ok ];
-                    # Choose
-                    my $choice = $stmt_h->choose(
-                        $choices,
-                        { %{$self->{info}{lyt_stmt_v}}, undef => '  BACK', prompt => 'Choose:' }
-                    );
-                    if ( defined $choice && $choice eq $commit_ok ) {;
-                        $dbh->commit;
-                    }
-                    else {
-                        $dbh->rollback;
-                        $auxil->__reset_sql( $sql );
-                        next CUSTOMIZE;
-                    }
-                    1 }
-                ) {
-                    $auxil->__print_error_message( "$@Rolling back ...\n", 'Commit' );
-                    $dbh->rollback;
-                    $auxil->__reset_sql( $sql );
-                    next CUSTOMIZE;
-                }
-            }
-            else {
-                my $nr_rows;
-                if ( $sql_type eq 'Insert' ) {
-                    $nr_rows = @$to_execute;
-                }
-                else {
-                    my $count_stmt = "SELECT COUNT(*) FROM $qt_table" . $sql->{quote}{where_stmt};
-                    ( $nr_rows ) = $dbh->selectrow_array( $count_stmt, undef, @{$sql->{quote}{where_args}} );
-                }
-                my $commit_ok = sprintf $commit_fmt{$sql_type}, $nr_rows;
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
-                my $choices = [ undef,  $commit_ok ];
-                # Choose
-                my $choice = $stmt_h->choose(
-                    $choices,
-                    { %{$self->{info}{lyt_stmt_v}}, undef => '  Rollback', prompt => '' }
-                );
-                if ( defined $choice && $choice eq $commit_ok ) {
-                    if ( ! eval {
-                        my $sth = $dbh->prepare( $stmt );
-                        for my $values ( @$to_execute ) {
-                            $sth->execute( @$values );
-                        }
-                        1 }
-                    ) {
-                        $auxil->__print_error_message( $@, 'Commit' );
-                        $auxil->__reset_sql( $sql );
-                        next CUSTOMIZE;
-                    }
-                }
-                else {
-                    $auxil->__reset_sql( $sql );
-                    next CUSTOMIZE;
-                }
+            my $ok = $self->__commit_sql( $sql, $sql_type, $dbh );
+            if ( ! $ok ) {
+                $old_idx = 1 if $sql_type eq 'Insert'; #
+                $auxil->__reset_sql( $sql );
+                next CUSTOMIZE;
             }
             $sql_type = 'Select';
             $old_idx = 1;
@@ -1041,18 +822,111 @@ sub __on_table {
 }
 
 
-
-sub __unambiguous_key {
-    my ( $self, $new_key, $keys ) = @_;
-    while ( any { $new_key eq $_ } @$keys ) {
-        $new_key .= '_';
+sub __commit_sql {
+    my ( $self, $sql, $sql_type, $dbh ) = @_;
+    my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
+    my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
+    local $| = 1;
+    print $self->{info}{clear_screen};
+    print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
+    my $transaction;
+    eval { $transaction = $dbh->begin_work } or do { $dbh->{AutoCommit} = 1; $transaction = 0 };
+    my $rows_to_execute = [];
+    my $stmt;
+    if ( $sql_type eq 'Insert' ) {
+        return 1 if ! @{$sql->{quote}{insert_into_args}}; #
+        $stmt  = "INSERT INTO";
+        $stmt .= ' ' . $sql->{quote}{table};
+        $stmt .= " ( " . join( ', ', @{$sql->{quote}{chosen_cols}} ) . " )";
+        $stmt .= " VALUES( " . join( ', ', ( '?' ) x @{$sql->{quote}{chosen_cols}} ) . " )";
+        $rows_to_execute = $sql->{quote}{insert_into_args};
     }
-    return $new_key;
+    else {
+        my %map_sql_types = (
+            Update => "UPDATE",
+            Delete => "DELETE",
+        );
+        $stmt  = $map_sql_types{$sql_type};
+        $stmt .= " FROM"                      if $map_sql_types{$sql_type} eq "DELETE";
+        $stmt .= ' ' . $sql->{quote}{table};
+        $stmt .= $sql->{quote}{set_stmt}      if $sql->{quote}{set_stmt};
+        $stmt .= $sql->{quote}{where_stmt}    if $sql->{quote}{where_stmt};
+        $rows_to_execute->[0] = [ @{$sql->{quote}{set_args}}, @{$sql->{quote}{where_args}} ];
+    }
+    if ( $transaction ) {
+        my $rolled_back;
+        if ( ! eval {
+            my $sth = $dbh->prepare( $stmt );
+            for my $values ( @$rows_to_execute ) {
+                $sth->execute( @$values );
+            }
+            my $nr_rows   = $sql_type eq 'Insert' ? @$rows_to_execute : $sth->rows;
+            my $commit_ok = sprintf qq(  %s %d "%s"), 'COMMIT', $nr_rows, $sql_type;
+            $auxil->__print_sql_statement( $sql, $sql_type ); #
+            my $choices = [ undef,  $commit_ok ];
+            # Choose
+            my $choice = $stmt_h->choose(
+                $choices,
+                { %{$self->{info}{lyt_stmt_v}} }
+            );
+            if ( defined $choice && $choice eq $commit_ok ) {;
+                $dbh->commit;
+            }
+            else {
+                $dbh->rollback;
+                $rolled_back = 1;
+            }
+            1 }
+        ) {
+            $auxil->__print_error_message( "$@Rolling back ...\n", 'Commit' );
+            $dbh->rollback;
+            $rolled_back = 1;
+        }
+        if ( $rolled_back ) {
+            return;
+        }
+    }
+    else {
+        my $nr_rows;
+        if ( $sql_type eq 'Insert' ) {
+            $nr_rows = @$rows_to_execute;
+        }
+        else {
+            my $count_stmt;
+            $count_stmt .= "SELECT COUNT(*) FROM " . $sql->{quote}{table};
+            $count_stmt .= $sql->{quote}{where_stmt};
+            ( $nr_rows ) = $dbh->selectrow_array( $count_stmt, undef, @{$sql->{quote}{where_args}} );
+        }
+        my $commit_ok = sprintf qq(  %s %d "%s"), 'EXECUTE', $nr_rows, $sql_type;
+        $auxil->__print_sql_statement( $sql, $sql_type ); #
+        my $choices = [ undef,  $commit_ok ];
+        # Choose
+        my $choice = $stmt_h->choose(
+            $choices,
+            { %{$self->{info}{lyt_stmt_v}}, prompt => '' }
+        );
+        if ( defined $choice && $choice eq $commit_ok ) {
+            if ( ! eval {
+                my $sth = $dbh->prepare( $stmt );
+                for my $values ( @$rows_to_execute ) {
+                    $sth->execute( @$values );
+                }
+                1 }
+            ) {
+                $auxil->__print_error_message( $@, 'Commit' );
+                return;
+            }
+        }
+        else {
+            return;
+        }
+    }
+    return 1;
 }
 
 
 sub __set_operator_sql {
-    my ( $self, $sql, $clause, $table, $cols, $qt_columns, $quote_col, $sql_type ) = @_;
+    my ( $self, $sql, $clause, $cols, $qt_columns, $quote_col, $sql_type ) = @_;
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my ( $stmt, $args );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
@@ -1065,7 +939,7 @@ sub __set_operator_sql {
         $args = 'having_args';
     }
     my $choices = [ @{$self->{opt}{G}{operators}} ];
-    $auxil->__print_sql_statement( $sql, $table, $sql_type );
+    $auxil->__print_sql_statement( $sql, $sql_type );
     # Choose
     my $operator = $stmt_h->choose(
         $choices
@@ -1092,7 +966,7 @@ sub __set_operator_sql {
             $sql->{print}{$stmt} .= '(';
 
             IN: while ( 1 ) {
-                $auxil->__print_sql_statement( $sql, $table, $sql_type );
+                $auxil->__print_sql_statement( $sql, $sql_type );
                 # Readline
                 my $value = $trs->readline( 'Value: ' );
                 if ( ! defined $value ) {
@@ -1119,7 +993,7 @@ sub __set_operator_sql {
             }
         }
         elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
-            $auxil->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $sql_type );
             # Readline
             my $value_1 = $trs->readline( 'Value: ' );
             if ( ! defined $value_1 ) {
@@ -1131,7 +1005,7 @@ sub __set_operator_sql {
             $sql->{quote}{$stmt} .= ' ' . '?' .      ' AND';
             $sql->{print}{$stmt} .= ' ' . $value_1 . ' AND';
             push @{$sql->{quote}{$args}}, $value_1;
-            $auxil->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $sql_type );
             # Readline
             my $value_2 = $trs->readline( 'Value: ' );
             if ( ! defined $value_2 ) {
@@ -1146,7 +1020,7 @@ sub __set_operator_sql {
         }
         elsif ( $operator =~ /REGEXP(_i)?\z/ ) {
             $sql->{print}{$stmt} .= ' ' . $operator;
-            $auxil->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $sql_type );
             # Readline
             my $value = $trs->readline( 'Pattern: ' );
             if ( ! defined $value ) {
@@ -1174,7 +1048,7 @@ sub __set_operator_sql {
             }
         }
         else {
-            $auxil->__print_sql_statement( $sql, $table, $sql_type );
+            $auxil->__print_sql_statement( $sql, $sql_type );
             my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
             # Readline
             my $value = $trs->readline( $prompt );
@@ -1199,7 +1073,7 @@ sub __set_operator_sql {
         $sql->{quote}{$stmt} .= ' ' . $operator;
         $sql->{print}{$stmt} .= ' ' . $operator;
         my $choices = [ @$cols ];
-        $auxil->__print_sql_statement( $sql, $table, $sql_type );
+        $auxil->__print_sql_statement( $sql, $sql_type );
         # Choose
         my $print_col = $stmt_h->choose(
             $choices,
@@ -1237,54 +1111,6 @@ sub __set_operator_sql {
     return;
 }
 
-
-sub __col_functions {
-    my ( $self, $func, $quote_col, $print_col ) = @_;
-    my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-    my $obj_ch = Term::Choose->new();
-    my ( $quote_f, $print_f );
-    $print_f = $self->{info}{scalar_func_h}{$func} . '(' . $print_col . ')';
-    if ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
-        my $prompt = "$print_f\nInterval:";
-        my ( $microseconds, $milliseconds, $seconds ) = (
-            '  ****************   Micro-Second',
-            '  *************      Milli-Second',
-            '  **********               Second' );
-        my $choices = [ undef, $microseconds, $milliseconds, $seconds ];
-        # Choose
-        my $interval = $obj_ch->choose(
-            $choices,
-            { %{$self->{info}{lyt_stmt_v}}, prompt => $prompt }
-        );
-        return if ! defined $interval;
-        my $div = $interval eq $microseconds ? 1000000 :
-                  $interval eq $milliseconds ? 1000 : 1;
-        if ( $func eq 'Epoch_to_DateTime' ) {
-            $quote_f = $obj_db->epoch_to_datetime( $quote_col, $div );
-        }
-        else {
-            $quote_f = $obj_db->epoch_to_date( $quote_col, $div );
-        }
-    }
-    elsif ( $func eq 'Truncate' ) {
-        my $prompt = "TRUNC $print_col\nDecimal places:";
-        my $choices = [ undef, 0 .. 9 ];
-        # Choose
-        my $precision = $obj_ch->choose(
-            $choices,
-            { %{$self->{info}{lyt_stmt_h}}, prompt => $prompt }
-        );
-        return if ! defined $precision;
-        $quote_f = $obj_db->truncate( $quote_col, $precision );
-    }
-    elsif ( $func eq 'Bit_Length' ) {
-        $quote_f = $obj_db->bit_length( $quote_col );
-    }
-    elsif ( $func eq 'Char_Length' ) {
-        $quote_f = $obj_db->char_length( $quote_col );
-    }
-    return $quote_f, $print_f;
-}
 
 
 

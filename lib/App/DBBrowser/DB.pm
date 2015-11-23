@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016';
+our $VERSION = '1.016_01';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.016
+Version 1.016_01
 
 =head1 DESCRIPTION
 
@@ -34,9 +34,9 @@ Column names passed as arguments to plugin methods are already quoted with the C
 
 =head1 PLUGIN API VERSION
 
-This documentation describes the plugin API version C<1.4>.
+This documentation describes the plugin API version C<1.5>.
 
-Supported plugin API versions: C<1.4>.
+Supported plugin API versions: C<1.4> and C<1.5>.
 
 =head1 METHODS
 
@@ -108,6 +108,93 @@ sub debug {
     my ( $self, $dbh, $info, $opt, $db_opt ) = @_;
     return if ! $self->{Plugin}->can( 'debug' );
     $self->{Plugin}->debug( $dbh, $info, $opt, $db_opt );
+}
+
+
+
+
+=head2 create_table
+
+=over
+
+=item Arguments
+
+none
+
+=item return
+
+The primary-key-autoincrement statement.
+
+=back
+
+Example for the database driver C<Pg>:
+
+    sub primary_key_auto {
+        return "SERIAL PRIMARY KEY";
+    }
+
+=cut
+
+sub primary_key_auto {
+    my ( $self ) = @_;
+    return if ! $self->{Plugin}->can( 'primary_key_auto' );
+    return $self->{Plugin}->primary_key_auto();
+}
+
+
+
+=head2 create_table
+
+=over
+
+=item Arguments
+
+Database handle, quoted table name ( "schema"."table" ) and a reference to an array of arrays:
+    [ [ col name, col datatype ],
+      [ col name, col datatype ],
+      ...
+    ]
+The column name is already quoted.
+
+=item return
+
+nothing
+
+=back
+
+Creates a new table.
+
+=cut
+
+sub create_table {
+    my ( $self, $dbh, $table, $col_type ) = @_; #, $add_primay_key
+    my $ok = $self->{Plugin}->create_table( $dbh, $table, $col_type ); # , $add_primay_key
+    return $ok;
+}
+
+
+=head2 drop_table
+
+=over
+
+=item Arguments
+
+Database handle and a quoted table name ( "schema"."table" ).
+
+=item return
+
+nothing
+
+=back
+
+Drops the table.
+
+=cut
+
+sub drop_table {
+    my ( $self, $dbh, $table ) = @_;
+    my $ok = $self->{Plugin}->drop_table( $dbh, $table );
+    return $ok;
 }
 
 
