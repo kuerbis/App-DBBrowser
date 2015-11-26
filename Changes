@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.016_02   2015-11-26
+        - Removed "\K" - not available before 5.10.
+        - Fixed bug in backwards-compatibility-code.
+
 1.016_01   2015-11-23
         - SQLite: new feature "create table" and "drop table".
         - Code refactoring.

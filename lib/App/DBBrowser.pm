@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_01';
+our $VERSION = '1.016_02';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -491,7 +491,7 @@ sub run {
                     elsif ( $table eq $hidden ) {
                         ####
                         my $pi_module = "App::DBBrowser::DB::$db_plugin";                                                   # 1.4
-                        my $np = $pi_module->new( $self->{opt} );                                                           # 1.4
+                        my $np = $pi_module->new( {} );                                                                     # 1.4
                         if ( ! $np->can( 'create_table' ) || ! $np->can( 'drop_table' ) ) {                                 # 1.4
                             my $message = qq{"create_table" or "drop_table" not available.\n};                              # 1.4
                             $auxil->__print_error_message( $message, "App::DBBrowser::DB::$db_plugin" );                    # 1.4
@@ -568,6 +568,7 @@ sub run {
                         $sql->{print}{table} = $table;
                         $sql->{from_stmt_type} = 'single';
                     }
+
                     #if ( ! eval {
                          $self->__browse_the_table( $dbh, $sql );
                     #    1 }
@@ -635,7 +636,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016_01
+Version 1.016_02
 
 =head1 DESCRIPTION
 

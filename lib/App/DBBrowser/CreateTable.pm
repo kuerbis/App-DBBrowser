@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_01';
+our $VERSION = '1.016_02';
 
 use List::Util qw( none any );
 
@@ -185,6 +185,9 @@ sub __create_new_table {
                 $sql->{print}{chosen_cols} = [ map { 'col_' . $c++ } @{$sql->{quote}{insert_into_args}->[0]} ];
             }
             $auxil->__print_sql_statement( $sql, $sql_type );
+            if ( any { ! defined } @{$sql->{print}{chosen_cols}} ) {
+                die "Undefined column name!";
+            }
             if ( any { ! length } @{$sql->{print}{chosen_cols}} ) {
                 die "Empty string as column name!";
             }

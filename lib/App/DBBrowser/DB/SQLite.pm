@@ -20,11 +20,11 @@ use App::DBBrowser::Auxil;
 
 
 sub new {
-    my ( $class, $opt ) = @_;
-    $opt->{db_driver} = 'SQLite';
-    $opt->{driver_prefix} = 'sqlite';
-    $opt->{plugin_api_version} = 1.5;
-    bless $opt, $class;
+    my ( $class, $ref ) = @_;
+    $ref->{db_driver} = 'SQLite';
+    $ref->{driver_prefix} = 'sqlite';
+    $ref->{plugin_api_version} = 1.5;
+    bless $ref, $class;
 }
 
 

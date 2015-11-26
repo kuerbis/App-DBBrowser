@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_01';
+our $VERSION = '1.016_02';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -1030,7 +1030,7 @@ sub __set_operator_sql {
                 return;
             }
             $value = '^$' if ! length $value;
-            $sql->{quote}{$stmt} =~ s/.*\K\s\Q$quote_col\E//;
+            $sql->{quote}{$stmt} =~ s/\s\Q$quote_col\E\z//;
             my $do_not_match_regexp = $operator =~ /^NOT/       ? 1 : 0;
             my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
             if ( ! eval {

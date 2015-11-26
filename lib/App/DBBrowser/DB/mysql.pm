@@ -15,11 +15,11 @@ use App::DBBrowser::DB_Credentials;
 
 
 sub new {
-    my ( $class, $opt ) = @_;
-    $opt->{db_driver} = 'mysql';
-    $opt->{driver_prefix} = 'mysql';
-    $opt->{plugin_api_version} = 1.5;
-    bless $opt, $class;
+    my ( $class, $ref ) = @_;
+    $ref->{db_driver} = 'mysql';
+    $ref->{driver_prefix} = 'mysql';
+    $ref->{plugin_api_version} = 1.5;
+    bless $ref, $class;
 }
 
 
