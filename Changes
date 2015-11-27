@@ -3,6 +3,7 @@ Revision history for App-DBBrowser
 
 1.016_03   2015-11-27
         - Update module "CreateTable".
+        - Minimum version "Term::TablePrint" is "0.025".
 
 1.016_02   2015-11-26
         - Removed "\K" - not available before 5.10.
