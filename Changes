@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.016_03   2015-11-27
+        - Update module "CreateTable".
+
 1.016_02   2015-11-26
         - Removed "\K" - not available before 5.10.
         - Fixed bug in backwards-compatibility-code.

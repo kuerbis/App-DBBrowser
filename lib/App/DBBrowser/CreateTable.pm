@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_02';
+our $VERSION = '1.016_03';
 
 use List::Util qw( none any );
 
@@ -65,12 +65,11 @@ sub __delete_table_confirm {
     my $all_arrayref = $sth->fetchall_arrayref;
     my $table_rows = @$all_arrayref;
     unshift @$all_arrayref, $col_names;
-    print_table( $all_arrayref, $self->{opt}{table} );
+    print_table( $all_arrayref, { %{$self->{opt}{table}}, prompt => 'Close with ENTER' } ); #
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     $auxil->__print_sql_statement( $sql, $sql_type );
     my $lyt_1 = Term::Choose->new( $self->{info}{lyt_1} );
-    my $action = $sql_type eq 'Drop_table' ? 'DROP' : 'CREATE';
-    my $prompt = sprintf "%s table \"%s\" (%d rows)?", $action, $table, $table_rows;
+    my $prompt = sprintf "DROP TABLE \"%s\" (%d rows)?", $table, $table_rows;
     # Choose
     my $choice = $lyt_1->choose(
         [ undef, 'YES' ],
@@ -185,12 +184,6 @@ sub __create_new_table {
                 $sql->{print}{chosen_cols} = [ map { 'col_' . $c++ } @{$sql->{quote}{insert_into_args}->[0]} ];
             }
             $auxil->__print_sql_statement( $sql, $sql_type );
-            if ( any { ! defined } @{$sql->{print}{chosen_cols}} ) {
-                die "Undefined column name!";
-            }
-            if ( any { ! length } @{$sql->{print}{chosen_cols}} ) {
-                die "Empty string as column name!";
-            }
             my $c = 1;
             my $tmp_cols = [ map { [ $c++, defined $_ ? "$_" : '' ] } @{$sql->{print}{chosen_cols}} ];
             my $add_primary_key;
@@ -207,8 +200,8 @@ sub __create_new_table {
                     $sql->{print}{primary_key_auto} = $id_auto;
                 }
             }
-            $auxil->__print_sql_statement( $sql, $sql_type );
             my $trs = Term::ReadLine::Simple->new( 'cols' );
+            $auxil->__print_sql_statement( $sql, $sql_type );
             # Fill_form
             my $cols = $trs->fill_form(
                 $tmp_cols,
@@ -218,8 +211,8 @@ sub __create_new_table {
                 $auxil->__reset_sql( $sql );
                 next MENU;
             }
-            if ( ! length $cols->[1] ) {
-                $add_primary_key = 0;
+            if ( any { ! length } map { $_->[1] } @$cols ) {
+                die "Column with no name!";
             }
             if ( $add_primary_key ) {
                 ( $sql->{print}{primary_key_auto} ) = map { $_->[1] } shift @$cols;
