@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_03';
+our $VERSION = '1.016_04';
 
 use List::Util qw( none any );
 
@@ -49,7 +49,7 @@ sub __delete_table {
     $sql->{quote}{table} = $qt_table;
     my $delete_ok = $self->__delete_table_confirm( $sql, $dbh, $table, $qt_table, $sql_type );
     if ( $delete_ok ) {
-        $obj_db->drop_table( $dbh, $qt_table );
+        $dbh->do( "DROP TABLE $qt_table" ) or die "DROP TABLE $qt_table failed!";
     }
     return 1;
 }
@@ -65,11 +65,12 @@ sub __delete_table_confirm {
     my $all_arrayref = $sth->fetchall_arrayref;
     my $table_rows = @$all_arrayref;
     unshift @$all_arrayref, $col_names;
-    print_table( $all_arrayref, { %{$self->{opt}{table}}, prompt => 'Close with ENTER' } ); #
+    my $prompt_pt = 'Table "' . $table . '" - Close with ENTER';
+    print_table( $all_arrayref, { %{$self->{opt}{table}}, prompt => $prompt_pt } );
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     $auxil->__print_sql_statement( $sql, $sql_type );
     my $lyt_1 = Term::Choose->new( $self->{info}{lyt_1} );
-    my $prompt = sprintf "DROP TABLE \"%s\" (%d rows)?", $table, $table_rows;
+    my $prompt = sprintf 'DROP TABLE "%s" (%d rows)?', $table, $table_rows;
     # Choose
     my $choice = $lyt_1->choose(
         [ undef, 'YES' ],
@@ -234,18 +235,20 @@ sub __create_new_table {
             return if ! $col_type;
 
             # create table
+            my $qt_table = $sql->{quote}{table};
             if ( $overwrite_ok ) {
-                my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-                $obj_db->drop_table( $dbh, $sql->{quote}{table} );
+                $dbh->do( "DROP TABLE $qt_table" ) or die "DROP TABLE $qt_table failed!";
             }
-            $obj_db->create_table( $dbh, $table, $col_type );
+            my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join ', ', map { join ' ', @$_ } @$col_type;
+            $dbh->do( $ct ) or die "$ct failed!";
             $sql->{print}{chosen_cols} = [];
-            my $sth = $dbh->prepare( "SELECT * FROM " . $sql->{quote}{table} . " LIMIT 0" );
+            my $sth = $dbh->prepare( "SELECT * FROM $qt_table LIMIT 0" );
             $sth->execute();
             my @columns = @{$sth->{NAME}};
             if ( $col_type->[0][1] eq $auto_stmt  ) {
                 $sql->{print}{primary_key_auto} = shift @columns;
             }
+            $sth->finish(); #
             $auxil->__print_sql_statement( $sql, $sql_type );
             for my $col ( @columns ) {
                 push @{$sql->{print}{chosen_cols}}, $col;

@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.016_04   2015-12-01
+        - SELECT: add "$sth->finish()" where no rows are fetched.
+        - Code refactoring.
+
 1.016_03   2015-11-27
         - Update module "CreateTable".
         - Minimum version "Term::TablePrint" is "0.025".

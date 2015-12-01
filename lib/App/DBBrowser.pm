@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_03';
+our $VERSION = '1.016_04';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -489,15 +489,6 @@ sub run {
                         next TABLE if ! $ok;
                     }
                     elsif ( $table eq $hidden ) {
-                        ####
-                        my $pi_module = "App::DBBrowser::DB::$db_plugin";                                                   # 1.4
-                        my $np = $pi_module->new( {} );                                                                     # 1.4
-                        if ( ! $np->can( 'create_table' ) || ! $np->can( 'drop_table' ) ) {                                 # 1.4
-                            my $message = qq{"create_table" or "drop_table" not available.\n};                              # 1.4
-                            $auxil->__print_error_message( $message, "App::DBBrowser::DB::$db_plugin" );                    # 1.4
-                            next TABLE;                                                                                     # 1.4
-                        }                                                                                                   # 1.4
-                        ####
                         $sql->{print}{chosen_cols} = []; #
                         $sql->{quote}{chosen_cols} = []; #
                         my $old_idx_hdn = 0;
@@ -523,6 +514,11 @@ sub run {
                                     $old_idx_hdn = $idx_hdn;
                                 }
                             }
+                            #if ( $db_driver eq 'SQLite' ) { #
+                            #    $dbh->disconnect();
+                            #    my $connect_parameter = $self->__prepare_connect_parameter( $db );
+                            #    $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
+                            #}
                             if ( $choice eq $create_table ) {
                                 if ( ! eval {
                                     require App::DBBrowser::CreateTable;
@@ -563,6 +559,7 @@ sub run {
                             $sql->{quote}{columns}{$col} = $dbh->quote_identifier( $col );
                             push @{$sql->{print}{columns}}, $col;
                         }
+                        $sth->finish(); #
                         $sql->{quote}{col_stmt} = "*";
                         $sql->{quote}{table} = $qt_table;
                         $sql->{print}{table} = $table;
@@ -636,7 +633,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016_03
+Version 1.016_04
 
 =head1 DESCRIPTION
 

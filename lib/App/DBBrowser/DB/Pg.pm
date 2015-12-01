@@ -173,25 +173,6 @@ sub primary_key_auto {
 }
 
 
-sub create_table {
-    my ( $self, $dbh, $table, $col_type, $add_primay_key ) = @_;
-    my $ct;
-    $ct .= "CREATE TABLE $table ( ";
-    #$ct .= "ID INTEGER PRIMARY KEY, " if $add_primay_key;
-    $ct .= join ', ', map { $_->[0] . " " . $_->[1] } @$col_type;
-    $ct .= " )";
-    $dbh->do( $ct );
-    return;
-}
-
-
-sub drop_table {
-    my ( $self, $dbh, $table ) = @_;
-    $dbh->do( "DROP TABLE $table" );
-    return;
-}
-
-
 sub column_names_and_types {
     my ( $self, $dbh, $db, $schema, $tables ) = @_;
     my ( $col_names, $col_types );

@@ -142,7 +142,7 @@ sub available_databases {
         }
         print 'Ended searching' . "\n";
         $db_cache->{$cache_key} = $databases;
-        $auxil->write_json( $self->{db_cache_file}, $db_cache );
+        $auxil->__write_json( $self->{db_cache_file}, $db_cache );
     }
     else {
         $databases = $db_cache->{$cache_key};
@@ -188,24 +188,6 @@ sub get_table_names {
 
 sub primary_key_auto {
     return "INTEGER PRIMARY KEY";
-}
-
-
-sub create_table {
-    my ( $self, $dbh, $table, $col_type ) = @_;
-    my $ct;
-    $ct .= "CREATE TABLE $table ( ";
-    $ct .= join ', ', map { $_->[0] . " " . $_->[1] } @$col_type;
-    $ct .= " )";
-    $dbh->do( $ct );
-    return;
-}
-
-
-sub drop_table {
-    my ( $self, $dbh, $table ) = @_;
-    $dbh->do( "DROP TABLE $table" );
-    return;
 }
 
 

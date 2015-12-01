@@ -6,14 +6,14 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_03';
+our $VERSION = '1.016_04';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( first_index );
 use Term::Choose           qw();
 
 use App::DBBrowser::Auxil;
-
+use App::DBBrowser::DB;
 
 
 sub new {

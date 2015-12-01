@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_03';
+our $VERSION = '1.016_04';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -240,7 +240,6 @@ sub __print_union_statement {
 sub __get_tables_info {
     my ( $self, $dbh, $db, $schema, $u_or_j, $type ) = @_;
     my $tables_info = {};
-    my $sth;
     my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
     my ( $pk, $fk ) = $obj_db->primary_and_foreign_keys( $dbh, $db, $schema, $u_or_j->{tables} ); # ###
     for my $table ( @{$u_or_j->{tables}} ) {
