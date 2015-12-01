@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_03';
+our $VERSION = '1.016_04';
 
 BEGIN { $SIG{__WARN__} = sub { die @_ } }
 
@@ -36,7 +36,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.016_03
+Version 1.016_04
 
 =cut
 
