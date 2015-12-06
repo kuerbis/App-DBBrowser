@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+1.016_05   2015-12-06
+        - Bugfix: UPDATE after INSERT: only inserted cols for UPDATE.
+        - Code refactoring.
+        - Update documentation.
+
 1.016_04   2015-12-01
         - SELECT: add "$sth->finish()" where no rows are fetched.
         - Code refactoring.

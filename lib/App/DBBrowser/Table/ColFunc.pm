@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( first_index );
@@ -76,15 +76,16 @@ sub __col_function {
             return;
         }
         if ( $choices->[$idx] eq $hidden_2 ) {
-            my $map_to_choices = {
-                single => [ 'Insert', 'Update', 'Delete'  ],
-                join   => [],
-                union  => [],
-            };
-            if ( $self->{info}{db_driver} eq 'mysql' ) {
-                $map_to_choices->{join} = [ 'Update' ];
+            my @sql_types;
+            if ( ! $self->{info}{multi_tbl} ) {
+                @sql_types = ( 'Insert', 'Update', 'Delete' );
             }
-            my @sql_types = @{$map_to_choices->{$sql->{from_stmt_type}}};
+            elsif ( $self->{info}{multi_tbl} eq 'join' && $self->{info}{db_driver} eq 'mysql' ) {
+                @sql_types = ( 'Update' );
+            }
+            else {
+                @sql_types = ();
+            }
             if ( ! @sql_types ) {
                 next COL_SCALAR_FUNC;
             }

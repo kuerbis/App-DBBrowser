@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -450,47 +450,7 @@ sub run {
                             schema => $schema,
                         }
                     };
-                    if ( $table eq $join ) {
-                        my $ok;
-                        if ( ! eval {
-                            require App::DBBrowser::Join_Union;
-                            my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
-                            $ok = $obj_ju->__join_tables( $sql, $dbh, $data );
-                            $table = 'joined_tables';
-                            $sql->{print}{table} = $table;
-                            $sql->{from_stmt_type} = 'join';
-                            1 }
-                        ) {
-                            $auxil->__print_error_message( $@, 'Join tables' );
-                            next TABLE;
-                        }
-                        next TABLE if ! $ok;
-                    }
-                    elsif ( $table eq $union ) {
-                        my $ok;
-                        if ( ! eval {
-                            require App::DBBrowser::Join_Union;
-                            my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
-                            $ok = $obj_ju->__union_tables( $sql, $dbh, $data );
-                            if ( $sql->{union_all} ) {
-                                $table = 'union_all_tables';
-                            }
-                            else {
-                                $table = 'union_selected_tables';
-                            }
-                            delete $sql->{union_all};
-                            $sql->{print}{table} = $table;
-                            $sql->{from_stmt_type} = 'union';
-                            1 }
-                        ) {
-                            $auxil->__print_error_message( $@, 'Union tables' );
-                            next TABLE;
-                        }
-                        next TABLE if ! $ok;
-                    }
-                    elsif ( $table eq $hidden ) {
-                        $sql->{print}{chosen_cols} = []; #
-                        $sql->{quote}{chosen_cols} = []; #
+                    if ( $table eq $hidden ) {
                         my $old_idx_hdn = 0;
 
                         HIDDEN: while ( 1 ) {
@@ -514,7 +474,7 @@ sub run {
                                     $old_idx_hdn = $idx_hdn;
                                 }
                             }
-                            #if ( $db_driver eq 'SQLite' ) { #
+                            #if ( $db_driver eq 'SQLite' ) {
                             #    $dbh->disconnect();
                             #    my $connect_parameter = $self->__prepare_connect_parameter( $db );
                             #    $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
@@ -550,7 +510,46 @@ sub run {
                             }
                         }
                     }
+                    if ( $table eq $join ) {
+                        $self->{info}{multi_tbl} = 'join';
+                        my $ok;
+                        if ( ! eval {
+                            require App::DBBrowser::Join_Union;
+                            my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
+                            $ok = $obj_ju->__join_tables( $sql, $dbh, $data );
+                            $table = 'joined_tables';
+                            $sql->{print}{table} = $table;
+                            1 }
+                        ) {
+                            $auxil->__print_error_message( $@, 'Join tables' );
+                            next TABLE;
+                        }
+                        next TABLE if ! $ok;
+                    }
+                    elsif ( $table eq $union ) {
+                        $self->{info}{multi_tbl} = 'union';
+                        my $ok;
+                        if ( ! eval {
+                            require App::DBBrowser::Join_Union;
+                            my $obj_ju = App::DBBrowser::Join_Union->new( $self->{info}, $self->{opt} );
+                            $ok = $obj_ju->__union_tables( $sql, $dbh, $data );
+                            if ( $sql->{union_all} ) {
+                                $table = 'union_all_tables';
+                            }
+                            else {
+                                $table = 'union_selected_tables';
+                            }
+                            delete $sql->{union_all};
+                            $sql->{print}{table} = $table;
+                            1 }
+                        ) {
+                            $auxil->__print_error_message( $@, 'Union tables' );
+                            next TABLE;
+                        }
+                        next TABLE if ! $ok;
+                    }
                     else {
+                        #delete $self->{info}{multi_tbl} if exists $sql->{info}{multi_tbl};
                         $table =~ s/^[-\ ]\s//;
                         my $qt_table = $dbh->quote_identifier( undef, $schema, $table );
                         my $sth = $dbh->prepare( "SELECT * FROM " . $qt_table . " LIMIT 0" );
@@ -559,13 +558,10 @@ sub run {
                             $sql->{quote}{columns}{$col} = $dbh->quote_identifier( $col );
                             push @{$sql->{print}{columns}}, $col;
                         }
-                        $sth->finish(); #
-                        $sql->{quote}{col_stmt} = "*";
+                        $sth->finish();
                         $sql->{quote}{table} = $qt_table;
                         $sql->{print}{table} = $table;
-                        $sql->{from_stmt_type} = 'single';
                     }
-
                     #if ( ! eval {
                          $self->__browse_the_table( $dbh, $sql );
                     #    1 }
@@ -583,22 +579,20 @@ sub run {
 
 sub __browse_the_table {
     my ( $self, $dbh, $sql ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $db_plugin = $self->{info}{db_plugin};
-    my $db = $sql->{print}{db};
-    $sql->{strg_keys} = [ qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt ) ];
-    $sql->{list_keys} = [ qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_into_args ) ];
-    $auxil->__reset_sql( $sql );
-    $self->{info}{lock} = $self->{opt}{G}{lock_stmt};
-    my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
+    my $db        = $sql->{print}{db};
     $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin . '_' . $db}{binary_filter};
     if ( ! defined $self->{opt}{table}{binary_filter} ) {
         $self->{opt}{table}{binary_filter} = $self->{db_opt}{$db_plugin}{binary_filter};
     }
+    $self->{info}{lock} = $self->{opt}{G}{lock_stmt};
+    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
+    $auxil->__reset_sql( $sql );
 
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
         if ( ! eval {
+            my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
             ( $all_arrayref, $sql ) = $obj_table->__on_table( $sql, $dbh );
             1 }
         ) {
@@ -633,7 +627,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016_04
+Version 1.016_05
 
 =head1 DESCRIPTION
 

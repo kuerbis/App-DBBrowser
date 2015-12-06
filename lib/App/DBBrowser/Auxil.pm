@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Encode qw( encode );
 
@@ -34,8 +34,8 @@ sub __print_sql_statement {
 
     my $str = '';
     if ( $sql_type eq 'Create_table' ) {
-        my @cols = @{$sql->{print}{chosen_cols}};
-        unshift @cols, $sql->{print}{primary_key_auto} if length $sql->{print}{primary_key_auto};
+        my @cols = @{$sql->{print}{insert_cols}};
+        unshift @cols, $sql->{print}{id_pk_auto} if defined $sql->{print}{id_pk_auto};
         $str  = "CREATE TABLE $table (";
         if ( @cols ) {
             $str .= " " . join( ', ',  map { defined $_ ? $_ : '' } @cols ) . " ";
@@ -44,17 +44,11 @@ sub __print_sql_statement {
         $str .= "\n\n";
         $sql_type = 'Insert';
     }
-
     if ( $sql_type eq 'Insert' ) {
-        my %type_sql = (
-            Delete => "DELETE",
-            Update => "UPDATE",
-            Insert => "INSERT INTO",
-        );
-        $str .= $type_sql{$sql_type};
-        $str .= ' ' . $table . " (";
-        if ( @{$sql->{print}{chosen_cols}} ) {
-            $str .= " " . join( ', ', map { defined $_ ? $_ : '' } @{$sql->{print}{chosen_cols}} ) . " " ;
+        my @cols = @{$sql->{print}{insert_cols}};
+        $str .= "INSERT INTO $table (";
+        if ( @cols ) {
+            $str .= " " . join( ', ', map { defined $_ ? $_ : '' } @cols ) . " " ;
         }
         $str .= ")\n";
         $str .= "  VALUES(\n";
@@ -64,6 +58,11 @@ sub __print_sql_statement {
         $str .= "  )\n";
     }
     else {
+        my %type_sql = (
+            Select => "SELECT",
+            Delete => "DELETE",
+            Update => "UPDATE",
+        );
         my $cols_sql;
         if ( $sql_type eq 'Select' ) {
             if ( $sql->{select_type} eq '*' ) {
@@ -79,10 +78,11 @@ sub __print_sql_statement {
                 $cols_sql = ' *';
             }
         }
-        $str .= "SELECT";
+        $str = $type_sql{$sql_type};
         $str .= $sql->{print}{distinct_stmt}                   if $sql->{print}{distinct_stmt};
         $str .= $cols_sql                               . "\n" if $cols_sql;
-        $str .= " FROM " . $table                       . "\n";
+        $str .= " FROM"                                        if $sql_type eq 'Select' || $sql_type eq 'Delete';
+        $str .= " " . $table                            . "\n";
         $str .= ' '      . $sql->{print}{set_stmt}      . "\n" if $sql->{print}{set_stmt};
         $str .= ' '      . $sql->{print}{where_stmt}    . "\n" if $sql->{print}{where_stmt};
         $str .= ' '      . $sql->{print}{group_by_stmt} . "\n" if $sql->{print}{group_by_stmt};
@@ -111,17 +111,28 @@ sub __print_error_message {
 
 sub __reset_sql {
     my ( $self, $sql ) = @_;
-    $sql->{select_type} = '*';
-    $sql->{print}     = {} if ! defined $sql->{print};
-    $sql->{quote}     = {} if ! defined $sql->{quote};
-    $sql->{strg_keys} = [] if ! defined $sql->{strg_keys};
-    $sql->{list_keys} = [] if ! defined $sql->{list_keys};
-    @{$sql->{print}}{ @{$sql->{strg_keys}} } = ( '' ) x  @{$sql->{strg_keys}};
-    @{$sql->{quote}}{ @{$sql->{strg_keys}} } = ( '' ) x  @{$sql->{strg_keys}};
-    @{$sql->{print}}{ @{$sql->{list_keys}} } = map{ [] } @{$sql->{list_keys}};
-    @{$sql->{quote}}{ @{$sql->{list_keys}} } = map{ [] } @{$sql->{list_keys}};
+    my $backup = {};
+    for my $x ( qw( print quote ) ) {
+        for my $y ( qw( db schema table columns join_col_stmt ) ) {
+            $backup->{$x}{$y} = $sql->{$x}{$y} if exists $sql->{$x}{$y};
+        }
+    }
+    map { delete $sql->{$_} } keys %$sql;
+    my @strg_keys = ( qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt ) );
+    my @list_keys = ( qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_cols insert_into_args ) );
+    $sql->{print} = {};
+    $sql->{quote} = {};
+    @{ $sql->{print} }{ @strg_keys } = ( '' ) x  @strg_keys;
+    @{ $sql->{quote} }{ @strg_keys } = ( '' ) x  @strg_keys;
+    @{ $sql->{print} }{ @list_keys } = map{ [] } @list_keys;
+    @{ $sql->{quote} }{ @list_keys } = map{ [] } @list_keys;
     $sql->{pr_col_with_scalar_func} = [];
-    delete $sql->{scalar_func_backup_pr_col};
+    for my $x ( keys %$backup ) {
+        for my $y ( keys %{$backup->{$x}} ) {
+            $sql->{$x}{$y} = $backup->{$x}{$y};
+        }
+    }
+    $sql->{select_type} = '*';
 }
 
 

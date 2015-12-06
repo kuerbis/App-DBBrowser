@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -45,10 +45,10 @@ sub __on_table {
     my %customize = (
         hidden          => 'Customize:',
         print_table     => 'Print TABLE',
-        commit          => '  Confirm SQL',
+        commit          => '  Confirm Stmt',
         columns         => '- SELECT',
         set             => '- SET',
-        insert          => '  Form    SQL',
+        insert          => '  Build   Stmt',
         aggregate       => '- AGGREGATE',
         distinct        => '- DISTINCT',
         where           => '- WHERE',
@@ -121,14 +121,6 @@ sub __on_table {
             next CUSTOMIZE if ! $col_ok;
             my $val_ok = $tbl_in->__get_insert_values( $sql, $sql_type );
             next CUSTOMIZE if ! $val_ok;
-            $qt_columns = {};
-            $pr_columns = [];
-            for my $col ( @{$sql->{print}{chosen_cols}} ) {
-                $qt_columns->{$col} = $dbh->quote_identifier( $col );
-                push @$pr_columns, $col;
-            }
-            #$sql->{quote}{table} = $dbh->quote_identifier( undef, @{$sql->{print}}{'schema','table'} ); # ###
-            $sql->{quote}{col_stmt} = "*";
         }
         elsif ( $custom eq $customize{'columns'} ) {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
@@ -759,18 +751,21 @@ sub __on_table {
             }
         }
         elsif ( $custom eq $customize{'print_table'} ) {
-            my $cols_sql;
+            my $cols_sql = " ";
             if ( $sql->{select_type} eq '*' ) {
-                $cols_sql = ' ' . $sql->{quote}{col_stmt};
+                $cols_sql = " " . "*";
             }
             elsif ( $sql->{select_type} eq 'chosen_cols' ) {
-                $cols_sql = ' ' . join( ', ', @{$sql->{quote}{chosen_cols}} );
+                $cols_sql = " " . join( ', ', @{$sql->{quote}{chosen_cols}} );
             }
             elsif ( @{$sql->{quote}{aggr_cols}} || @{$sql->{quote}{group_by_cols}} ) {
-                $cols_sql = ' ' . join( ', ', @{$sql->{quote}{group_by_cols}}, @{$sql->{quote}{aggr_cols}} );
+                $cols_sql = " " . join( ', ', @{$sql->{quote}{group_by_cols}}, @{$sql->{quote}{aggr_cols}} );
             }
             else { #
-                $cols_sql = ' ' . $sql->{quote}{col_stmt};
+                $cols_sql = " " . "*";
+            }
+            if ( $cols_sql eq "*" && $sql->{quote}{join_col_stmt} ) { # ?
+                $cols_sql = " " . $sql->{quote}{join_col_stmt};
             }
             my $select .= "SELECT" . $sql->{quote}{distinct_stmt} . $cols_sql;
             $select .= " FROM " . $sql->{quote}{table};
@@ -829,7 +824,7 @@ sub __commit_sql {
     local $| = 1;
     print $self->{info}{clear_screen};
     print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
-    #if ( $self->{info}{db_driver} eq 'SQLite' ) { #
+    #if ( $self->{info}{db_driver} eq 'SQLite' ) {
     #    $dbh->disconnect();
     #    my $db = $sql->{print}{db};
     #    my $connect_parameter = $self->__prepare_connect_parameter( $db );
@@ -844,8 +839,8 @@ sub __commit_sql {
         return 1 if ! @{$sql->{quote}{insert_into_args}}; #
         $stmt  = "INSERT INTO";
         $stmt .= ' ' . $sql->{quote}{table};
-        $stmt .= " ( " . join( ', ', @{$sql->{quote}{chosen_cols}} ) . " )";
-        $stmt .= " VALUES( " . join( ', ', ( '?' ) x @{$sql->{quote}{chosen_cols}} ) . " )";
+        $stmt .= " ( " . join( ', ', @{$sql->{quote}{insert_cols}} ) . " )";
+        $stmt .= " VALUES( " . join( ', ', ( '?' ) x @{$sql->{quote}{insert_cols}} ) . " )";
         $rows_to_execute = $sql->{quote}{insert_into_args};
     }
     else {
@@ -869,7 +864,7 @@ sub __commit_sql {
             }
             my $nr_rows   = $sql_type eq 'Insert' ? @$rows_to_execute : $sth->rows;
             my $commit_ok = sprintf qq(  %s %d "%s"), 'COMMIT', $nr_rows, $sql_type;
-            $auxil->__print_sql_statement( $sql, $sql_type ); #
+            $auxil->__print_sql_statement( $sql, $sql_type );
             my $choices = [ undef,  $commit_ok ];
             # Choose
             my $choice = $stmt_h->choose(

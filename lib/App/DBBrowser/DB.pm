@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 
 
@@ -16,13 +16,13 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.016_04
+Version 1.016_05
 
 =head1 DESCRIPTION
 
-A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches the
-regex pattern C</^App::DBBrowser::DB::[\w_]+\z/> and which is located in one of the C<@INC> directories as a database
-plugin. Plugins with the name C<App::DBBrowser::DB::$database_driver> should be for general use of C<$database_driver>
+A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches
+C</^App::DBBrowser::DB::[^:']+\z/> and which is located in one of the C<@INC> directories as a database plugin.
+Plugins with the name C<App::DBBrowser::DB::$database_driver> should be for general use of C<$database_driver>
 databases.
 
 The user can add an installed database plugin to the available plugins in the option menu (C<db-browser -h>) by
@@ -70,10 +70,6 @@ The object.
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    if ( $info->{db_plugin} !~ /^[\w_]+\z/ ) {
-        die "Invalid character in the DB plugin name: $info->{db_plugin}";
-    }
-
     my $db_module = 'App::DBBrowser::DB::' . $info->{db_plugin};
     eval "require $db_module" or die $@;
 

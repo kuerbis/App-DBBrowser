@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use List::Util qw( none any );
 
@@ -65,12 +65,12 @@ sub __delete_table_confirm {
     my $all_arrayref = $sth->fetchall_arrayref;
     my $table_rows = @$all_arrayref;
     unshift @$all_arrayref, $col_names;
-    my $prompt_pt = 'Table "' . $table . '" - Close with ENTER';
+    my $prompt_pt = "Table '$table'  -  Close with ENTER";
     print_table( $all_arrayref, { %{$self->{opt}{table}}, prompt => $prompt_pt } );
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
-    $auxil->__print_sql_statement( $sql, $sql_type );
     my $lyt_1 = Term::Choose->new( $self->{info}{lyt_1} );
-    my $prompt = sprintf 'DROP TABLE "%s" (%d rows)?', $table, $table_rows;
+    my $prompt = sprintf 'DROP TABLE \'%s\' (%d %s)?', $table, $table_rows, $table_rows == 1 ? 'row' : 'rows';
+    $auxil->__print_sql_statement( $sql, $sql_type );
     # Choose
     my $choice = $lyt_1->choose(
         [ undef, 'YES' ],
@@ -94,7 +94,6 @@ sub __create_new_table {
     my $db_plugin = $self->{info}{db_plugin};
     my $schema = $sql->{print}{schema};
     my $old_idx = 1;
-    $sql->{list_keys} = [ qw( chosen_cols insert_into_args ) ];
     $auxil->__reset_sql( $sql );
     $sql->{print}{table} = '...';
     print "\n";
@@ -103,8 +102,8 @@ sub __create_new_table {
     my $c = 0;
 
     TABLENAME: while ( 1 ) {
-        $auxil->__print_sql_statement( $sql, $sql_type );
         my $trs = Term::ReadLine::Simple->new( 'tn' );
+        $auxil->__print_sql_statement( $sql, $sql_type );
         # Readline
         $table = $trs->readline( 'Table name: ' );
         return if ! length $table;
@@ -118,8 +117,8 @@ sub __create_new_table {
             $sql->{quote}{table} = $qt_table;
             last TABLENAME;
         }
+        my $prompt .= "Overwrite '$table'?";
         $auxil->__print_sql_statement( $sql, $sql_type );
-        my $prompt .= 'Overwrite existing table "' . $table . '"?';
         # Choose
         $overwrite_ok = $lyt_h->choose(
             [ undef, 'YES' ],
@@ -140,9 +139,10 @@ sub __create_new_table {
     }
 
     MENU: while ( 1 ) {
+        my ( $hidden, $commit, $create ) = ( 'Customize:', '  Confirm Stmt', '  Build   Stmt' );
+        my $choices = [ $hidden, undef, $create ];
+        splice @$choices, 2, 0, $commit if $sql_type eq 'Insert';
         $auxil->__print_sql_statement( $sql, $sql_type );
-        my ( $hidden, $commit, $create ) = ( 'Customize:', '  Confirm SQL', '  Form    SQL' );
-        my $choices = [ $hidden, undef, $commit, $create ];
         # Choose
         my $idx = $lyt_h->choose(
             $choices,
@@ -168,37 +168,42 @@ sub __create_new_table {
             next MENU;
         }
         elsif ( $choice eq $create ) {
+            $sql_type = 'Create_table';
+            $auxil->__reset_sql( $sql );
             my $tbl_in = App::DBBrowser::Table::Insert->new( $self->{info}, $self->{opt} );
             my $ok = $tbl_in->__get_insert_values( $sql, $sql_type );
             next MENU if ! $ok;
 
-            # columns
+            # Columns
+            $auxil->__print_sql_statement( $sql, $sql_type );
+            # Choose
             my $first_row_to_colnames = $lyt_h->choose(
                 [ undef, 'YES' ],
                 { prompt => 'Use first row as column names?', undef => 'NO' }
             );
             if ( $first_row_to_colnames ) {
-                $sql->{print}{chosen_cols} = shift @{$sql->{quote}{insert_into_args}};
+                $sql->{print}{insert_cols} = shift @{$sql->{quote}{insert_into_args}};
             }
             else {
                 my $c = 1;
-                $sql->{print}{chosen_cols} = [ map { 'col_' . $c++ } @{$sql->{quote}{insert_into_args}->[0]} ];
+                $sql->{print}{insert_cols} = [ map { 'col_' . $c++ } @{$sql->{quote}{insert_into_args}->[0]} ];
             }
-            $auxil->__print_sql_statement( $sql, $sql_type );
             my $c = 1;
-            my $tmp_cols = [ map { [ $c++, defined $_ ? "$_" : '' ] } @{$sql->{print}{chosen_cols}} ];
-            my $add_primary_key;
-            my $id_auto = "Id";
-            my $auto_stmt = $obj_db->primary_key_auto();
-            my $prompt = 'Add primary key?';
-            if ( $auto_stmt ) {
-                $add_primary_key = $lyt_h->choose(
+            my $tmp_cols = [ map { [ $c++, defined $_ ? "$_" : '' ] } @{$sql->{print}{insert_cols}} ];
+            my $add_pk_auto;
+            my $id_pk_name = "Id_a";
+            my $pk_auto_stmt = $obj_db->primary_key_auto();
+            my $prompt = 'Add auto increment primary key?';
+            if ( $pk_auto_stmt ) {
+                $auxil->__print_sql_statement( $sql, $sql_type );
+                # Choose
+                $add_pk_auto = $lyt_h->choose(
                     [ undef, 'YES' ],
                     { prompt => $prompt, undef => 'NO' }
                 );
-                if ( $add_primary_key ) {
-                    unshift @$tmp_cols, [ 0, $id_auto ];
-                    $sql->{print}{primary_key_auto} = $id_auto;
+                if ( $add_pk_auto ) {
+                    unshift @$tmp_cols, [ 0, $id_pk_name ];
+                    $sql->{print}{id_pk_auto} = $id_pk_name;
                 }
             }
             my $trs = Term::ReadLine::Simple->new( 'cols' );
@@ -206,62 +211,62 @@ sub __create_new_table {
             # Fill_form
             my $cols = $trs->fill_form(
                 $tmp_cols,
-                { prompt => 'Column names:',auto_up => 2, confirm => '- OK -', back => '- << -' }
+                { prompt => 'Col names:',auto_up => 2, confirm => '- OK -', back => '- << -' }
             );
             if ( ! $cols ) {
-                $auxil->__reset_sql( $sql );
+                $sql->{print}{insert_cols} = [];
+                delete $sql->{print}{id_pk_auto};
                 next MENU;
             }
-            if ( any { ! length } map { $_->[1] } @$cols ) {
-                die "Column with no name!";
+            $sql->{print}{insert_cols} = [ map { $_->[1] } @$cols ];
+            if ( $add_pk_auto ) {
+                $sql->{print}{id_pk_auto} = shift @{$sql->{print}{insert_cols}};
             }
-            if ( $add_primary_key ) {
-                ( $sql->{print}{primary_key_auto} ) = map { $_->[1] } shift @$cols;
-            }
-            $sql->{print}{chosen_cols} = [ grep { length } map { $_->[1] } @$cols ];
+            die "Column with no name!" if any { ! length } map { $_->[1] } @$cols;
 
-            # datatypes
+            # Datatypes
             my $datatype = "TEXT";
-            $auxil->__print_sql_statement( $sql, $sql_type );
-            my $choices = [ map { [ $dbh->quote_identifier( $_ ), $datatype ] } @{$sql->{print}{chosen_cols}} ];
-            if ( $add_primary_key ) {
-                unshift @$choices, [ $id_auto, $auto_stmt ];
+            my $choices = [ map { [ $dbh->quote_identifier( $_ ), $datatype ] } @{$sql->{print}{insert_cols}} ];
+            if ( $add_pk_auto ) {
+                unshift @$choices, [ $id_pk_name, $pk_auto_stmt ];
             }
+            $auxil->__print_sql_statement( $sql, $sql_type );
             # Fill_form
-            my $col_type = $trs->fill_form(
+            my $col_name_and_type = $trs->fill_form(
                 $choices,
-                { prompt => 'Column data-types:', auto_up => 2, confirm => '- OK -', back => '- << -' }
+                { prompt => 'Col types:', auto_up => 2, confirm => '- OK -',
+                  back => '- << -', ro => $add_pk_auto ? [ 0 ] : undef }
             );
-            return if ! $col_type;
+            return if ! $col_name_and_type;
 
-            # create table
+            # Create table
             my $qt_table = $sql->{quote}{table};
             if ( $overwrite_ok ) {
                 $dbh->do( "DROP TABLE $qt_table" ) or die "DROP TABLE $qt_table failed!";
             }
-            my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join ', ', map { join ' ', @$_ } @$col_type;
+            my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join ', ', map { join ' ', @$_ } @$col_name_and_type;
             $dbh->do( $ct ) or die "$ct failed!";
-            $sql->{print}{chosen_cols} = [];
+
             my $sth = $dbh->prepare( "SELECT * FROM $qt_table LIMIT 0" );
             $sth->execute();
             my @columns = @{$sth->{NAME}};
-            if ( $col_type->[0][1] eq $auto_stmt  ) {
-                $sql->{print}{primary_key_auto} = shift @columns;
+            $sth->finish();
+            if ( $add_pk_auto  ) {
+                $sql->{print}{id_pk_auto} = shift @columns;
             }
-            $sth->finish(); #
-            $auxil->__print_sql_statement( $sql, $sql_type );
+            $sql->{print}{insert_cols} = [];
+            $sql->{quote}{insert_cols} = [];
             for my $col ( @columns ) {
-                push @{$sql->{print}{chosen_cols}}, $col;
-                push @{$sql->{quote}{chosen_cols}}, $dbh->quote_identifier( $col );
+                push @{$sql->{print}{insert_cols}}, $col;
+                push @{$sql->{quote}{insert_cols}}, $dbh->quote_identifier( $col );
             }
-            $sql->{quote}{col_stmt} = "*";
-            $sql->{from_stmt_type} = 'single';
+            $sql_type = 'Insert';
+            $old_idx = 1;
         }
         elsif ( $choice eq $commit ) {
             my $obj_table = App::DBBrowser::Table->new( $self->{info}, $self->{opt} );
-            my $sql_type = 'Insert';
             my $ok = $obj_table->__commit_sql( $sql, $sql_type, $dbh );
-            delete $sql->{print}{primary_key_auto};
+            delete $sql->{print}{id_pk_auto};
             if ( ! $ok ) {
                 $auxil->__reset_sql( $sql );
                 next MENU;

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Cwd              qw( realpath );
 use Encode           qw( encode decode );
@@ -35,10 +35,10 @@ sub __get_insert_columns {
     my ( $self, $sql, $sql_type ) = @_;
     my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
-    $sql->{quote}{chosen_cols} = [];
-    $sql->{print}{chosen_cols} = [];
     my $pr_columns = $sql->{print}{columns};
     my $qt_columns = $sql->{quote}{columns};
+    $sql->{quote}{insert_cols} = [];
+    $sql->{print}{insert_cols} = [];
     my @cols = ( @$pr_columns );
 
     COL_NAMES: while ( 1 ) {
@@ -51,9 +51,9 @@ sub __get_insert_columns {
             { prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
         );
         if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
-            return if ! @{$sql->{quote}{chosen_cols}};
-            $sql->{quote}{chosen_cols} = [];
-            $sql->{print}{chosen_cols} = [];
+            return if ! @{$sql->{quote}{insert_cols}};
+            $sql->{quote}{insert_cols} = [];
+            $sql->{print}{insert_cols} = [];
             @cols = ( @$pr_columns );
             next COL_NAMES;
         }
@@ -68,18 +68,18 @@ sub __get_insert_columns {
         if ( $print_col[0] eq $self->{info}{ok} ) {
             shift @print_col;
             for my $print_col ( @print_col ) {
-                push @{$sql->{quote}{chosen_cols}}, $qt_columns->{$print_col};
-                push @{$sql->{print}{chosen_cols}}, $print_col;
+                push @{$sql->{quote}{insert_cols}}, $qt_columns->{$print_col};
+                push @{$sql->{print}{insert_cols}}, $print_col;
             }
-            if ( ! @{$sql->{quote}{chosen_cols}} ) {
-                @{$sql->{quote}{chosen_cols}} = @{$qt_columns}{@$pr_columns};
-                @{$sql->{print}{chosen_cols}} = @$pr_columns;
+            if ( ! @{$sql->{quote}{insert_cols}} ) {
+                @{$sql->{quote}{insert_cols}} = @{$qt_columns}{@$pr_columns};
+                @{$sql->{print}{insert_cols}} = @$pr_columns;
             }
             last COL_NAMES;
         }
         for my $print_col ( @print_col ) {
-            push @{$sql->{quote}{chosen_cols}}, $qt_columns->{$print_col};
-            push @{$sql->{print}{chosen_cols}}, $print_col;
+            push @{$sql->{quote}{insert_cols}}, $qt_columns->{$print_col};
+            push @{$sql->{print}{insert_cols}}, $print_col;
         }
     }
     return 1;
@@ -107,8 +107,8 @@ sub __get_insert_values {
                 { prompt => 'Input mode: ', justify => 0 }
             );
             if ( ! defined $input_mode ) {
-                $sql->{quote}{chosen_cols} = [];
-                $sql->{print}{chosen_cols} = [];
+                $sql->{quote}{insert_cols} = [];
+                $sql->{print}{insert_cols} = [];
                 return;
             }
             $input_mode =~ s/^-\ //;
@@ -124,7 +124,7 @@ sub __get_insert_values {
                     @cols = map { 'Col_' . $_ } 1 .. $nr_of_cols;
                 }
                 else {
-                    @cols = @{$sql->{print}{chosen_cols}};
+                    @cols = @{$sql->{print}{insert_cols}};
                 }
             }
 
@@ -168,8 +168,8 @@ sub __get_insert_values {
                     }
                     elsif ( $add_row eq $last ) {
                         if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                            $sql->{quote}{chosen_cols} = [];
-                            $sql->{print}{chosen_cols} = [];
+                            $sql->{quote}{insert_cols} = [];
+                            $sql->{print}{insert_cols} = [];
                         }
                         last VALUES;
                     }
@@ -188,8 +188,8 @@ sub __get_insert_values {
                 my ( $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
                 binmode $fh, ':encoding(' . $self->{opt}{insert}{file_encoding} . ')' or die $!;
                 $auxil->__print_sql_statement( $sql, $sql_type );
-                print 'Multi row: ' . "\n";
                 # STDIN
+                print 'Multi row: ' . "\n";
                 while ( my $row = <STDIN> ) {
                     print $fh $row;
                 }
@@ -197,8 +197,8 @@ sub __get_insert_values {
                 $self->__get_insert_into_args( $sql, $sql_type, $fh );
                 if ( ! @{$sql->{quote}{insert_into_args}} ) {
                     if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                        $sql->{quote}{chosen_cols} = [];
-                        $sql->{print}{chosen_cols} = [];
+                        $sql->{quote}{insert_cols} = [];
+                        $sql->{print}{insert_cols} = [];
                         return;
                     }
                     next VALUES;
@@ -234,8 +234,8 @@ sub __get_insert_values {
                         );
                         if ( ! defined $file ) {
                             if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                                $sql->{quote}{chosen_cols} = [];
-                                $sql->{print}{chosen_cols} = [];
+                                $sql->{quote}{insert_cols} = [];
+                                $sql->{print}{insert_cols} = [];
                                 return;
                             }
                             next VALUES;
@@ -248,8 +248,8 @@ sub __get_insert_values {
                         $file = $trs->readline( 'Path to file: ' );
                         if ( ! defined $file || ! length $file ) {
                             if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                                $sql->{quote}{chosen_cols} = [];
-                                $sql->{print}{chosen_cols} = [];
+                                $sql->{quote}{insert_cols} = [];
+                                $sql->{print}{insert_cols} = [];
                                 return;
                             }
                             next VALUES;

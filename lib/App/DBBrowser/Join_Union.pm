@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_04';
+our $VERSION = '1.016_05';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -175,7 +175,6 @@ sub __union_tables {
     for my $col ( @{$sql->{print}{columns}} ) {
         $sql->{quote}{columns}{$col} = $dbh->quote_identifier( $col );
     }
-    $sql->{quote}{col_stmt} = "*";
     my $c;
     $sql->{quote}{table} = "(";
     for my $table ( @{$union->{used_tables}} ) {
@@ -449,7 +448,7 @@ sub __join_tables {
         last MASTER;
     }
 
-    my $col_stmt = '';
+    my $col_stmt = ''; #
     for my $table ( @{$join->{used_tables}} ) {
         for my $col ( @{$j->{col_names}{$table}} ) {
             my $col_qt = $dbh->quote_identifier( undef, $join->{alias}{$table}, $col );
@@ -462,12 +461,12 @@ sub __join_tables {
             #}
             push @{$sql->{print}{columns}}, $col_pr;
             $sql->{quote}{columns}{$col_pr} = $col_qt;
-            $col_stmt .= ', ' . $col_qt;
+            $col_stmt .= ', ' . $col_qt; #
         }
     }
-    $col_stmt =~ s/^,\s//;
+    $col_stmt =~ s/^,\s//; #
     my ( $qt_table ) = $join->{quote}{stmt} =~ /^SELECT\s\*\sFROM\s(.*)\z/;
-    $sql->{quote}{col_stmt} = $col_stmt;
+    $sql->{quote}{join_col_stmt} = $col_stmt; #
     $sql->{quote}{table} = $qt_table;
     return 1;
 }
