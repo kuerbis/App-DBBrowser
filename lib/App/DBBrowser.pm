@@ -549,7 +549,7 @@ sub run {
                         next TABLE if ! $ok;
                     }
                     else {
-                        #delete $self->{info}{multi_tbl} if exists $sql->{info}{multi_tbl};
+                        $self->{info}{multi_tbl} = '';
                         $table =~ s/^[-\ ]\s//;
                         my $qt_table = $dbh->quote_identifier( undef, $schema, $table );
                         my $sth = $dbh->prepare( "SELECT * FROM " . $qt_table . " LIMIT 0" );
