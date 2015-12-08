@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_05';
+our $VERSION = '1.016_06';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -41,7 +41,6 @@ sub new {
         lyt_stop   => {                                                             clear_screen => 0, mouse => 0                    },
         quit       => 'QUIT',
         back       => 'BACK',
-        #confirm    => 'CONFIRM',
         _quit      => '  QUIT',
         _back      => '  BACK',
         _continue  => '  CONTINUE',
@@ -474,11 +473,11 @@ sub run {
                                     $old_idx_hdn = $idx_hdn;
                                 }
                             }
-                            #if ( $db_driver eq 'SQLite' ) {
-                            #    $dbh->disconnect();
-                            #    my $connect_parameter = $self->__prepare_connect_parameter( $db );
-                            #    $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
-                            #}
+                            if ( $db_driver eq 'SQLite' ) {
+                                $dbh->disconnect();
+                                my $connect_parameter = $self->__prepare_connect_parameter( $db );
+                                $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
+                            }
                             if ( $choice eq $create_table ) {
                                 if ( ! eval {
                                     require App::DBBrowser::CreateTable;
@@ -627,7 +626,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016_05
+Version 1.016_06
 
 =head1 DESCRIPTION
 

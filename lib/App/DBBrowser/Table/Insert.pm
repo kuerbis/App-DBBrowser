@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_05';
+our $VERSION = '1.016_06';
 
 use Cwd              qw( realpath );
 use Encode           qw( encode decode );
@@ -17,7 +17,7 @@ use List::MoreUtils        qw( first_index );
 use Encode::Locale         qw();
 #use Spreadsheet::Read      qw( ReadData rows ); # "require"d
 use Term::Choose           qw();
-use Term::Choose::Util     qw( choose_a_number );
+use Term::Choose::Util     qw( choose_a_number choose_a_file );
 use Term::ReadLine::Simple qw();
 use Text::CSV              qw();
 
@@ -244,8 +244,8 @@ sub __get_insert_values {
                     }
                     if ( ! defined $file || $file eq $add_file ) {
                         $auxil->__print_sql_statement( $sql, $sql_type );
-                        # Readline
-                        $file = $trs->readline( 'Path to file: ' );
+                        # Choose_a_file
+                        $file = choose_a_file();
                         if ( ! defined $file || ! length $file ) {
                             if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                                 $sql->{quote}{insert_cols} = [];

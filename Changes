@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.016_06   2015-12-08
+        - SQLite: reconnect to the DB before writing to the DB.
+        - Code refactoring.
+        - Minimum version "Term::Choose::Util" is "0.027".
+        - Filename: choose instead of reading.
+
 1.016_05   2015-12-06
         - Bugfix: UPDATE after INSERT: only inserted cols for UPDATE.
         - Code refactoring.

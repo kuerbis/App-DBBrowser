@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_05';
+our $VERSION = '1.016_06';
 
 use List::Util qw( none any );
 

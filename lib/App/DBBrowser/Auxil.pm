@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.016_05';
+our $VERSION = '1.016_06';
 
 use Encode qw( encode );
 
@@ -113,7 +113,7 @@ sub __reset_sql {
     my ( $self, $sql ) = @_;
     my $backup = {};
     for my $x ( qw( print quote ) ) {
-        for my $y ( qw( db schema table columns join_col_stmt ) ) {
+        for my $y ( qw( db schema table columns ) ) {
             $backup->{$x}{$y} = $sql->{$x}{$y} if exists $sql->{$x}{$y};
         }
     }

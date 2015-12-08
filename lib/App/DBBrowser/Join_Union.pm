@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_05';
+our $VERSION = '1.016_06';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -448,7 +448,6 @@ sub __join_tables {
         last MASTER;
     }
 
-    my $col_stmt = ''; #
     for my $table ( @{$join->{used_tables}} ) {
         for my $col ( @{$j->{col_names}{$table}} ) {
             my $col_qt = $dbh->quote_identifier( undef, $join->{alias}{$table}, $col );
@@ -461,12 +460,9 @@ sub __join_tables {
             #}
             push @{$sql->{print}{columns}}, $col_pr;
             $sql->{quote}{columns}{$col_pr} = $col_qt;
-            $col_stmt .= ', ' . $col_qt; #
         }
     }
-    $col_stmt =~ s/^,\s//; #
     my ( $qt_table ) = $join->{quote}{stmt} =~ /^SELECT\s\*\sFROM\s(.*)\z/;
-    $sql->{quote}{join_col_stmt} = $col_stmt; #
     $sql->{quote}{table} = $qt_table;
     return 1;
 }
