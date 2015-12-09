@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_06';
+our $VERSION = '1.016_07';
 
 use List::Util qw( none any );
 
@@ -162,7 +162,7 @@ sub __create_new_table {
                 $old_idx = $idx;
             }
         }
-        if ( $choice eq $hidden ) {
+        if ( $choice eq $hidden ) { # prompt build-insert-stmt-menu
             my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
             $obj_opt->__config_insert();
             next MENU;
@@ -211,7 +211,7 @@ sub __create_new_table {
             # Fill_form
             my $cols = $trs->fill_form(
                 $tmp_cols,
-                { prompt => 'Col names:',auto_up => 2, confirm => '- OK -', back => '- << -' }
+                { prompt => 'Col names:',auto_up => 2, confirm => '  OK ', back => '  << ' }
             );
             if ( ! $cols ) {
                 $sql->{print}{insert_cols} = [];
@@ -234,8 +234,8 @@ sub __create_new_table {
             # Fill_form
             my $col_name_and_type = $trs->fill_form(
                 $choices,
-                { prompt => 'Col types:', auto_up => 2, confirm => '- OK -',
-                  back => '- << -', ro => $add_pk_auto ? [ 0 ] : undef }
+                { prompt => 'Col types:', auto_up => 2, confirm => '  Create-table',
+                  back => '  << ', ro => $add_pk_auto ? [ 0 ] : undef }
             );
             return if ! $col_name_and_type;
 

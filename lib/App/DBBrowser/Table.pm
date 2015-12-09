@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_06';
+our $VERSION = '1.016_07';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -733,7 +733,7 @@ sub __on_table {
                 }
             }
         }
-        elsif ( $custom eq $customize{'hidden'} ) {
+        elsif ( $custom eq $customize{'hidden'} ) { # prompt SQL-menu or build-stmt-menu
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert();
@@ -753,9 +753,9 @@ sub __on_table {
         elsif ( $custom eq $customize{'print_table'} ) {
             my $cols_sql = " ";
             if ( $sql->{select_type} eq '*' ) {
-                if ( $self->{info}{multi_tbl} eq 'join' ) {                            # ?
+                if ( $self->{info}{multi_tbl} eq 'join' ) {
                     $cols_sql .= join( ', ', map { $qt_columns->{$_} } @$pr_columns ); # ?
-                }                                                                      # ?
+                }
                 else {
                     $cols_sql .= "*";
                 }
@@ -826,13 +826,6 @@ sub __commit_sql {
     local $| = 1;
     print $self->{info}{clear_screen};
     print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
-    if ( $self->{info}{db_driver} eq 'SQLite' ) {
-        $dbh->disconnect();
-        my $db = $sql->{print}{db};
-        my $connect_parameter = $self->__prepare_connect_parameter( $db );
-        my $obj_db = App::DBBrowser::DB->new( $self->{info}, $self->{opt} );
-        $dbh = $obj_db->get_db_handle( $db, $connect_parameter );
-    }
     my $transaction;
     eval { $transaction = $dbh->begin_work } or do { $dbh->{AutoCommit} = 1; $transaction = 0 };
     my $rows_to_execute = [];

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_06';
+our $VERSION = '1.016_07';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -449,7 +449,7 @@ sub run {
                             schema => $schema,
                         }
                     };
-                    if ( $table eq $hidden ) {
+                    if ( $table eq $hidden ) { # prompt
                         my $old_idx_hdn = 0;
 
                         HIDDEN: while ( 1 ) {
@@ -626,7 +626,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.016_06
+Version 1.016_07
 
 =head1 DESCRIPTION
 

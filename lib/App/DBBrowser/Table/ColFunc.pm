@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_06';
+our $VERSION = '1.016_07';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( first_index );
@@ -75,7 +75,7 @@ sub __col_function {
             $sql = clone( $backup_sql );
             return;
         }
-        if ( $choices->[$idx] eq $hidden_2 ) {
+        if ( $choices->[$idx] eq $hidden_2 ) { # prompt scalar-func-menu
             my @sql_types;
             if ( ! $self->{info}{multi_tbl} ) {
                 @sql_types = ( 'Insert', 'Update', 'Delete' );

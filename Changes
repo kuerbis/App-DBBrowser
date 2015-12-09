@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.016_07   2015-12-09
+        - SQLite: reconnect to the DB only before dropping or creating a DB.
+
 1.016_06   2015-12-08
         - SQLite: reconnect to the DB before writing to the DB.
         - Code refactoring.
