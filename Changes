@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+1.017   2015-12-15
+        - Create table: options to set the default data type and the name of the id col.
+        - Stable release.
+        - Update documentation.
+
 1.016_07   2015-12-09
         - SQLite: reconnect to the DB only before dropping or creating a DB.
 

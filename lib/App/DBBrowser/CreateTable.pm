@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_07';
+our $VERSION = '1.017';
 
 use List::Util qw( none any );
 
@@ -69,7 +69,7 @@ sub __delete_table_confirm {
     print_table( $all_arrayref, { %{$self->{opt}{table}}, prompt => $prompt_pt } );
     my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
     my $lyt_1 = Term::Choose->new( $self->{info}{lyt_1} );
-    my $prompt = sprintf 'DROP TABLE \'%s\' (%d %s)?', $table, $table_rows, $table_rows == 1 ? 'row' : 'rows';
+    my $prompt = sprintf 'Drop table \'%s\' (%d %s)?', $table, $table_rows, $table_rows == 1 ? 'row' : 'rows';
     $auxil->__print_sql_statement( $sql, $sql_type );
     # Choose
     my $choice = $lyt_1->choose(
@@ -162,7 +162,7 @@ sub __create_new_table {
                 $old_idx = $idx;
             }
         }
-        if ( $choice eq $hidden ) { # prompt build-insert-stmt-menu
+        if ( $choice eq $hidden ) { # prompt "build-stmt-menu" (insert)
             my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
             $obj_opt->__config_insert();
             next MENU;
@@ -191,7 +191,7 @@ sub __create_new_table {
             my $c = 1;
             my $tmp_cols = [ map { [ $c++, defined $_ ? "$_" : '' ] } @{$sql->{print}{insert_cols}} ];
             my $add_pk_auto;
-            my $id_pk_name = "Id_a";
+            my $id_pk_name = $self->{opt}{insert}{id_col_name};
             my $pk_auto_stmt = $obj_db->primary_key_auto();
             my $prompt = 'Add auto increment primary key?';
             if ( $pk_auto_stmt ) {
@@ -211,7 +211,7 @@ sub __create_new_table {
             # Fill_form
             my $cols = $trs->fill_form(
                 $tmp_cols,
-                { prompt => 'Col names:',auto_up => 2, confirm => '  OK ', back => '  << ' }
+                { prompt => 'Col names:', auto_up => 2, confirm => '  CONFIRM', back => '  BACK   ' }
             );
             if ( ! $cols ) {
                 $sql->{print}{insert_cols} = [];
@@ -225,8 +225,8 @@ sub __create_new_table {
             die "Column with no name!" if any { ! length } map { $_->[1] } @$cols;
 
             # Datatypes
-            my $datatype = "TEXT";
-            my $choices = [ map { [ $dbh->quote_identifier( $_ ), $datatype ] } @{$sql->{print}{insert_cols}} ];
+            my $datatype = $self->{opt}{insert}{default_data_type};
+            my $choices = [ map { [ $_, $datatype ] } @{$sql->{print}{insert_cols}} ];
             if ( $add_pk_auto ) {
                 unshift @$choices, [ $id_pk_name, $pk_auto_stmt ];
             }
@@ -234,8 +234,8 @@ sub __create_new_table {
             # Fill_form
             my $col_name_and_type = $trs->fill_form(
                 $choices,
-                { prompt => 'Col types:', auto_up => 2, confirm => '  Create-table',
-                  back => '  << ', ro => $add_pk_auto ? [ 0 ] : undef }
+                { prompt => 'Data types:', auto_up => 2, confirm => '  CREATE-TABLE',
+                  back => '  BACK        ', ro => $add_pk_auto ? [ 0 ] : undef }
             );
             return if ! $col_name_and_type;
 
@@ -244,7 +244,8 @@ sub __create_new_table {
             if ( $overwrite_ok ) {
                 $dbh->do( "DROP TABLE $qt_table" ) or die "DROP TABLE $qt_table failed!";
             }
-            my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join ', ', map { join ' ', @$_ } @$col_name_and_type;
+            my @qt_col_name_and_type = map { [ $dbh->quote_identifier( $_->[0] ), $_->[1] ] } @$col_name_and_type;
+            my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join ', ', map { join ' ', @$_ } @qt_col_name_and_type;
             $dbh->do( $ct ) or die "$ct failed!";
 
             my $sth = $dbh->prepare( "SELECT * FROM $qt_table LIMIT 0" );

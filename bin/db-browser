@@ -4,9 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_07';
-
-BEGIN { $SIG{__WARN__} = sub { die @_ } }
+our $VERSION = '1.017';
 
 use Encode::Locale qw();
 
@@ -36,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.016_07
+Version 1.017
 
 =cut
 
@@ -485,6 +483,24 @@ Set the input field separator (regexp).
 =head4 File History
 
 Set how many input file names should be saved. A value of C<0> disables the file history.
+
+=head4 Create table
+
+=over
+
+=item
+
+Default ID col name
+
+If "Add auto increment primary key" is used, this sets the default name of the added column.
+
+=item
+
+Default data type
+
+The default data type of the columns.
+
+=back
 
 =head2 CONFIGURATION FILES
 

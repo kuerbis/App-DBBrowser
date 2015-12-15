@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_07';
+our $VERSION = '1.017';
 
 
 
@@ -16,7 +16,8 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.016_07
+Version 1.017
+
 
 =head1 DESCRIPTION
 
@@ -32,11 +33,13 @@ A suitable database plugin provides the methods named in this documentation.
 
 Column names passed as arguments to plugin methods are already quoted with the C<DBI> C<quote_identifier> method.
 
+
 =head1 PLUGIN API VERSION
 
 This documentation describes the plugin API version C<1.5>.
 
 Supported plugin API versions: C<1.4> and C<1.5>.
+
 
 =head1 METHODS
 

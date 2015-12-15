@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_07';
+our $VERSION = '1.017';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -74,6 +74,9 @@ sub defaults {
         # split:
             i_r_s                => '\n',
             i_f_s                => ',',
+        # create table defaults:
+            id_col_name          => 'ID_a',
+            default_data_type    => 'TEXT',
         }
     };
     return $defaults                   if ! $section;
@@ -86,12 +89,13 @@ sub __sub_menus_insert {
     my ( $self, $group ) = @_;
     my $sub_menus_insert = {
         main_insert => [
-            { name => 'input_modes',       text => "- Read",          section => 'insert' },
-            { name => 'parse_mode',        text => "- Parse-mode",    section => 'insert' },
-            { name => '_module_Text_CSV',  text => "- conf T::CSV",   section => 'insert' },
-            { name => '_parse_with_split', text => "- conf 'split'",  section => 'insert' },
-            { name => 'file_encoding',     text => "- File Encoding", section => 'insert' },
-            { name => 'max_files',         text => "- File History",  section => 'insert' },
+            { name => 'input_modes',           text => "- Read",          section => 'insert' },
+            { name => 'parse_mode',            text => "- Parse-mode",    section => 'insert' },
+            { name => '_module_Text_CSV',      text => "- conf T::CSV",   section => 'insert' },
+            { name => '_parse_with_split',     text => "- conf 'split'",  section => 'insert' },
+            { name => 'file_encoding',         text => "- File Encoding", section => 'insert' },
+            { name => 'max_files',             text => "- File History",  section => 'insert' },
+            { name => 'create_table_defaults', text => "- Create-table",  section => 'insert' },
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'insert' },
@@ -211,6 +215,14 @@ sub __config_insert {
                 my $digits = 3;
                 my $prompt = '"Max file history"';
                 $self->__opt_number_range( $opt_type, $section, $option, $prompt, $digits );
+            }
+            elsif ( $option eq 'create_table_defaults' ) {
+                my $items = [
+                    { name => 'id_col_name',       prompt => "Default ID col name  " },
+                    { name => 'default_data_type', prompt => "Default data type" },
+                ];
+                my $prompt = 'Create-table defaults';
+                $self->__group_readline( $opt_type, $section, $items, $prompt );
             }
             else { die "Unknown option: $option" }
         }

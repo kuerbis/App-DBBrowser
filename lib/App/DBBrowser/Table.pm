@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.016_07';
+our $VERSION = '1.017';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -733,7 +733,7 @@ sub __on_table {
                 }
             }
         }
-        elsif ( $custom eq $customize{'hidden'} ) { # prompt SQL-menu or build-stmt-menu
+        elsif ( $custom eq $customize{'hidden'} ) { # prompt in: main "SQL-menu" or (insert/update/delete)-"build-stmt-menu"
             if ( $sql_type eq 'Insert' ) {
                 my $obj_opt = App::DBBrowser::Opt->new( $self->{info}, $self->{opt}, {} );
                 $obj_opt->__config_insert();
