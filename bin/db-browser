@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.017';
+our $VERSION = '1.018';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.017
+Version 1.018
 
 =cut
 
@@ -374,6 +374,18 @@ Supported file formats: csv-files and the spreadsheet formats supported by L<Spr
 
 =back
 
+=head4 Default file directory
+
+Searching for input files: set the default directory.
+
+=head4 File History
+
+Set how many input file names should be saved. A value of C<0> disables the file history.
+
+=head4 File encoding
+
+How to decode csv files.
+
 =head4 Parse mode
 
 Set how to parse text files or the "multi row" input. Files where C<-T $filename> returns true are considered text
@@ -454,10 +466,6 @@ Auto-detects the separation character for csv-files
 
 =back
 
-=head4 File encoding
-
-How to decode csv files.
-
 =head4 Conf T::CSV
 
 Set different L<Text::CSV> options.
@@ -479,10 +487,6 @@ IFS
 Set the input field separator (regexp).
 
 =back
-
-=head4 File History
-
-Set how many input file names should be saved. A value of C<0> disables the file history.
 
 =head4 Create table
 

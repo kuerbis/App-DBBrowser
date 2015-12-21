@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.017';
+our $VERSION = '1.018';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -14,7 +14,7 @@ use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
 
 use Term::Choose           qw( choose );
-use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs );
+use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset choose_multi choose_dirs choose_a_dir );
 use Term::ReadLine::Simple qw();
 
 use App::DBBrowser::DB;
@@ -56,11 +56,14 @@ sub defaults {
             binary_filter        => 0,
         },
         insert => {
+        # Input
             input_modes          => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
-            parse_mode           => 0,
+            files_dir            => undef,
             file_encoding        => 'UTF-8',
             max_files            => 15,
-        # Text::CSV:
+        # Parsing
+            parse_mode           => 0,
+            # Text::CSV:
             sep_char             => ',',
             quote_char           => '"',
             escape_char          => '"',
@@ -71,7 +74,7 @@ sub defaults {
             blank_is_undef       => 1,
             binary               => 1,
             empty_is_undef       => 0,
-        # split:
+            # split:
             i_r_s                => '\n',
             i_f_s                => ',',
         # create table defaults:
@@ -90,11 +93,12 @@ sub __sub_menus_insert {
     my $sub_menus_insert = {
         main_insert => [
             { name => 'input_modes',           text => "- Read",          section => 'insert' },
+            { name => 'files_dir',             text => "- File Dir",      section => 'insert' },
+            { name => 'file_encoding',         text => "- File Encoding", section => 'insert' },
+            { name => 'max_files',             text => "- File History",  section => 'insert' },
             { name => 'parse_mode',            text => "- Parse-mode",    section => 'insert' },
             { name => '_module_Text_CSV',      text => "- conf T::CSV",   section => 'insert' },
             { name => '_parse_with_split',     text => "- conf 'split'",  section => 'insert' },
-            { name => 'file_encoding',         text => "- File Encoding", section => 'insert' },
-            { name => 'max_files',             text => "- File History",  section => 'insert' },
             { name => 'create_table_defaults', text => "- Create-table",  section => 'insert' },
         ],
         _module_Text_CSV => [
@@ -170,11 +174,8 @@ sub __config_insert {
                     my $prompt = 'Input Modes:';
                     $self->__opt_choose_a_list( $opt_type, $section, $option, $available, $prompt );
             }
-            elsif ( $option eq 'parse_mode' ) {
-                my $prompt = 'Parsing CSV files';
-                my $list = [ 'Text::CSV', 'split', 'Spreadsheet::Read' ];
-                my $sub_menu = [ [ $option, "  Use", $list ] ];
-                $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
+            elsif ( $option eq 'files_dir' ) {
+                $self->__opt_choose_a_dir( $opt_type, $section, $option );
             }
             elsif ( $option eq 'file_encoding' ) {
                 my $items = [
@@ -182,6 +183,13 @@ sub __config_insert {
                 ];
                 my $prompt = 'Encoding CSV files';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
+            }
+
+            elsif ( $option eq 'parse_mode' ) {
+                my $prompt = 'Parsing CSV files';
+                my $list = [ 'Text::CSV', 'split', 'Spreadsheet::Read' ];
+                my $sub_menu = [ [ $option, "  Use", $list ] ];
+                $self->__opt_choose_multi( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_csv_char' ) {
                 my $items = [
@@ -211,11 +219,7 @@ sub __config_insert {
                 my $prompt = 'Separators (regexp)';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
             }
-            elsif ( $option eq 'max_files' ) {
-                my $digits = 3;
-                my $prompt = '"Max file history"';
-                $self->__opt_number_range( $opt_type, $section, $option, $prompt, $digits );
-            }
+
             elsif ( $option eq 'create_table_defaults' ) {
                 my $items = [
                     { name => 'id_col_name',       prompt => "Default ID col name  " },
@@ -507,6 +511,18 @@ sub __group_readline {
         }
         $self->{info}{write_config}++;
     }
+}
+
+
+sub __opt_choose_a_dir {
+    my ( $self, $opt_type, $section, $option ) = @_;
+    my $current = $self->{$opt_type}{$section}{$option};
+    # Choose_a_dir
+    my $dir = choose_a_dir( { mouse => $self->{opt}{table}{mouse}, current => $current } );
+    return if ! length $dir;
+    $self->{$opt_type}{$section}{$option} = $dir;
+    $self->{info}{write_config}++;
+    return;
 }
 
 

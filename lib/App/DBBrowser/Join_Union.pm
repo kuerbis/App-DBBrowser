@@ -6,13 +6,13 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.017';
+our $VERSION = '1.018';
 
-use Clone                  qw( clone );
-use List::MoreUtils        qw( any );
-use Term::Choose           qw();
-use Term::Choose::Util     qw( term_size );
-use Text::LineFold         qw();
+use Clone              qw( clone );
+use List::MoreUtils    qw( any );
+use Term::Choose       qw();
+use Term::Choose::Util qw( term_size );
+use Text::LineFold     qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 

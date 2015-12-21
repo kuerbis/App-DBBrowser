@@ -6,11 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.017';
+our $VERSION = '1.018';
 
-use Clone                  qw( clone );
-use List::MoreUtils        qw( first_index );
-use Term::Choose           qw();
+use Clone           qw( clone );
+use List::MoreUtils qw( first_index );
+use Term::Choose    qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::DB;

@@ -6,12 +6,12 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.017';
+our $VERSION = '1.018';
 
-use Cwd              qw( realpath );
-use Encode           qw( encode decode );
-use File::Temp       qw( tempfile );
-use List::Util       qw( all );
+use Cwd        qw( realpath );
+use Encode     qw( encode decode );
+use File::Temp qw( tempfile );
+use List::Util qw( all );
 
 use List::MoreUtils        qw( first_index );
 use Encode::Locale         qw();
@@ -245,7 +245,7 @@ sub __get_insert_values {
                     if ( ! defined $file || $file eq $add_file ) {
                         $auxil->__print_sql_statement( $sql, $sql_type );
                         # Choose_a_file
-                        $file = choose_a_file();
+                        $file = choose_a_file( { dir => $self->{opt}{insert}{files_dir} } );
                         if ( ! defined $file || ! length $file ) {
                             if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
                                 $sql->{quote}{insert_cols} = [];
