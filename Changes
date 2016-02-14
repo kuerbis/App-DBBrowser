@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+1.018_01   2016-02-14
+        - Code refactoring.
+        - Requires "Term::Choose::LineFold".
+        - Update year copyright.
+
 1.018   2015-12-21
         - New option to set the default input-file-search-directory.
         - Update documentation.

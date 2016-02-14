@@ -5,16 +5,16 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.018';
+our $VERSION = '1.018_01';
 
 use Encode qw( encode );
 
-use Encode::Locale     qw();
-use JSON               qw( decode_json );
-use List::MoreUtils    qw( any );
-use Term::Choose       qw( choose );
-use Term::Choose::Util qw( term_size );
-use Text::LineFold     qw();
+use Encode::Locale         qw();
+use JSON                   qw( decode_json );
+use List::MoreUtils        qw( any );
+use Term::Choose           qw( choose );
+use Term::Choose::LineFold qw( line_fold );
+use Term::Choose::Util     qw( term_width );
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -91,9 +91,8 @@ sub __print_sql_statement {
         $str .= ' '      . $sql->{print}{limit_stmt}    . "\n" if $sql->{print}{limit_stmt};
     }
     $str .= "\n";
-    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
     print $self->{info}{clear_screen};
-    print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $str );
+    print line_fold( $str, term_width() - 2, '', ' ' x $self->{info}{stmt_init_tab} );
 }
 
 

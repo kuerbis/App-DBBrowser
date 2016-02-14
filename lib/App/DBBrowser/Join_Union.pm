@@ -6,13 +6,13 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.018';
+our $VERSION = '1.018_01';
 
-use Clone              qw( clone );
-use List::MoreUtils    qw( any );
-use Term::Choose       qw();
-use Term::Choose::Util qw( term_size );
-use Text::LineFold     qw();
+use Clone                  qw( clone );
+use List::MoreUtils        qw( any );
+use Term::Choose           qw();
+use Term::Choose::LineFold qw( line_fold );
+use Term::Choose::Util     qw( term_width );
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -230,9 +230,8 @@ sub __print_union_statement {
         }
     }
     $str .= "\n";
-    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
     print $self->{info}{clear_screen};
-    print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $str );
+    print line_fold( $str, term_width() - 2, '', ' ' x $self->{info}{stmt_init_tab} );
 }
 
 
@@ -274,13 +273,12 @@ sub __get_tables_info {
 
 sub __print_tables_info {
     my ( $self, $ref ) = @_;
-    my $col_max = ( term_size() )[0] - 1;
-    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => $col_max );
+    my $col_max = term_width() - 1;
     my $ch_info = [ 'Close with ENTER' ];
     for my $table ( @{$ref->{tables}} ) {
         push @{$ch_info}, " ";
         for my $line ( @{$ref->{tables_info}{$table}} ) {
-            my $text = $line_fold->fold( $line, 'PLAIN' );
+            my $text = line_fold( $line, $col_max, '', '' );
             push @{$ch_info}, split /\R+/, $text;
         }
     }
@@ -472,9 +470,8 @@ sub __print_join_statement {
     my ( $self, $join_stmt_pr ) = @_;
     $join_stmt_pr =~ s/(?=\sLEFT\sOUTER\sJOIN)/\n\ /g;
     $join_stmt_pr .= "\n\n";
-    my $line_fold = Text::LineFold->new( %{$self->{info}{line_fold}}, ColMax => ( term_size() )[0] - 2 );
     print $self->{info}{clear_screen};
-    print $line_fold->fold( '', ' ' x $self->{info}{stmt_init_tab}, $join_stmt_pr );
+    print line_fold( $join_stmt_pr, term_width() - 2, '', ' ' x $self->{info}{stmt_init_tab} );
 }
 
 
