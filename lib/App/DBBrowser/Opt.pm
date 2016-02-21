@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.018_01';
+our $VERSION = '1.050';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -14,7 +14,7 @@ use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
 
 use Term::Choose           qw( choose );
-use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset change_config choose_dirs choose_a_dir );
+use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_dirs choose_a_dir );
 use Term::ReadLine::Simple qw();
 
 use App::DBBrowser::DB;
@@ -189,7 +189,7 @@ sub __config_insert {
                 my $prompt = 'Parsing CSV files';
                 my $list = [ 'Text::CSV', 'split', 'Spreadsheet::Read' ];
                 my $sub_menu = [ [ $option, "  Use", $list ] ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_csv_char' ) {
                 my $items = [
@@ -209,7 +209,7 @@ sub __config_insert {
                     [ 'blank_is_undef',      "- blank_is_undef",      [ 'NO', 'YES' ] ],
                     [ 'empty_is_undef',      "- empty_is_undef",      [ 'NO', 'YES' ] ],
                 ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_parse_with_split' ) {
                 my $items = [
@@ -409,20 +409,20 @@ sub __set_options {
                 my $prompt = 'SQL statement: ';
                 my $list = [ 'Lk0', 'Lk1' ];
                 my $sub_menu = [ [ $option, "  Lock Mode", $list ] ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq 'metadata' ) {
                 my $prompt = 'DB/schemas/tables: ';
                 my $list = $no_yes;
                 my $sub_menu = [ [ $option, "  Add metadata", $list ] ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_parentheses' ) {
                 my $sub_menu = [
                     [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', 'YES' ] ],
                     [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', 'YES' ] ],
                 ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu );
             }
             elsif ( $option eq 'operators' ) {
                 my $available = $self->{info}{avail_operators};
@@ -433,7 +433,7 @@ sub __set_options {
                 my $prompt = 'Choose: ';
                 my $list = [ 0, 1, 2, 3, 4 ];
                 my $sub_menu = [ [ $option, "  Mouse mode", $list ] ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_menu_memory' ) {
                 my $prompt = 'Choose: ';
@@ -442,7 +442,7 @@ sub __set_options {
                     [ 'menu_sql_memory',     "- SQL    Menu",  [ 'Simple', 'Memory' ] ],
                     [ 'menus_db_memory',     "- DB     Menus", [ 'Simple', 'Memory' ] ],
                 ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             elsif ( $option eq '_table_expand' ) {
                 my $prompt = 'Choose: ';
@@ -450,7 +450,7 @@ sub __set_options {
                     [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
                     [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand fast back', 'Expand' ] ],
                 ];
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
             else { die "Unknown option: $option" }
         }
@@ -458,9 +458,9 @@ sub __set_options {
 }
 
 
-sub __opt_change_config {
+sub __opt_settings_menu {
     my ( $self, $opt_type, $section, $sub_menu, $prompt ) = @_;
-    my $changed = change_config( $sub_menu, $self->{$opt_type}{$section}, { prompt => $prompt } );
+    my $changed = settings_menu( $sub_menu, $self->{$opt_type}{$section}, { prompt => $prompt } );
     return if ! $changed;
     $self->{info}{write_config}++;
 }
@@ -679,7 +679,7 @@ sub __database_setting {
                     }
                 }
                 my $prompt = 'Required fields (' . $db_plugin . '):';
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
                 next GROUP;
             }
             elsif ( $group eq 'env_variables' ) {
@@ -697,7 +697,7 @@ sub __database_setting {
                     }
                 }
                 my $prompt = 'Use ENV variables (' . $db_plugin . '):';
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
                 next GROUP;
             }
             elsif ( $group eq 'read_argument' ) {
@@ -728,7 +728,7 @@ sub __database_setting {
                     }
                 }
                 my $prompt = 'Options (' . $db_plugin . '):';
-                $self->__opt_change_config( $opt_type, $section, $sub_menu, $prompt );
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
                 next GROUP;
             }
             elsif ( $group eq 'sqlite_dir' ) {

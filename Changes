@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+1.050   2016-02-21
+        - Bugfix: minimum plugin API version is "1.5".
+        - PREREQ_PM: raised required version of different modules.
+
 1.018_01   2016-02-14
         - Code refactoring.
         - Requires "Term::Choose::LineFold".

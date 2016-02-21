@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.018_01';
+our $VERSION = '1.050';
 
 
 
@@ -16,7 +16,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.018_01
+Version 1.050
 
 
 =head1 DESCRIPTION
@@ -38,7 +38,7 @@ Column names passed as arguments to plugin methods are already quoted with the C
 
 This documentation describes the plugin API version C<1.5>.
 
-Supported plugin API versions: C<1.4> and C<1.5>.
+Supported plugin API version: C<1.5>.
 
 
 =head1 METHODS
@@ -86,7 +86,7 @@ sub new {
         add_metadata        => $opt->{G}{metadata},
     } );
 
-    my $minimum_pav = 1.4;
+    my $minimum_pav = 1.5;
 
     my $pav;
     $pav = $plugin->plugin_api_version() if $plugin->can( 'plugin_api_version' );
