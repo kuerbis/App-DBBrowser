@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.051   2016-05-13
+        - Fixed option "File History".
+
 1.050   2016-02-21
         - Bugfix: minimum plugin API version is "1.5".
         - PREREQ_PM: raised required version of different modules.

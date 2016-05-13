@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.050';
+our $VERSION = '1.051';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -184,7 +184,11 @@ sub __config_insert {
                 my $prompt = 'Encoding CSV files';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
             }
-
+            elsif ( $option eq 'max_files' ) {
+                my $digits = 3;
+                my $prompt = '"Max file history"';
+                $self->__opt_number_range( $opt_type, $section, $option, $prompt, $digits );
+            }
             elsif ( $option eq 'parse_mode' ) {
                 my $prompt = 'Parsing CSV files';
                 my $list = [ 'Text::CSV', 'split', 'Spreadsheet::Read' ];
@@ -219,11 +223,10 @@ sub __config_insert {
                 my $prompt = 'Separators (regexp)';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
             }
-
             elsif ( $option eq 'create_table_defaults' ) {
                 my $items = [
-                    { name => 'id_col_name',       prompt => "Default ID col name  " },
-                    { name => 'default_data_type', prompt => "Default data type" },
+                    { name => 'id_col_name',       prompt => "Default ID col name" },
+                    { name => 'default_data_type', prompt => "Default data type  " },
                 ];
                 my $prompt = 'Create-table defaults';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
@@ -393,7 +396,6 @@ sub __set_options {
                 ];
                 my $prompt = 'Print replacement for undefined table values.';
                 $self->__group_readline( $opt_type, $section, $items, $prompt );
-
             }
             elsif ( $option eq 'progress_bar' ) {
                 my $digits = 7;

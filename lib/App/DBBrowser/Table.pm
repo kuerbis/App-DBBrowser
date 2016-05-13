@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.050';
+our $VERSION = '1.051';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -1041,7 +1041,7 @@ sub __set_operator_sql {
                 $sql->{quote}{$args} = [];
                 $sql->{quote}{$stmt} = '';
                 $sql->{print}{$stmt} = '';
-                return
+                return;
             }
         }
         else {
