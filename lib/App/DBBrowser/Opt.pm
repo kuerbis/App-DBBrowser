@@ -6,16 +6,16 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.051';
+our $VERSION = '1.052';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
 
-use Term::Choose           qw( choose );
-use Term::Choose::Util     qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_dirs choose_a_dir );
-use Term::ReadLine::Simple qw();
+use Term::Choose       qw( choose );
+use Term::Choose::Util qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_dirs choose_a_dir );
+use Term::Form         qw();
 
 use App::DBBrowser::DB;
 use App::DBBrowser::Auxil;
@@ -502,7 +502,7 @@ sub __group_readline {
             $self->{$opt_type}{$section}{$_->{name}}
         ]
     } @{$items} ];
-    my $trs = Term::ReadLine::Simple->new();
+    my $trs = Term::Form->new();
     my $new_list = $trs->fill_form(
         $list,
         { prompt => $prompt, auto_up => 2, confirm => $self->{info}{_confirm}, back => $self->{info}{_back} }

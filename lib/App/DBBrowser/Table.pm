@@ -6,13 +6,13 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.051';
+our $VERSION = '1.052';
 
-use Clone                  qw( clone );
-use List::MoreUtils        qw( any );
-use Term::Choose           qw();
-use Term::Choose::Util     qw( choose_a_number insert_sep );
-use Term::ReadLine::Simple qw();
+use Clone              qw( clone );
+use List::MoreUtils    qw( any );
+use Term::Choose       qw();
+use Term::Choose::Util qw( choose_a_number insert_sep );
+use Term::Form         qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
@@ -286,7 +286,7 @@ sub __on_table {
         }
         elsif ( $custom eq $customize{'set'} ) {
             my @cols = ( @$pr_columns );
-            my $trs = Term::ReadLine::Simple->new();
+            my $trs = Term::Form->new();
             my $col_sep = ' ';
             $sql->{quote}{set_args} = [];
             $sql->{quote}{set_stmt} = " SET";
@@ -953,7 +953,7 @@ sub __set_operator_sql {
             $sql->{quote}{$stmt} .= ' ' . $operator;
             $sql->{print}{$stmt} .= ' ' . $operator;
         }
-        my $trs = Term::ReadLine::Simple->new();
+        my $trs = Term::Form->new();
         if ( $operator =~ /NULL\z/ ) {
             # do nothing
         }

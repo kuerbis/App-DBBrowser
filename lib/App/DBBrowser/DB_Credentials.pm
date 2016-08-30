@@ -6,9 +6,9 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.051';
+our $VERSION = '1.052';
 
-use Term::ReadLine::Simple qw();
+use Term::Form qw();
 
 
 
@@ -40,7 +40,7 @@ sub get_login {
         return $saved_value;
     }
     else {
-        my $trs = Term::ReadLine::Simple->new();
+        my $trs = Term::Form->new();
         # Readline
         my $new = $trs->readline( $prompt, { no_echo => $keep_secret } );
         return $new;

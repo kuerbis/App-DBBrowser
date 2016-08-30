@@ -6,20 +6,20 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.051';
+our $VERSION = '1.052';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
 use File::Temp qw( tempfile );
 use List::Util qw( all );
 
-use List::MoreUtils        qw( first_index );
-use Encode::Locale         qw();
-#use Spreadsheet::Read      qw( ReadData rows ); # "require"d
-use Term::Choose           qw();
-use Term::Choose::Util     qw( choose_a_number choose_a_file );
-use Term::ReadLine::Simple qw();
-use Text::CSV              qw();
+use List::MoreUtils    qw( first_index );
+use Encode::Locale     qw();
+#use Spreadsheet::Read  qw( ReadData rows ); # "require"d
+use Term::Choose       qw();
+use Term::Choose::Util qw( choose_a_number choose_a_file );
+use Term::Form         qw();
+use Text::CSV          qw();
 
 use App::DBBrowser::Auxil;
 
@@ -91,7 +91,7 @@ sub __get_insert_values {
     my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     $sql->{quote}{insert_into_args} = [];
-    my $trs = Term::ReadLine::Simple->new();
+    my $trs = Term::Form->new();
 
     VALUES: while ( 1 ) {
         my $input_mode;

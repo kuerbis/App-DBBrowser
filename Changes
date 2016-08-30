@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+1.052   2016-08-30
+        - Use "Term::Form" instead of "Term::ReadLine::Simple".
+
 1.051   2016-05-13
         - Fixed option "File History".
 

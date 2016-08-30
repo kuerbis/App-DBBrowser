@@ -6,11 +6,12 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.051';
+our $VERSION = '1.052';
 
 use List::Util qw( none any );
 
 use Term::Choose     qw();
+use Term::Form       qw();
 use Term::TablePrint qw( print_table );
 
 use App::DBBrowser::DB;
@@ -102,7 +103,7 @@ sub __create_new_table {
     my $c = 0;
 
     TABLENAME: while ( 1 ) {
-        my $trs = Term::ReadLine::Simple->new( 'tn' );
+        my $trs = Term::Form->new( 'tn' );
         $auxil->__print_sql_statement( $sql, $sql_type );
         # Readline
         $table = $trs->readline( 'Table name: ' );
@@ -206,7 +207,7 @@ sub __create_new_table {
                     $sql->{print}{id_pk_auto} = $id_pk_name;
                 }
             }
-            my $trs = Term::ReadLine::Simple->new( 'cols' );
+            my $trs = Term::Form->new( 'cols' );
             $auxil->__print_sql_statement( $sql, $sql_type );
             # Fill_form
             my $cols = $trs->fill_form(
