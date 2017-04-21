@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+1.053   2017-04-21
+        - New option "grid".
+        - Minimum version "Term::TablePrint" is "0.053".
+        - Update documentation.
+        - Update year copyright.
+
 1.052   2016-08-30
         - Use "Term::Form" instead of "Term::ReadLine::Simple".
 

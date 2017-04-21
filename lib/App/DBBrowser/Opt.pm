@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.052';
+our $VERSION = '1.053';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -51,6 +51,7 @@ sub defaults {
             progress_bar         => 40_000,
             min_col_width        => 30,
             tab_width            => 2,
+            grid                 => 0,
             undef                => '',
             binary_string        => 'BNRY',
             binary_filter        => 0,
@@ -255,7 +256,7 @@ sub __menus {
         ],
         config_menu => [
             { name => '_menu_memory',  text => "- Menu Memory", section => 'G' },
-            { name => '_table_expand', text => "- Table",       section => 'table' },
+            { name => '_table_expand', text => "- Table",       section => 'table' }, # pod
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
@@ -270,6 +271,8 @@ sub __menus {
             { name => 'min_col_width', text => "- Colwidth",    section => 'table' },
             { name => 'progress_bar',  text => "- ProgressBar", section => 'table' },
             { name => 'tab_width',     text => "- Tabwidth",    section => 'table' },
+            { name => 'grid',          text => "- Grid",        section => 'table' }, # pod
+            { name => 'keep_header',   text => "- Keep Header", section => 'table' }, # pod
             { name => 'undef',         text => "- Undef",       section => 'table' },
         ],
     };
@@ -385,6 +388,20 @@ sub __set_options {
                 my $prompt = '"Tab width"';
                 $self->__opt_number_range( $opt_type, $section, $option, $prompt, $digits );
             }
+###
+            elsif ( $option eq 'grid' ) {
+                my $prompt = '"Grid"';
+                my $list = [ 'NO', 'YES' ];
+                my $sub_menu = [ [ $option, "  Grid", $list ] ];
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
+            }
+            elsif ( $option eq 'keep_header' ) {
+                my $prompt = '"Header each Page"';
+                my $list = [ 'NO', 'YES' ];
+                my $sub_menu = [ [ $option, "  Keep Header", $list ] ];
+                $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
+            }
+###
             elsif ( $option eq 'min_col_width' ) {
                 my $digits = 3;
                 my $prompt = '"Min column width"';
@@ -449,8 +466,7 @@ sub __set_options {
             elsif ( $option eq '_table_expand' ) {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
-                    [ 'keep_header',  "- Table Header", [ 'Simple', 'Each page' ] ],
-                    [ 'table_expand', "- Table Rows",   [ 'Simple', 'Expand fast back', 'Expand' ] ],
+                    [ 'table_expand', "- Expand Rows",   [ 'NO', 'YES - fast back', 'YES' ] ],
                 ];
                 $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
