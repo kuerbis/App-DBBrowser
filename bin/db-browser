@@ -267,10 +267,13 @@ entering in a sub menu.
 
 =head4 Table
 
-- setting I<Print Table> to "Expand" means: if C<Return> is pressed, the selected table row is printed with each column
-in its own line. "Expand fast back" does not expand the first row if the cursor auto-jumped to the first row.
+Expand Rows:
 
-- setting I<Table Header> to "Each page" means: print the table header on top of each page.
+- "YES": if C<Return> is pressed, the selected table row is printed with each column in its own line.
+
+- "NO": don't expand table rows.
+
+- "YES - fast back": do not expand the first row if the cursor auto-jumped to the first row.
 
 =head4 Mouse Mode
 

@@ -256,7 +256,7 @@ sub __menus {
         ],
         config_menu => [
             { name => '_menu_memory',  text => "- Menu Memory", section => 'G' },
-            { name => '_table_expand', text => "- Table",       section => 'table' }, # pod
+            { name => '_table_expand', text => "- Table",       section => 'table' },
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
@@ -271,8 +271,8 @@ sub __menus {
             { name => 'min_col_width', text => "- Colwidth",    section => 'table' },
             { name => 'progress_bar',  text => "- ProgressBar", section => 'table' },
             { name => 'tab_width',     text => "- Tabwidth",    section => 'table' },
-            { name => 'grid',          text => "- Grid",        section => 'table' }, # pod
-            { name => 'keep_header',   text => "- Keep Header", section => 'table' }, # pod
+            { name => 'grid',          text => "- Grid",        section => 'table' },
+            { name => 'keep_header',   text => "- Keep Header", section => 'table' },
             { name => 'undef',         text => "- Undef",       section => 'table' },
         ],
     };
@@ -388,7 +388,6 @@ sub __set_options {
                 my $prompt = '"Tab width"';
                 $self->__opt_number_range( $opt_type, $section, $option, $prompt, $digits );
             }
-###
             elsif ( $option eq 'grid' ) {
                 my $prompt = '"Grid"';
                 my $list = [ 'NO', 'YES' ];
@@ -401,7 +400,6 @@ sub __set_options {
                 my $sub_menu = [ [ $option, "  Keep Header", $list ] ];
                 $self->__opt_settings_menu( $opt_type, $section, $sub_menu, $prompt );
             }
-###
             elsif ( $option eq 'min_col_width' ) {
                 my $digits = 3;
                 my $prompt = '"Min column width"';
