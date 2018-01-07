@@ -320,7 +320,8 @@ Example form the plugin C<App::DBBrowser::DB::SQLite>:
         ];
     }
 
-See the C<db-browser> option I<DB Options>.
+C<choose_arguments> determines the database handle attributes with predefined values offered in the C<db-browser> option
+I<DB Options>.
 
 =cut
 
