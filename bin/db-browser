@@ -532,7 +532,7 @@ Sub-members (keys):
         directories_sqlite¹                         mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
                                                     binary_filter      (0,1)          binary_filter   (0,1)
 
-¹ directories passed with this array-reference
+¹ directories passed as an array-reference
 
 =head1 REQUIREMENTS
 
