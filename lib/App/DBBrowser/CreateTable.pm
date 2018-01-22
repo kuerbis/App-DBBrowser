@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.056';
+our $VERSION = '1.057';
 
 use List::Util qw( none any );
 
@@ -59,7 +59,7 @@ sub __delete_table {
 sub __delete_table_confirm {
     my ( $self, $sql, $dbh, $table, $qt_table, $sql_type ) = @_;
     my $stmt = "SELECT * FROM " . $qt_table;
-    $stmt .= " LIMIT " . $self->{opt}{table}{max_rows};
+    $stmt .= " LIMIT " . $self->{opt}{G}{max_rows};
     my $sth = $dbh->prepare( $stmt );
     $sth->execute();
     my $col_names = $sth->{NAME};

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.056';
+our $VERSION = '1.057';
 
 use Clone              qw( clone );
 use List::MoreUtils    qw( any );
@@ -776,17 +776,14 @@ sub __on_table {
             $select .= $sql->{quote}{having_stmt};
             $select .= $sql->{quote}{order_by_stmt};
             $select .= $sql->{quote}{limit_stmt};
-            my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}} );
-            if ( $self->{opt}{table}{max_rows} ) {
-                if ( ! $sql->{quote}{limit_stmt} ) {
-                    # don't fetch any more rows than "print_table" would use (to save time/memory)
-                    $select .= sprintf " LIMIT %d", $self->{opt}{table}{max_rows};
-                }
-                else {
-                    # LIMIT overwrites "max_rows"
-                    $self->{info}{backup_max_rows} = delete $self->{opt}{table}{max_rows};
-                }
+            if ( $self->{opt}{G}{max_rows} && ! $sql->{quote}{limit_stmt} ) {
+                $select .= sprintf " LIMIT %d", $self->{opt}{G}{max_rows};
+                $self->{opt}{table}{max_rows} = $self->{opt}{G}{max_rows};
             }
+            else {
+                $self->{opt}{table}{max_rows} = 0;
+            }
+            my @arguments = ( @{$sql->{quote}{where_args}}, @{$sql->{quote}{having_args}} );
             local $| = 1;
             print $self->{info}{clear_screen};
             print 'Database : ...' . "\n" if $self->{opt}{table}{progress_bar};
