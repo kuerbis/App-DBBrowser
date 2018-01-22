@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.057';
+our $VERSION = '1.058';
 
 use Clone              qw( clone );
 use List::MoreUtils    qw( any );
@@ -36,7 +36,7 @@ sub __on_table {
     my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
     my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
     my $sub_stmts = {
-        Select => [ qw( print_table columns aggregate distinct where group_by having order_by limit lock ) ],
+        Select => [ qw( print_tbl columns aggregate distinct where group_by having order_by limit lock ) ],
         Delete => [ qw( commit     where ) ],
         Update => [ qw( commit set where ) ],
         Insert => [ qw( commit insert    ) ],
@@ -44,7 +44,7 @@ sub __on_table {
     my $lk = [ '  Lk0', '  Lk1' ];
     my %customize = (
         hidden          => 'Customize:',
-        print_table     => 'Print TABLE',
+        print_tbl       => 'Print TABLE',
         commit          => '  Confirm Stmt',
         columns         => '- SELECT',
         set             => '- SET',
@@ -750,7 +750,7 @@ sub __on_table {
                 ( $qt_columns, $pr_columns ) = @ret;
             }
         }
-        elsif ( $custom eq $customize{'print_table'} ) {
+        elsif ( $custom eq $customize{'print_tbl'} ) {
             my $cols_sql = " ";
             if ( $sql->{select_type} eq '*' ) {
                 if ( $self->{info}{multi_tbl} eq 'join' ) {
