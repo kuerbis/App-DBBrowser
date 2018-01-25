@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.058';
+our $VERSION = '1.059';
 
 use File::Basename        qw( basename fileparse );
 use File::Spec::Functions qw( catfile );
@@ -111,7 +111,7 @@ sub __menu_insert {
 }
 
 
-sub __set_insert {
+sub __config_insert {
     my ( $self ) = @_;
     my $old_idx = 0;
     my $backup_old_idx = 0;
@@ -328,7 +328,7 @@ sub __set_options {
             my $option = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
             if ( $option eq 'config_insert' ) {
                 $backup_old_idx = $old_idx;
-                $self->__set_insert();
+                $self->__config_insert();
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;
