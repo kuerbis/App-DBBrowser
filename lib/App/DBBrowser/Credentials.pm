@@ -1,12 +1,12 @@
 package # hide from PAUSE
-App::DBBrowser::DB_Credentials;
+App::DBBrowser::Credentials;
 
 use warnings;
 use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.059';
+our $VERSION = '1.060_01';
 
 use Term::Form qw();
 
@@ -19,15 +19,15 @@ sub new {
 
 
 sub get_login {
-    my ( $self, $key ) = @_;
-    my $keep_secret = $self->{connect_parameter}{keep_secret}{$key};
-    my $saved_value = $self->{connect_parameter}{read_arg}{$key};
-    if ( ! $self->{connect_parameter}{required}{$key} ) {
+    my ( $sf, $key ) = @_;
+    my $keep_secret = $sf->{connect_parameter}{keep_secret}{$key};
+    my $saved_value = $sf->{connect_parameter}{read_arg}{$key};
+    if ( ! $sf->{connect_parameter}{required}{$key} ) {
         return;
     }
     my $prompt = ucfirst( $key ) . ': ';
     my $env_var = 'DBI_' . uc $key;
-    if ( $self->{connect_parameter}{use_env_var}{$env_var} && exists $ENV{$env_var} ) {
+    if ( $sf->{connect_parameter}{use_env_var}{$env_var} && exists $ENV{$env_var} ) {
         if ( ! $keep_secret ) {
             print $prompt . $ENV{$env_var}, "\n";
         }

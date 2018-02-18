@@ -6,55 +6,53 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.059';
+our $VERSION = '1.060_01';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
 use File::Temp qw( tempfile );
 use List::Util qw( all );
 
-use List::MoreUtils    qw( first_index );
+use List::MoreUtils    qw( first_index any );
 use Encode::Locale     qw();
 #use Spreadsheet::Read  qw( ReadData rows ); # "require"d
 use Term::Choose       qw();
-use Term::Choose::Util qw( choose_a_number choose_a_file );
+use Term::Choose::Util qw( choose_a_file choose_a_subset ); #
 use Term::Form         qw();
 use Text::CSV          qw();
 
 use App::DBBrowser::Auxil;
+use App::DBBrowser::Table;
+use App::DBBrowser::Opt;
 
 
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    bless { info => $info, opt => $opt }, $class;
+    bless { i => $info, o => $opt }, $class;
 }
 
 
-sub __get_insert_columns {
-    my ( $self, $sql, $sql_type ) = @_;
-    my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
-    my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
-    my $pr_columns = $sql->{print}{columns};
-    my $qt_columns = $sql->{quote}{columns};
-    $sql->{quote}{insert_cols} = [];
-    $sql->{print}{insert_cols} = [];
-    my @cols = ( @$pr_columns );
+sub __insert_into_cols {
+    my ( $sf, $sql, $sql_typeS ) = @_;
+    my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
+    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    $sql->{insert_into_cols} = [];
+    my @cols = ( @{$sql->{cols}} ); #
 
     COL_NAMES: while ( 1 ) {
-        my @pre = ( $self->{info}{ok} );
+        my @pre = ( undef, $sf->{i}{ok} );
         my $choices = [ @pre, @cols ];
-        $auxil->__print_sql_statement( $sql, $sql_type );
+        $ax->print_sql( $sql, $sql_typeS );
         # Choose
         my @idx = $stmt_h->choose(
             $choices,
             { prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
         );
         if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
-            return if ! @{$sql->{quote}{insert_cols}};
-            $sql->{quote}{insert_cols} = [];
-            $sql->{print}{insert_cols} = [];
-            @cols = ( @$pr_columns );
+            return if ! @{$sql->{insert_into_cols}};
+            $sql->{insert_into_cols} = [];
+            @cols = ( @{$sql->{cols}} );
             next COL_NAMES;
         }
         my $c = 0;
@@ -64,381 +62,491 @@ sub __get_insert_columns {
             splice( @cols, $ni, 1 );
             ++$c;
         }
-        my @print_col = map { $choices->[$_] } @idx;
-        if ( $print_col[0] eq $self->{info}{ok} ) {
-            shift @print_col;
-            for my $print_col ( @print_col ) {
-                push @{$sql->{quote}{insert_cols}}, $qt_columns->{$print_col};
-                push @{$sql->{print}{insert_cols}}, $print_col;
+        my @qt_cols = map { $choices->[$_] } @idx; ##
+        if ( $qt_cols[0] eq $sf->{i}{ok} ) {
+            shift @qt_cols;
+            for my $quote_col ( @qt_cols ) {
+                push @{$sql->{insert_into_cols}}, $quote_col;
             }
-            if ( ! @{$sql->{quote}{insert_cols}} ) {
-                @{$sql->{quote}{insert_cols}} = @{$qt_columns}{@$pr_columns};
-                @{$sql->{print}{insert_cols}} = @$pr_columns;
+            if ( ! @{$sql->{insert_into_cols}} ) {
+                @{$sql->{insert_into_cols}} = @{$sql->{cols}};
             }
             last COL_NAMES;
         }
-        for my $print_col ( @print_col ) {
-            push @{$sql->{quote}{insert_cols}}, $qt_columns->{$print_col};
-            push @{$sql->{print}{insert_cols}}, $print_col;
+        for my $quote_col ( @qt_cols ) {
+            push @{$sql->{insert_into_cols}}, $quote_col;
         }
     }
     return 1;
 }
 
 
-sub __get_insert_values {
-    my ( $self, $sql, $sql_type ) = @_;
-    my $auxil  = App::DBBrowser::Auxil->new( $self->{info} );
-    my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
-    $sql->{quote}{insert_into_args} = [];
+
+
+sub build_insert_stmt {
+    my ( $sf, $sql, $sql_typeS, $dbh ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
+    my $lyt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
+    $ax->reset_sql( $sql ); ##
+    my @cu_keys = ( qw/insert_col insert_copy insert_file settings/ );
+    my %cu = (
+        insert_col  => '- plain',
+        insert_copy => '- copy',
+        insert_file => '- file',
+        settings    => '  Settings'
+    );
+    my $old_idx = 0;
+
+    MENU: while ( 1 ) {
+        my $choices = [ undef, @cu{@cu_keys} ];
+        # Choose
+        my $idx = $lyt_h->choose(
+            $choices,
+            { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $old_idx,
+            undef => $sf->{i}{back}, prompt => 'Choose:', clear_screen => 1 }
+        );
+        if ( ! defined $idx || ! defined $choices->[$idx] ) {
+            return; # reset
+        }
+        my $custom = $choices->[$idx];
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx ) {
+                $old_idx = 0;
+                next MENU;
+            }
+            else {
+                $old_idx = $idx;
+            }
+        }
+        if ( $custom eq $cu{settings} ) {
+            my $obj_opt = App::DBBrowser::Opt->new( $sf->{i}, $sf->{o} );
+            $obj_opt->config_insert; #
+            #$sql = clone( $backup_sql );
+            next MENU;
+        }
+        my $cols_ok = $sf->__insert_into_cols( $sql, $sql_typeS );
+        if ( ! $cols_ok ) {
+            next MENU;
+        }
+        my $insert_ok;
+        if ( $custom eq $cu{insert_col} ) {
+            $insert_ok = $sf->__from_col_by_col( $sql, $sql_typeS );
+        }
+        elsif ( $custom eq $cu{insert_copy} ) {
+            $insert_ok = $sf->from_copy_and_paste( $sql, $sql_typeS );
+        }
+        elsif ( $custom eq $cu{insert_file} ) {
+            $insert_ok = $sf->from_file( $sql, $sql_typeS );
+        }
+        if ( ! $insert_ok ) {
+            next MENU;
+        }
+        return 1
+    }
+}
+
+
+
+sub __from_col_by_col {
+    my ( $sf, $sql, $sql_typeS ) = @_;
+    my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
+    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    $sql->{insert_into_args} = [];
     my $trs = Term::Form->new();
 
-    VALUES: while ( 1 ) {
-        my $input_mode;
-        if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-            $input_mode = $self->{opt}{insert}{input_modes}[0];
+    ROWS: while ( 1 ) {
+        my $row_idx = @{$sql->{insert_into_args}};
+
+        COLS: for my $col_name ( @{$sql->{insert_into_cols}} ) {
+            $ax->print_sql( $sql, $sql_typeS );
+            # Readline
+            my $col = $trs->readline( $col_name . ': ' );
+            push @{$sql->{insert_into_args}->[$row_idx]}, $col; # show $col immediately in "print_sql_statement"
         }
-        else {
-            my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
-            $auxil->__print_sql_statement( $sql, $sql_type );
+        my $default = ( all { ! length } @{$sql->{insert_into_args}[-1]} ) ? 2 : 1;
+
+        ASK: while ( 1 ) {
+            my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
+            my $choices = [ $last, $add, $del ];
+            $ax->print_sql( $sql, $sql_typeS );
             # Choose
-            $input_mode = $stmt_v->choose(
-                [ undef, map( "- $_", @{$self->{opt}{insert}{input_modes}} ) ],
-                { prompt => 'Input mode: ', justify => 0 }
+            my $add_row = $stmt_h->choose(
+                $choices,
+                { prompt => '', default => $default }
             );
-            if ( ! defined $input_mode ) {
-                $sql->{quote}{insert_cols} = [];
-                $sql->{print}{insert_cols} = [];
+            if ( ! defined $add_row ) {
+                $sql->{insert_into_args} = [];
                 return;
             }
-            $input_mode =~ s/^-\ //;
-        }
-        if ( $input_mode =~ /^(?:Cols|Rows)\z/ ) {
-            my @cols;
-            if ( $input_mode eq 'Cols' ) {
-                if ( $sql_type eq 'Create_table' ) {
-                    $auxil->__print_sql_statement( $sql, $sql_type );
-                    # Readline
-                    my $nr_of_cols = choose_a_number( 3, { name => 'Number of columns:', current => 0 } );
-                    next VALUES if ! $nr_of_cols;
-                    @cols = map { 'Col_' . $_ } 1 .. $nr_of_cols;
+            elsif ( $add_row eq $last ) {
+                if ( ! @{$sql->{insert_into_args}} ) {
+                    $sql->{insert_into_cols} = [];
+                    return; ##
                 }
-                else {
-                    @cols = @{$sql->{print}{insert_cols}};
-                }
+                return 1;
             }
-
-            ROWS: while ( 1 ) {
-                if ( $input_mode eq 'Cols' ) {
-                    my $input_row_idx = @{$sql->{quote}{insert_into_args}};
-                    COLS: for my $col_name ( @cols ) {
-                        $auxil->__print_sql_statement( $sql, $sql_type );
-                        # Readline
-                        my $col = $trs->readline( $col_name . ': ' );
-                        push @{$sql->{quote}{insert_into_args}->[$input_row_idx]}, $col; # show $col immediately in "print_sql_statement"
-                    }
-                }
-                elsif ( $input_mode eq 'Rows' ) {
-                    my $csv = Text::CSV->new( { map { $_ => $self->{opt}{insert}{$_} } @{$self->{info}{csv_opt}} } );
-                    $auxil->__print_sql_statement( $sql, $sql_type );
-                    # Readline
-                    my $row = $trs->readline( 'Row: ' );
-                    if ( ! defined $row ) {
-                        next VALUES if ! @{$sql->{quote}{insert_into_args}};
-                        $#{$sql->{quote}{insert_into_args}}--;
-                        next ROWS;
-                    }
-                    my $status = $csv->parse( $row );
-                    push @{$sql->{quote}{insert_into_args}}, [ $csv->fields() ];
-                }
-                my $default = ( all { ! length } @{$sql->{quote}{insert_into_args}[-1]} ) ? 2 : 1;
-
-                ASK: while ( 1 ) {
-                    my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
-                    my $choices = [ $last, $add, $del ];
-                    $auxil->__print_sql_statement( $sql, $sql_type );
-                    # Choose
-                    my $add_row = $stmt_h->choose(
-                        $choices,
-                        { prompt => '', default => $default }
-                    );
-                    if ( ! defined $add_row ) {
-                        $sql->{quote}{insert_into_args} = [];
-                        next VALUES;
-                    }
-                    elsif ( $add_row eq $last ) {
-                        if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                            $sql->{quote}{insert_cols} = [];
-                            $sql->{print}{insert_cols} = [];
-                        }
-                        last VALUES;
-                    }
-                    elsif ( $add_row eq $del ) {
-                        next VALUES if ! @{$sql->{quote}{insert_into_args}};
-                        $default = 0;
-                        $#{$sql->{quote}{insert_into_args}}--;
-                        next ASK;
-                    }
-                    last ASK;
-                }
+            elsif ( $add_row eq $del ) {
+                return if ! @{$sql->{insert_into_args}};
+                $default = 0;
+                $#{$sql->{insert_into_args}}--;
+                next ASK;
             }
-        }
-        else {
-            if ( $input_mode eq 'Multi-row' ) {
-                my ( $fh, $file ) = tempfile( DIR => $self->{info}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
-                binmode $fh, ':encoding(' . $self->{opt}{insert}{file_encoding} . ')' or die $!;
-                $auxil->__print_sql_statement( $sql, $sql_type );
-                # STDIN
-                print 'Multi row: ' . "\n";
-                while ( my $row = <STDIN> ) {
-                    print $fh $row;
-                }
-                seek $fh, 0, 0;
-                $self->__get_insert_into_args( $sql, $sql_type, $fh );
-                if ( ! @{$sql->{quote}{insert_into_args}} ) {
-                    if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                        $sql->{quote}{insert_cols} = [];
-                        $sql->{print}{insert_cols} = [];
-                        return;
-                    }
-                    next VALUES;
-                }
-                last VALUES;
-            }
-            elsif ( $input_mode eq 'File' ) {
-                my ( $file );
-                FILE: while ( 1 ) {
-                    my @files;
-                    if ( $self->{opt}{insert}{max_files} && -e $self->{info}{input_files} ) {
-                        open my $fh_in, '<:encoding(locale_fs)', $self->{info}{input_files} or die $!;
-                        while ( my $fl = <$fh_in> ) {
-                            chomp $fl;
-                            next if ! -e $fl;
-                            push @files, $fl;
-                        }
-                        close $fh_in;
-                    }
-                    my @files_sorted = sort map { decode 'locale_fs', $_ } @files;
-                    if ( length $file ) {
-                        my $i = first_index { decode( 'locale_fs', $file ) eq $_ } @files_sorted;
-                        splice @files_sorted, $i, 1 if $i > -1;
-                        unshift @files_sorted, decode 'locale_fs', $file;
-                    }
-                    my $add_file = 'New file';
-                    if ( @files_sorted ) {
-                        $auxil->__print_sql_statement( $sql, $sql_type );
-                        # Choose
-                        $file = $stmt_h->choose(
-                            [ undef, '  ' . $add_file, map( "- $_", @files_sorted ) ],
-                            { %{$self->{info}{lyt_stmt_v}} }
-                        );
-                        if ( ! defined $file ) {
-                            if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                                $sql->{quote}{insert_cols} = [];
-                                $sql->{print}{insert_cols} = [];
-                                return;
-                            }
-                            next VALUES;
-                        }
-                        $file =~ s/^.\s//;
-                    }
-                    if ( ! defined $file || $file eq $add_file ) {
-                        $auxil->__print_sql_statement( $sql, $sql_type );
-                        # Choose_a_file
-                        $file = choose_a_file( { dir => $self->{opt}{insert}{files_dir} } );
-                        if ( ! defined $file || ! length $file ) {
-                            if ( @{$self->{opt}{insert}{input_modes}} == 1 ) {
-                                $sql->{quote}{insert_cols} = [];
-                                $sql->{print}{insert_cols} = [];
-                                return;
-                            }
-                            next VALUES;
-                        }
-                        $file = realpath encode 'locale_fs', $file;
-                        if ( $self->{opt}{insert}{max_files} ) {
-                            my $i = first_index { $file eq $_ } @files;
-                            splice @files, $i, 1 if $i > -1;
-                            push @files, $file;
-                            while ( @files > $self->{opt}{insert}{max_files} ) {
-                                shift @files;
-                            }
-                            open my $fh_out, '>:encoding(locale_fs)', $self->{info}{input_files} or die $!; # '>:encoding(locale_fs)'
-                            for my $fl ( @files ) {
-                                print $fh_out $fl . "\n";
-                            }
-                            close $fh_out;
-                        }
-                    }
-                    else {
-                        $file = realpath encode 'locale_fs', $file;
-                    }
-
-                    if ( $self->{opt}{insert}{parse_mode} < 2 && -T $file ) {
-                        open my $fh, '<:encoding(' . $self->{opt}{insert}{file_encoding} . ')', $file or die $!;
-                        if ( -z $file ) {
-                            my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
-                            $cm->choose( [ 'empty file!' ] );
-                            close $fh;
-                            next FILE;
-                        }
-                        $self->__get_insert_into_args( $sql, $sql_type, $fh );
-                        close $fh;
-                    }
-                    else {
-                        $self->__get_insert_into_args( $sql, $sql_type, $file );
-                    }
-                    next FILE if ! @{$sql->{quote}{insert_into_args}}; #
-                    last VALUES;
-                }
-            }
+            last ASK;
         }
     }
     return 1;
 }
 
 
-sub __get_insert_into_args {
-    my ( $self, $sql, $sql_type, $file_or_fh ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
+sub __parse_setting {
+    my ( $sf ) = @_;
+    my $i = $sf->{o}{insert}{copy_parse_mode};
+    my $parse_mode = ( 'Text::CSV', 'split', 'Spreadsheet::Read' )[$i]; #
+    my $sep;
+    if ( $i == 0 ) {
+        $sep = $sf->{o}{csv}{sep_char};
+    }
+    elsif ( $i == 1 ) {
+        $sep =  $sf->{o}{split}{i_f_s};
+    }
+    return $parse_mode, $sep;
+}
+
+
+sub from_copy_and_paste {
+    my ( $sf, $sql, $sql_typeS ) = @_;
+    $sql->{insert_into_args} = [];
+    my ( $fh, $file ) = tempfile( DIR => $sf->{i}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
+    binmode $fh, ':encoding(' . $sf->{o}{insert}{file_encoding} . ')' or die $!;
+    print $sf->{i}{clear_screen};
+    # STDIN
+    my $prompt = sprintf "Mulit row  (%s sep %s):\n", $sf->__parse_setting;
+    print $prompt;
+    while ( my $row = <STDIN> ) {
+        print $fh $row;
+    }
+    seek $fh, 0, 0;
+    $sf->{i}{input_mode} = 'copy';
+    $sf->__input_filter( $sql, $sql_typeS, $fh, 'copy' );
+    if ( ! @{$sql->{insert_into_args}} ) {
+        $sql->{insert_into_cols} = [];
+        return; ###
+    }
+    return 1;
+}
+
+
+sub from_file {
+    my ( $sf, $sql, $sql_typeS ) = @_;
+    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    $sql->{insert_into_args} = []; # name data
+    my ( $file );
+
+    FILE: while ( 1 ) {
+        $file = $sf->__file_name( $sql, $file );
+        return if ! defined $file;
+        if ( $sf->{o}{insert}{parse_mode} < 2 && -T $file ) {
+            open my $fh, '<:encoding(' . $sf->{o}{insert}{file_encoding} . ')', $file or die $!;
+            if ( -z $file ) {
+                my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
+                $cm->choose( [ 'empty file!' ] );
+                close $fh;
+                next FILE;
+            }
+            $sf->__input_filter( $sql, $sql_typeS, $fh, 'file' );
+            close $fh;
+        }
+        else {
+            $sf->__input_filter( $sql, $sql_typeS, $file, 'file' );
+        }
+        next FILE if ! @{$sql->{insert_into_args}}; #
+        return 1;
+    }
+}
+
+
+
+sub __file_name { # h?
+    my ( $sf, $sql, $file ) = @_;
+    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    my @files;
+    if ( $sf->{o}{insert}{max_files} && -e $sf->{i}{input_files} ) {
+        open my $fh_in, '<:encoding(locale_fs)', $sf->{i}{input_files} or die $!;
+        while ( my $fl = <$fh_in> ) {
+            chomp $fl;
+            next if ! -e $fl;
+            push @files, $fl;
+        }
+        close $fh_in;
+    }
+# while ( 1 ) {
+    my @files_sorted = sort map { decode 'locale_fs', $_ } @files;
+    if ( length $file ) {
+        my $i = first_index { decode( 'locale_fs', $file ) eq $_ } @files_sorted;
+        splice @files_sorted, $i, 1 if $i > -1;
+        unshift @files_sorted, decode 'locale_fs', $file;
+    }
+    my $add_file = 'New file';
+    if ( @files_sorted ) {
+        my $prompt = sprintf "Choose a file (%s, %s):", $sf->__parse_setting;
+        # Choose
+        $file = $stmt_h->choose(
+            #[ undef, '  ' . $add_file, map( "- $_", @files_sorted ) ],
+            [ undef, $add_file, @files_sorted ],
+            #{ %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt }
+            { %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt, undef => $sf->{i}{back} }
+        );
+        if ( ! defined $file ) {
+            if ( @{$sf->{o}{insert}{input_modes}} == 1 ) {
+                $sql->{insert_into_cols} = [];
+            }
+            return;
+        }
+        #$file =~ s/^.\s//;
+    }
+    if ( ! defined $file || $file eq $add_file ) {
+            my $prompt = sprintf "%s, %s", $sf->__parse_setting;
+        # Choose_a_file
+        $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir} } ); # choose_a_file: prompt position
+        if ( ! defined $file || ! length $file ) {
+            if ( @{$sf->{o}{insert}{input_modes}} == 1 ) {
+                $sql->{insert_into_cols} = [];
+            }
+            return;
+        }
+        $file = realpath encode 'locale_fs', $file;
+        if ( $sf->{o}{insert}{max_files} ) {
+            my $i = first_index { $file eq $_ } @files;
+            splice @files, $i, 1 if $i > -1;
+            push @files, $file;
+            while ( @files > $sf->{o}{insert}{max_files} ) {
+                shift @files;
+            }
+            open my $fh_out, '>:encoding(locale_fs)', $sf->{i}{input_files} or die $!; # '>:encoding(locale_fs)'
+            for my $fl ( @files ) {
+                print $fh_out $fl . "\n";
+            }
+            close $fh_out;
+        }
+    }
+# }
+    else {
+        $file = realpath encode 'locale_fs', $file;
+    }
+    return $file;
+}
+
+
+
+
+sub __input_filter {
+    my ( $sf, $sql, $sql_typeS, $file_or_fh, $input_type ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
 
     SHEET: while ( 1 ) {
-        my ( $nr_of_sheets, $sheet_idx ) = $self->__parse_file( $sql, $sql_type, $file_or_fh );
-        last SHEET if ! @{$sql->{quote}{insert_into_args}};
-        my $stmt_h = Term::Choose->new( $self->{info}{lyt_stmt_h} );
+        my ( $sheet_count, $sheet_idx ) = $sf->__parse_file( $sql, $sql_typeS, $file_or_fh, $input_type );
+        last SHEET if ! @{$sql->{insert_into_args}};
+        my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+        my $r2c = 0;
 
         FILTER: while ( 1 ) {
-            my @pre = ( undef, $self->{info}{ok} );
-            my ( $input_cols, $input_rows_choose, $input_rows_range, $cols_to_rows, $reset ) = ( 'Columns', 'Rows-choose', 'Rows-range', 'Cols_to_Rows', 'Reset' );
-            my $choices = [ @pre, $input_cols, $input_rows_choose, $input_rows_range, $cols_to_rows, $reset ];
-            $auxil->__print_sql_statement( $sql, $sql_type );
+            my @pre = ( undef, $sf->{i}{ok} );
+            my $input_cols       = 'Choose Columns';
+            my $input_rows       = 'Choose Rows';
+            my $input_rows_range = 'Choose Row-range';
+            my $cols_to_rows     = $r2c ? 'Cols_to_Rows' : 'Rows_to_Cols';
+            my $reset            = 'Reset';
+            my $choices = [ @pre, $input_cols, $input_rows, $input_rows_range, $cols_to_rows, $reset ];
+            $ax->print_sql( $sql, $sql_typeS );
             # Choose
             my $filter = $stmt_h->choose(
                 $choices,
                 { prompt => 'Filter:' }
             );
             if ( ! defined $filter ) {
-                $sql->{quote}{insert_into_args} = [];
-                last SHEET if ! $nr_of_sheets || $nr_of_sheets < 2;
+                $sql->{insert_into_args} = [];
+                last SHEET if ! $sheet_count || $sheet_count < 2;
                 next SHEET;
             }
             elsif ( $filter eq $reset ) {
-                $self->__parse_file( $sql, $sql_type, $file_or_fh, $sheet_idx );
+                $sf->__parse_file( $sql, $sql_typeS, $file_or_fh, $input_type, $sheet_idx );
+                $r2c = 0;
                 next FILTER
             }
-            elsif ( $filter eq $self->{info}{ok} ) {
+            elsif ( $filter eq $sf->{i}{ok} ) {
                 last SHEET;
             }
             elsif ( $filter eq $input_cols  ) {
-                my @col_idx;
 
+                #if (  1 == 1 ) {
+                #my $prompt = $ax->print_sql( $sql, $sql_typeS ); ###
+                #my $col_idx = [];
+                #my $choices = [ map { "col_$_" } 1 .. @{$sql->{insert_into_args}[0]} ];
+                #$col_idx = choose_a_subset( # ### with plain output ###
+                #    $choices, { current => [ @{$choices}[@$col_idx] ], back => '<<', confirm => '- ok -',
+                #                prompt => $prompt, layout => 0, p_new => 'Cols: ', p_curr => '' } ); # p_new p_curr
+                #if ( defined $col_idx && @$col_idx ) {
+                #    my $tmp = [];
+                #    for my $row ( @{$sql->{insert_into_args}} ) {
+                #        push @$tmp, [ @{$row}[@$col_idx] ];
+                #    }
+                #    $sql->{insert_into_args} = $tmp;
+                #}
+                #next FILTER;
+                #}
+                #else {
+                my $aoa = $sql->{insert_into_args};
+                my @col = ( 0 ) x @{$aoa->[0]};
+                COL: for my $c ( 0 .. $#{$aoa->[0]} ) { # copy only ?
+                    for my $r ( 0 .. $#$aoa ) {
+                        if ( ! length $aoa->[$r][$c] ) {
+                            $col[$c]++;
+                        }
+                        else {
+                            next COL;
+                        }
+                    }
+                }
+                my @pre = ( undef, $sf->{i}{ok} );
+                my $mark = [];
+                for my $i ( 0 .. $#col ) {
+                    if ( ( $col[$i] || 0 ) < @$aoa ) {
+                        push @$mark, $i + @pre;
+                    }
+                }
+                $mark = undef if scalar( @$mark ) == scalar( @col );
+                my @col_idx;
+                #my @chosen;
                 COLS: while ( 1 ) {
-                    my @pre = ( $self->{info}{ok} );
-                    my $choices = [ @pre, map { "col_$_" } 1 .. @{$sql->{quote}{insert_into_args}[0]} ];
+                    #my $choices = [ @pre, map { "col_$_" } 1 .. @{$aoa->[0]} ]; # first row of input
+                    my $choices = [ @pre, map { "$_: " . $aoa->[0][$_ - 1] } 1 .. @{$aoa->[0]} ]; # ?
+                    #my $choices = [ @pre, @{$sql->{insert_into_args}[0]} ];
                     my $prompt = 'Cols: ';
                     $prompt .= join ',', map { $_ + 1 } @col_idx if @col_idx;
-                    $auxil->__print_sql_statement( $sql, $sql_type );
+                    #$prompt .= join ', ', @chosen if @chosen;
+                    $ax->print_sql( $sql, $sql_typeS );
                     # Choose
                     my @chosen = $stmt_h->choose(
+                    #@chosen = $stmt_h->choose(
                         $choices,
-                        { prompt => $prompt, no_spacebar => [ 0 .. $#pre ] }
+                        { prompt => $prompt, no_spacebar => [ 0 .. $#pre ], undef => '<<', mark => $mark } # index ?
                     );
+                    $mark = undef;
                     if ( ! defined $chosen[0] ) {
                         if ( @col_idx ) {
                             @col_idx = ();
                             next COLS;
                         }
-                        else {
-                            next FILTER;
-                        }
+                        next FILTER;
                     }
-                    if ( $chosen[0] eq $self->{info}{ok} ) {
+                    if ( $chosen[0] eq $sf->{i}{ok} ) {
                         shift @chosen;
                         for my $col ( @chosen ) {
                             $col =~ s/^col_//;
                             push @col_idx, $col - 1;
                         }
                         if ( @col_idx ) {
-                            my $tmp = [];
-                            for my $row ( @{$sql->{quote}{insert_into_args}} ) {
-                                push @$tmp, [ @{$row}[@col_idx] ];
+                            $sql->{insert_into_args} = [];
+                            for my $row ( @$aoa ) {
+                                push @{$sql->{insert_into_args}}, [ @{$row}[@col_idx] ];
                             }
-                            $sql->{quote}{insert_into_args} = $tmp;
                         }
                         next FILTER;
                     }
                     for my $col ( @chosen ) {
-                        $col =~ s/^col_//;
+                        #$col =~ s/^col_//;
+                        $col =~ s/^([0-9]+).+/$1/;
                         push @col_idx, $col - 1;
                     }
                 }
+                #}
             }
             elsif ( $filter eq $input_rows_range ) {
-                my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
+                my $aoa = $sql->{insert_into_args};
+                my $stmt_v = Term::Choose->new( $sf->{i}{lyt_stmt_v} );
                 my @pre = ( undef );
                 my $choices;
                 {
                     no warnings 'uninitialized';
-                    $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
+                    $choices = [ @pre, map { join ',', @$_ } @$aoa ];
                 }
-                $auxil->__print_sql_statement( $sql, $sql_type );
+                $ax->print_sql( $sql, $sql_typeS );
                 # Choose
                 my $first_idx = $stmt_v->choose(
                     $choices,
-                    { prompt => "First row:\n", index => 1, undef => '<<' }
+                    { prompt => "Choose FIRST ROW:", index => 1, undef => '<<' }
                 );
                 next FILTER if ! defined $first_idx || ! defined $choices->[$first_idx];
                 my $first_row = $first_idx - @pre;
                 next FILTER if $first_row < 0;
                 $choices->[$first_row + @pre] = '* ' . $choices->[$first_row + @pre];
-                $auxil->__print_sql_statement( $sql, $sql_type );
+                $ax->print_sql( $sql, $sql_typeS );
                 # Choose
                 my $last_idx = $stmt_v->choose(
                     $choices,
-                    { prompt => "Last row:\n", default => $first_row, index => 1, undef => '<<' }
+                    { prompt => "Choose LAST ROW:", default => $first_row, index => 1, undef => '<<' }
                 );
                 next FILTER if ! defined $last_idx || ! defined $choices->[$last_idx];
                 my $last_row = $last_idx - @pre;
                 next FILTER if $last_row < 0;
                 if ( $last_row < $first_row ) {
-                    $auxil->__print_sql_statement( $sql, $sql_type );
+                    $ax->print_sql( $sql, $sql_typeS );
                     # Choose
                     $stmt_h->choose(
                         [ "Last row [$last_row] is less than First row [$first_row]!" ],
-                        { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' }
+                        { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' }
                     );
                     next FILTER;
                 }
-                $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[$first_row .. $last_row] ];
+                $sql->{insert_into_args} = [ @{$aoa}[$first_row .. $last_row] ];
                 next FILTER;
             }
-            elsif ( $filter eq $input_rows_choose ) {
-                my $stmt_v = Term::Choose->new( $self->{info}{lyt_stmt_v} );
-                my @pre = ( undef );
+            elsif ( $filter eq $input_rows ) {
+                my $aoa = $sql->{insert_into_args};
+                my %hash;
+                for my $i ( 0 .. $#$aoa ) {
+                    push @{$hash{ scalar @{$aoa->[$i]} }}, $i;
+                }
+                my @keys = sort { scalar( @{$hash{$b}} ) <=> scalar( @{$hash{$a}} ) } keys %hash;
+                my $stmt_v = Term::Choose->new( $sf->{i}{lyt_stmt_v} );
+                my @pre = ( undef, $sf->{i}{ok} );
+                my $mark = ( @keys > 1 ) ? [ map { $_ + @pre } @{$hash{$keys[0]}} ] : undef; # copy only ?
                 my $choices;
                 {
                     no warnings 'uninitialized';
-                    $choices = [ @pre, map { join ',', @$_ } @{$sql->{quote}{insert_into_args}} ];
+                    $choices = [ @pre, map { join ',', @$_ } @$aoa ];
                 }
-                $auxil->__print_sql_statement( $sql, $sql_type );
+                $ax->print_sql( $sql, $sql_typeS );
                 # Choose
                 my @idx = $stmt_v->choose(
                     $choices,
-                    { prompt => 'Choose rows:', index => 1, no_spacebar => [ 0 .. $#pre ], undef => '<<' }
+                    { prompt => 'Choose rows:', index => 1, no_spacebar => [ 0 .. $#pre ], undef => '<<', mark => $mark }
                 );
-                next FILTER if ! defined $idx[0] || ! defined $choices->[$idx[0]];
-                my @row_idx = map{ $_ - @pre } @idx;
-                $sql->{quote}{insert_into_args} = [ @{$sql->{quote}{insert_into_args}}[@row_idx] ];
+                if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
+                    next FILTER;
+                }
+                elsif ( $choices->[$idx[0]] eq $sf->{i}{ok} ) {
+                    shift @idx;
+                }
+                my $tmp_aoa = [];
+                for my $i ( @idx ) {
+                    $i -= @pre;
+                    push @$tmp_aoa, [ map { s/^\s+|\s+\z//g; $_ } @{$aoa->[$i]} ];
+                }
+                $sql->{insert_into_args} = $tmp_aoa;
                 next FILTER;
             }
             elsif ( $filter eq $cols_to_rows ) {
-                my $tmp = $sql->{quote}{insert_into_args};
-                my $new = [];
-                for my $i ( 0 .. $#$tmp ) {
-                    for my $j ( 0 .. $#{$tmp->[$i]} ) {
-                        $new->[$j][$i] = $tmp->[$i][$j];
+                my $aoa = $sql->{insert_into_args};
+                my $tmp_aoa = []; # name
+                for my $i ( 0 .. $#$aoa ) {
+                    for my $j ( 0 .. $#{$aoa->[$i]} ) {
+                        $tmp_aoa->[$j][$i] = $aoa->[$i][$j];
                     }
                 }
-                $sql->{quote}{insert_into_args} = $new;
+                 $sql->{insert_into_args} = $tmp_aoa;
+                 $r2c = ! $r2c;
                 next FILTER;
             }
         }
@@ -447,29 +555,29 @@ sub __get_insert_into_args {
 
 
 sub __parse_file {
-    my ( $self, $sql, $sql_type, $file_or_fh, $sheet_idx ) = @_;
-    my $auxil = App::DBBrowser::Auxil->new( $self->{info} );
-    $auxil->__print_sql_statement( $sql, $sql_type );
+    my ( $sf, $sql, $sql_typeS, $file_or_fh, $input_type, $sheet_idx ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
+    $ax->print_sql( $sql, $sql_typeS );
     if ( ref $file_or_fh eq 'GLOB' ) {
         my $fh = $file_or_fh;
         seek $fh, 0, 0;
         my $tmp = [];
-        if ( $self->{opt}{insert}{parse_mode} == 0 ) {
-            my $csv = Text::CSV->new( { map { $_ => $self->{opt}{insert}{$_} } @{$self->{info}{csv_opt}} } );
+        if ( $sf->{o}{insert}{$input_type . '_parse_mode'} == 0 ) {
+            my $csv = Text::CSV->new( { map { $_ => $sf->{o}{csv}{$_} } sort keys %{$sf->{o}{csv}} } );
             while ( my $row = $csv->getline( $fh ) ) {
                 push @$tmp, $row;
             }
         }
         else {
             local $/;
-            push @$tmp, map { [ split /$self->{opt}{insert}{i_f_s}/ ] } split /$self->{opt}{insert}{i_r_s}/, <$fh>;
+            push @$tmp, map { [ split /$sf->{o}{split}{i_f_s}/ ] } split /$sf->{o}{split}{i_r_s}/, <$fh>;
         }
-        $sql->{quote}{insert_into_args} = $tmp;
+        $sql->{insert_into_args} = $tmp; # name # data
         return;
     }
     else {
         my $file = $file_or_fh;
-        my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
+        my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
         my $file_dc = decode( 'locale_fs', $file );
         if ( ! -e $file ) {
             $cm->choose( [ $file_dc . ' : file not found!' ] );
@@ -489,8 +597,8 @@ sub __parse_file {
             $cm->choose( [ $file_dc . ' : no book!' ] );
             return;
         }
-        my $nr_of_sheets = @$book - 1; # first sheet in $book contains meta info
-        if ( $nr_of_sheets == 0 ) {
+        my $sheet_count = @$book - 1; # first sheet in $book contains meta info
+        if ( $sheet_count == 0 ) {
             $cm->choose( [ $file_dc . ' : no sheets!' ] );
             return;
         }
@@ -508,23 +616,22 @@ sub __parse_file {
             # Choose
             $sheet_idx = $c_sheet->choose(
                 $choices,
-                { %{$self->{info}{lyt_stmt_v}}, index => 1, prompt => 'Choose a sheet' }
+                { %{$sf->{i}{lyt_stmt_v}}, index => 1, prompt => 'Choose a sheet' }
             );
             if ( ! defined $sheet_idx || ! defined $choices->[$sheet_idx] ) {
                 return;
             }
         }
         if ( $book->[$sheet_idx]{maxrow} == 0 ) {
-            my $cm = Term::Choose->new( { %{$self->{info}{lyt_stop}}, prompt => 'Press ENTER' } );
+            my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
             my $sheet = length $book->[$sheet_idx]{label} ? $book->[$sheet_idx]{label} : 'sheet_' . $_;
             $cm->choose( [ $sheet . ': empty sheet!' ] );
             return;
         }
-        $sql->{quote}{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
-        return $nr_of_sheets, $sheet_idx;
+        $sql->{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
+        return $sheet_count, $sheet_idx;
     }
 }
-
 
 
 

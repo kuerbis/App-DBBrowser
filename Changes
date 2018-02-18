@@ -1,8 +1,10 @@
 Revision history for App-DBBrowser
 
+1.060_01    2018-02-18
+        - Developer release
 
 1.059   2018-01-25
-        - Bugfix set_insert back to config_insert.
+        - Bugfix: set_insert back to config_insert.
 
 1.058   2018-01-22
         - No "Auto Limit" when showing the table before drop table.
