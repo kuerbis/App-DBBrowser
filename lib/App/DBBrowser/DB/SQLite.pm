@@ -32,24 +32,24 @@ sub driver {
 }
 
 
-sub choose_arguments {
+sub set_attributes {
     my ( $sf ) = @_;
     return 'sqlite', [
-        { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
-        { name => 'sqlite_see_if_its_a_number', default_index => 1, avail_values => [ 0, 1 ] },
+        { name => 'sqlite_unicode',             default => 1, values => [ 0, 1 ] },
+        { name => 'sqlite_see_if_its_a_number', default => 1, values => [ 0, 1 ] },
     ];
 }
 
 
 sub db_handle {
-    my ( $sf, $db, $connect_parameter ) = @_;
+    my ( $sf, $db, $parameter ) = @_;
     my $dsn = "dbi:$sf->{driver}:dbname=$db";
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$connect_parameter->{set_attr}},
+        %{$parameter->{attributes}},
     } ) or die DBI->errstr;
     $dbh->sqlite_create_function( 'regexp', 3, sub {
             my ( $regex, $string, $case_sensitive ) = @_;
@@ -79,9 +79,9 @@ sub db_handle {
 
 
 sub databases {
-    my ( $sf, $connect_parameter ) = @_;
+    my ( $sf, $parameter ) = @_;
     return \@ARGV if @ARGV;
-    my $dirs = $connect_parameter->{dir_sqlite};
+    my $dirs = $parameter->{dir_sqlite};
     my $cache_key = $sf->{plugin} . '_' . join ' ', @$dirs;
     my $ax = App::DBBrowser::Auxil->new( {}, {} );
     my $db_cache = $ax->read_json( $sf->{db_cache_file} );

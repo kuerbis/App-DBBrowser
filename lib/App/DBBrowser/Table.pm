@@ -6,11 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Clone              qw( clone );
 use List::MoreUtils    qw( any first_index );
-use Term::Choose       qw();
+use Term::Choose       qw( choose );
 use Term::Choose::Util qw( choose_a_number insert_sep );
 use Term::Form         qw();
 
@@ -56,6 +56,7 @@ sub on_table {
         lock            => $lk->[$sf->{i}{lock}],
         functions       => '  Func',
     );
+    my @aggregate = ( "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" );
     my ( $DISTINCT, $ALL, $ASC, $DESC, $AND, $OR ) = ( "DISTINCT", "ALL", "ASC", "DESC", "AND", "OR" );
     if ( $sf->{i}{lock} == 0 ) {
         $ax->reset_sql( $sql );
@@ -63,6 +64,7 @@ sub on_table {
     my $sql_type = 'Select';
     my $backup_sql;
     my $old_idx = 1;
+    my @pre = ( undef, $sf->{i}{ok} );
 
     CUSTOMIZE: while ( 1 ) {
         $backup_sql = clone( $sql ) if $sql_type eq 'Select';
@@ -78,10 +80,10 @@ sub on_table {
         }
         else {
             # Choose
-            $idx = $stmt_h->choose(
+            $idx = choose(
                 $choices,
                 { %{$sf->{i}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx,
-                undef => $sql_type ne 'Select' ? $sf->{i}{_back} : $sf->{i}{back} }
+                undef => $sql_type ne 'Select' ? $sf->{i}{_back} : $sf->{i}{back} } # lyt_m layout 3
             );
             if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $sql_type eq 'Select'  ) {
@@ -136,7 +138,6 @@ sub on_table {
             $sql->{select_type} = 'chosen_cols';
 
             COLUMNS: while ( 1 ) {
-                my @pre = ( $sf->{i}{ok} );
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
@@ -176,7 +177,7 @@ sub on_table {
             $sql->{distinct_stmt} = '';
 
             DISTINCT: while ( 1 ) {
-                my $choices = [ $sf->{i}{ok}, $DISTINCT, $ALL ];
+                my $choices = [ @pre, $DISTINCT, $ALL ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
                 my $select_distinct = $stmt_h->choose(
@@ -207,7 +208,7 @@ sub on_table {
             $sql->{select_type} = 'aggr_cols';
 
             AGGREGATE: while ( 1 ) {
-                my $choices = [ $sf->{i}{ok}, @{$sf->{i}{avail_aggregate}} ];
+                my $choices = [ @pre, @aggregate ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
                 my $aggr = $stmt_h->choose(
@@ -275,7 +276,6 @@ sub on_table {
             $sql->{set_stmt} = " SET";
 
             SET: while ( 1 ) {
-                my @pre = ( $sf->{i}{ok} );
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
@@ -330,7 +330,6 @@ sub on_table {
             my $count = 0;
 
             WHERE: while ( 1 ) {
-                my @pre = ( $sf->{i}{ok} );
                 my @choices = @cols;
                 if ( $sf->{o}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -409,7 +408,6 @@ sub on_table {
             $sql->{select_type} = 'group_by_cols';
 
             GROUP_BY: while ( 1 ) {
-                my @pre = ( $sf->{i}{ok} );
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
@@ -462,8 +460,7 @@ sub on_table {
             my $count = 0;
 
             HAVING: while ( 1 ) {
-                my @pre = ( $sf->{i}{ok} );
-                my @choices = ( @{$sf->{i}{avail_aggregate}}, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #####
+                my @choices = ( @aggregate, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #####
                 if ( $sf->{o}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
@@ -579,7 +576,7 @@ sub on_table {
             $sql->{order_by_stmt} = " ORDER BY";
 
             ORDER_BY: while ( 1 ) {
-                my $choices = [ $sf->{i}{ok}, @cols ];
+                my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
                 my $quote_col = $stmt_h->choose(
@@ -624,7 +621,7 @@ sub on_table {
 
             LIMIT: while ( 1 ) {
                 my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
-                my $choices = [ $sf->{i}{ok}, $only_limit, $offset_and_limit ];
+                my $choices = [ @pre, $only_limit, $offset_and_limit ];
                 $ax->print_sql( $sql, [ $sql_type ] );
                 # Choose
                 my $choice = $stmt_h->choose(
@@ -649,12 +646,12 @@ sub on_table {
                 $sql->{limit_stmt} = " LIMIT";
                 my $digits = 7;
                 # Choose_a_number
-                my $limit = choose_a_number( $digits, { name => '"LIMIT"' } );
+                my $limit = choose_a_number( $digits, { name => '"LIMIT"', mouse => $sf->{o}{table}{mouse} } );
                 next LIMIT if ! defined $limit || $limit eq '--';
                 $sql->{limit_stmt} .= ' ' . sprintf '%d', $limit;
                 if ( $choice eq $offset_and_limit ) {
                     # Choose_a_number
-                    my $offset = choose_a_number( $digits, { name => '"OFFSET"' } );
+                    my $offset = choose_a_number( $digits, { name => '"OFFSET"', mouse => $sf->{o}{table}{mouse} } );
                     if ( ! defined $offset || $offset eq '--' ) {
                         $sql->{limit_stmt} = " LIMIT";
                         next LIMIT;
@@ -740,7 +737,7 @@ sub on_table {
 sub commit_sql {
     my ( $sf, $sql, $sql_typeS, $dbh ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
+    my $stmt_v = Term::Choose->new( $sf->{i}{lyt_stmt_v} );
     local $| = 1;
     print $sf->{i}{clear_screen};
     print 'Database : ...' . "\n" if $sf->{o}{table}{progress_bar};
@@ -781,9 +778,8 @@ sub commit_sql {
             $ax->print_sql( $sql, $sql_typeS );
             my $choices = [ undef,  $commit_ok ];
             # Choose
-            my $choice = $stmt_h->choose(
-                $choices,
-                { %{$sf->{i}{lyt_stmt_v}} }
+            my $choice = $stmt_v->choose(
+                $choices
             );
             if ( defined $choice && $choice eq $commit_ok ) {;
                 $dbh->commit;
@@ -817,9 +813,9 @@ sub commit_sql {
         $ax->print_sql( $sql, $sql_typeS ); #
         my $choices = [ undef,  $commit_ok ];
         # Choose
-        my $choice = $stmt_h->choose(
+        my $choice = $stmt_v->choose(
             $choices,
-            { %{$sf->{i}{lyt_stmt_v}}, prompt => '' }
+            { prompt => '' }
         );
         if ( defined $choice && $choice eq $commit_ok ) {
             if ( ! eval {
@@ -1018,12 +1014,11 @@ sub __table_write_access {
     if ( ! @sql_types ) {
         return; ###
     }
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     my $ch_types = [ undef, map( "- $_", @sql_types ) ];
     # Choose
-    my $type_choice = $stmt_h->choose(
+    my $type_choice = choose(
         $ch_types,
-        { %{$sf->{i}{lyt_stmt_v}}, prompt => 'Choose SQL type:', default => 0, clear_screen => 1 }
+        { %{$sf->{i}{lyt_3}}, prompt => 'Choose SQL type:', default => 0 }
     );
     if ( defined $type_choice ) {
         ( $sql_type = $type_choice ) =~ s/^-\ //;

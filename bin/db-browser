@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.060_01
+Version 1.060_02
 
 =cut
 
@@ -228,7 +228,8 @@ Set which fields are required to connect to a database.
 
 =item ENV Variables
 
-Which environment variables should be used.
+The user can choose environment variables form a list of environment variables that should be used to connect to the
+database.
 
 =item Login Data
 
@@ -262,15 +263,7 @@ Reset database specific parameter to the global I<DB Settings>.
 
 =head4 Menu Memory
 
-Set the behavior of the interactive menus:
-
-- setting I<Config Menus> to "Memory" means: save the selected configuration menu position while entering in a config
-sub menu.
-
-- setting I<SQL Menu> to "Memory" means: save the selected SQL menu position while entering in a SQL sub menu.
-
-- setting I<DB Menus> to "Memory" means: save the selected menu position in the database/schema/table menus while
-entering in a sub menu.
+If enabled: saves the menu position while entering in a sub menu.
 
 =head4 Table
 

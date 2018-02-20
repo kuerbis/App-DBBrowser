@@ -6,11 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
-use Term::Choose           qw();
+use Term::Choose           qw( choose );
 use Term::Choose::LineFold qw( line_fold );
 use Term::Choose::Util     qw( term_width );
 use Term::TablePrint       qw( print_table);
@@ -30,7 +30,6 @@ sub new {
 
 sub union_tables {
     my ( $sf, $dbh, $data ) = @_;
-    my $no_lyt = Term::Choose->new();
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     my $u = $data;
     my $tbls = [ sort keys %{$u->{tables}} ];
@@ -52,7 +51,7 @@ sub union_tables {
         my $choices  = [ @pre_tbl, map( "+ $_", @{$union->{used_tables}} ), @{$union->{unused_tables}}, @post_tbl ];
         $sf->__print_union_statement( $union );
         # Choose
-        my $idx_tbl = $no_lyt->choose(
+        my $idx_tbl = choose(
             $choices,
             { %{$sf->{i}{lyt_stmt_v}}, prompt => $prompt, index => 1 }
         );
@@ -99,7 +98,7 @@ sub union_tables {
             my $choices = [ @pre_col, @{$u->{col_names}{$union_table}} ];
             $sf->__print_union_statement( $union );
             # Choose
-            my @col = $no_lyt->choose(
+            my @col = choose(
                 $choices,
                 { %{$sf->{i}{lyt_stmt_h}}, prompt => 'Choose Column:', no_spacebar => [ 0 .. $#pre_col ] }
             );

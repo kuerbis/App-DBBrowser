@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -16,8 +16,8 @@ use List::Util qw( all );
 use List::MoreUtils    qw( first_index any );
 use Encode::Locale     qw();
 #use Spreadsheet::Read  qw( ReadData rows ); # "require"d
-use Term::Choose       qw();
-use Term::Choose::Util qw( choose_a_file choose_a_subset ); #
+use Term::Choose       qw( choose );
+use Term::Choose::Util qw( choose_a_file ); # choose_a_subset
 use Term::Form         qw();
 use Text::CSV          qw();
 
@@ -36,7 +36,6 @@ sub new {
 sub __insert_into_cols {
     my ( $sf, $sql, $sql_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     $sql->{insert_into_cols} = [];
     my @cols = ( @{$sql->{cols}} ); #
 
@@ -45,9 +44,9 @@ sub __insert_into_cols {
         my $choices = [ @pre, @cols ];
         $ax->print_sql( $sql, $sql_typeS );
         # Choose
-        my @idx = $stmt_h->choose(
+        my @idx = choose(
             $choices,
-            { prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
+            { %{$sf->{i}{lyt_stmt_h}}, prompt => 'Columns:', index => 1, no_spacebar => [ 0 .. $#pre ] }
         );
         if ( ! defined $idx[0] || ! defined $choices->[$idx[0]] ) {
             return if ! @{$sql->{insert_into_cols}};
@@ -62,19 +61,19 @@ sub __insert_into_cols {
             splice( @cols, $ni, 1 );
             ++$c;
         }
-        my @qt_cols = map { $choices->[$_] } @idx; ##
-        if ( $qt_cols[0] eq $sf->{i}{ok} ) {
-            shift @qt_cols;
-            for my $quote_col ( @qt_cols ) {
-                push @{$sql->{insert_into_cols}}, $quote_col;
+        my @chosen = map { $choices->[$_] } @idx;
+        if ( $chosen[0] eq $sf->{i}{ok} ) {
+            shift @chosen;
+            for my $col ( @chosen ) {
+                push @{$sql->{insert_into_cols}}, $col;
             }
             if ( ! @{$sql->{insert_into_cols}} ) {
                 @{$sql->{insert_into_cols}} = @{$sql->{cols}};
             }
             last COL_NAMES;
         }
-        for my $quote_col ( @qt_cols ) {
-            push @{$sql->{insert_into_cols}}, $quote_col;
+        for my $col ( @chosen ) {
+            push @{$sql->{insert_into_cols}}, $col;
         }
     }
     return 1;
@@ -86,7 +85,6 @@ sub __insert_into_cols {
 sub build_insert_stmt {
     my ( $sf, $sql, $sql_typeS, $dbh ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $lyt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
     $ax->reset_sql( $sql ); ##
     my @cu_keys = ( qw/insert_col insert_copy insert_file settings/ );
@@ -101,10 +99,9 @@ sub build_insert_stmt {
     MENU: while ( 1 ) {
         my $choices = [ undef, @cu{@cu_keys} ];
         # Choose
-        my $idx = $lyt_h->choose(
+        my $idx = choose(
             $choices,
-            { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $old_idx,
-            undef => $sf->{i}{back}, prompt => 'Choose:', clear_screen => 1 }
+            { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, prompt => 'Choose:' }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
             return; # reset
@@ -151,7 +148,6 @@ sub build_insert_stmt {
 sub __from_col_by_col {
     my ( $sf, $sql, $sql_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     $sql->{insert_into_args} = [];
     my $trs = Term::Form->new();
 
@@ -164,25 +160,31 @@ sub __from_col_by_col {
             my $col = $trs->readline( $col_name . ': ' );
             push @{$sql->{insert_into_args}->[$row_idx]}, $col; # show $col immediately in "print_sql_statement"
         }
-        my $default = ( all { ! length } @{$sql->{insert_into_args}[-1]} ) ? 2 : 1;
+        my $default = ( all { ! length } @{$sql->{insert_into_args}[-1]} ) ? 3 : 2;
 
         ASK: while ( 1 ) {
-            my ( $last, $add, $del ) = ( '-OK-', 'Add', 'Del' );
-            my $choices = [ $last, $add, $del ];
+            my ( $add, $del ) = ( 'Add', 'Del' );
+            my @pre = ( undef, $sf->{i}{ok} );
+            my $choices = [ @pre, $add, $del ];
             $ax->print_sql( $sql, $sql_typeS );
             # Choose
-            my $add_row = $stmt_h->choose(
+            my $add_row = choose(
                 $choices,
-                { prompt => '', default => $default }
+                { %{$sf->{i}{lyt_stmt_h}}, prompt => '', default => $default }
             );
             if ( ! defined $add_row ) {
+                if ( @{$sql->{insert_into_args}} ) {
+                    $sql->{insert_into_args} = [];
+                    next ASK;
+                }
+                $sql->{insert_into_cols} = []; #
                 $sql->{insert_into_args} = [];
                 return;
             }
-            elsif ( $add_row eq $last ) {
+            elsif ( $add_row eq $sf->{i}{ok} ) {
                 if ( ! @{$sql->{insert_into_args}} ) {
                     $sql->{insert_into_cols} = [];
-                    return; ##
+                    return;
                 }
                 return 1;
             }
@@ -239,7 +241,6 @@ sub from_copy_and_paste {
 
 sub from_file {
     my ( $sf, $sql, $sql_typeS ) = @_;
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     $sql->{insert_into_args} = []; # name data
     my ( $file );
 
@@ -249,8 +250,7 @@ sub from_file {
         if ( $sf->{o}{insert}{parse_mode} < 2 && -T $file ) {
             open my $fh, '<:encoding(' . $sf->{o}{insert}{file_encoding} . ')', $file or die $!;
             if ( -z $file ) {
-                my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
-                $cm->choose( [ 'empty file!' ] );
+                choose( [ 'empty file!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
                 close $fh;
                 next FILE;
             }
@@ -269,7 +269,6 @@ sub from_file {
 
 sub __file_name { # h?
     my ( $sf, $sql, $file ) = @_;
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     my @files;
     if ( $sf->{o}{insert}{max_files} && -e $sf->{i}{input_files} ) {
         open my $fh_in, '<:encoding(locale_fs)', $sf->{i}{input_files} or die $!;
@@ -291,7 +290,7 @@ sub __file_name { # h?
     if ( @files_sorted ) {
         my $prompt = sprintf "Choose a file (%s, %s):", $sf->__parse_setting;
         # Choose
-        $file = $stmt_h->choose(
+        $file = choose(
             #[ undef, '  ' . $add_file, map( "- $_", @files_sorted ) ],
             [ undef, $add_file, @files_sorted ],
             #{ %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt }
@@ -308,7 +307,7 @@ sub __file_name { # h?
     if ( ! defined $file || $file eq $add_file ) {
             my $prompt = sprintf "%s, %s", $sf->__parse_setting;
         # Choose_a_file
-        $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir} } ); # choose_a_file: prompt position
+        $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir}, mouse => $sf->{o}{table}{mouse} } );
         if ( ! defined $file || ! length $file ) {
             if ( @{$sf->{o}{insert}{input_modes}} == 1 ) {
                 $sql->{insert_into_cols} = [];
@@ -493,9 +492,9 @@ sub __input_filter {
                 if ( $last_row < $first_row ) {
                     $ax->print_sql( $sql, $sql_typeS );
                     # Choose
-                    $stmt_h->choose(
+                    choose(
                         [ "Last row [$last_row] is less than First row [$first_row]!" ],
-                        { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' }
+                        { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' }
                     );
                     next FILTER;
                 }
@@ -577,7 +576,7 @@ sub __parse_file {
     }
     else {
         my $file = $file_or_fh;
-        my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
+        my $cm = Term::Choose->new( { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
         my $file_dc = decode( 'locale_fs', $file );
         if ( ! -e $file ) {
             $cm->choose( [ $file_dc . ' : file not found!' ] );
@@ -610,11 +609,10 @@ sub __parse_file {
         }
         else {
             my @sheets = map { '- ' . ( length $book->[$_]{label} ? $book->[$_]{label} : 'sheet_' . $_ ) } 1 .. $#$book;
-            my $c_sheet = Term::Choose->new();
             my @pre = ( undef );
             my $choices = [ @pre, @sheets ];
             # Choose
-            $sheet_idx = $c_sheet->choose(
+            $sheet_idx = choose(
                 $choices,
                 { %{$sf->{i}{lyt_stmt_v}}, index => 1, prompt => 'Choose a sheet' }
             );
@@ -623,9 +621,8 @@ sub __parse_file {
             }
         }
         if ( $book->[$sheet_idx]{maxrow} == 0 ) {
-            my $cm = Term::Choose->new( { %{$sf->{i}{lyt_stop}}, prompt => 'Press ENTER' } );
             my $sheet = length $book->[$sheet_idx]{label} ? $book->[$sheet_idx]{label} : 'sheet_' . $_;
-            $cm->choose( [ $sheet . ': empty sheet!' ] );
+            choose( [ $sheet . ': empty sheet!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
             return;
         }
         $sql->{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];

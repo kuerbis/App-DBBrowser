@@ -6,11 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( first_index );
-use Term::Choose    qw();
+use Term::Choose    qw( choose );
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::DB;
@@ -25,7 +25,6 @@ sub new {
 sub col_function {
     my ( $sf, $dbh, $sql, $backup_sql, $sql_type ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     my @functions = ( qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) );
     my $stmt_key = '';
     if ( $sql->{select_type} eq '*' ) {
@@ -64,9 +63,9 @@ sub col_function {
         my $choices = [ @pre, map( "- $_", @cols ) ];
         $ax->print_sql( $sql, [ $sql_type ] );
         # Choose
-        my $idx = $stmt_h->choose(
+        my $idx = choose(
             $choices,
-            { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $default, prompt => 'Choose:' }
+            { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $default }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
             $sql = clone( $backup_sql );
@@ -103,7 +102,7 @@ sub col_function {
         }
         $ax->print_sql( $sql, [ $sql_type ] );
         # Choose
-        my $function = $stmt_h->choose(
+        my $function = choose(
             [ undef, map( "  $_", @functions ) ],
             { %{$sf->{i}{lyt_stmt_v}} }
         );
@@ -135,7 +134,6 @@ sub col_function {
 sub __prepare_col_func {
     my ( $sf, $func, $qt_col ) = @_;
     my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-    my $obj_ch = Term::Choose->new();
     my $quote_f;
     if ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
         my $prompt = $func eq 'Epoch_to_Date' ? 'DATE' : 'DATETIME';
@@ -146,7 +144,7 @@ sub __prepare_col_func {
             '  **********               Second' );
         my $choices = [ undef, $microseconds, $milliseconds, $seconds ];
         # Choose
-        my $interval = $obj_ch->choose(
+        my $interval = choose(
             $choices,
             { %{$sf->{i}{lyt_stmt_v}}, prompt => $prompt }
         );
@@ -164,7 +162,7 @@ sub __prepare_col_func {
         my $prompt = "TRUNC $qt_col\nDecimal places:";
         my $choices = [ undef, 0 .. 9 ];
         # Choose
-        my $precision = $obj_ch->choose(
+        my $precision = choose( # choose_a_number
             $choices,
             { %{$sf->{i}{lyt_stmt_h}}, prompt => $prompt }
         );

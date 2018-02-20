@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Term::Form qw();
 
@@ -20,14 +20,14 @@ sub new {
 
 sub get_login {
     my ( $sf, $key ) = @_;
-    my $keep_secret = $sf->{connect_parameter}{keep_secret}{$key};
-    my $saved_value = $sf->{connect_parameter}{read_arg}{$key};
-    if ( ! $sf->{connect_parameter}{required}{$key} ) {
+    my $keep_secret = $sf->{parameter}{secret}{$key};
+    my $saved_value = $sf->{parameter}{argument}{$key};
+    if ( ! $sf->{parameter}{required}{$key} ) {
         return;
     }
     my $prompt = ucfirst( $key ) . ': ';
     my $env_var = 'DBI_' . uc $key;
-    if ( $sf->{connect_parameter}{use_env_var}{$env_var} && exists $ENV{$env_var} ) {
+    if ( $sf->{parameter}{use_env_var}{$env_var} && exists $ENV{$env_var} ) {
         if ( ! $keep_secret ) {
             print $prompt . $ENV{$env_var}, "\n";
         }

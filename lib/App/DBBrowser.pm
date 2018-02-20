@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -15,7 +15,7 @@ use Getopt::Long          qw( GetOptions );
 use Encode::Locale   qw( decode_argv );
 use File::HomeDir    qw();
 use File::Which      qw( which );
-use Term::Choose     qw();
+use Term::Choose     qw( choose );
 use Term::TablePrint qw( print_table );
 
 use App::DBBrowser::Opt;
@@ -38,11 +38,10 @@ BEGIN {
 sub new {
     my ( $class ) = @_;
     my $info = {
-        lyt_1      => {                      layout => 1, order => 0, justify => 2, clear_screen => 1, mouse => 0, undef => '<<'     },
-        lyt_stmt_h => { prompt => 'Choose:', layout => 1, order => 0, justify => 2, clear_screen => 0, mouse => 0, undef => '<<'     },
+        lyt_m      => {                                                             clear_screen => 0, mouse => 0, undef => '<<'     },
         lyt_3      => {                      layout => 3,             justify => 0, clear_screen => 1, mouse => 0, undef => '  BACK' },
+        lyt_stmt_h => { prompt => 'Choose:', layout => 1, order => 0, justify => 2, clear_screen => 0, mouse => 0, undef => '<<'     },
         lyt_stmt_v => { prompt => 'Choose:', layout => 3,             justify => 0, clear_screen => 0, mouse => 0, undef => '  BACK' },
-        lyt_stop   => {                                                             clear_screen => 0, mouse => 0                    },
         quit       => 'QUIT',
         back       => 'BACK',
         _quit      => '  QUIT',
@@ -50,12 +49,11 @@ sub new {
         _continue  => '  CONTINUE',
         _confirm   => '  CONFIRM',
         _reset     => '  RESET',
-        ok         => '- OK -',
+        ok         => '-OK-',
         back_short => '  <=',
         clear_screen      => "\e[H\e[J",
         config_generic    => 'Generic',
         stmt_init_tab     => 4,
-        avail_aggregate   => [ "AVG(X)", "COUNT(X)", "COUNT(*)", "MAX(X)", "MIN(X)", "SUM(X)" ],
         avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
                                "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
                                " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
@@ -163,12 +161,14 @@ sub run {
         }
         else {
             # Choose
-            $db_plugin = $lyt_3->choose(
+            $db_plugin = choose(
                 [ undef, @{$sf->{o}{G}{plugins}} ],
-                { %{$sf->{i}{lyt_1}}, prompt => 'DB Plugin: ', undef => $sf->{i}{quit} }
+                { %{$sf->{i}{lyt_m}}, order => 0, clear_screen => 1,
+                  justify => 2, prompt => 'DB Plugin: ', undef => $sf->{i}{quit} }
             );
             last DB_PLUGIN if ! defined $db_plugin;
         }
+        $db_plugin = 'App::DBBrowser::DB::' . $db_plugin;
         $sf->{i}{plugin} = $db_plugin;
         my $obj_db;
         if ( ! eval {
@@ -650,7 +650,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_01
+Version 1.060_02
 
 =head1 DESCRIPTION
 

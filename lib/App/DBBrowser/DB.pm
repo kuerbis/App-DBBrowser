@@ -6,13 +6,14 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    my $db_module = 'App::DBBrowser::DB::' . $info->{plugin};
+    #my $db_module = 'App::DBBrowser::DB::' . $info->{plugin};
+    my $db_module  = $info->{plugin};
     eval "require $db_module" or die $@;
 
     my $plugin = $db_module->new( {
@@ -23,7 +24,7 @@ sub new {
         sqlite_search        => $info->{sqlite_search},
         clear_screen         => $info->{clear_screen},
         add_metadata         => $opt->{G}{meta},
-        qualified_table_name => $opt->{G}{qualified_table_name},
+        #qualified_table_name => $opt->{G}{qualified_table_name},
     } );
     bless { Plugin => $plugin }, $class;
 }
@@ -46,9 +47,9 @@ sub driver {
 sub read_arguments {
     my ( $sf ) = @_;
     return undef, [] if ! $sf->{Plugin}->can( 'read_arguments' );
-    my ( $driver_prefix, $read_args ) = $sf->{Plugin}->read_arguments();
-    return $driver_prefix, [] if ! defined $read_args;
-    return $driver_prefix, $read_args; # docu
+    my $read_args = $sf->{Plugin}->read_arguments();
+    return [] if ! defined $read_args;
+    return $read_args; # docu
 }
 
 sub env_variables {
@@ -61,10 +62,10 @@ sub env_variables {
 
 sub set_attributes {
     my ( $sf ) = @_;
-    return [] if ! $sf->{Plugin}->can( 'set_attributes' );
-    my $connect_attributes = $sf->{Plugin}->set_attributes();
-    return [] if ! defined $connect_attributes;
-    return $connect_attributes;
+    return undef, [] if ! $sf->{Plugin}->can( 'set_attributes' );
+    my ( $driver_prefix, $attributes ) = $sf->{Plugin}->set_attributes();
+    return $driver_prefix, [] if ! defined $driver_prefix;
+    return $driver_prefix, $attributes;
 }
 
 
@@ -254,7 +255,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_01
+Version 1.060_02
 
 =head1 DESCRIPTION
 
@@ -341,7 +342,7 @@ C<db-browser> expects the attribute I<RaiseError> to be enabled.
 The database name and a reference to a hash of hashes.
 
 The hash of hashes provides the settings gathered from the option I<Database settings>. Which I<Database settings> are
-available depends on the methods C<read_arguments>, C<env_variables> and C<set_attributes>.
+available depends on the methods C<arguments>, C<env_variables> and C<attributes>.
 
 For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plugin could look like this:
 
@@ -351,13 +352,13 @@ For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plug
             DBI_USER => 0,
             DBI_PASS => 0,
         },
-        read_arg => {
+        arguments => {
             host => undef,
             pass => undef,
             user => 'db_user_name',
             port => undef
         },
-        set_attr => {
+        attributes => {
             mysql_enable_utf8 => 1
         },
         required => {
@@ -366,7 +367,7 @@ For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plug
             pass => 1,
             host => 1
         },
-        keep_secret => {
+        secret => {
             port => 0,
             host => 0,
             pass => 1,

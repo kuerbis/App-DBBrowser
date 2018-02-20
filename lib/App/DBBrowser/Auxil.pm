@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use Encode qw( encode );
 
@@ -154,7 +154,7 @@ sub print_error_message {
     print $message;
     choose(
         [ 'Press ENTER to continue' ],
-        { %{$sf->{i}{lyt_stop}}, prompt => '' }
+        { %{$sf->{i}{lyt_m}}, prompt => '' }
     );
 }
 

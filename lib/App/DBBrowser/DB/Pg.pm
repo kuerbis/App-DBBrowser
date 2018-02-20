@@ -36,10 +36,10 @@ sub env_variables {
 sub read_arguments {
     my ( $sf ) = @_;
     return [
-        { name => 'host', prompt => "Host",     keep_secret => 0 },
-        { name => 'port', prompt => "Port",     keep_secret => 0 },
-        { name => 'user', prompt => "User",     keep_secret => 0 },
-        { name => 'pass', prompt => "Password", keep_secret => 1 },
+        { name => 'host', prompt => "Host",     secret => 0 },
+        { name => 'port', prompt => "Port",     secret => 0 },
+        { name => 'user', prompt => "User",     secret => 0 },
+        { name => 'pass', prompt => "Password", secret => 1 },
     ];
 }
 
@@ -47,16 +47,16 @@ sub read_arguments {
 sub set_attributes {
     my ( $sf ) = @_;
     return 'pg', [
-        { name => 'pg_enable_utf8', default_index => 2, avail_values => [ 0, 1, -1 ] },
+        { name => 'pg_enable_utf8', default => 2, values => [ 0, 1, -1 ] },
     ];
 }
 
 
 sub db_handle {
-    my ( $sf, $db, $connect_parameter ) = @_;
-    my $obj_db_cred = App::DBBrowser::Credentials->new( { connect_parameter => $connect_parameter } );
+    my ( $sf, $db, $parameter ) = @_;
+    my $obj_db_cred = App::DBBrowser::Credentials->new( { parameter => $parameter } );
     my $dsn;
-    if ( ! ( $connect_parameter->{use_env_var}{DBI_DSN} &&  exists $ENV{DBI_DSN} ) ) {
+    if ( ! ( $parameter->{use_env_var}{DBI_DSN} &&  exists $ENV{DBI_DSN} ) ) {
         my $host = $obj_db_cred->get_login( 'host' );
         my $port = $obj_db_cred->get_login( 'port' );
         $dsn = "dbi:$sf->{driver}:dbname=$db";
@@ -70,14 +70,14 @@ sub db_handle {
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$connect_parameter->{set_attr}},
+        %{$parameter->{attributes}},
     } ) or die DBI->errstr;
     return $dbh;
 }
 
 
 sub databases {
-    my ( $sf, $connect_parameter ) = @_;
+    my ( $sf, $parameter ) = @_;
     return \@ARGV if @ARGV;
     my @regex_system_db = ( '^postgres$', '^template0$', '^template1$' );
     my $stmt = "SELECT datname FROM pg_database";
@@ -88,7 +88,7 @@ sub databases {
     my $info_database = 'postgres';
     print $sf->{clear_screen};
     print "DB: $info_database\n";
-    my $dbh = $sf->db_handle( $info_database, $connect_parameter );
+    my $dbh = $sf->db_handle( $info_database, $parameter );
     my $databases = $dbh->selectcol_arrayref( $stmt, {}, $sf->{add_metadata} ? () : @regex_system_db );
     $dbh->disconnect(); ##
     if ( $sf->{add_metadata} ) {

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use File::Basename qw( basename );
 use List::Util     qw( any );
@@ -27,7 +27,6 @@ sub new {
 
 sub attach_db {
     my ( $sf, $dbh, $data ) = @_;
-    my $tc = Term::Choose->new( { clear_screen => 1 } ); # opt
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     my $cur;
     if ( -s $sf->{i}{file_attached_db} ) {
@@ -46,8 +45,11 @@ sub attach_db {
                 $info .= sprintf "ATTACH DATABASE %s AS %s\n", @$ref;
             }
             my $prompt = $info;
-            $prompt .= "\nATTACH DATABASE";
-            my $db = $tc->choose( $choices, { prompt => $prompt, undef => '<<' } );
+            $prompt .= "\nATTACH DATABASE"; # \n
+            my $db = choose(
+                $choices,
+                { %{$sf->{i}{lyt_3}}, prompt => $prompt , undef => $sf->{i}{back} } # <<
+            );
             if ( ! defined $db ) {
                 if ( @$new ) {
                     shift @$new;
@@ -59,15 +61,15 @@ sub attach_db {
             $info .= "\nATTACH DATABASE $db AS";
 
             ALIAS: while ( 1 ) {
-                my $prompt = 'alias: ';
-                my $alias = $tfr->readline( $prompt, { clear_screen => 1, info => $info } );
+                my $alias = $tfr->readline( 'alias: ', { clear_screen => 1, info => $info } );
                 if ( ! length $alias ) {
                     last ALIAS;
                 }
                 elsif ( any { $_->[1] eq $alias } @$cur, @$new ) {
-                    my $retry = $tc->choose(
+                    my $prompt = $info . "\nalias '$alias' already used:";
+                    my $retry = choose(
                         [ undef, 'New alias' ],
-                        { prompt => "alias '$alias' already used:", undef => 'Back', clear_screen => 0 }
+                        { %{$sf->{i}{lyt_m}}, prompt => $prompt, undef => 'Back', clear_screen => 1 }
                     );
                     last ALIAS if ! defined $retry;
                     next ALIAS;
@@ -82,7 +84,10 @@ sub attach_db {
                 $info = $root;
                 $info .= join( "\n", map { "ATTACH DATABASE $_->[0] AS $_->[1]" } @$cur, @$new );
                 my ( $ok, $more ) = ( 'OK', '++' );
-                my $choice = $tc->choose( [ undef, $ok, $more ], { prompt => $info . "\n\nChoose:", undef => '<<' } );
+                my $choice = choose(
+                    [ undef, $ok, $more ],
+                    { %{$sf->{i}{lyt_m}}, prompt => $info . "\n\nChoose:", undef => '<<', clear_screen => 1 }
+                );
                 if ( ! defined $choice ) {
                     if ( @$new > 1 ) {
                         pop @$new;
@@ -121,13 +126,15 @@ sub detach_db {
     for my $elem ( @$attached_db ) {
         push @choices, sprintf 'DETACH DATABASE %s  (%s)', @$elem[1,0];
     }
-    my $prompt = 'Choose:';
-    my $idx = choose_a_subset( [ @choices ], { info => $info, index => 1, show_fmt => 2, keep_chosen => 0 } ); # prompt
+    my $idx = choose_a_subset(
+        [ @choices ],
+        { mouse => $sf->{o}{table}{mouse}, info => $info, index => 1, show_fmt => 2, keep_chosen => 0 }
+    ); # prompt
     if ( ! defined $idx || ! @$idx ) {
         return;
     }
     my $detach = [];
-    for my $i ( reverse @$idx ) {
+    for my $i ( sort { $b <=> $a } @$idx ) {
         my $ref = splice( @$attached_db, $i, 1 );
     }
     my $h_ref = $ax->read_json( $sf->{i}{file_attached_db} );

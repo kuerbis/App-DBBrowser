@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_01';
+our $VERSION = '1.060_02';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -501,7 +501,7 @@ sub set_options {
 
 sub __settings_menu_wrap {
     my ( $sf, $section, $sub_menu, $prompt ) = @_;
-    my $changed = settings_menu( $sub_menu, $sf->{o}{$section}, { prompt => $prompt } );
+    my $changed = settings_menu( $sub_menu, $sf->{o}{$section}, { prompt => $prompt, mouse => $sf->{o}{table}{mouse} } );
     return if ! $changed;
     $sf->{i}{write_config}++;
 }
@@ -510,7 +510,7 @@ sub __choose_a_subset_wrap {
     my ( $sf, $section, $option, $available, $prompt ) = @_;
     my $current = $sf->{o}{$section}{$option};
     # Choose_list
-    my $list = choose_a_subset( $available, { prompt => $prompt, current => $current, index => 0 } );
+    my $list = choose_a_subset( $available, { prompt => $prompt, current => $current, index => 0, mouse => $sf->{o}{table}{mouse} } );
     return if ! defined $list;
     return if ! @$list;
     $sf->{o}{$section}{$option} = $list;
@@ -523,7 +523,7 @@ sub __choose_a_number_wrap {
     my $current = $sf->{o}{$section}{$option};
     $current = insert_sep( $current, $sf->{o}{G}{thsd_sep} );
     # Choose_a_number
-    my $choice = choose_a_number( $digits, { name => $prompt, current => $current } );
+    my $choice = choose_a_number( $digits, { name => $prompt, current => $current, mouse => $sf->{o}{table}{mouse} } );
     return if ! defined $choice;
     $sf->{o}{$section}{$option} = $choice eq '--' ? undef : $choice;
     $sf->{i}{write_config}++;
