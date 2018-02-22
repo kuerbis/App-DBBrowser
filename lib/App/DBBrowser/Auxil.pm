@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Encode qw( encode );
 
@@ -31,9 +31,6 @@ sub print_sql {
     my $table = $sql->{table};
     my $str = '';
     for my $sql_type ( @$sql_typeS ) {
-        if ( $sql_type eq 'Drop_table' ) { #
-            $str .= "DROP TABLE $table\n";
-        }
         if ( $sql_type eq 'Create_table' ) { #
             my @cols = defined $sql->{create_table_cols} ? @{$sql->{create_table_cols}} : @{$sql->{insert_into_cols}};
             $str .= "CREATE TABLE $table (";
@@ -108,15 +105,6 @@ sub print_sql {
     print $sf->{i}{clear_screen};
     print line_fold( $str, term_width() - 2, '', ' ' x $sf->{i}{stmt_init_tab} );
 }
-
-
-#sub dequote {
-#    my ( $sf, $str ) = @_;
-#    my $q = $sf->{i}{quote_char}; #
-#    $str =~ s/(?!>$q)$q(?!$q)//g;
-#    $str =~ s/$q$q/$q/g;
-#    return $str;
-#}
 
 
 sub quote_table {

@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -38,28 +38,21 @@ BEGIN {
 sub new {
     my ( $class ) = @_;
     my $info = {
-        lyt_m      => {                                                             clear_screen => 0, mouse => 0, undef => '<<'     },
-        lyt_3      => {                      layout => 3,             justify => 0, clear_screen => 1, mouse => 0, undef => '  BACK' },
-        lyt_stmt_h => { prompt => 'Choose:', layout => 1, order => 0, justify => 2, clear_screen => 0, mouse => 0, undef => '<<'     },
-        lyt_stmt_v => { prompt => 'Choose:', layout => 3,             justify => 0, clear_screen => 0, mouse => 0, undef => '  BACK' },
-        quit       => 'QUIT',
-        back       => 'BACK',
-        _quit      => '  QUIT',
-        _back      => '  BACK',
-        _continue  => '  CONTINUE',
-        _confirm   => '  CONFIRM',
-        _reset     => '  RESET',
-        ok         => '-OK-',
-        back_short => '  <=',
-        clear_screen      => "\e[H\e[J",
-        config_generic    => 'Generic',
-        stmt_init_tab     => 4,
-        avail_operators   => [ "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
-                               "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
-                               " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
-                               " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
-                               "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
-                               # "LIKE col", "NOT LIKE col"
+        lyt_m         => { undef => '<<'                                                                 },
+        lyt_3         => { undef => '  BACK', layout => 3,                      clear_screen => 1        },
+        lyt_stmt_h    => { undef => '<<',     layout => 1, prompt => 'Choose:', order => 0, justify => 2 },
+        lyt_stmt_v    => { undef => '  BACK', layout => 3, prompt => 'Choose:'                           },
+        quit          => 'QUIT',
+        back          => 'BACK',
+        _quit         => '  QUIT',
+        _back         => '  BACK',
+        _continue     => '  CONTINUE',
+        _confirm      => '  CONFIRM',
+        _reset        => '  RESET',
+        ok            => '-OK-',
+        back_short    => '  <=',
+        clear_screen  => "\e[H\e[J", #
+        stmt_init_tab => 4,
     };
     return bless { i => $info }, $class;
 }
@@ -89,10 +82,17 @@ sub __init {
     else {
         $config_home = decode 'locale_fs', File::HomeDir->my_data();
     }
-    my $app_dir = $config_home ? catdir( $config_home, 'db_browser' ) : catdir( $home, '.db_browser' );
+    my $app_dir;
+    if ( $config_home ) {
+        $app_dir = catdir( $config_home, 'db_browser' );
+    }
+    else {
+        $app_dir = catdir( $home, '.db_browser' );
+    }
     mkdir $app_dir or die $! if ! -d $app_dir;
     $sf->{i}{home_dir}         = $home;
     $sf->{i}{app_dir}          = $app_dir;
+    $sf->{i}{file_settings}    = catfile $app_dir, 'general_settings.json';
     $sf->{i}{conf_file_fmt}    = catfile $app_dir, 'config_%s.json';
     $sf->{i}{db_cache_file}    = catfile $app_dir, 'cache_db_search.json';
     $sf->{i}{input_files}      = catfile $app_dir, 'file_history.txt';
@@ -154,22 +154,21 @@ sub run {
 
     DB_PLUGIN: while ( 1 ) {
 
-        my $db_plugin;
+        my $plugin;
         if ( @{$sf->{o}{G}{plugins}} == 1 ) {
             $auto_one++;
-            $db_plugin = $sf->{o}{G}{plugins}[0];
+            $plugin = $sf->{o}{G}{plugins}[0];
         }
         else {
             # Choose
-            $db_plugin = choose(
+            $plugin = choose(
                 [ undef, @{$sf->{o}{G}{plugins}} ],
                 { %{$sf->{i}{lyt_m}}, order => 0, clear_screen => 1,
                   justify => 2, prompt => 'DB Plugin: ', undef => $sf->{i}{quit} }
             );
-            last DB_PLUGIN if ! defined $db_plugin;
+            last DB_PLUGIN if ! defined $plugin;
         }
-        $db_plugin = 'App::DBBrowser::DB::' . $db_plugin;
-        $sf->{i}{plugin} = $db_plugin;
+        $sf->{i}{plugin} = 'App::DBBrowser::DB::' . $plugin;
         my $obj_db;
         if ( ! eval {
             $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
@@ -178,7 +177,8 @@ sub run {
             1 }
         ) {
             $ax->print_error_message( $@, 'DB plugin - driver' );
-            next DB_PLUGIN;
+            next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            last DB_PLUGIN;
         }
         my $driver = $sf->{i}{driver};
 
@@ -199,13 +199,13 @@ sub run {
         ) {
             $ax->print_error_message( $@, 'Available databases' );
             $sf->{i}{login_error} = 1;
-            last DB_PLUGIN if @{$sf->{o}{G}{plugins}} == 1;
-            next DB_PLUGIN;
+            next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            last DB_PLUGIN;
         }
         if ( ! @databases ) {
             $ax->print_error_message( "no $driver-databases found\n" );
-            last DB_PLUGIN if @{$sf->{o}{G}{plugins}} == 1;
-            next DB_PLUGIN;
+            next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            last DB_PLUGIN;
         }
         my $db;
         my $old_idx_db = 0;
@@ -238,8 +238,8 @@ sub run {
                 $db = undef;
                 $db = $choices_db->[$idx_db] if defined $idx_db;
                 if ( ! defined $db ) {
-                    last DB_PLUGIN if @{$sf->{o}{G}{plugins}} == 1;
-                    next DB_PLUGIN;
+                    next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+                    last DB_PLUGIN;
                 }
                 if ( $sf->{o}{G}{menu_memory} ) {
                     if ( $old_idx_db == $idx_db ) {
@@ -260,15 +260,16 @@ sub run {
                 print $sf->{i}{clear_screen};
                 print 'DB: "'. basename( $db ) . '"' . "\n";
                 $dbh = $obj_db->db_handle( $db, $obj_o_db->connect_parameter( $db) );
-                #$sf->{i}{quote_char} = quotemeta( $dbh->get_info(29)  || '"' ); # SQL_IDENTIFIER_QUOTE_CHAR
                 $sf->{i}{sep_char} = $dbh->get_info(41)  || '.'; # SQL_CATALOG_NAME_SEPARATOR
                 1 }
             ) {
                 $ax->print_error_message( $@, 'Get database handle' );
                 # remove database from @databases
                 $sf->{i}{login_error} = 1;
-                # disconnect if defined and aktive
-                next DATABASE;
+                $dbh->disconnect() if defined $dbh || $dbh->{Active};
+                next DATABASE  if @databases              > 1;
+                next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+                last DB_PLUGIN;
             }
             $sf->{i}{db_attached} = 0;
             if ( $driver eq 'SQLite' && -s $sf->{i}{file_attached_db} ) {
@@ -301,7 +302,9 @@ sub run {
             ) {
                 $ax->print_error_message( $@, 'Get schema names' );
                 $dbh->disconnect();
-                next DATABASE;
+                next DATABASE  if @databases              > 1;
+                next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+                last DB_PLUGIN;
             }
             my $old_idx_sch = 0;
 
@@ -352,7 +355,7 @@ sub run {
                     user_dbs => $user_dbs,
                     sys_dbs  => $sys_dbs,
                     user_schemas => $user_schemas,
-                    sys_schemas  => $sys_schemas, # 's' or no 's'
+                    sys_schemas  => $sys_schemas,
                 };
                 my @tables;
                 if ( ! eval {
@@ -362,8 +365,11 @@ sub run {
                     1 }
                 ) {
                     $ax->print_error_message( $@, 'Get table names' );
+                    next SCHEMA    if @schemas                > 1;
                     $dbh->disconnect();
-                    next DATABASE;
+                    next DATABASE  if @databases              > 1;
+                    next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+                    last DB_PLUGIN;
                 }
                 my $old_idx_tbl = 1;
 
@@ -414,7 +420,7 @@ sub run {
                         }
                         next TABLE;
                     }
-                    if ( $table eq $hidden ) { # <- prompt "table-menu"
+                    if ( $table eq $hidden ) {
                         my $old_idx_hdn = 0;
 
                         HIDDEN: while ( 1 ) {
@@ -623,6 +629,7 @@ sub __tables_data {
         my $table = defined $schema ? $href->{$table_name} : $ax->quote_table( $dbh, [ @{$href}{@keys} ] );
         if ( $href->{TABLE_TYPE} =~ /SYSTEM/ ) {
             #next if ! $sf->{add_metadata};
+            next if $href->{$table_name} eq 'sqlite_temp_master';
             push @$sys_tbls, $table;
         }
         elsif ( $href->{TABLE_TYPE} eq 'TABLE' ) { # || $href->{TABLE_TYPE} eq 'VIEW' || $href->{TABLE_TYPE} eq 'LOCAL TEMPORARY' ) {
@@ -650,7 +657,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_02
+Version 1.060_03
 
 =head1 DESCRIPTION
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Term::Form qw();
 
@@ -21,7 +21,7 @@ sub new {
 sub get_login {
     my ( $sf, $key ) = @_;
     my $keep_secret = $sf->{parameter}{secret}{$key};
-    my $saved_value = $sf->{parameter}{argument}{$key};
+    my $saved_value = $sf->{parameter}{arguments}{$key};
     if ( ! $sf->{parameter}{required}{$key} ) {
         return;
     }

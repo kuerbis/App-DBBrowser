@@ -6,12 +6,12 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use File::Basename qw( basename );
 
 use Term::Choose       qw( choose );
-use Term::Choose::Util qw( choose_a_subset settings_menu choose_dirs );
+use Term::Choose::Util qw( choose_a_subset settings_menu );
 use Term::Form         qw();
 
 use App::DBBrowser::DB;
@@ -55,19 +55,6 @@ sub __group_readline_db {
 }
 
 
-sub __choose_dirs_wrap_db {
-    my ( $sf, $db_o, $section, $opt ) = @_;
-    my $current = $db_o->{$section}{$opt};
-    # Choose_dirs
-    my $dirs = choose_dirs( { mouse => $sf->{o}{table}{mouse}, current => $current } );
-    return if ! defined $dirs;
-    return if ! @$dirs;
-    $db_o->{$section}{$opt} = $dirs;
-    $sf->{i}{write_config}++;
-    return;
-}
-
-
 sub connect_parameter {
     my ( $sf, $db ) = @_;
     my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
@@ -84,7 +71,8 @@ sub connect_parameter {
 
     my $env_vars = $obj_db->env_variables();
     for my $env_var ( @$env_vars ) {
-        if ( ! defined $db || defined $db && ! defined $db_o->{$db}{$env_var} ) {
+        if ( ! defined $db || ! defined $db_o->{$db}{$env_var} ) {
+            # use global
             $cp->{use_env_var}{$env_var} = $db_o->{$plugin}{$env_var};
         }
         else {
@@ -92,29 +80,21 @@ sub connect_parameter {
         }
     }
 
-    my ( $driver_prefix, $attrs ) = $obj_db->set_attributes();
-    $driver_prefix ||= '';
-    for my $opt ( keys %{$db_o->{$plugin}} ) {
-        if ( ! defined $db || defined $db && ! defined $db_o->{$db}{$opt} ) {
-            $cp->{attributes}{$opt} = $db_o->{$plugin}{$opt} if $opt =~ /^\Q$driver_prefix\E/;
-        }
-        else {
-            $cp->{attributes}{$opt} = $db_o->{$db}{$opt}     if $opt =~ /^\Q$driver_prefix\E/;
-        }
-    }
+    my $attrs = $obj_db->set_attributes();
+    # attributes added by hand to the config file: attribues are
+    # only used if they have entries in the set_attributes method
     for my $attr ( @$attrs ) {
         my $name = $attr->{name};
-        if ( ! defined $db || defined $db && ! defined $db_o->{$db}{$name} ) {
+        if ( ! defined $db || ! defined $db_o->{$db}{$name} ) {
             if ( ! defined $db_o->{$plugin}{$name} ) {
+                # set global to default
                 $db_o->{$plugin}{$name} = $attr->{values}[$attr->{default}];
-                $cp->{attributes}{$name} = $db_o->{$plugin}{$name};
             }
+            # use global
+            $cp->{attributes}{$name} = $db_o->{$plugin}{$name};
         }
         else {
-            if ( ! defined $db_o->{$db}{$name} ) {
-                $db_o->{$db}{$name} = $attr->{values}[$attr->{default}];
-                $cp->{attributes}{$name} = $db_o->{$db}{$name};
-            }
+            $cp->{attributes}{$name} = $db_o->{$db}{$name};
         }
     }
 
@@ -123,20 +103,21 @@ sub connect_parameter {
         my $name = $item->{name};
         my $required = 'field_' . $name;
         $cp->{secret}{$name} = $item->{secret};
-        if ( ! defined $db || defined $db && ! defined $db_o->{$db}{$required} ) {
+        if ( ! defined $db || ! defined $db_o->{$db}{$required} ) {
             if ( ! defined $db_o->{$plugin}{$required} ) {
+                # set global to default
                 $db_o->{$plugin}{$required} = 1; # All fields required by default
-                $cp->{required}{$name} = $db_o->{$plugin}{$required};
             }
+            # use gloabl
+            $cp->{required}{$name} = $db_o->{$plugin}{$required};
         }
         else {
-            if ( ! defined $db_o->{$db}{$required} ) {
-                $db_o->{$db}{$required} = 1; # All fields required by default
-                $cp->{required}{$name} = $db_o->{$db}{$required};
-            }
+            $cp->{required}{$name} = $db_o->{$db}{$required};
         }
+        # if a login error occurred, the next time the use has to enter the arguments by hand
         if ( ! $sf->{i}{login_error} ) {
-            if ( ! defined $db || defined $db && ! defined $db_o->{$db}{$name} ) {
+            if ( ! defined $db || ! defined $db_o->{$db}{$name} ) {
+                # use global
                 $cp->{arguments}{$name} = $db_o->{$plugin}{$name};
             }
             else {
@@ -144,13 +125,8 @@ sub connect_parameter {
             }
         }
     }
-
-    if ( $sf->{i}{driver} eq 'SQLite' && ! defined $db_o->{$plugin}{directories_sqlite} ) {
-        $db_o->{$plugin}{directories_sqlite} = [ $sf->{i}{home_dir} ];
-    }
-    $cp->{dir_sqlite} = $db_o->{$plugin}{directories_sqlite}; #
     if ( exists $sf->{i}{login_error} ) {
-        delete $sf->{i}{login_error}; #
+        delete $sf->{i}{login_error};
     }
     return $cp;
 }
@@ -159,19 +135,13 @@ sub connect_parameter {
 
 sub database_setting {
     my ( $sf, $db ) = @_;
-    my $changed = 0;
+
     SECTION: while ( 1 ) {
-        my ( $driver, $plugin, $section );
+        my ( $driver, $plugin, $section ); # driver
         if ( defined $db ) {
             $plugin = $sf->{i}{plugin};
             $driver = $sf->{i}{driver};
             $section = $db;
-            for my $opt ( keys %{$sf->{o}{$plugin}} ) {
-                next if $opt eq 'directories_sqlite';
-                if ( ! defined $sf->{o}{$section}{$opt} ) {
-                    $sf->{o}{$section}{$opt} = $sf->{o}{$plugin}{$opt};
-                }
-            }
         }
         else {
             if ( @{$sf->{o}{G}{plugins}} == 1 ) {
@@ -194,7 +164,7 @@ sub database_setting {
         $driver = $obj_db->driver() if ! $driver;
         my $env_var    = $obj_db->env_variables();
         my $login_data = $obj_db->read_arguments();
-        my $attr       = $obj_db->set_attributes();
+        my $attr = $obj_db->set_attributes();
         my $items = {
             required => [ map { {
                     name         => 'field_' . $_->{name},
@@ -215,11 +185,12 @@ sub database_setting {
         push @groups, [ 'required',      "- Fields"             ] if @{$items->{required}};
         push @groups, [ 'env_variables', "- ENV Variables"      ] if @{$items->{env_variables}};
         push @groups, [ 'arguments',     "- Login Data"         ] if @{$items->{arguments}};
-        push @groups, [ 'attributes',    "- DB Options"         ];
-        push @groups, [ 'sqlite_dir',    "- Sqlite directories" ] if $driver eq 'SQLite';
-        my $prompt = defined $db ? 'DB: "' . ( $driver eq 'SQLite' ? basename $db : $db )
-                                 : 'Plugin "' . $plugin . '"';
+        push @groups, [ 'attributes',    "- Attributes"         ] if @{$items->{attributes}};
+        #my $prompt = defined $db ? 'DB: "' . ( $driver eq 'SQLite' ? basename $db : $db ) . '"'
+        #                         : 'Plugin "' . $plugin . '"';
+        my $prompt = defined $db ? 'DB: "' . $db . '"' : '"' . $plugin . '"';
         my $db_o = $sf->__read_db_config_files();
+        my $changed = 0;
         my $old_idx_group = 0;
 
         GROUP: while ( 1 ) {
@@ -254,7 +225,7 @@ sub database_setting {
             if ( $choices->[$idx_group] eq $reset ) {
                 my @databases;
                 for my $section ( keys %$db_o ) {
-                    push @databases, $section if $section ne $plugin; # $1 if $section =~ /^\Q$plugin\E_(.+)\z/;
+                    push @databases, $section if $section ne $plugin;
                 }
                 if ( ! @databases ) {
                     choose(
@@ -284,9 +255,11 @@ sub database_setting {
                     push @$sub_menu, [ $required, '- ' . $item->{prompt}, $item->{values} ];
                     if ( ! defined $db_o->{$section}{$required} ) {
                         if ( defined $db_o->{$plugin}{$required} ) {
+                            # set to global
                             $db_o->{$section}{$required} = $db_o->{$plugin}{$required};
                         }
                         else {
+                            # set to default
                             $db_o->{$section}{$required} = 1;  # All fields required by default
                         }
                     }
@@ -302,9 +275,11 @@ sub database_setting {
                     push @$sub_menu, [ $env_variable, '- ' . $item->{prompt}, $item->{values} ];
                     if ( ! defined $db_o->{$section}{$env_variable} ) {
                         if ( defined $db_o->{$plugin}{$env_variable} ) {
+                            # set to global
                             $db_o->{$section}{$env_variable} = $db_o->{$plugin}{$env_variable};
                         }
                         else {
+                            # set to default
                             $db_o->{$section}{$env_variable} = 0;
                         }
                     }
@@ -318,6 +293,7 @@ sub database_setting {
                     my $opt = $item->{name};
                     if ( ! defined $db_o->{$section}{$opt} ) {
                         if ( defined $db_o->{$plugin}{$opt} ) {
+                            # set to global
                             $db_o->{$section}{$opt} = $db_o->{$plugin}{$opt};
                         }
                     }
@@ -333,20 +309,17 @@ sub database_setting {
                     push @$sub_menu, [ $opt, $prompt, $item->{values} ];
                     if ( ! defined $db_o->{$section}{$opt} ) {
                         if ( defined $db_o->{$plugin}{$opt} ) {
+                            # set to global
                             $db_o->{$section}{$opt} = $db_o->{$plugin}{$opt};
                         }
                         else {
+                            # set to default
                             $db_o->{$section}{$opt} = $item->{values}[$item->{default}];
                         }
                     }
                 }
                 my $prompt = 'Options (' . $plugin . '):';
                 $sf->__settings_menu_wrap_db( $db_o, $section, $sub_menu, $prompt );
-                next GROUP;
-            }
-            elsif ( $group eq 'sqlite_dir' ) {
-                my $opt = 'directories_sqlite';
-                $sf->__choose_dirs_wrap_db( $db_o, $section, $opt );
                 next GROUP;
             }
         }

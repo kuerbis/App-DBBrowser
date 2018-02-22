@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -14,7 +14,7 @@ use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage );  # "require"-d
 
 use Term::Choose       qw( choose );
-use Term::Choose::Util qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_a_dir );
+use Term::Choose::Util qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_a_dir choose_dirs );
 use Term::Form         qw();
 
 use App::DBBrowser::Auxil;
@@ -43,6 +43,7 @@ sub defaults {
             parentheses_h        => 0,
             quote_identifiers    => 1,
             qualified_table_name => 0,
+            dirs_sqlite           => [ $sf->{i}{home_dir} ],
         },
         table => {
             table_expand         => 1,
@@ -173,7 +174,7 @@ sub config_insert {
                 redo GROUP_INSERT;
             }
             my $section  = $sub_menu_insert->[$idx - @pre]{section};
-            my $opt_type = 'o';
+            #my $opt_type = 'o';
             my $no_yes   = [ 'NO', 'YES' ];
 #            if ( $option eq 'input_modes' ) {
 #                    my $available = [ 'Cols', 'Rows', 'Multi-row', 'File' ];
@@ -261,8 +262,9 @@ sub __menus {
             { name => 'config_insert',   text => "- Insert" },
         ],
         config_database => [
-            { name => '_db_defaults', text => "- DB Settings"                },
-            { name => 'plugins',      text => "- DB Plugins", section => 'G' },
+            { name => '_db_defaults', text => "- DB Settings"                        },
+            { name => 'plugins',      text => "- DB Plugins",         section => 'G' },
+            { name => 'dirs_sqlite',  text => "- Sqlite directories", section => 'G' }, # docu
         ],
         config_menu => [
             { name => '_menu_memory',  text => "- Menu Memory", section => 'G' },
@@ -384,10 +386,14 @@ sub set_options {
                 $obj_o_db->database_setting();
                 next OPTION;
             }
-            my $opt_type = 'o';
+            #my $opt_type = 'o';
             my $section  = $menu->[$idx - @pre]{section};
             my $no_yes   = [ 'NO', 'YES' ];
-            if ( $option eq 'plugins' ) {
+            if ( $option eq 'dirs_sqlite' ) {
+                # choose first a plugin and only if plugin SQLite then
+                $sf->__choose_dirs_wrap( $section, $option );
+            }
+            elsif ( $option eq 'plugins' ) {
                 my %installed_driver;
                 for my $dir ( @INC ) {
                     my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
@@ -461,7 +467,12 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu );
             }
             elsif ( $option eq 'operators' ) {
-                my $available = $sf->{i}{avail_operators};
+                my $available =[
+                    "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
+                    "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
+                    " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
+                    "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
+                    # "LIKE col", "NOT LIKE col"
                 my $prompt = 'Choose operators:';
                 $sf->__choose_a_subset_wrap( $section, $option, $available, $prompt );
             }
@@ -562,10 +573,21 @@ sub __choose_a_dir_wrap {
     return;
 }
 
+sub __choose_dirs_wrap {
+    my ( $sf, $section, $option ) = @_;
+    my $current = $sf->{o}{$section}{$option};
+    # Choose_dirs
+    my $dirs = choose_dirs( { mouse => $sf->{o}{table}{mouse}, current => $current } );
+    return if ! defined $dirs;
+    return if ! @$dirs;
+    $sf->{o}{$section}{$option} = $dirs;
+    $sf->{i}{write_config}++;
+    return;
+}
+
 
 sub __write_config_files {
     my ( $sf ) = @_;
-    my $fmt = $sf->{i}{conf_file_fmt};
     my $tmp = {};
     for my $section ( keys %{$sf->{o}} ) {
         for my $option ( keys %{$sf->{o}{$section}} ) {
@@ -573,18 +595,17 @@ sub __write_config_files {
         }
     }
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $file_name = $sf->{i}{config_generic};
-    $ax->write_json( sprintf( $fmt, $file_name ), $tmp  );
+    my $file_name = $sf->{i}{file_settings};
+    $ax->write_json( $file_name, $tmp  );
 }
 
 sub read_config_files {
     my ( $sf ) = @_;
     my $o = $sf->defaults();
-    my $fmt = $sf->{i}{conf_file_fmt};
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $file =  sprintf( $fmt, $sf->{i}{config_generic} );
-    if ( -f $file && -s $file ) {
-        my $tmp = $ax->read_json( $file );
+    my $file_name = $sf->{i}{file_settings};
+    if ( -f $file_name && -s $file_name ) {
+        my $tmp = $ax->read_json( $file_name );
         for my $section ( keys %$tmp ) {
             for my $option ( keys %{$tmp->{$section}} ) {
                 $o->{$section}{$option} = $tmp->{$section}{$option} if exists $o->{$section}{$option};

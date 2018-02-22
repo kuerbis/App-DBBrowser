@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Clone              qw( clone );
 use List::MoreUtils    qw( any first_index );
@@ -83,7 +83,7 @@ sub on_table {
             $idx = choose(
                 $choices,
                 { %{$sf->{i}{lyt_stmt_v}}, prompt => '', index => 1, default => $old_idx,
-                undef => $sql_type ne 'Select' ? $sf->{i}{_back} : $sf->{i}{back} } # lyt_m layout 3
+                undef => $sql_type ne 'Select' ? $sf->{i}{_back} : $sf->{i}{back} }
             );
             if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $sql_type eq 'Select'  ) {
@@ -124,7 +124,7 @@ sub on_table {
                 $cu{lock} = $lk->[1];
             }
         }
-        elsif ( $custom eq $cu{'insert'} ) { # pos
+        elsif ( $custom eq $cu{'insert'} ) {
             require App::DBBrowser::Table::Insert;
             my $tbl_in = App::DBBrowser::Table::Insert->new( $sf->{i}, $sf->{o} );
             $tbl_in->build_insert_stmt( $sql, [ $sql_type ], $dbh );
@@ -460,7 +460,7 @@ sub on_table {
             my $count = 0;
 
             HAVING: while ( 1 ) {
-                my @choices = ( @aggregate, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #####
+                my @choices = ( @aggregate, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #
                 if ( $sf->{o}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
                 }
@@ -563,7 +563,8 @@ sub on_table {
             }
             else {
                 @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
-                for my $stmt_type ( qw/group_by_cols aggr_cols/ ) { # offer order by unmodified columns
+                for my $stmt_type ( qw/group_by_cols aggr_cols/ ) {
+                    # "order by": offer unmodified columns
                     for my $i ( 0 .. $#{$sql->{$stmt_type}} ) {
                         next if ! exists $sql->{orig_cols}{$stmt_type};
                         if ( $sql->{orig_cols}{$stmt_type}[$i] ne $sql->{$stmt_type}[$i] ) {
@@ -671,9 +672,9 @@ sub on_table {
         elsif ( $custom eq $cu{'print_tbl'} ) {
             my $cols_sql = " ";
             if ( $sql->{select_type} eq '*' ) {
-                if ( $sf->{i}{multi_tbl} eq 'join' ) {
-                    $cols_sql .= join( ', ', @{$sql->{cols}} ); # ?
-                }
+                if ( $sf->{i}{multi_tbl} eq 'join' ) {          # ?
+                    $cols_sql .= join( ', ', @{$sql->{cols}} ); #
+                }                                               #
                 else {
                     $cols_sql .= "*";
                 }

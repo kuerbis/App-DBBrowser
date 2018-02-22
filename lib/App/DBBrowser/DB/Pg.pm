@@ -46,7 +46,7 @@ sub read_arguments {
 
 sub set_attributes {
     my ( $sf ) = @_;
-    return 'pg', [
+    return [
         { name => 'pg_enable_utf8', default => 2, values => [ 0, 1, -1 ] },
     ];
 }
@@ -56,7 +56,7 @@ sub db_handle {
     my ( $sf, $db, $parameter ) = @_;
     my $obj_db_cred = App::DBBrowser::Credentials->new( { parameter => $parameter } );
     my $dsn;
-    if ( ! ( $parameter->{use_env_var}{DBI_DSN} &&  exists $ENV{DBI_DSN} ) ) {
+    if ( ! $parameter->{use_env_var}{DBI_DSN} || ! exists $ENV{DBI_DSN} ) {
         my $host = $obj_db_cred->get_login( 'host' );
         my $port = $obj_db_cred->get_login( 'port' );
         $dsn = "dbi:$sf->{driver}:dbname=$db";
@@ -114,53 +114,6 @@ sub databases {
 #sub primary_key_auto {
 #    return "SERIAL PRIMARY KEY";
 #}
-
-
-#sub sql_regexp {
-#    my ( $sf, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
-#    if ( $do_not_match_regexp ) {
-#        return ' '. $quote_col . '::text' . ' !~* ?' if ! $case_sensitive;
-#        return ' '. $quote_col . '::text' . ' !~ ?'  if   $case_sensitive;
-#    }
-#    else {
-#        return ' '. $quote_col . '::text' . ' ~* ?'  if ! $case_sensitive;
-#        return ' '. $quote_col . '::text' . ' ~ ?'   if   $case_sensitive;
-#    }
-#}
-
-#sub concatenate {
-#    my ( $sf, $arg ) = @_;
-#    return join( ' || ', @$arg );
-#}
-
-
-# scalar functions
-
-#sub epoch_to_datetime {
-#    my ( $sf, $col, $interval ) = @_;
-#    return "(TO_TIMESTAMP(${col}::bigint/$interval))::timestamp";
-#}
-
-#sub epoch_to_date {
-#    my ( $sf, $col, $interval ) = @_;
-#    return "(TO_TIMESTAMP(${col}::bigint/$interval))::date";
-#}
-
-#sub truncate {
-#    my ( $sf, $col, $precision ) = @_;
-#    return "TRUNC($col,$precision)";
-#}
-
-#sub bit_length {
-#    my ( $sf, $col ) = @_;
-#    return "BIT_LENGTH($col)";
-#}
-
-#sub char_length {
-#    my ( $sf, $col ) = @_;
-#    return "CHAR_LENGTH($col)";
-#}
-
 
 
 

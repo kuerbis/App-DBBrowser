@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Clone                  qw( clone );
 use List::MoreUtils        qw( any );
@@ -245,7 +245,7 @@ sub join_tables {
     ( $j->{col_names}, $j->{col_types} ) = $sf->__column_names_and_types( $dbh, $data, $tbls );
     my $join = {};
 
-    MASTER: while ( 1 ) {               # memory
+    MASTER: while ( 1 ) {
         $join = {};
         $join->{stmt} = "SELECT * FROM";
         $join->{primary_keys} = [];
@@ -264,7 +264,8 @@ sub join_tables {
             return;
         }
         if ( $choices->[$idx] eq $info ) {
-            $sf->__print_join_info( $dbh, $data );
+            $sf->__get_join_info( $dbh, $data );
+            $sf->__print_join_info( $data );
             next MASTER;
         }
         $idx -= @pre;
@@ -276,7 +277,7 @@ sub join_tables {
         $join->{alias}{$master} = $join->{table_alias};
         my $backup_master = clone( $join );
 
-        JOIN: while ( 1 ) {                             # Memory
+        JOIN: while ( 1 ) {
             my $idx;
             my $enough_slaves = '  Enough TABLES';
             my @pre = ( undef, $enough_slaves );
@@ -303,7 +304,8 @@ sub join_tables {
                     last JOIN;
                 }
                 elsif ( $choices->[$idx] eq $info ) {
-                    $sf->__print_join_info( $dbh, $data );
+                    $sf->__get_join_info( $dbh, $data );
+                    $sf->__print_join_info( $data );
                     next SLAVE;
                 }
                 else {
@@ -328,7 +330,7 @@ sub join_tables {
 
             my $AND = '';
 
-            ON: while ( 1 ) {                                       # Memory
+            ON: while ( 1 ) {
                 my @pre = ( undef );
                 $sf->__print_join_statement( $join->{stmt} );
                 push @pre, $sf->{i}{_continue} if $AND;
@@ -396,44 +398,19 @@ sub __print_join_statement {
 }
 
 
-sub __print_join_info { # cache
-    my ( $sf, $dbh, $data ) = @_;
-    my $td = $data->{tables};
-    my $tables = $data->{user_tbls}; ###
-    my %pk;
-    for my $table ( @$tables ) {
-        my $sth = $dbh->primary_key_info( @{$td->{$table}} );
-        next if ! defined $sth;
-        while ( my $ref = $sth->fetchrow_hashref() ) {
-            next if ! defined $ref;
-            #$pk{$table}->{TABLE_SCHEM} =        $ref->{TABLE_SCHEM};
-            $pk{$table}->{TABLE_NAME}  =        $ref->{TABLE_NAME};
-            push @{$pk{$table}->{COLUMN_NAME}}, $ref->{COLUMN_NAME};
-            #push @{$pk{$table}->{KEY_SEQ}},     defined $ref->{KEY_SEQ} ? $ref->{KEY_SEQ} : $ref->{ORDINAL_POSITION};
-        }
-    }
-    my %fk;
-    for my $table ( @$tables ) {
-        my $sth = $dbh->foreign_key_info( @{$td->{$table}}, undef, undef, undef );
-        next if ! defined $sth;
-        while ( my $ref = $sth->fetchrow_hashref() ) {
-            next if ! defined $ref;
-            #$fk{$table}->{FKTABLE_SCHEM} =        defined $ref->{FKTABLE_SCHEM} ? $ref->{FKTABLE_SCHEM} : $ref->{FK_TABLE_SCHEM};
-            $fk{$table}->{FKTABLE_NAME}  =        defined $ref->{FKTABLE_NAME}  ? $ref->{FKTABLE_NAME}  : $ref->{FK_TABLE_NAME};
-            push @{$fk{$table}->{FKCOLUMN_NAME}}, defined $ref->{FKCOLUMN_NAME} ? $ref->{FKCOLUMN_NAME} : $ref->{FK_COLUMN_NAME};
-            #push @{$fk{$table}->{KEY_SEQ}},       defined $ref->{KEY_SEQ}       ? $ref->{KEY_SEQ}       : $ref->{ORDINAL_POSITION};
-        }
-    }
-    # separate function
+sub __print_join_info {
+    my ( $sf, $data ) = @_;
+    my $pk = $data->{pk_info};
+    my $fk = $data->{fk_info};
     my $aref = [ [ qw(PK_TABLE PK_COLUMN), ' ', qw(FK_TABLE FK_COLUMN) ] ];
     my $r = 1;
-    for my $t ( sort keys %pk ) {
-        $aref->[$r][0] = $pk{$t}->{TABLE_NAME};
-        $aref->[$r][1] = join( ', ', @{$pk{$t}{COLUMN_NAME}} );
-        if ( defined $fk{$t}->{FKCOLUMN_NAME} && @{$fk{$t}->{FKCOLUMN_NAME}} ) {
+    for my $t ( sort keys %$pk ) {
+        $aref->[$r][0] = $pk->{$t}{TABLE_NAME};
+        $aref->[$r][1] = join( ', ', @{$pk->{$t}{COLUMN_NAME}} );
+        if ( defined $fk->{$t}->{FKCOLUMN_NAME} && @{$fk->{$t}{FKCOLUMN_NAME}} ) {
             $aref->[$r][2] = 'ON';
-            $aref->[$r][3] = $fk{$t}{FKTABLE_NAME};
-            $aref->[$r][4] = join( ', ', @{$fk{$t}{FKCOLUMN_NAME}} );
+            $aref->[$r][3] = $fk->{$t}{FKTABLE_NAME};
+            $aref->[$r][4] = join( ', ', @{$fk->{$t}{FKCOLUMN_NAME}} );
         }
         else {
             $aref->[$r][2] = '';
@@ -445,7 +422,38 @@ sub __print_join_info { # cache
     print_table( $aref, { keep_header => 0, tab_width => 3 } );
 }
 
-
+sub __get_join_info {
+    my ( $sf, $dbh, $data ) = @_;
+    return if $data->{pk_info};
+    my $td = $data->{tables};
+    my $tables = $data->{user_tbls}; ###
+    my $pk = {};
+    for my $table ( @$tables ) {
+        my $sth = $dbh->primary_key_info( @{$td->{$table}} );
+        next if ! defined $sth;
+        while ( my $ref = $sth->fetchrow_hashref() ) {
+            next if ! defined $ref;
+            #$pk->{$table}{TABLE_SCHEM} =        $ref->{TABLE_SCHEM};
+            $pk->{$table}{TABLE_NAME}  =        $ref->{TABLE_NAME};
+            push @{$pk->{$table}{COLUMN_NAME}}, $ref->{COLUMN_NAME};
+            #push @{$pk->{$table}{KEY_SEQ}},     defined $ref->{KEY_SEQ} ? $ref->{KEY_SEQ} : $ref->{ORDINAL_POSITION};
+        }
+    }
+    my $fk = {};
+    for my $table ( @$tables ) {
+        my $sth = $dbh->foreign_key_info( @{$td->{$table}}, undef, undef, undef );
+        next if ! defined $sth;
+        while ( my $ref = $sth->fetchrow_hashref() ) {
+            next if ! defined $ref;
+            #$fk->{$table}{FKTABLE_SCHEM} =        defined $ref->{FKTABLE_SCHEM} ? $ref->{FKTABLE_SCHEM} : $ref->{FK_TABLE_SCHEM};
+            $fk->{$table}{FKTABLE_NAME}  =        defined $ref->{FKTABLE_NAME}  ? $ref->{FKTABLE_NAME}  : $ref->{FK_TABLE_NAME};
+            push @{$fk->{$table}{FKCOLUMN_NAME}}, defined $ref->{FKCOLUMN_NAME} ? $ref->{FKCOLUMN_NAME} : $ref->{FK_COLUMN_NAME};
+            #push @{$fk->{$table}{KEY_SEQ}},       defined $ref->{KEY_SEQ}       ? $ref->{KEY_SEQ}       : $ref->{ORDINAL_POSITION};
+        }
+    }
+    $data->{pk_info} = $pk;
+    $data->{fk_info} = $fk;
+}
 
 1;
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -51,10 +51,10 @@ sub delete_table {
     my $all_arrayref = $sth->fetchall_arrayref;
     my $row_count = @$all_arrayref;
     unshift @$all_arrayref, $sth->{NAME};
-    my $prompt_pt = 'The table to be deleted  -  press enter to continue.';
+    my $prompt_pt = "ENTER to continue\n$sql->{table}:";
     print_table( $all_arrayref, { %{$sf->{o}{table}}, prompt => $prompt_pt, max_rows => 0, table_expand => 0 } );
-    $prompt = sprintf 'Drop table %s (%d %s)?', $sql->{table}, $row_count, $row_count == 1 ? 'row' : 'rows';
-    $ax->print_sql( $sql, [ 'Drop_table' ] );
+    $prompt = sprintf 'DROP TABLE %s  (%d %s)', $sql->{table}, $row_count, $row_count == 1 ? 'row' : 'rows';
+    $prompt .= "\n\nCONFIRM:";
     # Choose
     my $choice = choose( #
         [ undef, 'YES' ],
@@ -106,10 +106,10 @@ sub create_new_table {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     my $sql = {};
     $ax->reset_sql( $sql ); #
-    my @cu_keys = ( qw/create_plain create_copy create_file settings/ );
-    my %cu = ( create_plain  => '- plain',
-               create_copy   => '- CopyPaste',
-               create_file   => '- from File',
+    my @cu_keys = ( qw/create_table_plain create_table_form_copy create_table_form_file settings/ );
+    my %cu = ( create_table_plain  => '- plain',
+               create_table_form_copy   => '- CopyPaste',
+               create_table_form_file   => '- from File',
                settings      => '  Settings'
     );
     my $old_idx = 0;
@@ -140,12 +140,12 @@ sub create_new_table {
             next MENU;
         }
         $ax->reset_sql( $sql ); #
-        if ( $custom eq $cu{create_plain} ) {
+        if ( $custom eq $cu{create_table_plain} ) {
             my $ok = $sf->__data_from_plain( $sql, $dbh, $sql_typeS, $data );
             next MENU if ! $ok;
         }
         else {
-            if ( $custom eq $cu{create_copy} ) { # name
+            if ( $custom eq $cu{create_table_form_copy} ) {
                 push @$sql_typeS, 'Insert';
                 my $tbl_in = App::DBBrowser::Table::Insert->new( $sf->{i}, $sf->{o} );
                 my $ok = $tbl_in->from_copy_and_paste( $sql, $sql_typeS );
@@ -153,7 +153,7 @@ sub create_new_table {
                     next MENU;
                 }
             }
-            elsif ( $custom eq $cu{create_file} ) { # name
+            elsif ( $custom eq $cu{create_table_form_file} ) {
                 push @$sql_typeS, 'Insert';
                 my $tbl_in = App::DBBrowser::Table::Insert->new( $sf->{i}, $sf->{o} );
                 my $ok = $tbl_in->from_file( $sql, $sql_typeS );
@@ -178,36 +178,36 @@ sub create_new_table {
                 next MENU;
             }
             if ( $choice eq $first_row ) {
-                $sql->{insert_into_cols} = shift @{$sql->{insert_into_args}};  # not quoted
+                $sql->{insert_into_cols} = shift @{$sql->{insert_into_args}}; # not quoted
             }
             else {
                 my $c = 0;
                 $sql->{insert_into_cols} = [ map { 'c' . ++$c } @{$sql->{insert_into_args}->[0]} ]; # not quoted
             }
+            my $trs = Term::Form->new( 'cols' );
+            $ax->print_sql( $sql, $sql_typeS );
+            # Fill_form
+            my $c = 0;
+            my $form = $trs->fill_form(
+                [ map { [ ++$c, defined $_ ? "$_" : '' ] } @{$sql->{insert_into_cols}} ],
+                { prompt => 'Col names:', auto_up => 2, confirm => '  CONFIRM', back => '  BACK   ' }
+            );
+            if ( ! $form ) {
+                $sql->{insert_into_cols} = [];
+                next MENU;
+            }
+            $sql->{insert_into_cols} = [ map { $_->[1] } @$form ]; # not quoted
         }
-        #### not col by col
-        my $trs = Term::Form->new( 'cols' );
-        $ax->print_sql( $sql, $sql_typeS );
-        # Fill_form
-        my $c = 0;
-        my $form = $trs->fill_form(
-            [ map { [ ++$c, defined $_ ? "$_" : '' ] } @{$sql->{insert_into_cols}} ],
-            { prompt => 'Col names:', auto_up => 1, confirm => '  CONFIRM', back => '  BACK   ' }
-        );
-        if ( ! $form ) {
-            $sql->{insert_into_cols} = [];
-            next MENU;
-        }
-        #####
-        my @cols = ( map { $_->[1] } @$form );
-        die "Column with no name!" if any { ! length } @cols;
-        $sql->{insert_into_cols} = $ax->quote_simple_many( $dbh, \@cols ); #
+        die "Column with no name!" if any { ! length } @{$sql->{insert_into_cols}};
+        my @cols = @{$sql->{insert_into_cols}}; #
+        $sql->{insert_into_cols} = $ax->quote_simple_many( $dbh, $sql->{insert_into_cols} );
         # Datatypes
+        my $trs = Term::Form->new( 'cols' );
         $ax->print_sql( $sql, $sql_typeS );
         # Fill_form
         my $col_name_and_type = $trs->fill_form( # look
             [ map { [ $_, $sf->{o}{insert}{default_data_type} ] } @cols ],
-            { prompt => 'Data types:', auto_up => 1, confirm => 'CONFIRM', back => 'BACK        ' }
+            { prompt => 'Data types:', auto_up => 2, confirm => 'CONFIRM', back => 'BACK        ' }
         );
         if ( ! $col_name_and_type ) {
             next MENU;
@@ -262,12 +262,12 @@ sub __data_from_plain {
     my $trs = Term::Form->new();
     my $col_names = $trs->fill_form(
         [ map { [ $_, ] } 1 .. $col_count ],
-        { info => $info, confirm => 'OK', back => '<<', auto_up => 1 }
+        { info => $info, confirm => 'OK', back => '<<', auto_up => 2 }
     );
     if ( ! defined $col_names ) {
         return;
     }
-    $sql->{insert_into_cols} = [ map { $_->[1] } @$col_names ]; # insert_into_cos # not quoted
+    $sql->{insert_into_cols} = [ map { $_->[1] } @$col_names ]; # not quoted
     $ax->print_sql( $sql, $sql_typeS );
     return 1;
 }

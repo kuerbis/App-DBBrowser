@@ -6,11 +6,13 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( first_index );
-use Term::Choose    qw( choose );
+
+use Term::Choose       qw( choose );
+use Term::Choose::Util qw( choose_a_number );
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::DB;
@@ -159,12 +161,10 @@ sub __prepare_col_func {
         }
     }
     elsif ( $func eq 'Truncate' ) {
-        my $prompt = "TRUNC $qt_col\nDecimal places:";
-        my $choices = [ undef, 0 .. 9 ];
-        # Choose
-        my $precision = choose( # choose_a_number
-            $choices,
-            { %{$sf->{i}{lyt_stmt_h}}, prompt => $prompt }
+        my $info = "TRUNC $qt_col";
+        my $name = "Decimal places:";
+        my $precision = choose_a_number( 2,
+            { info => $info, name => $name, small_on_top => 1, mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
         );
         return if ! defined $precision;
         $quote_f = $obj_db->truncate( $qt_col, $precision );

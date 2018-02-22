@@ -6,25 +6,26 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
+
+use Scalar::Util qw( looks_like_number );
 
 
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    #my $db_module = 'App::DBBrowser::DB::' . $info->{plugin};
     my $db_module  = $info->{plugin};
     eval "require $db_module" or die $@;
 
     my $plugin = $db_module->new( {
-        app_dir              => $info->{app_dir},
-        home_dir             => $info->{home_dir},
-        plugin               => $info->{plugin},
-        db_cache_file        => $info->{db_cache_file},
-        sqlite_search        => $info->{sqlite_search},
-        clear_screen         => $info->{clear_screen},
-        add_metadata         => $opt->{G}{meta},
-        #qualified_table_name => $opt->{G}{qualified_table_name},
+        app_dir       => $info->{app_dir},
+        home_dir      => $info->{home_dir},
+        plugin        => $info->{plugin},
+        clear_screen  => $info->{clear_screen},
+        db_cache_file => $info->{db_cache_file},
+        sqlite_search => $info->{sqlite_search},
+        dirs_sqlite   => $opt->{G}{dirs_sqlite},
+        add_metadata  => $opt->{G}{meta},
     } );
     bless { Plugin => $plugin }, $class;
 }
@@ -62,10 +63,10 @@ sub env_variables {
 
 sub set_attributes {
     my ( $sf ) = @_;
-    return undef, [] if ! $sf->{Plugin}->can( 'set_attributes' );
-    my ( $driver_prefix, $attributes ) = $sf->{Plugin}->set_attributes();
-    return $driver_prefix, [] if ! defined $driver_prefix;
-    return $driver_prefix, $attributes;
+    return [] if ! $sf->{Plugin}->can( 'set_attributes' );
+    my $attributes = $sf->{Plugin}->set_attributes();
+    return [] if ! defined $attributes;
+    return $attributes;
 }
 
 
@@ -82,6 +83,34 @@ sub db_handle {
     my ( $sf, $db, $connect_parameter ) = @_;
     my $dbh = $sf->{Plugin}->db_handle( $db, $connect_parameter );
     die $sf->message_method_undef_return( 'db_handle' ) if ! defined $dbh;
+    if ( $dbh->{Driver}{Name} eq 'SQLite' ) {
+        $dbh->sqlite_create_function( 'regexp', 3, sub {
+                my ( $regex, $string, $case_sensitive ) = @_;
+                $string = '' if ! defined $string;
+                return $string =~ m/$regex/sm if $case_sensitive;
+                return $string =~ m/$regex/ism;
+            }
+        );
+        
+        $dbh->sqlite_create_function( 'truncate', 2, sub {
+                my ( $number, $places ) = @_;
+                return if ! defined $number;
+                return $number if ! looks_like_number( $number );
+                return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
+            }
+        );
+        
+        $dbh->sqlite_create_function( 'bit_length', 1, sub {
+                use bytes;
+                return length $_[0];
+            }
+        );
+        
+        $dbh->sqlite_create_function( 'char_length', 1, sub {
+                return length $_[0];
+            }
+        );
+    }
     return $dbh;
 }
 
@@ -140,12 +169,6 @@ sub schemas { ##
 
 sub regexp_sql {
     my ( $sf, $col, $do_not_match_regexp, $case_sensitive ) = @_;
-    if ( $sf->{Plugin}->can( 'sql_regexp' ) ) {
-        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match_regexp, $case_sensitive );
-        die $sf->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
-        $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
-        return $sql_regexp;
-    }
     if ( $sf->driver eq 'SQLite' ) {
         if ( $do_not_match_regexp ) {
             return sprintf ' NOT REGEXP(?,%s,%d)', $col, $case_sensitive;
@@ -154,6 +177,13 @@ sub regexp_sql {
             return sprintf ' REGEXP(?,%s,%d)', $col, $case_sensitive;
         }
     }
+    if ( $sf->{Plugin}->can( 'sql_regexp' ) ) {
+        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match_regexp, $case_sensitive );
+        die $sf->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
+        $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
+        return $sql_regexp;
+    }
+
     elsif ( $sf->driver eq 'mysql' ) {
         if ( $do_not_match_regexp ) {
             return ' '. $col . ' NOT REGEXP ?'        if ! $case_sensitive;
@@ -192,6 +222,7 @@ sub concatenate {
 
 sub epoch_to_datetime {
     my ( $sf, $col, $interval ) = @_;
+
     return $sf->{Plugin}->epoch_to_datetime( $col, $interval )    if $sf->{Plugin}->can( 'epoch_to_datetime' );
 
     return "DATETIME($col/$interval,'unixepoch','localtime')"     if $sf->driver eq 'SQLite';
@@ -205,6 +236,7 @@ sub epoch_to_datetime {
 
 sub epoch_to_date {
     my ( $sf, $col, $interval ) = @_;
+
     return $sf->{Plugin}->epoch_to_date( $col, $interval )   if $sf->{Plugin}->can( 'epoch_to_date' );
 
     return "DATE($col/$interval,'unixepoch','localtime')"    if $sf->driver eq 'SQLite';
@@ -217,6 +249,9 @@ sub epoch_to_date {
 
 sub truncate {
     my ( $sf, $col, $precision ) = @_;
+
+    return "TRUNCATE($col,$precision)"                  if $sf->driver eq 'SQLite';
+
     return $sf->{Plugin}->truncate( $col, $precision )  if $sf->{Plugin}->can( 'truncate' );
 
     return "TRUNC($col,$precision)"                     if $sf->driver eq 'Pg';
@@ -227,6 +262,9 @@ sub truncate {
 
 sub bit_length {
     my ( $sf, $col ) = @_;
+
+    return "BIT_LENGTH($col)"                if $sf->driver eq 'SQLite';
+
     return $sf->{Plugin}->bit_length( $col ) if $sf->{Plugin}->can( 'bit_length' );
 
     return "BIT_LENGTH($col)";
@@ -235,6 +273,9 @@ sub bit_length {
 
 sub char_length {
     my ( $sf, $col ) = @_;
+
+    return "CHAR_LENGTH($col)"                if $sf->driver eq 'SQLite';
+
     return $sf->{Plugin}->char_length( $col ) if $sf->{Plugin}->can( 'char_length' );
 
     return "CHAR_LENGTH($col)";
@@ -255,7 +296,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_02
+Version 1.060_03
 
 =head1 DESCRIPTION
 
@@ -291,6 +332,7 @@ A reference to a hash. The hash entries are:
         # SQLite only:
         sqlite_search       # if true, don't use cached database names
         db_cache_file       # path to the file with the cached database names
+        dirs_sqlite         # dirs to search for SQLite databases
 
 =item return
 
@@ -375,12 +417,6 @@ For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plug
         },
     };
 
-This key is SQLite only:
-
-        dir_sqlite => [ /path/dir, ... ],
-
-The value is a reference to an array. This array contains directories in which to search for SQLite databases.
-
 =item return
 
 Database handle.
@@ -401,12 +437,12 @@ The database handle and the database name.
 
 Returns the "user-schemas" as an array-reference and the "system-schemas" (if any) as an array-reference.
 
-If the option I<add_metadata> is true, both - "user-schemas" and "system-schemas" are used else only the
+If the option I<add_metadata> is true, both - "user-schemas" and "system-schemas" - are used else only the
 "user-schemas" are used.
 
 =back
 
-=head3 Connect
+=head3 DB configuration methods
 
 If the database driver is SQLite only C<set_attributes> is used.
 
@@ -482,7 +518,7 @@ none
 
 =item return
 
-The driver prefix and a reference to an array of hashes. The hashes have three or four key-value pairs:
+A reference to an array of hashes. The hashes have three or four key-value pairs:
 
     { name => 'string', prompt => 'string', default_index => index, avail_values => [ value_1, value_2, value_3, ... ] }
 
@@ -501,7 +537,7 @@ Example form the plugin C<App::DBBrowser::DB::SQLite>:
 
     sub set_attributes {
         my ( $self ) = @_;
-        return 'sqlite', [
+        return [
             { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
             { name => 'sqlite_see_if_its_a_number', default_index => 1, avail_values => [ 0, 1 ] },
         ];
@@ -510,11 +546,11 @@ Example form the plugin C<App::DBBrowser::DB::SQLite>:
 C<set_attributes> determines the database handle attributes offered in the C<db-browser> option
 I<DB Options>.
 
-=head3 SQL
+=head3 SQL related methods
 
 For SQLite/mysql/Pg the following methods are already built in.
 
-If passed column names are already quoted or not depends on how C<db-browser> was configured.
+Whether passed column names are already quoted or not depends on how C<db-browser> was configured.
 
 =head4 regexp_sql
 

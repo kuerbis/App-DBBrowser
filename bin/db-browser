@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_02';
+our $VERSION = '1.060_03';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.060_02
+Version 1.060_03
 
 =cut
 
@@ -236,9 +236,9 @@ database.
 The entered login data is saved in a configuration file and used to connect to the database (the password can not be
 saved).
 
-=item DB Options
+=item Attributes
 
-For the meaning of the different attributes see the documentation of the DBI database driver.
+For the meaning of these driver specific attributes see the documentation of the DBI database driver.
 
 =item SQLite directories
 
@@ -496,21 +496,6 @@ The default data type of the columns.
 
 To find out the location of the configuration files call C<db-browser -h> and choose I<Path>. The data is saved in JSON
 format.
-
-The Database configuration file: the member of the global database settings is called C<"*$db_plugin"> whereas members
-of database specific settings are named like the database itself (for C<SQLite>: "database name" means the absolute path
-to the database file).
-
-Sub-members (keys):
-
-    SQLite:                                    mysql:                             Pg:
-        sqlite_unicode              (0,1)           user                              user
-        sqlite_see_if_its_a_number  (0,1)           host                              host
-        binary_filter               (0,1)           port                              port
-        directories_sqlite¹                         mysql_enable_utf8  (0,1)          pg_enable_utf8  (0,1,-1)
-                                                    binary_filter      (0,1)          binary_filter   (0,1)
-
-¹ directories passed as an array-reference
 
 =head1 REQUIREMENTS
 

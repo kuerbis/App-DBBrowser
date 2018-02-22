@@ -34,7 +34,7 @@ sub driver {
 
 sub set_attributes {
     my ( $sf ) = @_;
-    return 'sqlite', [
+    return [
         { name => 'sqlite_unicode',             default => 1, values => [ 0, 1 ] },
         { name => 'sqlite_see_if_its_a_number', default => 1, values => [ 0, 1 ] },
     ];
@@ -51,37 +51,14 @@ sub db_handle {
         ShowErrorStatement => 1,
         %{$parameter->{attributes}},
     } ) or die DBI->errstr;
-    $dbh->sqlite_create_function( 'regexp', 3, sub {
-            my ( $regex, $string, $case_sensitive ) = @_;
-            $string = '' if ! defined $string;
-            return $string =~ m/$regex/sm if $case_sensitive;
-            return $string =~ m/$regex/ism;
-        }
-    );
-    $dbh->sqlite_create_function( 'truncate', 2, sub {
-            my ( $number, $places ) = @_;
-            return if ! defined $number;
-            return $number if ! looks_like_number( $number );
-            return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
-        }
-    );
-    $dbh->sqlite_create_function( 'bit_length', 1, sub {
-            use bytes;
-            return length $_[0];
-        }
-    );
-    $dbh->sqlite_create_function( 'char_length', 1, sub {
-            return length $_[0];
-        }
-    );
     return $dbh;
 }
 
 
 sub databases {
-    my ( $sf, $parameter ) = @_;
+    my ( $sf ) = @_;
     return \@ARGV if @ARGV;
-    my $dirs = $parameter->{dir_sqlite};
+    my $dirs = $sf->{dirs_sqlite};
     my $cache_key = $sf->{plugin} . '_' . join ' ', @$dirs;
     my $ax = App::DBBrowser::Auxil->new( {}, {} );
     my $db_cache = $ax->read_json( $sf->{db_cache_file} );
@@ -128,51 +105,6 @@ sub databases {
 #sub primary_key_auto {
 #    return "INTEGER PRIMARY KEY";
 #}
-
-
-#sub sql_regexp {
-#    my ( $sf, $quote_col, $do_not_match_regexp, $case_sensitive ) = @_;
-#    if ( $do_not_match_regexp ) {
-#        return sprintf ' NOT REGEXP(?,%s,%d)', $quote_col, $case_sensitive;
-#    }
-#    else {
-#        return sprintf ' REGEXP(?,%s,%d)', $quote_col, $case_sensitive;
-#    }
-#}
-
-#sub concatenate {
-#    my ( $sf, $arg ) = @_;
-#    return join( ' || ', @$arg );
-#}
-
-
-# scalar functions
-
-#sub epoch_to_datetime {
-#    my ( $sf, $col, $interval ) = @_;
-#    return "DATETIME($col/$interval,'unixepoch','localtime')";
-#}
-
-#sub epoch_to_date {
-#    my ( $sf, $col, $interval ) = @_;
-#    return "DATE($col/$interval,'unixepoch','localtime')";
-#}
-
-#sub truncate {
-#    my ( $sf, $col, $precision ) = @_;
-#    return "TRUNCATE($col,$precision)";
-#}
-
-#sub bit_length {
-#    my ( $sf, $col ) = @_;
-#    return "BIT_LENGTH($col)";
-#}
-
-#sub char_length {
-#    my ( $sf, $col ) = @_;
-#    return "CHAR_LENGTH($col)";
-#}
-
 
 
 
