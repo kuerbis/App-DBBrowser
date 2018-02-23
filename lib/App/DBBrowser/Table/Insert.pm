@@ -6,25 +6,25 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
 use File::Temp qw( tempfile );
 use List::Util qw( all );
 
-use List::MoreUtils    qw( first_index any );
-use Encode::Locale     qw();
-#use Spreadsheet::Read  qw( ReadData rows ); # "require"d
+use List::MoreUtils   qw( first_index any );
+use Encode::Locale    qw();
+#use Spreadsheet::Read qw( ReadData rows ); # "require"d
+use Text::CSV         qw();
+
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( choose_a_file ); # choose_a_subset
 use Term::Form         qw();
-use Text::CSV          qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::Table;
 use App::DBBrowser::Opt;
-
+use App::DBBrowser::Table;
 
 
 sub new {
@@ -78,8 +78,6 @@ sub __insert_into_cols {
     }
     return 1;
 }
-
-
 
 
 sub build_insert_stmt {
@@ -142,7 +140,6 @@ sub build_insert_stmt {
         return 1
     }
 }
-
 
 
 sub __from_col_by_col {
@@ -266,7 +263,6 @@ sub from_file {
 }
 
 
-
 sub __file_name { # h?
     my ( $sf, $sql, $file ) = @_;
     my @files;
@@ -335,8 +331,6 @@ sub __file_name { # h?
     }
     return $file;
 }
-
-
 
 
 sub __input_filter {

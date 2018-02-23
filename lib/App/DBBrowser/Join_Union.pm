@@ -6,10 +6,11 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
-use Clone                  qw( clone );
-use List::MoreUtils        qw( any );
+use Clone           qw( clone );
+use List::MoreUtils qw( any );
+
 use Term::Choose           qw( choose );
 use Term::Choose::LineFold qw( line_fold );
 use Term::Choose::Util     qw( term_width );
@@ -19,7 +20,6 @@ use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 use App::DBBrowser::DB;
 use App::DBBrowser::Auxil;
-
 
 
 sub new {
@@ -251,7 +251,7 @@ sub join_tables {
         $join->{primary_keys} = [];
         $join->{foreign_keys} = [];
         my @tables = map { "- $_" } @$tbls;
-        my $info   = '  INFO'; # no memory
+        my $info   = '  INFO';
         my @pre = ( undef );
         my $choices = [ @pre, @tables, $info ];
         $sf->__print_join_statement( $join->{stmt} );

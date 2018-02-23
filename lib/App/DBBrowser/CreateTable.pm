@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -16,12 +16,11 @@ use Term::Choose::Util qw( choose_a_number );
 use Term::Form         qw();
 use Term::TablePrint   qw( print_table );
 
-use App::DBBrowser::DB;
 use App::DBBrowser::Auxil;
+use App::DBBrowser::DB;
 use App::DBBrowser::Opt;
 use App::DBBrowser::Table;
 use App::DBBrowser::Table::Insert;
-
 
 
 sub new {
@@ -68,8 +67,6 @@ sub delete_table {
 }
 
 
-
-
 sub __table_name {
     my ( $sf, $sql, $dbh, $sql_typeS, $data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
@@ -100,6 +97,7 @@ sub __table_name {
         }
     }
 }
+
 
 sub create_new_table {
     my ( $sf, $dbh, $data ) = @_;

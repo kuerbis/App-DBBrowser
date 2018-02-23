@@ -6,20 +6,21 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
-use Clone              qw( clone );
-use List::MoreUtils    qw( any first_index );
+use Clone           qw( clone );
+use List::MoreUtils qw( any first_index );
+
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( choose_a_number insert_sep );
 use Term::Form         qw();
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
-use App::DBBrowser::DB;
-#use App::DBBrowser::Table::Insert;  # "require"-d
 use App::DBBrowser::Auxil;
+use App::DBBrowser::DB;
 use App::DBBrowser::Table::Functions;
+#use App::DBBrowser::Table::Insert;  # "require"-d
 
 
 sub new {
@@ -329,7 +330,7 @@ sub on_table {
             my $unclosed = 0;
             my $count = 0;
 
-            WHERE: while ( 1 ) {
+            WHERE: while ( 1 ) { # backup/restore
                 my @choices = @cols;
                 if ( $sf->{o}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -459,7 +460,7 @@ sub on_table {
             my $unclosed = 0;
             my $count = 0;
 
-            HAVING: while ( 1 ) {
+            HAVING: while ( 1 ) { # backup/restore
                 my @choices = ( @aggregate, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #
                 if ( $sf->{o}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -851,7 +852,7 @@ sub __set_operator_sql {
         $stmt = 'having_stmt';
         $args = 'having_args';
     }
-    my $choices = [ @{$sf->{o}{G}{operators}} ];
+    my $choices = [ undef, @{$sf->{o}{G}{operators}} ];
     $ax->print_sql( $sql, [ $sql_type ] );
     # Choose
     my $operator = $stmt_h->choose(
@@ -868,7 +869,7 @@ sub __set_operator_sql {
             $sql->{$stmt} .= ' ' . $operator;
         }
         my $trs = Term::Form->new();
-        if ( $operator =~ /NULL\z/ ) { # add ^(?:NOT\s)?
+        if ( $operator =~ /^IS\s(?:NOT\s)?NULL\z/ ) {
             # do nothing
         }
         elsif ( $operator =~ /^(?:NOT\s)?IN\z/ ) {
@@ -935,7 +936,7 @@ sub __set_operator_sql {
             my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
             if ( ! eval {
                 my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-                $sql->{$stmt} .= $obj_db->regexp_sql( $quote_col, $do_not_match_regexp, $case_sensitive );
+                $sql->{$stmt} .= $obj_db->regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
                 push @{$sql->{$args}}, $value;
                 1 }
             ) {

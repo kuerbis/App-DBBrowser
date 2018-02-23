@@ -6,17 +6,16 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use File::Basename qw( basename );
 
 use Term::Choose       qw( choose );
-use Term::Choose::Util qw( choose_a_subset settings_menu );
+use Term::Choose::Util qw( choose_a_subset settings_menu choose_dirs );
 use Term::Form         qw();
 
-use App::DBBrowser::DB;
 use App::DBBrowser::Auxil;
-
+use App::DBBrowser::DB;
 
 
 sub new {
@@ -25,40 +24,9 @@ sub new {
 }
 
 
-sub __settings_menu_wrap_db {
-    my ( $sf, $db_o, $section, $sub_menu, $prompt ) = @_;
-    my $changed = settings_menu( $sub_menu, $db_o->{$section}, { prompt => $prompt, mouse => $sf->{o}{table}{mouse} } );
-    return if ! $changed;
-    $sf->{i}{write_config}++;
-}
-
-
-sub __group_readline_db {
-    my ( $sf, $db_o, $section, $items, $prompt ) = @_;
-    my $list = [ map {
-        [
-            exists $_->{prompt} ? $_->{prompt} : $_->{name},
-            $db_o->{$section}{$_->{name}}
-        ]
-    } @{$items} ];
-    my $trs = Term::Form->new();
-    my $new_list = $trs->fill_form(
-        $list,
-        { prompt => $prompt, auto_up => 2, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} }
-    );
-    if ( $new_list ) {
-        for my $i ( 0 .. $#$items ) {
-            $db_o->{$section}{$items->[$i]{name}} = $new_list->[$i][1];
-        }
-        $sf->{i}{write_config}++;
-    }
-}
-
-
 sub connect_parameter {
-    my ( $sf, $db ) = @_;
+    my ( $sf, $db_o, $db ) = @_;
     my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-    my $db_o = $sf->__read_db_config_files();
     my $plugin = $sf->{i}{plugin};
     my $cp = {
         use_env_var => {},
@@ -66,7 +34,6 @@ sub connect_parameter {
         secret      => {},
         arguments   => {},
         attributes  => {},
-        dir_sqlite  => [],
     };
 
     my $env_vars = $obj_db->env_variables();
@@ -114,7 +81,7 @@ sub connect_parameter {
         else {
             $cp->{required}{$name} = $db_o->{$db}{$required};
         }
-        # if a login error occurred, the next time the use has to enter the arguments by hand
+        # if a login error occurred, the next time the user has to enter the arguments by hand
         if ( ! $sf->{i}{login_error} ) {
             if ( ! defined $db || ! defined $db_o->{$db}{$name} ) {
                 # use global
@@ -137,7 +104,7 @@ sub database_setting {
     my ( $sf, $db ) = @_;
 
     SECTION: while ( 1 ) {
-        my ( $driver, $plugin, $section ); # driver
+        my ( $driver, $plugin, $section );
         if ( defined $db ) {
             $plugin = $sf->{i}{plugin};
             $driver = $sf->{i}{driver};
@@ -164,7 +131,7 @@ sub database_setting {
         $driver = $obj_db->driver() if ! $driver;
         my $env_var    = $obj_db->env_variables();
         my $login_data = $obj_db->read_arguments();
-        my $attr = $obj_db->set_attributes();
+        my $attr       = $obj_db->set_attributes();
         my $items = {
             required => [ map { {
                     name         => 'field_' . $_->{name},
@@ -186,6 +153,7 @@ sub database_setting {
         push @groups, [ 'env_variables', "- ENV Variables"      ] if @{$items->{env_variables}};
         push @groups, [ 'arguments',     "- Login Data"         ] if @{$items->{arguments}};
         push @groups, [ 'attributes',    "- Attributes"         ] if @{$items->{attributes}};
+        push @groups, [ 'dirs_sqlite',   "- Sqlite directories" ] if $driver eq 'SQLite';
         #my $prompt = defined $db ? 'DB: "' . ( $driver eq 'SQLite' ? basename $db : $db ) . '"'
         #                         : 'Plugin "' . $plugin . '"';
         my $prompt = defined $db ? 'DB: "' . $db . '"' : '"' . $plugin . '"';
@@ -255,7 +223,7 @@ sub database_setting {
                     push @$sub_menu, [ $required, '- ' . $item->{prompt}, $item->{values} ];
                     if ( ! defined $db_o->{$section}{$required} ) {
                         if ( defined $db_o->{$plugin}{$required} ) {
-                            # set to global
+                            # set to global (if $section == $db )
                             $db_o->{$section}{$required} = $db_o->{$plugin}{$required};
                         }
                         else {
@@ -322,8 +290,54 @@ sub database_setting {
                 $sf->__settings_menu_wrap_db( $db_o, $section, $sub_menu, $prompt );
                 next GROUP;
             }
+            elsif ( $group eq 'dirs_sqlite' ) {
+                my $opt = 'dirs_sqlite';
+                $sf->__choose_dirs_wrap_db( $db_o, $section, $opt );
+                next GROUP;
+            }
         }
     }
+}
+
+
+sub __settings_menu_wrap_db {
+    my ( $sf, $db_o, $section, $sub_menu, $prompt ) = @_;
+    my $changed = settings_menu( $sub_menu, $db_o->{$section}, { prompt => $prompt, mouse => $sf->{o}{table}{mouse} } );
+    return if ! $changed;
+    $sf->{i}{write_config}++;
+}
+
+sub __group_readline_db {
+    my ( $sf, $db_o, $section, $items, $prompt ) = @_;
+    my $list = [ map {
+        [
+            exists $_->{prompt} ? $_->{prompt} : $_->{name},
+            $db_o->{$section}{$_->{name}}
+        ]
+    } @{$items} ];
+    my $trs = Term::Form->new();
+    my $new_list = $trs->fill_form(
+        $list,
+        { prompt => $prompt, auto_up => 2, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} }
+    );
+    if ( $new_list ) {
+        for my $i ( 0 .. $#$items ) {
+            $db_o->{$section}{$items->[$i]{name}} = $new_list->[$i][1];
+        }
+        $sf->{i}{write_config}++;
+    }
+}
+
+sub __choose_dirs_wrap_db {
+    my ( $sf, $db_o, $section, $opt ) = @_;
+    my $current = $db_o->{$section}{$opt};
+    # Choose_dirs
+    my $dirs = choose_dirs( { mouse => $sf->{o}{table}{mouse}, current => $current } );
+    return if ! defined $dirs;
+    return if ! @$dirs;
+    $db_o->{$section}{$opt} = $dirs;
+    $sf->{i}{write_config}++;
+    return;
 }
 
 

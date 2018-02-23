@@ -6,10 +6,9 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Term::Form qw();
-
 
 
 sub new {
@@ -33,7 +32,7 @@ sub get_login {
         }
         return $ENV{$env_var}; #
     }
-    elsif ( length $saved_value ) { # defined $saved_value
+    elsif ( defined $saved_value && length $saved_value ) {
         if ( ! $keep_secret ) {
             print $prompt . $saved_value, "\n";
         }

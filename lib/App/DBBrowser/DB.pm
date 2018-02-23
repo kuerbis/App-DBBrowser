@@ -6,10 +6,9 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Scalar::Util qw( looks_like_number );
-
 
 
 sub new {
@@ -24,7 +23,7 @@ sub new {
         clear_screen  => $info->{clear_screen},
         db_cache_file => $info->{db_cache_file},
         sqlite_search => $info->{sqlite_search},
-        dirs_sqlite   => $opt->{G}{dirs_sqlite},
+        dirs_sqlite   => $info->{dirs_sqlite},
         add_metadata  => $opt->{G}{meta},
     } );
     bless { Plugin => $plugin }, $class;
@@ -50,7 +49,7 @@ sub read_arguments {
     return undef, [] if ! $sf->{Plugin}->can( 'read_arguments' );
     my $read_args = $sf->{Plugin}->read_arguments();
     return [] if ! defined $read_args;
-    return $read_args; # docu
+    return $read_args;
 }
 
 sub env_variables {
@@ -84,32 +83,37 @@ sub db_handle {
     my $dbh = $sf->{Plugin}->db_handle( $db, $connect_parameter );
     die $sf->message_method_undef_return( 'db_handle' ) if ! defined $dbh;
     if ( $dbh->{Driver}{Name} eq 'SQLite' ) {
-        $dbh->sqlite_create_function( 'regexp', 3, sub {
-                my ( $regex, $string, $case_sensitive ) = @_;
-                $string = '' if ! defined $string;
-                return $string =~ m/$regex/sm if $case_sensitive;
-                return $string =~ m/$regex/ism;
-            }
-        );
-        
-        $dbh->sqlite_create_function( 'truncate', 2, sub {
-                my ( $number, $places ) = @_;
-                return if ! defined $number;
-                return $number if ! looks_like_number( $number );
-                return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
-            }
-        );
-        
-        $dbh->sqlite_create_function( 'bit_length', 1, sub {
-                use bytes;
-                return length $_[0];
-            }
-        );
-        
-        $dbh->sqlite_create_function( 'char_length', 1, sub {
-                return length $_[0];
-            }
-        );
+        #if ( ! $sf->{Plugin}->can( 'regexp' ) ) { ####
+            $dbh->sqlite_create_function( 'regexp', 3, sub {
+                    my ( $regex, $string, $case_sensitive ) = @_;
+                    $string = '' if ! defined $string;
+                    return $string =~ m/$regex/sm if $case_sensitive;
+                    return $string =~ m/$regex/ism;
+                }
+            );
+        #}
+        #if ( ! $sf->{Plugin}->can( 'truncate' ) ) { ####
+            $dbh->sqlite_create_function( 'truncate', 2, sub {
+                    my ( $number, $places ) = @_;
+                    return if ! defined $number;
+                    return $number if ! looks_like_number( $number );
+                    return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
+                }
+            );
+        #}
+        #if ( ! $sf->{Plugin}->can( 'bit_length' ) ) { ####
+            $dbh->sqlite_create_function( 'bit_length', 1, sub {
+                    use bytes;
+                    return length $_[0];
+                }
+            );
+        #}
+        #if ( ! $sf->{Plugin}->can( 'char_length' ) ) { ####
+            $dbh->sqlite_create_function( 'char_length', 1, sub {
+                    return length $_[0];
+                }
+            );
+        #}
     }
     return $dbh;
 }
@@ -167,10 +171,10 @@ sub schemas { ##
 #}
 
 
-sub regexp_sql {
-    my ( $sf, $col, $do_not_match_regexp, $case_sensitive ) = @_;
+sub regexp {
+    my ( $sf, $col, $do_not_match, $case_sensitive ) = @_;
     if ( $sf->driver eq 'SQLite' ) {
-        if ( $do_not_match_regexp ) {
+        if ( $do_not_match ) {
             return sprintf ' NOT REGEXP(?,%s,%d)', $col, $case_sensitive;
         }
         else {
@@ -178,14 +182,14 @@ sub regexp_sql {
         }
     }
     if ( $sf->{Plugin}->can( 'sql_regexp' ) ) {
-        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match_regexp, $case_sensitive );
+        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match, $case_sensitive );
         die $sf->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
         $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
         return $sql_regexp;
     }
 
     elsif ( $sf->driver eq 'mysql' ) {
-        if ( $do_not_match_regexp ) {
+        if ( $do_not_match ) {
             return ' '. $col . ' NOT REGEXP ?'        if ! $case_sensitive;
             return ' '. $col . ' NOT REGEXP BINARY ?' if   $case_sensitive;
         }
@@ -195,7 +199,7 @@ sub regexp_sql {
         }
     }
     elsif ( $sf->driver eq 'Pg' ) {
-        if ( $do_not_match_regexp ) {
+        if ( $do_not_match ) {
             return ' '. $col . '::text' . ' !~* ?' if ! $case_sensitive;
             return ' '. $col . '::text' . ' !~ ?'  if   $case_sensitive;
         }
@@ -289,6 +293,9 @@ sub char_length {
 
 __END__
 
+=pod
+
+=encoding UTF-8
 
 =head1 NAME
 
@@ -296,7 +303,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_03
+Version 1.060_04
 
 =head1 DESCRIPTION
 
@@ -314,79 +321,47 @@ A suitable database plugin provides the methods named in this documentation.
 
 =head2 Required methods
 
-=head3 new
+=head3 new( \%info )
 
 The constructor method.
 
-=over
+C<db-browser> calls the plugin constructor and passes as reference to a hash with this entries:
 
-=item Arguments
-
-A reference to a hash. The hash entries are:
-
-        app_dir             # path to the application directoriy
-        home_dir            # path to the home directory
-        plugin              # name of the database plugin
-        add_metadata        # true or false
+    {
+        app_dir       => path to the application directoriy
+        home_dir      => path to the home directory
+        plugin        => name of the database plugin
+        add_metadata  => true or false
 
         # SQLite only:
-        sqlite_search       # if true, don't use cached database names
-        db_cache_file       # path to the file with the cached database names
-        dirs_sqlite         # dirs to search for SQLite databases
+        sqlite_search => true ore false (if true, search for SQLite databases despite cached database names are available)
+        db_cache_file => path to the file with the cached database names
+        dirs_sqlite   => [ directories to search for SQLite databases ] # array reference
+    }
 
-=item return
+Returns the created object.
 
-The object.
+=head3 driver()
 
-=back
+Returns the name of the C<DBI> database driver used by the plugin.
 
-=head3 driver
+=head3 databases( \%connection_parameter );
 
-=over
+If C<databases> uses the method C<db_handle>, C<\%connect_parameter> can be passed to C<db_handle> as the second
+argument. See L</db_handle> for more info about the passed hash reference.
 
-=item Arguments
+Returns two array references: the first refers to the array of user-databases the second to the system-databases.
+The second array reference is optional.
 
-none
+If the option I<add_metadata> is true, user-databases and system-databases are used else only the user-databases are
+used.
 
-=item return
+=head3 db_handle( $database_name, \%connection_parameter )
 
-The name of the C<DBI> database driver used by the plugin.
+The data in C<\%connect_parameter> represents the settings from the option I<Database settings>. Which
+I<Database settings> are available depends on the methods C<read_arguments>, C<env_variables> and C<set_attributes>.
 
-=back
-
-=head3 databases
-
-=over
-
-=item Arguments
-
-A reference to a hash. If C<databases> uses the method C<db_handle>, this hash reference can be passed to C<db_handle> as
-the second argument. See L</db_handle> for more info about the passed hash reference.
-
-=item return
-
-Returns two array references: the first refers to the array of "user-databases" the second to the "system-databases"
-(if any).
-
-If the option I<add_metadata> is true, both - "user-databases" and "system-databases" - are used else only the
-"user-databases" are used.
-
-=back
-
-=head3 db_handle
-
-C<db-browser> expects the attribute I<RaiseError> to be enabled.
-
-=over
-
-=item Arguments
-
-The database name and a reference to a hash of hashes.
-
-The hash of hashes provides the settings gathered from the option I<Database settings>. Which I<Database settings> are
-available depends on the methods C<arguments>, C<env_variables> and C<attributes>.
-
-For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plugin could look like this:
+For example the hash of hashes for a C<mysql> plugin could look like this:
 
     $connect_parameter = {
         use_env_var => {
@@ -417,87 +392,57 @@ For example the hash of hashes held by C<$connect_parameter> for a C<mysql> plug
         },
     };
 
-=item return
 
-Database handle.
+C<db-browser> expects a database handle with the attribute I<RaiseError> enabled.
 
-=back
+Returns the database handle.
 
 =head2 Optional methods
 
-=head4 schemas
+=head4 schemas( $dbh, $database_name )
 
-=over
+C<$dbh> is the database handle returned by the method C<db_hanlde>.
 
-=item Arguments
+Returns the user-schemas as an array-reference and the system-schemas as an array-reference (if any).
 
-The database handle and the database name.
-
-=item return
-
-Returns the "user-schemas" as an array-reference and the "system-schemas" (if any) as an array-reference.
-
-If the option I<add_metadata> is true, both - "user-schemas" and "system-schemas" - are used else only the
-"user-schemas" are used.
-
-=back
+If the option I<add_metadata> is true, user-schemas and system-schemas are used else only the user-schemas are used.
 
 =head3 DB configuration methods
 
-If the database driver is SQLite only C<set_attributes> is used.
+If the database driver is SQLite only C<set_attributes> is used form the tree DB configuration methods.
 
 =head4 read_arguments
 
-=over
+Returns a reference to an array of hashes. The hashes have two or three key-value pairs:
 
-=item Arguments
-
-none
-
-=item return
-
-A reference to an array of hashes. The hashes have two or three key-value pairs:
-
-    { name => 'string', prompt => 'string', keep_secret => true/false }
+    { name => 'string', prompt => 'string', secret => true/false }
 
 C<name> holds the field name for example like "user" or "host".
 
 The value of C<prompt> is used as the prompt string, when the user is asked for the data. The C<prompt> entry is
 optional. If C<prompt> doesn't exist, the value of C<name> is used instead.
 
-If C<keep_secret> is true, the user input should not be echoed to the terminal. Also the data is not stored in the
-plugin configuration file if C<keep_secret> is true.
-
-=back
+If C<secret> is true, the user input should not be echoed to the terminal. Also the data is not stored in the
+plugin configuration file if C<secret> is true.
 
 An example C<read_arguments> method:
 
     sub read_arguments {
         my ( $self ) = @_;
         return [
-            { name => 'host', prompt => "Host",     keep_secret => 0 },
-            { name => 'port', prompt => "Port",     keep_secret => 0 },
-            { name => 'user', prompt => "User",     keep_secret => 0 },
-            { name => 'pass', prompt => "Password", keep_secret => 1 },
+            { name => 'host', prompt => "Host",     secret => 0 },
+            { name => 'port', prompt => "Port",     secret => 0 },
+            { name => 'user', prompt => "User",     secret => 0 },
+            { name => 'pass', prompt => "Password", secret => 1 },
         ];
     }
 
-The information returned by the method C<read_arguments> is used to build the entries of the C<db-browser> options
-I<Fields> and I<Login Data>.
+The information returned by the method C<read_arguments> is used to build the C<db-browser> options menu entry I<Fields>
+and I<Login Data>.
 
 =head4 env_variables
 
-=over
-
-=item Arguments
-
-none
-
-=item return
-
-A reference to an array of environment variables.
-
-=back
+Returns a reference to an array of environment variables.
 
 An example C<env_variables> method:
 
@@ -510,36 +455,26 @@ See the C<db-browser> option I<ENV Variables>.
 
 =head4 set_attributes
 
-=over
+Returns a reference to an array of hashes. The hashes have three or four key-value pairs:
 
-=item Arguments
-
-none
-
-=item return
-
-A reference to an array of hashes. The hashes have three or four key-value pairs:
-
-    { name => 'string', prompt => 'string', default_index => index, avail_values => [ value_1, value_2, value_3, ... ] }
+    { name => 'string', prompt => 'string', default => index, values => [ value_1, value_2, value_3, ... ] }
 
 The value of C<name> is the name of the database connection attribute.
 
 The value of C<prompt> is used as the prompt string. The C<prompt> entry is optional. If C<prompt> doesn't exist, the
 value of C<name> is used instead.
 
-C<avail_values> holds the available values for that attribute as an array reference.
+C<values> holds the available values for that attribute as an array reference.
 
-The C<avail_values> array entry of the index position C<default_index> is used as the default value.
-
-=back
+The C<values> array entry of the index position C<default> is used as the default value.
 
 Example form the plugin C<App::DBBrowser::DB::SQLite>:
 
     sub set_attributes {
         my ( $self ) = @_;
         return [
-            { name => 'sqlite_unicode',             default_index => 1, avail_values => [ 0, 1 ] },
-            { name => 'sqlite_see_if_its_a_number', default_index => 1, avail_values => [ 0, 1 ] },
+            { name => 'sqlite_unicode',             default => 1, values => [ 0, 1 ] },
+            { name => 'sqlite_see_if_its_a_number', default => 1, values => [ 0, 1 ] },
         ];
     }
 
@@ -550,29 +485,21 @@ I<DB Options>.
 
 For SQLite/mysql/Pg the following methods are already built in.
 
-Whether passed column names are already quoted or not depends on how C<db-browser> was configured.
+Whether passed column names are quoted or not depends on how C<db-browser> was configured.
 
-=head4 regexp_sql
+=head4 regexp( $column_name, $do_not_match, $case_sensitive )
 
-=over
+C<$do_not_match> and C<$case_sensitive> are true or false.
 
-=item Arguments
+Returns the SQL regexp substatement.
 
-Column name, C<$do_not_match_regexp> (true/false), C<$case_sensitive> (true/false).
-
-Use the placeholder instead of the string which should match or not match the regexp.
-
-=item return
-
-The sql regexp substatement.
-
-=back
+Use the appropriate placeholder instead of the string that should match or not match the regexp.
 
 Example (C<mysql>):
 
-    sub regexp_sql {
-        my ( $self, $col, $do_not_match_regexp, $case_sensitive ) = @_;
-        if ( $do_not_match_regexp ) {
+    sub regexp {
+        my ( $self, $col, $do_not_match, $case_sensitive ) = @_;
+        if ( $do_not_match ) {
             return ' '. $col . ' NOT REGEXP ?'        if ! $case_sensitive;
             return ' '. $col . ' NOT REGEXP BINARY ?' if   $case_sensitive;
         }
@@ -582,19 +509,9 @@ Example (C<mysql>):
         }
     }
 
-=head4 concatenate
+=head4 concatenate( \@strings )
 
-=over
-
-=item Arguments
-
-A reference to an array of strings.
-
-=item return
-
-The sql substatement which concatenates the passed strings.
-
-=back
+Returns the SQL substatement which concatenates the passed strings.
 
 Example (C<Pg>):
 
@@ -603,21 +520,11 @@ Example (C<Pg>):
         return join( ' || ', @$arg );
     }
 
-=head4 epoch_to_datetime
-
-=over
-
-=item Arguments
-
-The column name and the interval.
+=head4 epoch_to_datetime( $column_name, $interval )
 
 The interval is 1 (seconds), 1000 (milliseconds) or 1000000 (microseconds).
 
-=item return
-
-The sql epoch to datetime substatement.
-
-=back
+Returns the SQL "epoch to datetime" substatement.
 
 Example (C<mysql>):
 
@@ -626,21 +533,11 @@ Example (C<mysql>):
         return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s')";
     }
 
-=head4 epoch_to_date
-
-=over
-
-=item Arguments
-
-The column name and the interval.
+=head4 epoch_to_date( $column_name, $interval )
 
 The interval is 1 (seconds), 1000 (milliseconds) or 1000000 (microseconds).
 
-=item return
-
-The sql epoch to date substatement.
-
-=back
+Returns the SQL "epoch to date" substatement.
 
 Example (C<mysql>):
 
@@ -649,19 +546,11 @@ Example (C<mysql>):
         return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')";
     }
 
-=head4 truncate
+=head4 truncate( $column_name, $precision )
 
-=over
+C<$precision> is an integer value.
 
-=item Arguments
-
-The column name and the precision (int).
-
-=item return
-
-The sql truncate substatement.
-
-=back
+The SQL truncate substatement.
 
 Example (C<mysql>):
 
@@ -670,42 +559,20 @@ Example (C<mysql>):
         return "TRUNCATE($col,$precision)";
     }
 
-=head4 bit_length
+=head4 bit_length( $column_name )
 
-=over
-
-=item Arguments
-
-The column name.
-
-=item return
-
-The sql bit length substatement.
-
-=back
+Returns the SQL bit length substatement.
 
 Example (C<Pg>):
-
-The sql bit length substatement.
 
     sub bit_length {
         my ( $self, $col ) = @_;
         return "BIT_LENGTH($col)";
     }
 
-=head4 char_length
+=head4 char_length( $column_name )
 
-=over
-
-=item Arguments
-
-The column name.
-
-=item return
-
-The sql char length substatement.
-
-=back
+Returns the SQL char length substatement.
 
 Example (C<Pg>):
 
@@ -713,10 +580,6 @@ Example (C<Pg>):
         my ( $self, $col ) = @_;
         return "CHAR_LENGTH($col)";
     }
-
-=pod
-
-=encoding UTF-8
 
 =head1 AUTHOR
 

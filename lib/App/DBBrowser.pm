@@ -5,29 +5,29 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 use Getopt::Long          qw( GetOptions );
 
-use Encode::Locale   qw( decode_argv );
-use File::HomeDir    qw();
-use File::Which      qw( which );
+use Encode::Locale qw( decode_argv );
+use File::HomeDir  qw();
+use File::Which    qw( which );
+
 use Term::Choose     qw( choose );
 use Term::TablePrint qw( print_table );
 
-use App::DBBrowser::Opt;
-
-use App::DBBrowser::OptDB;
-
-use App::DBBrowser::DB;
 #use App::DBBrowser::AttachDB;    # 'require'-d
-#use App::DBBrowser::Join_Union;  # 'require'-d
-#use App::DBBrowser::CreateTable; # 'require'-d
-use App::DBBrowser::Table;
 use App::DBBrowser::Auxil;
+#use App::DBBrowser::CreateTable; # 'require'-d
+use App::DBBrowser::DB;
+#use App::DBBrowser::Join_Union;  # 'require'-d
+use App::DBBrowser::Opt;
+use App::DBBrowser::OptDB;
+use App::DBBrowser::Table;
+
 
 BEGIN {
     decode_argv(); # not at the end of the BEGIN block if less than perl 5.16
@@ -149,7 +149,6 @@ sub run {
     $sf->__init();
     my $lyt_3 = Term::Choose->new( $sf->{i}{lyt_3} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my $obj_o_db = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
     my $auto_one = 0;
 
     DB_PLUGIN: while ( 1 ) {
@@ -168,7 +167,16 @@ sub run {
             );
             last DB_PLUGIN if ! defined $plugin;
         }
-        $sf->{i}{plugin} = 'App::DBBrowser::DB::' . $plugin;
+        $plugin = 'App::DBBrowser::DB::' . $plugin;
+        $sf->{i}{plugin} = $plugin;
+        my $obj_o_db = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
+        my $db_o = $obj_o_db->__read_db_config_files();
+        if ( defined $db_o->{$plugin}{dirs_sqlite} ) {
+            $sf->{i}{dirs_sqlite} = delete $db_o->{$plugin}{dirs_sqlite};
+        }
+        else {
+            $sf->{i}{dirs_sqlite} = [ $sf->{i}{home_dir} ];
+        }
         my $obj_db;
         if ( ! eval {
             $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
@@ -176,7 +184,7 @@ sub run {
             die "No database driver!" if ! $sf->{i}{driver};
             1 }
         ) {
-            $ax->print_error_message( $@, 'DB plugin - driver' );
+            $ax->print_error_message( $@, 'load plugin' );
             next DB_PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last DB_PLUGIN;
         }
@@ -187,7 +195,7 @@ sub run {
         my @databases;
         my ( $user_dbs, $sys_dbs ) = ( [], [] ); #
         if ( ! eval {
-            ( $user_dbs, $sys_dbs ) = $obj_db->databases( $obj_o_db->connect_parameter() );
+            ( $user_dbs, $sys_dbs ) = $obj_db->databases( $obj_o_db->connect_parameter( $db_o ) );
             if ( $driver eq 'SQLite' ) {
                 @databases = ( @$user_dbs, $sf->{o}{G}{meta} ? @$sys_dbs : () );
             }
@@ -259,7 +267,7 @@ sub run {
             if ( ! eval {
                 print $sf->{i}{clear_screen};
                 print 'DB: "'. basename( $db ) . '"' . "\n";
-                $dbh = $obj_db->db_handle( $db, $obj_o_db->connect_parameter( $db) );
+                $dbh = $obj_db->db_handle( $db, $obj_o_db->connect_parameter( $db_o, $db) );
                 $sf->{i}{sep_char} = $dbh->get_info(41)  || '.'; # SQL_CATALOG_NAME_SEPARATOR
                 1 }
             ) {
@@ -453,7 +461,7 @@ sub run {
                             if ( $choice eq $create_table || $choice eq $drop_table  ){
                                 if ( $driver eq 'SQLite' ) {
                                     $dbh->disconnect();
-                                    $dbh = $obj_db->db_handle( $db, $obj_o_db->connect_parameter( $db ) );
+                                    $dbh = $obj_db->db_handle( $db, $obj_o_db->connect_parameter( $db_o, $db ) );
                                 }
                                 if ( $choice eq $create_table ) {
                                     my $created;
@@ -622,7 +630,6 @@ sub __tables_data {
         $schema = undef;
         # More than one schema if a SQLite database has databases attached
     }
-    # del tmp if == 1
     my $sth = $dbh->table_info( undef, $schema, undef, undef );
     my $info = $sth->fetchall_arrayref( { map { $_ => 1 } @keys } );
     for my $href ( @$info ) {
@@ -657,7 +664,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_03
+Version 1.060_04
 
 =head1 DESCRIPTION
 

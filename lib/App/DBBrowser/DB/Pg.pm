@@ -13,7 +13,6 @@ use DBI qw();
 use App::DBBrowser::Credentials;
 
 
-
 sub new {
     my ( $class, $ref ) = @_;
     $ref->{driver} = 'Pg';

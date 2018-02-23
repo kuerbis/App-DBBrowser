@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.060_03
+Version 1.060_04
 
 =cut
 
@@ -120,7 +120,7 @@ The SQL menu is the menu which opens after a table was selected.
 If C<AGGREGATE> or C<GROUP BY> is set, the C<SELECT> statement is automatically formed; a previous user defined
 C<SELECT> statement is reset. A user defined C<SELECT> resets a previous set C<AGGREGATE> or C<GROUP BY> statement.
 
-To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu entry and choose C<'- OK -'>.
+To reset a SQL "sub-statement" (e.g WHERE) re-enter into the respective menu entry and choose '-OK-'.
 
 Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
 
@@ -134,7 +134,7 @@ Three different ways to insert data into a table are available:
 
 Insert data column by column.
 
-=head4 copy and past
+=head4 copy and paste
 
 Multi line input: reads until the end of input. It is OS-depend how to indicate the end of input.
 
@@ -157,7 +157,7 @@ To reach the I<Create table>/I<Drop table> menu, select the prompt in the menu w
 I<Drop table>: the table is shown (here I<Auto Limit> has no effect, the whole table is fetched) before the user
 confirms to drop the table.
 
-For SQLite databases in this menu are additional entries available: I<Attach DB> and if the current database has
+For SQLite databases additional entries are available in this menu: I<Attach DB> and if the current database has
 attached databases also I<Detach DB>.
 
 =head3 Scalar functions
@@ -195,6 +195,8 @@ number of characters.
 To remove a chosen scalar function from a column select the column with the function a second time.
 
 =head2 OPTIONS
+
+The options menu is called with C<db-browser -h>.
 
 =head3 HELP
 

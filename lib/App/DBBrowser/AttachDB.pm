@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use File::Basename qw( basename );
 use List::Util     qw( any );
@@ -16,7 +16,6 @@ use Term::Choose::Util qw( choose_a_subset );
 use Term::Form         qw();
 
 use App::DBBrowser::Auxil;
-
 
 
 sub new {
@@ -147,10 +146,6 @@ sub detach_db {
     $ax->write_json( $sf->{i}{file_attached_db}, $h_ref );
     return 1;
 }
-
-
-
-
 
 
 

@@ -5,19 +5,19 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_03';
+our $VERSION = '1.060_04';
 
 use Encode qw( encode );
 
-use Encode::Locale         qw();
-use JSON                   qw( decode_json );
-use List::MoreUtils        qw( any );
+use Encode::Locale  qw();
+use JSON            qw( decode_json );
+use List::MoreUtils qw( any );
+
 use Term::Choose           qw( choose );
 use Term::Choose::LineFold qw( line_fold );
 use Term::Choose::Util     qw( term_width );
 
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
-
 
 
 sub new {

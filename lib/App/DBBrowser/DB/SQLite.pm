@@ -8,15 +8,13 @@ no warnings 'utf8';
 
 #our $VERSION = '';
 
-use Encode       qw( encode decode );
-use File::Find   qw( find );
-use Scalar::Util qw( looks_like_number );
+use Encode     qw( encode decode );
+use File::Find qw( find );
 
 use DBI            qw();
 use Encode::Locale qw();
 
 use App::DBBrowser::Auxil;
-
 
 
 sub new {
