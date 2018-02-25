@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( first_index );
@@ -25,19 +25,19 @@ sub new {
 
 
 sub col_function {
-    my ( $sf, $dbh, $sql, $backup_sql, $sql_type ) = @_;
+    my ( $sf, $dbh, $sql, $backup_sql, $stmt_type ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     my @functions = ( qw( Epoch_to_Date Bit_Length Truncate Char_Length Epoch_to_DateTime ) );
-    my $stmt_key = '';
+    my $cols_type = '';
     if ( $sql->{select_type} eq '*' ) {
         @{$sql->{chosen_cols}} = @{$sql->{cols}};
-        $stmt_key = 'chosen_cols';
+        $cols_type = 'chosen_cols';
     }
     elsif ( $sql->{select_type} eq 'chosen_cols' ) {
-        $stmt_key = 'chosen_cols';
+        $cols_type = 'chosen_cols';
     }
     # if not $sql->{orig_cols}{stmt_type}, then no modified cols in $sql->{stmt_key}
-    if ( $stmt_key eq 'chosen_cols' ) {
+    if ( $cols_type eq 'chosen_cols' ) {
         if ( ! $sql->{orig_cols}{chosen_cols} ) {
             @{$sql->{orig_cols}{'chosen_cols'}} = @{$sql->{chosen_cols}};
         }
@@ -56,14 +56,14 @@ sub col_function {
         my $default = 0;
         my @pre = ( undef, $sf->{i}{_confirm} );
         my @cols;
-        if ( $stmt_key eq 'chosen_cols' ) {
+        if ( $cols_type eq 'chosen_cols' ) {
             @cols = @{$sql->{chosen_cols}};
         }
         else {
             @cols = ( @{$sql->{aggr_cols}}, @{$sql->{group_by_cols}} );
         }
         my $choices = [ @pre, map( "- $_", @cols ) ];
-        $ax->print_sql( $sql, [ $sql_type ] );
+        $ax->print_sql( $sql, [ $stmt_type ] );
         # Choose
         my $idx = choose(
             $choices,
@@ -83,26 +83,26 @@ sub col_function {
         }
         ( my $qt_col = $choices->[$idx] ) =~ s/^\-\s//;
         $idx -= @pre;
-        if ( $stmt_key ne 'chosen_cols' ) {
+        if ( $cols_type ne 'chosen_cols' ) {
             if ( $idx - @{$sql->{aggr_cols}} >= 0 ) { # chosen a "group by" col
                 $idx -= @{$sql->{aggr_cols}};
-                $stmt_key = 'group_by_cols';
+                $cols_type = 'group_by_cols';
             }
             else {
-                $stmt_key = 'aggr_cols';
+                $cols_type = 'aggr_cols';
             }
         }
         # reset col to original, if __col_function is called on a already modified col:
-        if ( $sql->{$stmt_key}[$idx] ne $sql->{orig_cols}{$stmt_key}[$idx] ) {
-            if ( $stmt_key eq 'chosen_cols' || $stmt_key eq 'group_by_cols' ) {
-                my $i = first_index { $sql->{$stmt_key}[$idx] eq $_ } @{$sql->{modified_cols}};
+        if ( $sql->{$cols_type}[$idx] ne $sql->{orig_cols}{$cols_type}[$idx] ) {
+            if ( $cols_type eq 'chosen_cols' || $cols_type eq 'group_by_cols' ) {
+                my $i = first_index { $sql->{$cols_type}[$idx] eq $_ } @{$sql->{modified_cols}};
                 splice( @{$sql->{modified_cols}}, $i, 1 );
             }
-            $sql->{$stmt_key}[$idx] = $sql->{orig_cols}{$stmt_key}[$idx];
+            $sql->{$cols_type}[$idx] = $sql->{orig_cols}{$cols_type}[$idx];
             $changed++;
             next COL_SCALAR_FUNC;
         }
-        $ax->print_sql( $sql, [ $sql_type ] );
+        $ax->print_sql( $sql, [ $stmt_type ] );
         # Choose
         my $function = choose(
             [ undef, map( "  $_", @functions ) ],
@@ -112,19 +112,19 @@ sub col_function {
             next COL_SCALAR_FUNC;
         }
         $function =~ s/^\s\s//;
-        $ax->print_sql( $sql, [ $sql_type ] );
+        $ax->print_sql( $sql, [ $stmt_type ] );
         my $qt_scalar_func = $sf->__prepare_col_func( $function, $qt_col );
         if ( ! defined $qt_scalar_func ) {
             next COL_SCALAR_FUNC;
         }
-        $sql->{$stmt_key}[$idx] = $qt_scalar_func;
-        if ( $stmt_key eq 'group_by_cols' ) {
-            $sql->{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{$stmt_key}} );
+        $sql->{$cols_type}[$idx] = $qt_scalar_func;
+        if ( $cols_type eq 'group_by_cols' ) {
+            $sql->{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{$cols_type}} );
         }
         # modified_cols: used in WHERE and GROUB BY
         # skip aggregate functions because aggregate are not allowed in WHERE clauses
         # no problem for GROUB BY because it doesn't use modified_cols in aggregate mode
-        if ( $stmt_key ne 'aggr_cols' ) {
+        if ( $cols_type ne 'aggr_cols' ) {
             push @{$sql->{modified_cols}}, $qt_scalar_func;
         }
         $changed++;

@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use Encode qw( encode );
 
@@ -27,11 +27,11 @@ sub new {
 
 
 sub print_sql {
-    my ( $sf, $sql, $sql_typeS ) = @_;
+    my ( $sf, $sql, $stmt_typeS ) = @_;
     my $table = $sql->{table};
     my $str = '';
-    for my $sql_type ( @$sql_typeS ) {
-        if ( $sql_type eq 'Create_table' ) { #
+    for my $stmt_type ( @$stmt_typeS ) {
+        if ( $stmt_type eq 'Create_table' ) { #
             my @cols = defined $sql->{create_table_cols} ? @{$sql->{create_table_cols}} : @{$sql->{insert_into_cols}};
             $str .= "CREATE TABLE $table (";
             if ( @cols ) {
@@ -39,7 +39,7 @@ sub print_sql {
             }
             $str .= ")\n";
         }
-        if ( $sql_type eq 'Insert' ) {
+        if ( $stmt_type eq 'Insert' ) {
             my @cols = @{$sql->{insert_into_cols}};
             $str .= "INSERT INTO $table (";
             if ( @cols ) {
@@ -63,14 +63,14 @@ sub print_sql {
             }
             $str .= "  )\n";
         }
-        if ( $sql_type =~ /^(?:Select|Delete|Update)\z/ ) {
+        if ( $stmt_type =~ /^(?:Select|Delete|Update)\z/ ) {
             my %type_sql = (
                 Select => "SELECT",
                 Delete => "DELETE",
                 Update => "UPDATE",
             );
             my $cols_sql;
-            if ( $sql_type eq 'Select' ) {
+            if ( $stmt_type eq 'Select' ) {
                 if ( $sql->{select_type} eq '*' ) {
                     $cols_sql = ' *';
                 }
@@ -84,10 +84,10 @@ sub print_sql {
                     $cols_sql = ' *';
                 }
             }
-            $str .= $type_sql{$sql_type};
+            $str .= $type_sql{$stmt_type};
             $str .= $sql->{distinct_stmt}                   if $sql->{distinct_stmt};
             $str .= $cols_sql                        . "\n" if $cols_sql;
-            $str .= " FROM"                                 if $sql_type eq 'Select' || $sql_type eq 'Delete';
+            $str .= " FROM"                                 if $stmt_type eq 'Select' || $stmt_type eq 'Delete';
             $str .= ' '      . $table                . "\n";
             $str .= ' '      . $sql->{set_stmt}      . "\n" if $sql->{set_stmt};
             $str .= ' '      . $sql->{where_stmt}    . "\n" if $sql->{where_stmt};
@@ -150,7 +150,7 @@ sub print_error_message {
 sub reset_sql {
     my ( $sf, $sql ) = @_;
     my $backup = {};
-    for my $y ( qw( db schema table cols ) ) { ## data ?
+    for my $y ( qw( db schema table cols ) ) {
         $backup->{$y} = $sql->{$y} if exists $sql->{$y};
     }
     map { delete $sql->{$_} } keys %$sql; # not $sql = {} so $sql is still pointing to the outer $sql
@@ -158,7 +158,7 @@ sub reset_sql {
     my @list_keys = ( qw( chosen_cols set_args aggr_cols where_args group_by_cols having_args insert_into_cols insert_into_args ) );
     @{$sql}{@strg_keys} = ( '' ) x  @strg_keys;
     @{$sql}{@list_keys} = map{ [] } @list_keys;
-    $sql->{modified_cols} = []; ##
+    $sql->{modified_cols} = []; #
     for my $y ( keys %$backup ) {
         $sql->{$y} = $backup->{$y};
     }

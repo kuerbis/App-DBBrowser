@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use Scalar::Util qw( looks_like_number );
 
@@ -83,7 +83,7 @@ sub db_handle {
     my $dbh = $sf->{Plugin}->db_handle( $db, $connect_parameter );
     die $sf->message_method_undef_return( 'db_handle' ) if ! defined $dbh;
     if ( $dbh->{Driver}{Name} eq 'SQLite' ) {
-        #if ( ! $sf->{Plugin}->can( 'regexp' ) ) { ####
+        if ( ! $sf->{Plugin}->can( 'regexp' ) ) {
             $dbh->sqlite_create_function( 'regexp', 3, sub {
                     my ( $regex, $string, $case_sensitive ) = @_;
                     $string = '' if ! defined $string;
@@ -91,8 +91,8 @@ sub db_handle {
                     return $string =~ m/$regex/ism;
                 }
             );
-        #}
-        #if ( ! $sf->{Plugin}->can( 'truncate' ) ) { ####
+        }
+        if ( ! $sf->{Plugin}->can( 'truncate' ) ) {
             $dbh->sqlite_create_function( 'truncate', 2, sub {
                     my ( $number, $places ) = @_;
                     return if ! defined $number;
@@ -100,20 +100,20 @@ sub db_handle {
                     return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
                 }
             );
-        #}
-        #if ( ! $sf->{Plugin}->can( 'bit_length' ) ) { ####
+        }
+        if ( ! $sf->{Plugin}->can( 'bit_length' ) ) {
             $dbh->sqlite_create_function( 'bit_length', 1, sub {
                     use bytes;
                     return length $_[0];
                 }
             );
-        #}
-        #if ( ! $sf->{Plugin}->can( 'char_length' ) ) { ####
+        }
+        if ( ! $sf->{Plugin}->can( 'char_length' ) ) {
             $dbh->sqlite_create_function( 'char_length', 1, sub {
                     return length $_[0];
                 }
             );
-        #}
+        }
     }
     return $dbh;
 }
@@ -173,7 +173,13 @@ sub schemas { ##
 
 sub regexp {
     my ( $sf, $col, $do_not_match, $case_sensitive ) = @_;
-    if ( $sf->driver eq 'SQLite' ) {
+    if ( $sf->{Plugin}->can( 'sql_regexp' ) ) {
+        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match, $case_sensitive );
+        die $sf->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
+        $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
+        return $sql_regexp;
+    }
+    elsif ( $sf->driver eq 'SQLite' ) {
         if ( $do_not_match ) {
             return sprintf ' NOT REGEXP(?,%s,%d)', $col, $case_sensitive;
         }
@@ -181,13 +187,6 @@ sub regexp {
             return sprintf ' REGEXP(?,%s,%d)', $col, $case_sensitive;
         }
     }
-    if ( $sf->{Plugin}->can( 'sql_regexp' ) ) {
-        my $sql_regexp = $sf->{Plugin}->sql_regexp( $col, $do_not_match, $case_sensitive );
-        die $sf->message_method_undef_return( 'sql_regexp' ) if ! defined $sql_regexp;
-        $sql_regexp = ' ' . $sql_regexp if $sql_regexp !~ /^\ /;
-        return $sql_regexp;
-    }
-
     elsif ( $sf->driver eq 'mysql' ) {
         if ( $do_not_match ) {
             return ' '. $col . ' NOT REGEXP ?'        if ! $case_sensitive;
@@ -254,8 +253,6 @@ sub epoch_to_date {
 sub truncate {
     my ( $sf, $col, $precision ) = @_;
 
-    return "TRUNCATE($col,$precision)"                  if $sf->driver eq 'SQLite';
-
     return $sf->{Plugin}->truncate( $col, $precision )  if $sf->{Plugin}->can( 'truncate' );
 
     return "TRUNC($col,$precision)"                     if $sf->driver eq 'Pg';
@@ -267,8 +264,6 @@ sub truncate {
 sub bit_length {
     my ( $sf, $col ) = @_;
 
-    return "BIT_LENGTH($col)"                if $sf->driver eq 'SQLite';
-
     return $sf->{Plugin}->bit_length( $col ) if $sf->{Plugin}->can( 'bit_length' );
 
     return "BIT_LENGTH($col)";
@@ -277,8 +272,6 @@ sub bit_length {
 
 sub char_length {
     my ( $sf, $col ) = @_;
-
-    return "CHAR_LENGTH($col)"                if $sf->driver eq 'SQLite';
 
     return $sf->{Plugin}->char_length( $col ) if $sf->{Plugin}->can( 'char_length' );
 
@@ -303,7 +296,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_04
+Version 1.060_05
 
 =head1 DESCRIPTION
 
@@ -325,7 +318,7 @@ A suitable database plugin provides the methods named in this documentation.
 
 The constructor method.
 
-C<db-browser> calls the plugin constructor and passes as reference to a hash with this entries:
+When C<db-browser> calls the plugin constructor it passes a reference to a hash with this entries:
 
     {
         app_dir       => path to the application directoriy
@@ -411,7 +404,7 @@ If the option I<add_metadata> is true, user-schemas and system-schemas are used 
 
 If the database driver is SQLite only C<set_attributes> is used form the tree DB configuration methods.
 
-=head4 read_arguments
+=head4 read_arguments()
 
 Returns a reference to an array of hashes. The hashes have two or three key-value pairs:
 
@@ -440,7 +433,7 @@ An example C<read_arguments> method:
 The information returned by the method C<read_arguments> is used to build the C<db-browser> options menu entry I<Fields>
 and I<Login Data>.
 
-=head4 env_variables
+=head4 env_variables()
 
 Returns a reference to an array of environment variables.
 
@@ -453,7 +446,7 @@ An example C<env_variables> method:
 
 See the C<db-browser> option I<ENV Variables>.
 
-=head4 set_attributes
+=head4 set_attributes()
 
 Returns a reference to an array of hashes. The hashes have three or four key-value pairs:
 

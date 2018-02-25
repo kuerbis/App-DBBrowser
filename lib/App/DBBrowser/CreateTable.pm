@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -68,7 +68,7 @@ sub delete_table {
 
 
 sub __table_name {
-    my ( $sf, $sql, $dbh, $sql_typeS, $data ) = @_;
+    my ( $sf, $sql, $dbh, $stmt_typeS, $data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     my $table;
     my $c = 0;
@@ -86,7 +86,7 @@ sub __table_name {
         if ( none { $sql->{table} eq $ax->quote_table( $dbh, $data->{tables}{$_} ) } keys %{$data->{tables}} ) {
             return 1;
         }
-        $ax->print_sql( $sql, $sql_typeS );
+        $ax->print_sql( $sql, $stmt_typeS );
         my $prompt = "Table $sql->{table} already exists.";
         my $choice = choose(
             [ undef, 'New name' ],
@@ -113,10 +113,11 @@ sub create_new_table {
     my $old_idx = 0;
 
     MENU: while ( 1 ) {
-        my $sql_typeS = [ 'Create_table' ];
+        my $stmt_typeS = [ 'Create_table' ];
         my $choices = [ undef, @cu{@cu_keys} ];
         my $prompt = 'DB: "' . basename( $data->{db} ) . '"' . "\n" . 'Create table';
         # Choose
+        $ENV{TC_RESET_AUTO_UP} = 0;
         my $idx = choose(
             $choices,
             { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, prompt => $prompt }
@@ -126,12 +127,13 @@ sub create_new_table {
         }
         my $custom = $choices->[$idx];
         if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $old_idx == $idx ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
                 $old_idx = 0;
                 next MENU;
             }
             $old_idx = $idx;
         }
+        delete $ENV{TC_RESET_AUTO_UP};
         if ( $custom eq $cu{settings} ) {
             my $obj_opt = App::DBBrowser::Opt->new( $sf->{i}, $sf->{o} );
             $obj_opt->config_insert();
@@ -139,33 +141,33 @@ sub create_new_table {
         }
         $ax->reset_sql( $sql ); #
         if ( $custom eq $cu{create_table_plain} ) {
-            my $ok = $sf->__data_from_plain( $sql, $dbh, $sql_typeS, $data );
+            my $ok = $sf->__data_from_plain( $sql, $dbh, $stmt_typeS, $data );
             next MENU if ! $ok;
         }
         else {
             if ( $custom eq $cu{create_table_form_copy} ) {
-                push @$sql_typeS, 'Insert';
+                push @$stmt_typeS, 'Insert';
                 my $tbl_in = App::DBBrowser::Table::Insert->new( $sf->{i}, $sf->{o} );
-                my $ok = $tbl_in->from_copy_and_paste( $sql, $sql_typeS );
+                my $ok = $tbl_in->from_copy_and_paste( $sql, $stmt_typeS );
                 if ( ! $ok ) {
                     next MENU;
                 }
             }
             elsif ( $custom eq $cu{create_table_form_file} ) {
-                push @$sql_typeS, 'Insert';
+                push @$stmt_typeS, 'Insert';
                 my $tbl_in = App::DBBrowser::Table::Insert->new( $sf->{i}, $sf->{o} );
-                my $ok = $tbl_in->from_file( $sql, $sql_typeS );
+                my $ok = $tbl_in->from_file( $sql, $stmt_typeS );
                 if ( ! $ok ) {
                     next MENU;
                 }
             }
-            my $ok = $sf->__table_name( $sql, $dbh, $sql_typeS, $data );
+            my $ok = $sf->__table_name( $sql, $dbh, $stmt_typeS, $data );
             if ( ! $ok ) {
                 next MENU;
             }
             # Columns
             my ( $first_row, $user_input ) = ( '- Use first row', '- User input' );
-            $ax->print_sql( $sql, $sql_typeS );
+            $ax->print_sql( $sql, $stmt_typeS );
             # Choose
             my $choice = choose(
                 [ undef, $first_row, $user_input ],
@@ -183,7 +185,7 @@ sub create_new_table {
                 $sql->{insert_into_cols} = [ map { 'c' . ++$c } @{$sql->{insert_into_args}->[0]} ]; # not quoted
             }
             my $trs = Term::Form->new( 'cols' );
-            $ax->print_sql( $sql, $sql_typeS );
+            $ax->print_sql( $sql, $stmt_typeS );
             # Fill_form
             my $c = 0;
             my $form = $trs->fill_form(
@@ -201,7 +203,7 @@ sub create_new_table {
         $sql->{insert_into_cols} = $ax->quote_simple_many( $dbh, $sql->{insert_into_cols} );
         # Datatypes
         my $trs = Term::Form->new( 'cols' );
-        $ax->print_sql( $sql, $sql_typeS );
+        $ax->print_sql( $sql, $stmt_typeS );
         # Fill_form
         my $col_name_and_type = $trs->fill_form( # look
             [ map { [ $_, $sf->{o}{insert}{default_data_type} ] } @cols ],
@@ -215,7 +217,7 @@ sub create_new_table {
             $sql->{create_table_cols}[$i] = $sql->{insert_into_cols}[$i] . ' ' . $col_name_and_type->[$i][1];
         }
         # Create table
-        $ax->print_sql( $sql, $sql_typeS );
+        $ax->print_sql( $sql, $stmt_typeS );
         # Choose
         my $create_table_ok = choose(
             [ undef, 'YES' ],
@@ -229,13 +231,13 @@ sub create_new_table {
         delete $sql->{create_table_cols};
         my $sth = $dbh->prepare( "SELECT * FROM $qt_table LIMIT 0" );
         $sth->execute() if $sf->{i}{driver} ne 'SQLite';
-        if ( $sql_typeS->[-1] eq 'Insert' ) {
-            $sql_typeS = [ $sql_typeS->[-1] ];
+        if ( $stmt_typeS->[-1] eq 'Insert' ) {
+            $stmt_typeS = [ $stmt_typeS->[-1] ];
             my @columns = @{$sth->{NAME}};
             $sth->finish();
             $sql->{insert_into_cols} = $ax->quote_simple_many( $dbh, \@columns );
             my $obj_table = App::DBBrowser::Table->new( $sf->{i}, $sf->{o} );
-            my $commit_ok = $obj_table->commit_sql( $sql, $sql_typeS, $dbh );
+            my $commit_ok = $obj_table->commit_sql( $sql, $stmt_typeS, $dbh );
         }
         return 1;
     }
@@ -243,19 +245,19 @@ sub create_new_table {
 
 
 sub __data_from_plain {
-    my ( $sf, $sql, $dbh, $sql_typeS, $data ) = @_;
-    my $ok = $sf->__table_name( $sql, $dbh, $sql_typeS, $data );
+    my ( $sf, $sql, $dbh, $stmt_typeS, $data ) = @_;
+    my $ok = $sf->__table_name( $sql, $dbh, $stmt_typeS, $data );
     if ( ! $ok ) {
         return;
     }
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    $ax->print_sql( $sql, $sql_typeS );
+    $ax->print_sql( $sql, $stmt_typeS );
     my $col_count = choose_a_number( 3, { small_on_top => 1, confirm => 'Confirm', mouse => $sf->{o}{table}{mouse},
                                           back => 'Back', name => 'Number of columns:', clear_screen => 0 } );
     if ( ! $col_count ) {
         return;
     }
-    $ax->print_sql( $sql, $sql_typeS );
+    $ax->print_sql( $sql, $stmt_typeS );
     my $info = 'Enter column names:';
     my $trs = Term::Form->new();
     my $col_names = $trs->fill_form(
@@ -266,7 +268,7 @@ sub __data_from_plain {
         return;
     }
     $sql->{insert_into_cols} = [ map { $_->[1] } @$col_names ]; # not quoted
-    $ax->print_sql( $sql, $sql_typeS );
+    $ax->print_sql( $sql, $stmt_typeS );
     return 1;
 }
 

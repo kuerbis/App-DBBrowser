@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -133,9 +133,10 @@ sub config_insert {
             my @pre     = ( undef );
             my $choices = [ @pre, map( $_->{text}, @$sub_menu_insert ) ];
             # Choose
+            $ENV{TC_RESET_AUTO_UP} = 0;
             my $idx = choose(
                 $choices,
-                { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, undef => $sf->{i}{back_short}, prompt => $prompt }
+                { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, undef => $sf->{i}{back_config}, prompt => $prompt }
             );
             if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $group =~ /^_module_/ ) {
@@ -152,7 +153,7 @@ sub config_insert {
                 }
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $old_idx == $idx ) {
+                if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
                     $old_idx = 0;
                     next OPTION_INSERT;
                 }
@@ -164,6 +165,7 @@ sub config_insert {
                     next OPTION_INSERT;
                 }
             }
+            delete $ENV{TC_RESET_AUTO_UP};
             my $name = $idx <= $#pre ? $pre[$idx] : $sub_menu_insert->[$idx - @pre]{name};
             if ( $name =~ /^_module_/ ) {
                 $backup_old_idx = $old_idx;
@@ -207,7 +209,7 @@ sub config_insert {
                     { name => 'sep_char',    prompt => "sep_char   " },
                     { name => 'quote_char',  prompt => "quote_char " },
                     { name => 'escape_char', prompt => "escape_char" },
-                    { name => 'eof',         prompt => "eof        " },
+                    { name => 'eol',         prompt => "eol        " },
                 ];
                 my $prompt = '"Text::CSV"';
                 $sf->__group_readline( $section, $items, $prompt );
@@ -302,10 +304,11 @@ sub set_options {
         my $menu = $sf->__menus( $group );
 
         OPTION: while ( 1 ) {
-            my $back =          $group eq 'main' ? $sf->{i}{_quit}     : $sf->{i}{back_short};
+            my $back =          $group eq 'main' ? $sf->{i}{_quit}     : $sf->{i}{back_config};
             my @pre  = ( undef, $group eq 'main' ? $sf->{i}{_continue} : () );
             my $choices = [ @pre, map( $_->{text}, @$menu ) ];
             # Choose
+            $ENV{TC_RESET_AUTO_UP} = 0;
             my $idx = choose(
                 $choices,
                 { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, undef => $back }
@@ -325,7 +328,7 @@ sub set_options {
                 }
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $old_idx == $idx ) {
+                if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
                     $old_idx = 0;
                     next OPTION;
                 }
@@ -337,6 +340,7 @@ sub set_options {
                     next OPTION;
                 }
             }
+            delete $ENV{TC_RESET_AUTO_UP};
             my $name = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
             if ( $name eq 'config_insert' ) {
                 $backup_old_idx = $old_idx;

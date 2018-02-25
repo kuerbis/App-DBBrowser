@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use File::Basename qw( basename );
 
@@ -118,7 +118,7 @@ sub database_setting {
                 # Choose
                 $plugin = choose(
                     [ undef, map( "- $_", @{$sf->{o}{G}{plugins}} ) ],
-                    { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_short} }
+                    { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_config} }
                 );
                 return if ! defined $plugin;
             }
@@ -167,10 +167,11 @@ sub database_setting {
             my $choices = [ @pre, map( $_->[1], @groups ) ];
             push @$choices, $reset if ! defined $db;
             # Choose
+            $ENV{TC_RESET_AUTO_UP} = 0;
             my $idx_group = choose(
                 $choices,
                 { %{$sf->{i}{lyt_3}}, prompt => $prompt, index => 1,
-                  default => $old_idx_group, undef => $sf->{i}{back_short} }
+                  default => $old_idx_group, undef => $sf->{i}{back_config} }
             );
             if ( ! defined $idx_group || ! defined $choices->[$idx_group] ) {
                 if ( $sf->{i}{write_config} ) {
@@ -182,7 +183,7 @@ sub database_setting {
                 return $changed;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $old_idx_group == $idx_group ) {
+                if ( $old_idx_group == $idx_group && ! $ENV{TC_RESET_AUTO_UP} ) {
                     $old_idx_group = 0;
                     next GROUP;
                 }
@@ -190,6 +191,7 @@ sub database_setting {
                     $old_idx_group = $idx_group;
                 }
             }
+            delete $ENV{TC_RESET_AUTO_UP};
             if ( $choices->[$idx_group] eq $reset ) {
                 my @databases;
                 for my $section ( keys %$db_o ) {

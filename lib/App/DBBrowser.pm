@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_04';
+our $VERSION = '1.060_05';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -50,7 +50,8 @@ sub new {
         _confirm      => '  CONFIRM',
         _reset        => '  RESET',
         ok            => '-OK-',
-        back_short    => '  <=',
+        back_s        => '<<',
+        back_config   => '  <=',
         clear_screen  => "\e[H\e[J", #
         stmt_init_tab => 4,
     };
@@ -239,6 +240,7 @@ sub run {
                 my $prompt = 'Choose Database:';
                 my $choices_db = [ undef, @databases ];
                 # Choose
+                $ENV{TC_RESET_AUTO_UP} = 0;
                 my $idx_db = $lyt_3->choose(
                     $choices_db,
                     { prompt => $prompt, index => 1, default => $old_idx_db, undef => $back }
@@ -250,7 +252,7 @@ sub run {
                     last DB_PLUGIN;
                 }
                 if ( $sf->{o}{G}{menu_memory} ) {
-                    if ( $old_idx_db == $idx_db ) {
+                    if ( $old_idx_db == $idx_db && ! $ENV{TC_RESET_AUTO_UP} ) {
                         $old_idx_db = 0;
                         next DATABASE;
                     }
@@ -258,6 +260,7 @@ sub run {
                         $old_idx_db = $idx_db;
                     }
                 }
+                delete $ENV{TC_RESET_AUTO_UP};
             }
             $db =~ s/^[-\ ]\s// if $driver ne 'SQLite';
 
@@ -332,6 +335,7 @@ sub run {
                     my $prompt = 'DB "'. basename( $db ) . '" - choose Schema:';
                     my $choices_schema = [ undef, @schemas ];
                     # Choose
+                    $ENV{TC_RESET_AUTO_UP} = 0;
                     my $idx_sch = $lyt_3->choose(
                         $choices_schema,
                         { prompt => $prompt, index => 1, default => $old_idx_sch, undef => $back }
@@ -344,7 +348,7 @@ sub run {
                         last DB_PLUGIN;
                     }
                     if ( $sf->{o}{G}{menu_memory} ) {
-                        if ( $old_idx_sch == $idx_sch ) {
+                        if ( $old_idx_sch == $idx_sch && ! $ENV{TC_RESET_AUTO_UP} ) {
                             $old_idx_sch = 0;
                             next SCHEMA;
                         }
@@ -352,6 +356,7 @@ sub run {
                             $old_idx_sch = $idx_sch;
                         }
                     }
+                    delete $ENV{TC_RESET_AUTO_UP};
                     $schema =~ s/^[-\ ]\s//;
                 }
 
@@ -389,6 +394,7 @@ sub run {
                     my $choices_table = [ $hidden, undef, @tables, $join, $union, $db_setting ];
                     my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                     # Choose
+                    $ENV{TC_RESET_AUTO_UP} = 0;
                     my $idx_tbl = $lyt_3->choose(
                         $choices_table,
                         { prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
@@ -402,7 +408,7 @@ sub run {
                         last DB_PLUGIN;
                     }
                     if ( $sf->{o}{G}{menu_memory} ) {
-                        if ( $old_idx_tbl == $idx_tbl ) {
+                        if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
                             $old_idx_tbl = 1;
                             next TABLE;
                         }
@@ -410,6 +416,7 @@ sub run {
                             $old_idx_tbl = $idx_tbl;
                         }
                     }
+                    delete $ENV{TC_RESET_AUTO_UP};
                     if ( $table eq $db_setting ) {
                         my $changed;
                         if ( ! eval {
@@ -441,6 +448,7 @@ sub run {
                                 push @$choices_hidden, $detach_databases if $sf->{i}{db_attached};
                             }
                             # Choose
+                            $ENV{TC_RESET_AUTO_UP} = 0;
                             my $idx_hdn = $lyt_3->choose(
                                 $choices_hidden,
                                 { prompt => $db_string, index => 1, default => $old_idx_hdn, undef => $sf->{i}{_back} }
@@ -450,7 +458,7 @@ sub run {
                                 next TABLE;
                             }
                             if ( $sf->{o}{G}{menu_memory} ) {
-                                if ( $old_idx_hdn == $idx_hdn ) {
+                                if ( $old_idx_hdn == $idx_hdn && ! $ENV{TC_RESET_AUTO_UP} ) {
                                     $old_idx_hdn = 0;
                                     next HIDDEN;
                                 }
@@ -458,6 +466,7 @@ sub run {
                                     $old_idx_hdn = $idx_hdn;
                                 }
                             }
+                            delete $ENV{TC_RESET_AUTO_UP};
                             if ( $choice eq $create_table || $choice eq $drop_table  ){
                                 if ( $driver eq 'SQLite' ) {
                                     $dbh->disconnect();
@@ -664,7 +673,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_04
+Version 1.060_05
 
 =head1 DESCRIPTION
 
