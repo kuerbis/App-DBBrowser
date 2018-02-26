@@ -14,26 +14,30 @@ use App::DBBrowser::Credentials;
 
 
 sub new {
-    my ( $class, $ref ) = @_;
-    $ref->{driver} = 'mysql';
-    bless $ref, $class;
+    my ( $class, $info ) = @_;
+    my $self = {
+        driver       => 'mysql',
+        app_dir      => $info->{app_dir},
+        add_metadata => $info->{add_metadata},
+    };
+    bless $self, $class;
 }
 
 
-sub driver {
-    my ( $sf ) = @_;
-    return $sf->{driver};
+sub get_db_driver {
+    my ( $self ) = @_;
+    return $self->{driver};
 }
 
 
 sub env_variables {
-    my ( $sf ) = @_;
+    my ( $self ) = @_;
     return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
 }
 
 
 sub read_arguments {
-    my ( $sf ) = @_;
+    my ( $self ) = @_;
     return [
         { name => 'host', prompt => "Host",     secret => 0 },
         { name => 'port', prompt => "Port",     secret => 0 },
@@ -44,7 +48,7 @@ sub read_arguments {
 
 
 sub set_attributes {
-    my ( $sf ) = @_;
+    my ( $self ) = @_;
     return [
         { name => 'mysql_enable_utf8',        default => 1, values => [ 0, 1 ] },
         { name => 'mysql_enable_utf8mb4',     default => 0, values => [ 0, 1 ] }, ##
@@ -53,14 +57,14 @@ sub set_attributes {
 }
 
 
-sub db_handle {
-    my ( $sf, $db, $parameter ) = @_;
+sub get_db_handle {
+    my ( $self, $db, $parameter ) = @_;
     my $obj_db_cred = App::DBBrowser::Credentials->new( { parameter => $parameter } );
     my $dsn;
     if ( ! $parameter->{use_env_var}{DBI_DSN} || ! exists $ENV{DBI_DSN} ) {
         my $host = $obj_db_cred->get_login( 'host' );
         my $port = $obj_db_cred->get_login( 'port' );
-        $dsn = "dbi:$sf->{driver}:dbname=$db";
+        $dsn = "dbi:$self->{driver}:dbname=$db";
         $dsn .= ";host=$host" if length $host;
         $dsn .= ";port=$port" if length $port;
     }
@@ -77,22 +81,22 @@ sub db_handle {
 }
 
 
-sub databases {
-    my ( $sf, $parameter ) = @_;
+sub get_databases {
+    my ( $self, $parameter ) = @_;
     return \@ARGV if @ARGV;
     my @regex_system_db = ( '^mysql$', '^information_schema$', '^performance_schema$' );
     my $stmt = "SELECT schema_name FROM information_schema.schemata";
-    if ( ! $sf->{add_metadata} ) {
+    if ( ! $self->{add_metadata} ) {
         $stmt .= " WHERE " . join( " AND ", ( "schema_name NOT REGEXP ?" ) x @regex_system_db );
     }
     $stmt .= " ORDER BY schema_name";
     my $info_database = 'information_schema';
-    print $sf->{clear_screen};
-    print "DB: $info_database\n";
-    my $dbh = $sf->db_handle( $info_database, $parameter );
-    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $sf->{add_metadata} ? () : @regex_system_db );
+    #print $self->{clear_screen};
+    #print "DB: $info_database\n";
+    my $dbh = $self->get_db_handle( $info_database, $parameter );
+    my $databases = $dbh->selectcol_arrayref( $stmt, {}, $self->{add_metadata} ? () : @regex_system_db );
     $dbh->disconnect(); #
-    if ( $sf->{add_metadata} ) {
+    if ( $self->{add_metadata} ) {
         my $regexp = join '|', @regex_system_db;
         my $user_db   = [];
         my $system_db = [];

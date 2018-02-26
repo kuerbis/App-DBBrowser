@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -57,7 +57,7 @@ sub defaults {
         },
         insert => {
         # Input
-            input_modes          => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
+            #input_modes          => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
             files_dir            => undef,
             file_encoding        => 'UTF-8',
             max_files            => 15,
@@ -97,14 +97,14 @@ sub __menu_insert {
     my ( $sf, $group ) = @_;
     my $menu_insert = {
         main_insert => [
-#            { name => 'input_modes',           text => "- Read",          section => 'insert' },
-            { name => 'files_dir',             text => "- File Dir",      section => 'insert' },
-            { name => 'file_encoding',         text => "- File Encoding", section => 'insert' },
-            { name => 'max_files',             text => "- File History",  section => 'insert' },
-            { name => '_parse_mode',           text => "- Parse-mode",    section => 'insert' },
-            { name => '_module_Text_CSV',      text => "- conf T::CSV",   section => 'csv'    },
-            { name => '_parse_with_split',     text => "- conf 'split'",  section => 'split'  },
-            { name => 'create_table_defaults', text => "- Create-table",  section => 'insert' },
+#            { name => 'input_modes',           text => "- Read",           section => 'insert' },
+            { name => 'files_dir',             text => "- File Dir",       section => 'insert' },
+            { name => 'file_encoding',         text => "- File Encoding",  section => 'insert' },
+            { name => 'max_files',             text => "- File History",   section => 'insert' },
+            { name => '_parse_mode',           text => "- Parse-mode",     section => 'insert' },
+            { name => '_module_Text_CSV',      text => "- conf Text::CSV", section => 'csv'    },
+            { name => '_parse_with_split',     text => "- conf 'split'",   section => 'split'  },
+            { name => 'create_table_defaults', text => "- Create-table",   section => 'insert' },
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'csv' },

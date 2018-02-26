@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Scalar::Util qw( looks_like_number );
 
@@ -18,13 +18,11 @@ sub new {
 
     my $plugin = $db_module->new( {
         app_dir       => $info->{app_dir},
-        home_dir      => $info->{home_dir},
-        plugin        => $info->{plugin},
-        clear_screen  => $info->{clear_screen},
-        db_cache_file => $info->{db_cache_file},
-        sqlite_search => $info->{sqlite_search},
-        dirs_sqlite   => $info->{dirs_sqlite},
         add_metadata  => $opt->{G}{meta},
+
+        reset_search_cache => $info->{sqlite_search}, ##
+        sqlite_directories => $info->{dirs_sqlite},   ##
+
     } );
     bless { Plugin => $plugin }, $class;
 }
@@ -38,7 +36,7 @@ sub message_method_undef_return {
 
 sub driver {
     my ( $sf ) = @_;
-    my $driver = $sf->{Plugin}->driver();
+    my $driver = $sf->{Plugin}->get_db_driver();
     die $sf->message_method_undef_return( 'driver' ) if ! defined $driver;
     return $driver;
 }
@@ -71,7 +69,7 @@ sub set_attributes {
 
 sub databases {
     my ( $sf, $connect_parameter ) = @_;
-    my ( $user_db, $sys_db ) = $sf->{Plugin}->databases( $connect_parameter );
+    my ( $user_db, $sys_db ) = $sf->{Plugin}->get_databases( $connect_parameter );
     $user_db = [] if ! defined $user_db;
     $sys_db  = [] if ! defined $sys_db;
     return $user_db, $sys_db;
@@ -80,7 +78,7 @@ sub databases {
 
 sub db_handle {
     my ( $sf, $db, $connect_parameter ) = @_;
-    my $dbh = $sf->{Plugin}->db_handle( $db, $connect_parameter );
+    my $dbh = $sf->{Plugin}->get_db_handle( $db, $connect_parameter );
     die $sf->message_method_undef_return( 'db_handle' ) if ! defined $dbh;
     if ( $dbh->{Driver}{Name} eq 'SQLite' ) {
         if ( ! $sf->{Plugin}->can( 'regexp' ) ) {
@@ -119,11 +117,11 @@ sub db_handle {
 }
 
 
-sub schemas { ##
+sub schemas {
     my ( $sf, $dbh, $db ) = @_;
     my ( $user_schema, $sys_schema );
     if ( $sf->{Plugin}->can( 'schemas' ) ) {
-        ( $user_schema, $sys_schema ) = $sf->{Plugin}->schemas( $dbh, $db );
+        ( $user_schema, $sys_schema ) = $sf->{Plugin}->get_schemas( $dbh, $db );
     }
     else {
         my $driver = $dbh->{Driver}{Name}; #
@@ -296,7 +294,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_05
+Version 1.060_06
 
 =head1 DESCRIPTION
 
@@ -318,45 +316,52 @@ A suitable database plugin provides the methods named in this documentation.
 
 The constructor method.
 
-When C<db-browser> calls the plugin constructor it passes a reference to a hash with this entries:
+When C<db-browser> calls the plugin constructor it passes a reference to a hash ($info):
 
-    {
-        app_dir       => path to the application directoriy
-        home_dir      => path to the home directory
-        plugin        => name of the database plugin
-        add_metadata  => true or false
+    sub new {
+        my ( $class, $info ) = @_;
+        my $self = {
+            app_dir       => $info->{app_dir},       # path to the application directoriy
+            add_metadata  => $info->{add_metadata},  # true or false
 
-        # SQLite only:
-        sqlite_search => true ore false (if true, search for SQLite databases despite cached database names are available)
-        db_cache_file => path to the file with the cached database names
-        dirs_sqlite   => [ directories to search for SQLite databases ] # array reference
+            # for SQLite databases:
+            reset_search_cache => $info->{reset_search_cache}, # true ore false
+            sqlite_directories => $info->{sqlite_directories}, # a reference to an array
+        };
+        return bless $self, $class;
     }
+
+C<reset_search_cache> is true if C<db-browser> is called with the argument C<-s|--search> - see
+L<db-browser/SYNOPSIS>.
+
+C<sqlite_directories> returns the values set in the option menu I<DB>/I<DB Settings>/I<Sqlite directories>. If this
+entry is not set, it defaults to the home directory.
 
 Returns the created object.
 
-=head3 driver()
+=head3 get_db_driver()
 
 Returns the name of the C<DBI> database driver used by the plugin.
 
-=head3 databases( \%connection_parameter );
+=head3 get_databases( \%connect_parameters );
 
-If C<databases> uses the method C<db_handle>, C<\%connect_parameter> can be passed to C<db_handle> as the second
-argument. See L</db_handle> for more info about the passed hash reference.
+If C<get_databases> uses the method C<get_db_handle>, C<\%connect_parameters> can be passed to C<get_db_handle> as the
+second argument. See L</get_db_handle> for more info about the passed hash reference.
 
-Returns two array references: the first refers to the array of user-databases the second to the system-databases.
-The second array reference is optional.
+Returns two array references: the first reference refers to the array of user-databases the second refers to the array
+of system-databases. The second array reference is optional.
 
 If the option I<add_metadata> is true, user-databases and system-databases are used else only the user-databases are
 used.
 
-=head3 db_handle( $database_name, \%connection_parameter )
+=head3 get_db_handle( $database_name, \%connect_parameters )
 
-The data in C<\%connect_parameter> represents the settings from the option I<Database settings>. Which
+The data in C<\%connect_parameters> represents the settings from the option I<Database settings>. Which
 I<Database settings> are available depends on the methods C<read_arguments>, C<env_variables> and C<set_attributes>.
 
 For example the hash of hashes for a C<mysql> plugin could look like this:
 
-    $connect_parameter = {
+    $connect_parameters = {
         use_env_var => {
             DBI_HOST => 1,
             DBI_USER => 0,
@@ -392,17 +397,12 @@ Returns the database handle.
 
 =head2 Optional methods
 
-=head4 schemas( $dbh, $database_name )
-
-C<$dbh> is the database handle returned by the method C<db_hanlde>.
-
-Returns the user-schemas as an array-reference and the system-schemas as an array-reference (if any).
-
-If the option I<add_metadata> is true, user-schemas and system-schemas are used else only the user-schemas are used.
-
 =head3 DB configuration methods
 
-If the database driver is SQLite only C<set_attributes> is used form the tree DB configuration methods.
+If the following three methods are available, the C<db-brower> user can configure the different database settings in the
+option menu. These configurations are then available in the C<get_db_handle> argument C<$connect_parameter>.
+
+If the database driver is SQLite, only C<set_attributes> used.
 
 =head4 read_arguments()
 
@@ -430,7 +430,7 @@ An example C<read_arguments> method:
         ];
     }
 
-The information returned by the method C<read_arguments> is used to build the C<db-browser> options menu entry I<Fields>
+The information returned by the method C<read_arguments> is used to build the C<db-browser> option menu entry I<Fields>
 and I<Login Data>.
 
 =head4 env_variables()
@@ -444,7 +444,7 @@ An example C<env_variables> method:
         return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
     }
 
-See the C<db-browser> option I<ENV Variables>.
+See the C<db-browser -h> option I<ENV Variables>.
 
 =head4 set_attributes()
 
@@ -476,9 +476,17 @@ I<DB Options>.
 
 =head3 SQL related methods
 
-For SQLite/mysql/Pg the following methods are already built in.
+The following methods are already built in. These methods provided by the plugin overwrite the built in methods.
 
 Whether passed column names are quoted or not depends on how C<db-browser> was configured.
+
+=head4 get_schemas( $dbh, $database_name )
+
+C<$dbh> is the database handle returned by the method C<db_hanlde>.
+
+Returns the user-schemas as an array-reference and the system-schemas as an array-reference (if any).
+
+If the option I<add_metadata> is true, user-schemas and system-schemas are used else only the user-schemas are used.
 
 =head4 regexp( $column_name, $do_not_match, $case_sensitive )
 
@@ -573,6 +581,43 @@ Example (C<Pg>):
         my ( $self, $col ) = @_;
         return "CHAR_LENGTH($col)";
     }
+
+=head1 PlUGIN EXAMPLE
+
+A simple plugin which provides only the required methods:
+
+    package App::DBBrowser::DB::MyPlugin;
+    use strict;
+    use DBI;
+
+    sub new {
+        my ( $class, $info ) = @_;  # no use for $info in this plugin
+        my $self = {};
+        return bless $self, $class;
+    }
+
+    sub get_db_driver {
+        my ( $self ) = @_;
+        return 'mysql';
+    }
+
+    sub get_db_handle {
+        my ( $self, $db, $connect_parameter ) = @_;
+        # "$connect_parameter" contains no data because this plugin does not
+        # provide the methods "env_variables", "read_arguments" and "set_attributes"
+        my $dbh = DBI->connect( "DBI:mysql:dbname=$db", 'user', 'password', {
+            RaiseError => 1,
+            PrintError => 0,
+        }) or die $DBI::errstr;
+        return $dbh;
+    }
+
+    sub get_databases {
+        my ( $self, $connect_parameter ) = @_;
+        return [ 'My_DB_1', 'My_DB_2' ];
+    }
+
+    1;
 
 =head1 AUTHOR
 

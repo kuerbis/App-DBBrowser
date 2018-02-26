@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -189,7 +189,7 @@ sub create_new_table {
             # Fill_form
             my $c = 0;
             my $form = $trs->fill_form(
-                [ map { [ ++$c, defined $_ ? "$_" : '' ] } @{$sql->{insert_into_cols}} ],
+                [ map { [ ++$c, defined $_ ? "$_" : '' ] } @{$sql->{insert_into_cols}} ], #
                 { prompt => 'Col names:', auto_up => 2, confirm => '  CONFIRM', back => '  BACK   ' }
             );
             if ( ! $form ) {

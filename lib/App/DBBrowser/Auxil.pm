@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Encode qw( encode );
 
@@ -95,6 +95,7 @@ sub print_sql {
             $str .= ' '      . $sql->{having_stmt}   . "\n" if $sql->{having_stmt};
             $str .= ' '      . $sql->{order_by_stmt} . "\n" if $sql->{order_by_stmt};
             $str .= ' '      . $sql->{limit_stmt}    . "\n" if $sql->{limit_stmt};
+            $str .= ' '      . $sql->{offset_stmt}   . "\n" if $sql->{offset_stmt};
         }
     }
     for my $val ( @{$sql->{set_args}}, @{$sql->{where_args}}, @{$sql->{having_args}} ) {

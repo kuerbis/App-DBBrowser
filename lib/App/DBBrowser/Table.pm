@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( any first_index );
@@ -37,12 +37,12 @@ sub on_table {
         Select => [ qw( print_tbl columns aggregate distinct where group_by having order_by limit functions lock ) ],
         Delete => [ qw( commit     where functions ) ],
         Update => [ qw( commit set where functions ) ],
-        Insert => [ qw( commit insert ) ],
+        Insert => [ qw( commit insert ) ], #
     };
     my $lk = [ '  Lk0', '  Lk1' ];
     my %cu = (
-        insert          => 'Build   Stmt',
-        commit          => 'Confirm Stmt',
+        insert          => '  BUILD Stmt', #
+        commit          => '  CONFIRM Stmt',
         hidden          => 'Customize:',
         print_tbl       => 'Print TABLE',
         columns         => '- SELECT',
@@ -148,7 +148,7 @@ sub on_table {
             if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
                 $ax->reset_sql( $sql );
             }
-            my @cols = ( @{$sql->{cols}} );
+            my @cols = ( @{$sql->{cols}} ); ##
             $sql->{chosen_cols} = [];
             $sql->{select_type} = 'chosen_cols';
 
@@ -156,25 +156,23 @@ sub on_table {
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
-                my @qt_cols = $stmt_h->choose(
+                my @chosen_cols = $stmt_h->choose(
                     $choices,
                     { no_spacebar => [ 0 .. $#pre ] }
                 );
-                if ( ! @qt_cols || ! defined $qt_cols[0] ) {
+                if ( ! @chosen_cols || ! defined $chosen_cols[0] ) {
                     if ( @{$sql->{chosen_cols}} ) {
-                        $sql->{chosen_cols} = [];
-                        delete $sql->{orig_cols}{chosen_cols};
+                        pop @{$sql->{chosen_cols}};
                         next COLUMNS;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last COLUMNS;
-                    }
+                    #delete $sql->{orig_cols}{chosen_cols};
+                    $sql = clone( $backup_sql );
+                    last COLUMNS;
                 }
-                if ( $qt_cols[0] eq $sf->{i}{ok} ) {
-                    shift @qt_cols;
-                    for my $quote_col ( @qt_cols ) {
-                        push @{$sql->{chosen_cols}}, $quote_col;
+                if ( $chosen_cols[0] eq $sf->{i}{ok} ) {
+                    shift @chosen_cols;
+                    for my $col ( @chosen_cols ) {
+                        push @{$sql->{chosen_cols}}, $col;
                     }
                     if ( ! @{$sql->{chosen_cols}} ) {
                         $sql->{select_type} = '*';
@@ -183,8 +181,8 @@ sub on_table {
                     $sql->{modified_cols} = [];
                     last COLUMNS;
                 }
-                for my $quote_col ( @qt_cols ) {
-                    push @{$sql->{chosen_cols}}, $quote_col;
+                for my $col ( @chosen_cols ) {
+                    push @{$sql->{chosen_cols}}, $col;
                 }
             }
         }
@@ -203,10 +201,8 @@ sub on_table {
                         $sql->{distinct_stmt} = '';
                         next DISTINCT;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last DISTINCT;
-                    }
+                    $sql = clone( $backup_sql );
+                    last DISTINCT;
                 }
                 if ( $select_distinct eq $sf->{i}{ok} ) {
                     last DISTINCT;
@@ -218,10 +214,10 @@ sub on_table {
             if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
                 $ax->reset_sql( $sql );
             }
-            my @cols = ( @{$sql->{cols}} );
+            my @cols = ( @{$sql->{cols}} ); ##
             $sql->{aggr_cols} = [];
-            #$sql->{select_type} = 'aggr_cols';
             $sql->{select_type} = 'aggr_and_group_by_cols';
+            my $bu = [];
 
             AGGREGATE: while ( 1 ) {
                 my $choices = [ @pre, @aggregate ];
@@ -231,23 +227,22 @@ sub on_table {
                     $choices
                 );
                 if ( ! defined $aggr ) {
-                    if ( @{$sql->{aggr_cols}} ) {
-                        $sql->{aggr_cols} = [];
-                        delete $sql->{orig_cols}{aggr_cols};
+                    if ( @$bu ) {
+                        $sql->{aggr_cols} = pop @$bu; # pop @{$sql->{aggr_cols}}
                         next AGGREGATE;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last AGGREGATE;
-                    }
+                    #delete $sql->{orig_cols}{aggr_cols};
+                    $sql = clone( $backup_sql );
+                    last AGGREGATE;
                 }
                 if ( $aggr eq $sf->{i}{ok} ) {
-                    delete $sql->{orig_cols}{aggr_cols};
                     if ( ! @{$sql->{aggr_cols}} && ! @{$sql->{group_by_cols}} ) {
                         $sql->{select_type} = '*';
                     }
+                    delete $sql->{orig_cols}{aggr_cols};
                     last AGGREGATE;
                 }
+                push @$bu, [ @{$sql->{aggr_cols}} ];
                 my $i = @{$sql->{aggr_cols}};
                 if ( $aggr eq 'COUNT(*)' ) {
                     $sql->{aggr_cols}[$i] = $aggr;
@@ -256,28 +251,27 @@ sub on_table {
                     $aggr =~ s/\(\S\)\z//; #
                     $sql->{aggr_cols}[$i] = $aggr . "(";
                     if ( $aggr eq 'COUNT' ) {
-                        my $choices = [ $ALL, $DISTINCT ];
+                        my $choices = [ undef, $ALL, $DISTINCT ];
                         $ax->print_sql( $sql, [ $stmt_type ] );
                         # Choose
                         my $all_or_distinct = $stmt_h->choose(
-                            $choices
+                            $choices #
                         );
                         if ( ! defined $all_or_distinct ) {
-                            $sql->{aggr_cols} = [];
+                            $sql->{aggr_cols} = pop @$bu;
                             next AGGREGATE;
                         }
                         if ( $all_or_distinct eq $DISTINCT ) {
                             $sql->{aggr_cols}[$i] .= $DISTINCT . ' ';
                         }
                     }
-                    my $choices = [ @cols ];
                     $ax->print_sql( $sql, [ $stmt_type ] );
                     # Choose
                     my $quote_col = $stmt_h->choose(
-                        $choices
+                        [ undef, @cols ]
                     );
                     if ( ! defined $quote_col ) {
-                        $sql->{aggr_cols} = [];
+                        $sql->{aggr_cols} = pop @$bu;
                         next AGGREGATE;
                     }
                     $sql->{aggr_cols}[$i] .= $quote_col . ")";
@@ -285,52 +279,46 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'set'} ) {
-            my @cols = ( @{$sql->{cols}} );
+            my @cols = ( @{$sql->{cols}} ); ##
             my $trs = Term::Form->new();
             my $col_sep = ' ';
             $sql->{set_args} = [];
             $sql->{set_stmt} = " SET";
+            my $bu = [];
 
             SET: while ( 1 ) {
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
-                my $quote_col = $stmt_h->choose( # copy ?
+                my $col = $stmt_h->choose( # copy ?
                     $choices,
                 );
-                if ( ! defined $quote_col ) {
-                    if ( @{$sql->{set_args}} ) {
-                        $sql->{set_args} = [];
-                        $sql->{set_stmt} = " SET";
-                        $col_sep = ' ';
+                if ( ! defined $col ) {
+                    if ( @$bu ) {
+                        ( $sql->{set_args}, $sql->{set_stmt}, $col_sep ) = @{pop @$bu};
                         next SET;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last SET;
-                    }
+                    $sql = clone( $backup_sql );
+                    last SET;
                 }
-                if ( $quote_col eq $sf->{i}{ok} ) {
+                if ( $col eq $sf->{i}{ok} ) {
                     if ( $col_sep eq ' ' ) {
                         $sql->{set_stmt} = '';
                     }
                     last SET;
                 }
-                $sql->{set_stmt} .= $col_sep . $quote_col . ' =';
+                push @$bu, [ [@{$sql->{set_args}}], $sql->{set_stmt}, $col_sep ];
+                $sql->{set_stmt} .= $col_sep . $col . ' =';
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Readline
-                my $value = $trs->readline( $quote_col . ': ' );
+                my $value = $trs->readline( $col . ': ' );
                 if ( ! defined $value ) {
-                    if ( @{$sql->{set_args}} ) {
-                        $sql->{set_args} = [];
-                        $sql->{set_stmt} = " SET";
-                        $col_sep = ' ';
+                    if ( @$bu ) {
+                        ( $sql->{set_args}, $sql->{set_stmt}, $col_sep ) = @{pop @$bu};
                         next SET;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last SET;
-                    }
+                    $sql = clone( $backup_sql );
+                    last SET;
                 }
                 $sql->{set_stmt} .= ' ' . '?';
                 push @{$sql->{set_args}}, $value;
@@ -344,8 +332,9 @@ sub on_table {
             $sql->{where_stmt} = " WHERE";
             my $unclosed = 0;
             my $count = 0;
+            my $bu = [];
 
-            WHERE: while ( 1 ) { # backup/restore
+            WHERE: while ( 1 ) {
                 my @choices = @cols;
                 if ( $sf->{o}{G}{parentheses_w} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -356,17 +345,12 @@ sub on_table {
                     [ @pre, @choices ]
                 );
                 if ( ! defined $quote_col ) {
-                    if ( $sql->{where_stmt} ne " WHERE" ) {
-                        $sql->{where_args} = [];
-                        $sql->{where_stmt} = " WHERE";
-                        $count = 0;
-                        $AND_OR = ' ';
+                    if ( @$bu ) {
+                        ( $sql->{where_args}, $sql->{where_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                         next WHERE;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last WHERE;
-                    }
+                    $sql = clone( $backup_sql );
+                    last WHERE;
                 }
                 if ( $quote_col eq $sf->{i}{ok} ) {
                     if ( $count == 0 ) {
@@ -375,6 +359,7 @@ sub on_table {
                     last WHERE;
                 }
                 if ( $quote_col eq ')' ) {
+                    push @$bu, [ [@{$sql->{where_args}}], $sql->{where_stmt}, $AND_OR, $unclosed, $count ];
                     $sql->{where_stmt} .= ")";
                     $unclosed--;
                     next WHERE;
@@ -392,30 +377,19 @@ sub on_table {
                     $AND_OR = ' ' . $AND_OR . ' ';
                 }
                 if ( $quote_col eq '(' ) {
+                    push @$bu, [ [@{$sql->{where_args}}], $sql->{where_stmt}, $AND_OR, $unclosed, $count ];
                     $sql->{where_stmt} .= $AND_OR . "(";
                     $AND_OR = '';
                     $unclosed++;
                     next WHERE;
                 }
-                my $bu_where_args = $sql->{where_args};
-                my $bu_where_stmt = $sql->{where_stmt};
-                my $bu_AND_OR = $AND_OR;
+                push @$bu, [ [@{$sql->{where_args}}], $sql->{where_stmt}, $AND_OR, $unclosed, $count ];
                 $sql->{where_stmt} .= $AND_OR . $quote_col;
                 my $ok = $sf->__set_operator_sql( $sql, 'where', \@cols, $quote_col, $stmt_type );
                 if ( ! $ok ) {
-                    $sql->{where_args} = $bu_where_args;
-                    $sql->{where_stmt} = $bu_where_stmt;
-                    $AND_OR = $bu_AND_OR;
+                    ( $sql->{where_args}, $sql->{where_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                     next WHERE;
                 }
-
-                #if ( ! $sql->{where_stmt} ) {
-                #    $sql->{where_args} = [];
-                #    $sql->{where_stmt} = " WHERE";
-                #    $count = 0;
-                #    $AND_OR = ' ';
-                #    next WHERE;
-                #}
                 $count++;
             }
         }
@@ -423,66 +397,57 @@ sub on_table {
             if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
                 $ax->reset_sql( $sql );
             }
-            my @cols = ( @{$sql->{cols}} );
+            my @cols = ( @{$sql->{cols}} ); ##
             my $col_sep = ' ';
             $sql->{group_by_stmt} = " GROUP BY";
             $sql->{group_by_cols} = [];
-            #$sql->{select_type} = 'group_by_cols';
             $sql->{select_type} = 'aggr_and_group_by_cols';
+            my $bu = [];
 
             GROUP_BY: while ( 1 ) {
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
-                my @qt_cols = $stmt_h->choose(
+                my $col = $stmt_h->choose(
                     $choices,
                     { no_spacebar => [ 0 .. $#pre ] }
                 );
-                if ( ! @qt_cols || ! defined $qt_cols[0] ) {
+                if ( ! defined $col ) {
                     if ( @{$sql->{group_by_cols}} ) {
-                        $sql->{group_by_stmt} = " GROUP BY";
-                        $sql->{group_by_cols} = [];
-                        $col_sep = ' ';
-                        delete $sql->{orig_cols}{group_by_cols};
+                        pop @{$sql->{group_by_cols}};
+                        $sql->{group_by_stmt} = " GROUP BY " . join ', ', @{$sql->{group_by_cols}};
                         next GROUP_BY;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last GROUP_BY;
-                    }
+                    #delete $sql->{orig_cols}{group_by_cols};
+                    $sql = clone( $backup_sql );
+                    last GROUP_BY;
                 }
-                if ( $qt_cols[0] eq $sf->{i}{ok} ) {
-                    shift @qt_cols;
-                    for my $quote_col ( @qt_cols ) {
-                        push @{$sql->{group_by_cols}}, $quote_col;
-                        $sql->{group_by_stmt} .= $col_sep . $quote_col;
-                        $col_sep = ', ';
-                    }
-                    if ( $col_sep eq ' ' ) {
+                if ( $col eq $sf->{i}{ok} ) {
+                    if ( @{$sql->{group_by_cols}} ) {
                         $sql->{group_by_stmt} = '';
                         if ( ! @{$sql->{aggr_cols}} ) {
                             $sql->{select_type} = '*';
+                            $sql = clone( $backup_sql );
                         }
                         delete $sql->{orig_cols}{group_by_cols};
                     }
                     last GROUP_BY;
                 }
-                for my $quote_col ( @qt_cols ) {
-                    push @{$sql->{group_by_cols}}, $quote_col;
-                    $sql->{group_by_stmt} .= $col_sep . $quote_col;
-                    $col_sep = ', ';
-                }
+                push @{$sql->{group_by_cols}}, $col;
+                $sql->{group_by_stmt} .= $col_sep . $col;
+                $col_sep = ', ';
             }
         }
         elsif ( $custom eq $cu{'having'} ) {
-            my @cols = ( @{$sql->{cols}} );
+            my @cols = ( @{$sql->{cols}} ); ##
             my $AND_OR = ' ';
             $sql->{having_args} = [];
             $sql->{having_stmt} = " HAVING";
             my $unclosed = 0;
             my $count = 0;
+            my $bu = [];
 
-            HAVING: while ( 1 ) { # backup/restore
+            HAVING: while ( 1 ) {
                 my @choices = ( @aggregate, map( '@' . $_, @{$sql->{aggr_cols}} ) ); #
                 if ( $sf->{o}{G}{parentheses_h} == 1 ) {
                     unshift @choices, $unclosed ? ')' : '(';
@@ -493,17 +458,12 @@ sub on_table {
                     [ @pre, @choices ]
                 );
                 if ( ! defined $aggr ) {
-                    if ( $sql->{having_stmt} ne " HAVING" ) {
-                        $sql->{having_args} = [];
-                        $sql->{having_stmt} = " HAVING";
-                        $count = 0;
-                        $AND_OR = ' ';
+                    if ( @$bu ) {
+                        ( $sql->{having_args}, $sql->{having_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                         next HAVING;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last HAVING;
-                    }
+                    $sql = clone( $backup_sql );
+                    last HAVING;
                 }
                 if ( $aggr eq $sf->{i}{ok} ) {
                     if ( $count == 0 ) {
@@ -512,6 +472,7 @@ sub on_table {
                     last HAVING;
                 }
                 if ( $aggr eq ')' ) {
+                    push @$bu, [ [@{$sql->{having_args}}], $sql->{having_stmt}, $AND_OR, $unclosed, $count ];
                     $sql->{having_stmt} .= ")";
                     $unclosed--;
                     next HAVING;
@@ -529,14 +490,13 @@ sub on_table {
                     $AND_OR = ' ' . $AND_OR . ' ';
                 }
                 if ( $aggr eq '(' ) {
+                    push @$bu, [ [@{$sql->{having_args}}], $sql->{having_stmt}, $AND_OR, $unclosed, $count ];
                     $sql->{having_stmt} .= $AND_OR . "(";
                     $AND_OR = '';
                     $unclosed++;
                     next HAVING;
                 }
-
-                my $bu_having_args = $sql->{having_args};
-                my $bu_having_stmt = $sql->{having_stmt};
+                push @$bu, [ [@{$sql->{having_args}}], $sql->{having_stmt}, $AND_OR, $unclosed, $count ];
                 my $bu_AND_OR = $AND_OR;
                 my ( $quote_col, $quote_aggr);
                 if ( ( any { '@' . $_ eq $aggr } @{$sql->{aggr_cols}} ) ) { #
@@ -559,13 +519,7 @@ sub on_table {
                         $choices
                     );
                     if ( ! defined $quote_col ) {
-                        $sql->{having_args} = $bu_having_args;
-                        $sql->{having_stmt} = $bu_having_stmt;
-                        $AND_OR = $bu_AND_OR;
-                        #$sql->{having_args} = [];
-                        #$sql->{having_stmt} = " HAVING";
-                        #$count = 0;
-                        #$AND_OR = ' ';
+                        ( $sql->{having_args}, $sql->{having_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                         next HAVING;
                     }
                     $sql->{having_stmt} .= $quote_col . ")";
@@ -573,18 +527,9 @@ sub on_table {
                 }
                 my $ok = $sf->__set_operator_sql( $sql, 'having', \@cols, $quote_aggr, $stmt_type ); #
                 if ( ! $ok ) {
-                    $sql->{having_args} = $bu_having_args;
-                    $sql->{having_stmt} = $bu_having_stmt;
-                    $AND_OR = $bu_AND_OR;
+                    ( $sql->{having_args}, $sql->{having_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                     next HAVING;
                 }
-                #if ( ! $sql->{having_stmt} ) {
-                #    $sql->{having_args} = [];
-                #    $sql->{having_stmt} = " HAVING";
-                #    $count = 0;
-                #    $AND_OR = ' ';
-                #    next HAVING;
-                #}
                 $count++;
             }
         }
@@ -607,32 +552,31 @@ sub on_table {
             }
             my $col_sep = ' ';
             $sql->{order_by_stmt} = " ORDER BY";
+            my $bu = [];
 
             ORDER_BY: while ( 1 ) {
                 my $choices = [ @pre, @cols ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
-                my $quote_col = $stmt_h->choose(
+                my $col = $stmt_h->choose(
                     $choices
                 );
-                if ( ! defined $quote_col ) {
-                    if ( $sql->{order_by_stmt} ne " ORDER BY" ) {
-                        $sql->{order_by_stmt} = " ORDER BY";
-                        $col_sep = ' ';
+                if ( ! defined $col ) {
+                    if ( @$bu ) {
+                        ( $sql->{order_by_stmt}, $col_sep ) = @{pop @$bu};
                         next ORDER_BY;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last ORDER_BY;
-                    }
+                    $sql = clone( $backup_sql );
+                    last ORDER_BY;
                 }
-                if ( $quote_col eq $sf->{i}{ok} ) {
+                if ( $col eq $sf->{i}{ok} ) {
                     if ( $col_sep eq ' ' ) {
                         $sql->{order_by_stmt} = '';
                     }
                     last ORDER_BY;
                 }
-                $sql->{order_by_stmt} .= $col_sep . $quote_col;
+                push @$bu, [ $sql->{order_by_stmt}, $col_sep ];
+                $sql->{order_by_stmt} .= $col_sep . $col;
                 $choices = [ undef, $ASC, $DESC ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
@@ -640,9 +584,7 @@ sub on_table {
                     $choices
                 );
                 if ( ! defined $direction ){
-                    #$sql->{order_by_stmt} = " ORDER BY";
-                    #$col_sep = ' ';
-                    $col_sep = ', ';
+                    ( $sql->{order_by_stmt}, $col_sep ) = @{pop @$bu}; ##
                     next ORDER_BY;
                 }
                 $sql->{order_by_stmt} .= ' ' . $direction;
@@ -650,46 +592,61 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'limit'} ) {
-            $sql->{limit_stmt} = " LIMIT";
+            $sql->{limit_stmt} = '';
+            $sql->{offset_stmt} = '';
+            my $bu = [];
 
             LIMIT: while ( 1 ) {
-                my ( $only_limit, $offset_and_limit ) = ( 'LIMIT', 'OFFSET-LIMIT' );
-                my $choices = [ @pre, $only_limit, $offset_and_limit ];
+                my ( $limit, $offset ) = ( 'LIMIT', 'OFFSET' );
+                my $choices = [ @pre, $limit, $offset ];
                 $ax->print_sql( $sql, [ $stmt_type ] );
                 # Choose
                 my $choice = $stmt_h->choose(
                     $choices
                 );
                 if ( ! defined $choice ) {
-                    if ( $sql->{limit_stmt} ne " LIMIT" ) {
-                        $sql->{limit_stmt} = " LIMIT";
+                    if ( @$bu ) {
+                        ( $sql->{limit_stmt}, $sql->{offset_stmt} )  = @{pop @$bu};
                         next LIMIT;
                     }
-                    else {
-                        $sql = clone( $backup_sql );
-                        last LIMIT;
-                    }
-                }
-                if ( $choice eq $sf->{i}{ok} ) {
-                    if ( $sql->{limit_stmt} eq " LIMIT" ) {
-                        $sql->{limit_stmt} = '';
-                    }
+                    $sql = clone( $backup_sql );
                     last LIMIT;
                 }
-                $sql->{limit_stmt} = " LIMIT";
+                if ( $choice eq $sf->{i}{ok} ) {
+                    last LIMIT;
+                }
+                push @$bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];
                 my $digits = 7;
-                # Choose_a_number
-                my $limit = choose_a_number( $digits, { name => '"LIMIT"', mouse => $sf->{o}{table}{mouse} } );
-                next LIMIT if ! defined $limit || $limit eq '--';
-                $sql->{limit_stmt} .= ' ' . sprintf '%d', $limit;
-                if ( $choice eq $offset_and_limit ) {
+                if ( $choice eq $limit ) {
+                    $sql->{limit_stmt} = " LIMIT";
+                    $ax->print_sql( $sql, [ $stmt_type ] );
                     # Choose_a_number
-                    my $offset = choose_a_number( $digits, { name => '"OFFSET"', mouse => $sf->{o}{table}{mouse} } );
-                    if ( ! defined $offset || $offset eq '--' ) {
-                        $sql->{limit_stmt} = " LIMIT";
+                    my $limit = choose_a_number( $digits,
+                        { name => '"LIMIT"', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
+                    );
+                    if ( ! defined $limit || $limit eq '--' ) { #
+                        ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @$bu};
                         next LIMIT;
                     }
-                    $sql->{limit_stmt} .= " OFFSET " . sprintf '%d', $offset;
+                    $sql->{limit_stmt} .=  sprintf ' %d', $limit;
+                }
+                if ( $choice eq $offset ) {
+                    if ( ! $sql->{limit_stmt} ) {
+                        $sql->{limit_stmt} = " LIMIT " . ( $sf->{o}{G}{max_rows} || '9223372036854775807'  ) if $sf->{i}{driver} eq 'SQLite';   # 2 ** 63 - 1
+                        # MySQL 5.7 Reference Manual - SELECT Syntax - Limit clause: SELECT * FROM tbl LIMIT 95,18446744073709551615;
+                        $sql->{limit_stmt} = " LIMIT " . ( $sf->{o}{G}{max_rows} || '18446744073709551615' ) if $sf->{i}{driver} eq 'mysql';    # 2 ** 64 - 1
+                    }
+                    $sql->{offset_stmt} = " OFFSET";
+                    $ax->print_sql( $sql, [ $stmt_type ] );
+                    # Choose_a_number
+                    my $offset = choose_a_number( $digits,
+                        { name => '"OFFSET"', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
+                    );
+                    if ( ! defined $offset || $offset eq '--' ) { #
+                        ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @$bu}; ##
+                        next LIMIT;
+                    }
+                    $sql->{offset_stmt} .= sprintf ' %d', $offset;
                 }
             }
         }
@@ -727,6 +684,7 @@ sub on_table {
             $select .= $sql->{having_stmt};
             $select .= $sql->{order_by_stmt};
             $select .= $sql->{limit_stmt};
+            $select .= $sql->{offset_stmt};
             if ( $sf->{o}{G}{max_rows} && ! $sql->{limit_stmt} ) {
                 $select .= sprintf " LIMIT %d", $sf->{o}{G}{max_rows};
                 $sf->{o}{table}{max_rows} = $sf->{o}{G}{max_rows};
@@ -751,7 +709,7 @@ sub on_table {
             my $ok = $sf->commit_sql( $sql, [ $stmt_type ], $dbh );
             if ( ! $ok ) {
                 $old_idx = 1 if $stmt_type eq 'Insert'; #
-                #$stmt_type = 'Select';
+                #$stmt_type = 'Select'; ##
                 $ax->reset_sql( $sql );
                 next CUSTOMIZE;
             } # when reset and when clone $backup?
@@ -875,162 +833,135 @@ sub commit_sql {
 sub __set_operator_sql {
     my ( $sf, $sql, $clause, $cols, $quote_col, $stmt_type ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-    my ( $stmt, $args );
     my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
-    if ( $clause eq 'where' ) {
-        $stmt = 'where_stmt';
-        $args = 'where_args';
-    }
-    elsif ( $clause eq 'having' ) {
-        $stmt = 'having_stmt';
-        $args = 'having_args';
-    }
-    my $choices = [ undef, @{$sf->{o}{G}{operators}} ];
-    $ax->print_sql( $sql, [ $stmt_type ] );
-    # Choose
-    my $operator = $stmt_h->choose(
-        $choices
-    );
-    if ( ! defined $operator ) {
-        #$sql->{$args} = [];
-        #$sql->{$stmt} = '';
-        return;
-    }
-    $operator =~ s/^\s+|\s+\z//g;
-    if ( $operator !~ /\s%?col%?\z/ ) {
-        if ( $operator !~ /REGEXP(_i)?\z/ ) {
-            $sql->{$stmt} .= ' ' . $operator;
-        }
-        my $trs = Term::Form->new();
-        if ( $operator =~ /^IS\s(?:NOT\s)?NULL\z/ ) {
-            # do nothing
-        }
-        elsif ( $operator =~ /^(?:NOT\s)?IN\z/ ) {
-            my $col_sep = '';
-            $sql->{$stmt} .= '(';
+    my $stmt = $clause . '_stmt';
+    my $args = $clause . '_args';
 
-            IN: while ( 1 ) {
-                $ax->print_sql( $sql, [ $stmt_type ] );
-                # Readline
-                my $value = $trs->readline( 'Value: ' );
-                if ( ! defined $value ) {
-                    #$sql->{$args} = [];
-                    #$sql->{$stmt} = '';
-                    return;
-                }
-                if ( $value eq '' ) {
-                    if ( $col_sep eq ' ' ) {
-                        #$sql->{$args} = [];
-                        #$sql->{$stmt} = '';
-                        return;
-                    }
-                    $sql->{$stmt} .= ')';
-                    last IN;
-                }
-                $sql->{$stmt} .= $col_sep . '?';
-                push @{$sql->{$args}}, $value;
-                $col_sep = ',';
-            }
-        }
-        elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
-            $ax->print_sql( $sql, [ $stmt_type ] );
-            # Readline
-            my $value_1 = $trs->readline( 'Value: ' );
-            if ( ! defined $value_1 ) {
-                #$sql->{$args} = [];
-                #$sql->{$stmt} = '';
-                return;
-            }
-            $sql->{$stmt} .= ' ' . '?' .      ' AND';
-            push @{$sql->{$args}}, $value_1;
-            $ax->print_sql( $sql, [ $stmt_type ] );
-            # Readline
-            my $value_2 = $trs->readline( 'Value: ' );
-            if ( ! defined $value_2 ) {
-                #$sql->{$args} = [];
-                #$sql->{$stmt} = '';
-                return;
-            }
-            $sql->{$stmt} .= ' ' . '?';
-            push @{$sql->{$args}}, $value_2;
-        }
-        elsif ( $operator =~ /REGEXP(_i)?\z/ ) {
-            $ax->print_sql( $sql, [ $stmt_type ] );
-            # Readline
-            my $value = $trs->readline( 'Pattern: ' );
-            if ( ! defined $value ) {
-                #$sql->{$args} = [];
-                #$sql->{$stmt} = '';
-                return;
-            }
-            $value = '^$' if ! length $value;
-            $sql->{$stmt} =~ s/\s\Q$quote_col\E\z//;
-            my $do_not_match_regexp = $operator =~ /^NOT/       ? 1 : 0;
-            my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
-            if ( ! eval {
-                my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-                $sql->{$stmt} .= $obj_db->regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
-                push @{$sql->{$args}}, $value;
-                1 }
-            ) {
-                $ax->print_error_message( $@, $operator );
-                #$sql->{$args} = [];
-                #$sql->{$stmt} = '';
-                return;
-            }
-        }
-        else {
-            $ax->print_sql( $sql, [ $stmt_type ] );
-            my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
-            # Readline
-            my $value = $trs->readline( $prompt );
-            if ( ! defined $value ) {
-                #$sql->{$args} = [];
-                #$sql->{$stmt} = '';
-                return;
-            }
-            $sql->{$stmt} .= ' ' . '?';
-            push @{$sql->{$args}}, $value;
-        }
-    }
-    elsif ( $operator =~ /\s%?col%?\z/ ) {
-        my $arg;
-        if ( $operator =~ /^(.+)\s(%?col%?)\z/ ) {
-            $operator = $1;
-            $arg = $2;
-        }
-        $operator =~ s/^\s+|\s+\z//g;
-        $sql->{$stmt} .= ' ' . $operator;
-        my $choices = [ @$cols ];
+    OPERATOR: while( 1 ) {
         $ax->print_sql( $sql, [ $stmt_type ] );
         # Choose
-        my $quote_col = $stmt_h->choose(
-            $choices,
-            { prompt => "$operator:" }
-        );
-        if ( ! defined $quote_col ) {
-            $sql->{$stmt} = '';
+        my $operator = $stmt_h->choose( [ undef, @{$sf->{o}{G}{operators}} ] );
+        if ( ! defined $operator ) {
             return;
         }
-        if ( $arg !~ /%/ ) {
-            $sql->{$stmt} .= ' ' . $quote_col;
-        }
-        else {
-            if ( ! eval {
-                my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-                my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
-                my $qt_arg = $obj_db->concatenate( \@el );
-                $qt_arg =~ s/'col'/$quote_col/;
-                $sql->{$stmt} .= ' ' . $qt_arg;
-                1 }
-            ) {
-                $ax->print_error_message( $@, $operator . ' ' . $arg );
-                #$sql->{$stmt} = '';
-                return;
+        $operator =~ s/^\s+|\s+\z//g;
+        if ( $operator !~ /\s%?col%?\z/ ) {
+            if ( $operator !~ /REGEXP(_i)?\z/ ) {
+                $sql->{$stmt} .= ' ' . $operator;
+            }
+            my $trs = Term::Form->new();
+            if ( $operator =~ /^IS\s(?:NOT\s)?NULL\z/ ) {
+                # do nothing
+            }
+            elsif ( $operator =~ /^(?:NOT\s)?IN\z/ ) {
+                my $col_sep = '';
+                $sql->{$stmt} .= '(';
+
+                IN: while ( 1 ) {
+                    $ax->print_sql( $sql, [ $stmt_type ] );
+                    # Readline
+                    my $value = $trs->readline( 'Value: ' );                # Strg-d
+                    if ( ! defined $value ) {
+                        next OPERATOR;
+                    }
+                    if ( $value eq '' ) {
+                        if ( $col_sep eq ' ' ) {
+                            next OPERATOR;
+                        }
+                        $sql->{$stmt} .= ')';
+                        last IN;
+                    }
+                    $sql->{$stmt} .= $col_sep . '?';
+                    push @{$sql->{$args}}, $value;
+                    $col_sep = ',';
+                }
+            }
+            elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
+                $ax->print_sql( $sql, [ $stmt_type ] );
+                # Readline
+                my $value_1 = $trs->readline( 'Value: ' );
+                if ( ! defined $value_1 ) {
+                    next OPERATOR;
+                }
+                $sql->{$stmt} .= ' ' . '?' .      ' AND';
+                push @{$sql->{$args}}, $value_1;
+                $ax->print_sql( $sql, [ $stmt_type ] );
+                # Readline
+                my $value_2 = $trs->readline( 'Value: ' );
+                if ( ! defined $value_2 ) {
+                    next OPERATOR;
+                }
+                $sql->{$stmt} .= ' ' . '?';
+                push @{$sql->{$args}}, $value_2;
+            }
+            elsif ( $operator =~ /REGEXP(_i)?\z/ ) {
+                $ax->print_sql( $sql, [ $stmt_type ] );
+                # Readline
+                my $value = $trs->readline( 'Pattern: ' );
+                if ( ! defined $value ) {
+                    next OPERATOR;
+                }
+                $value = '^$' if ! length $value;
+                $sql->{$stmt} =~ s/\s\Q$quote_col\E\z//;
+                my $do_not_match_regexp = $operator =~ /^NOT/       ? 1 : 0;
+                my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
+                if ( ! eval {
+                    my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
+                    $sql->{$stmt} .= $obj_db->regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
+                    push @{$sql->{$args}}, $value;
+                    1 }
+                ) {
+                    $ax->print_error_message( $@, $operator );
+                    next OPERATOR;
+                }
+            }
+            else {
+                $ax->print_sql( $sql, [ $stmt_type ] );
+                my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: ';
+                # Readline
+                my $value = $trs->readline( $prompt );
+                if ( ! defined $value ) {
+                    next OPERATOR;
+                }
+                $sql->{$stmt} .= ' ' . '?';
+                push @{$sql->{$args}}, $value;
             }
         }
+        elsif ( $operator =~ /\s%?col%?\z/ ) {
+            my $arg;
+            if ( $operator =~ /^(.+)\s(%?col%?)\z/ ) {
+                $operator = $1;
+                $arg = $2;
+            }
+            $operator =~ s/^\s+|\s+\z//g;
+            $sql->{$stmt} .= ' ' . $operator;
+            $ax->print_sql( $sql, [ $stmt_type ] );
+            # Choose
+            my $quote_col = $stmt_h->choose( $cols, { prompt => "$operator:" } );
+            if ( ! defined $quote_col ) {
+                $sql->{$stmt} = '';
+                next OPERATOR;
+            }
+            if ( $arg !~ /%/ ) {
+                $sql->{$stmt} .= ' ' . $quote_col;
+            }
+            else {
+                if ( ! eval {
+                    my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
+                    my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
+                    my $qt_arg = $obj_db->concatenate( \@el );
+                    $qt_arg =~ s/'col'/$quote_col/;
+                    $sql->{$stmt} .= ' ' . $qt_arg;
+                    1 }
+                ) {
+                    $ax->print_error_message( $@, $operator . ' ' . $arg );
+                    next OPERATOR;
+                }
+            }
+        }
+        last OPERATOR; #
     }
-    return 1;
+    return 1; #
 }
 
 

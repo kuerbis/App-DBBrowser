@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse SQLite/MySQL/PostgreSQL databases and their tables intera
 
 =head1 VERSION
 
-Version 1.060_05
+Version 1.060_06
 
 =cut
 
@@ -196,7 +196,7 @@ To remove a chosen scalar function from a column select the column with the func
 
 =head2 OPTIONS
 
-The options menu is called with C<db-browser -h>.
+The option menu is called with C<db-browser -h>.
 
 =head3 HELP
 

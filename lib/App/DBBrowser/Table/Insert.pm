@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -201,15 +201,15 @@ sub __from_col_by_col {
 
 
 sub __parse_setting {
-    my ( $sf ) = @_;
-    my $i = $sf->{o}{insert}{copy_parse_mode};
+    my ( $sf, $type ) = @_;
+    my $i = $sf->{o}{insert}{$type eq 'file' ? 'file_parse_mode' : 'copy_parse_mode'};
     my $parse_mode = ( 'Text::CSV', 'split', 'Spreadsheet::Read' )[$i]; #
-    my $sep;
+    my $sep = '';
     if ( $i == 0 ) {
         $sep = $sf->{o}{csv}{sep_char};
     }
     elsif ( $i == 1 ) {
-        $sep =  $sf->{o}{split}{i_f_s};
+        $sep = $sf->{o}{split}{i_f_s};
     }
     return $parse_mode, $sep;
 }
@@ -222,7 +222,7 @@ sub from_copy_and_paste {
     binmode $fh, ':encoding(' . $sf->{o}{insert}{file_encoding} . ')' or die $!;
     print $sf->{i}{clear_screen};
     # STDIN
-    my $prompt = sprintf "Mulit row  (%s sep %s):\n", $sf->__parse_setting;
+    my $prompt = sprintf "Mulit row  (%s sep %s):\n", $sf->__parse_setting( 'copy_and_paste' );
     print $prompt;
     while ( my $row = <STDIN> ) {
         print $fh $row;
@@ -267,68 +267,74 @@ sub from_file {
 
 sub __file_name { # h?
     my ( $sf, $sql, $file ) = @_;
-    my @files;
-    if ( $sf->{o}{insert}{max_files} && -e $sf->{i}{input_files} ) {
-        open my $fh_in, '<:encoding(locale_fs)', $sf->{i}{input_files} or die $!; #
-        while ( my $fl = <$fh_in> ) {
-            chomp $fl;
-            next if ! -e $fl;
-            push @files, $fl;
+
+    FILE: while ( 1 ) {
+        my @files;
+        if ( $sf->{o}{insert}{max_files} && -e $sf->{i}{input_files} ) {
+            open my $fh_in, '<:encoding(locale_fs)', $sf->{i}{input_files} or die $!; #
+            while ( my $fl = <$fh_in> ) {
+                chomp $fl;
+                next if ! -e $fl;
+                push @files, $fl;
+            }
+            close $fh_in;
         }
-        close $fh_in;
-    }
-# while ( 1 ) {
-    my @files_sorted = sort map { decode 'locale_fs', $_ } @files;
-    if ( length $file ) {
-        my $i = first_index { decode( 'locale_fs', $file ) eq $_ } @files_sorted;
-        splice @files_sorted, $i, 1 if $i > -1;
-        unshift @files_sorted, decode 'locale_fs', $file;
-    }
-    my $add_file = 'New file';
-    if ( @files_sorted ) {
-        my $prompt = sprintf "Choose a file (%s, %s):", $sf->__parse_setting;
+        my $add_file = '  NEW file';
+        my $del_file = '  DEL file';
+        my $prompt = sprintf "Choose a file (%s, %s):", $sf->__parse_setting( 'file' );
         # Choose
         $file = choose(
-            [ undef, $add_file, @files_sorted ],
-            { %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt, undef => $sf->{i}{back} }
+            [ undef, $add_file, map( '  ' . decode( 'locale_fs', $_ ), @files ), $del_file ],
+            { %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt, undef => $sf->{i}{back_config} }
         );
         if ( ! defined $file ) {
-            if ( @{$sf->{o}{insert}{input_modes}} == 1 ) {
-                $sql->{insert_into_cols} = [];
-            }
             return;
         }
-    }
-    if ( ! defined $file || $file eq $add_file ) {
-            my $prompt = sprintf "%s, %s", $sf->__parse_setting;
-        # Choose_a_file
-        $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir}, mouse => $sf->{o}{table}{mouse} } );
-        if ( ! defined $file || ! length $file ) {
-            if ( @{$sf->{o}{insert}{input_modes}} == 1 ) {
-                $sql->{insert_into_cols} = [];
+        if ( $file eq $add_file ) {
+            my $prompt = sprintf "%s, %s", $sf->__parse_setting( 'file' );
+            # Choose_a_file
+            $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir}, mouse => $sf->{o}{table}{mouse} } );
+            if ( ! defined $file || ! length $file ) {
+                next FILE;
             }
-            return;
+            if ( $sf->{o}{insert}{max_files} ) {
+                my $i = first_index { $file eq $_ } @files;
+                splice @files, $i, 1 if $i > -1;
+                push @files, $file;
+                while ( @files > $sf->{o}{insert}{max_files} ) {
+                    shift @files;
+                }
+                open my $fh_out, '>:encoding(locale_fs)', $sf->{i}{input_files} or die $!; # '>:encoding(locale_fs)'
+                for my $fl ( @files ) {
+                    print $fh_out $fl . "\n";
+                }
+                close $fh_out;
+            }
+            return $file;
         }
-        $file = realpath encode 'locale_fs', $file;
-        if ( $sf->{o}{insert}{max_files} ) {
-            my $i = first_index { $file eq $_ } @files;
-            splice @files, $i, 1 if $i > -1;
-            push @files, $file;
-            while ( @files > $sf->{o}{insert}{max_files} ) {
-                shift @files;
+        elsif ( $file eq $del_file ) {
+            $file = undef;
+            my @pre = [ undef, $sf->{i}{ok} ];
+            my $idx = choose_a_subset(
+                [ map { decode 'locale_fs', $_ } @files ],
+                { mouse => $sf->{o}{table}{mouse}, prefix => '  ', info => 'Delete files:', no_spacebar => [ @pre ], index => 1, show_fmt => 2, keep_chosen => 0 }
+            );
+            if ( ! defined $idx || ! @$idx ) {
+                next FILE;
             }
             open my $fh_out, '>:encoding(locale_fs)', $sf->{i}{input_files} or die $!; # '>:encoding(locale_fs)'
-            for my $fl ( @files ) {
-                print $fh_out $fl . "\n";
+            for my $i ( 0 .. $#files ) {
+                if ( any { $i == $_ } @$idx ) {
+                    next;
+                }
+                print $fh_out $files[$i] . "\n";
             }
             close $fh_out;
+            next FILE;
         }
+        $file =~ s/\s\s//;
+        return realpath encode 'locale_fs', $file;
     }
-# }
-    else {
-        $file = realpath encode 'locale_fs', $file;
-    }
-    return $file;
 }
 
 
@@ -458,6 +464,9 @@ sub __input_filter {
                 elsif ( $choices->[$idx[0]] eq $sf->{i}{ok} ) {
                     shift @idx;
                 }
+                if ( ! @idx ) {
+                    next FILTER; # ###
+                }
                 my $tmp_aoa = [];
                 for my $i ( @idx ) {
                     $i -= @pre;
@@ -493,7 +502,16 @@ sub __parse_file {
         my $tmp = [];
         if ( $sf->{o}{insert}{$input_type . '_parse_mode'} == 0 ) {
             my $csv = Text::CSV->new( { auto_diag => 2, map { $_ => $sf->{o}{csv}{$_} } sort keys %{$sf->{o}{csv}} } ) or die Text::CSV->error_diag();
-            $csv->callbacks( error => sub { die "$_[0] $_[1] - pos:$_[2] rec:$_[3] fld:$_[4]" } );
+            $csv->callbacks( error => sub {
+                if ( $_[0] == 2012 ) {
+                    # ignore this error
+                    Text::CSV->SetDiag (0);
+                }
+                else {
+                    print $csv->error_input(), "\n";
+                    die "$_[0] $_[1] - pos:$_[2] rec:$_[3] fld:$_[4]";
+                }
+            } );
             while ( my $row = $csv->getline( $fh ) ) {
                 push @$tmp, $row;
             }
@@ -510,7 +528,7 @@ sub __parse_file {
         my $cm = Term::Choose->new( { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
         my $file_dc = decode( 'locale_fs', $file );
         if ( ! -e $file ) {
-            $cm->choose( [ $file_dc . ' : file not found!' ] );
+            $cm->choose( [ $file_dc . ' : file not found!' ] ); # nr
             return;
         }
         if ( ! -s $file ) {

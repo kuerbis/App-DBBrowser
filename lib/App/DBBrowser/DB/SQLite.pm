@@ -8,8 +8,9 @@ no warnings 'utf8';
 
 #our $VERSION = '';
 
-use Encode     qw( encode decode );
-use File::Find qw( find );
+use Encode                qw( encode decode );
+use File::Find            qw( find );
+use File::Spec::Functions qw( catfile );
 
 use DBI            qw();
 use Encode::Locale qw();
@@ -18,20 +19,25 @@ use App::DBBrowser::Auxil;
 
 
 sub new {
-    my ( $class, $ref ) = @_;
-    $ref->{driver} = 'SQLite';
-    bless $ref, $class;
+    my ( $class, $info ) = @_;
+    my $self = {
+        driver  => 'SQLite',
+        app_dir => $info->{app_dir},
+        reset_search_cache => $info->{reset_search_cache},
+        sqlite_directories => $info->{sqlite_directories},
+    };
+    bless $self, $class;
 }
 
 
-sub driver {
-    my ( $sf ) = @_;
-    return $sf->{driver};
+sub get_db_driver {
+    my ( $self ) = @_;
+    return $self->{driver};
 }
 
 
 sub set_attributes {
-    my ( $sf ) = @_;
+    my ( $self ) = @_;
     return [
         { name => 'sqlite_unicode',             default => 1, values => [ 0, 1 ] },
         { name => 'sqlite_see_if_its_a_number', default => 1, values => [ 0, 1 ] },
@@ -39,9 +45,9 @@ sub set_attributes {
 }
 
 
-sub db_handle {
-    my ( $sf, $db, $parameter ) = @_;
-    my $dsn = "dbi:$sf->{driver}:dbname=$db";
+sub get_db_handle {
+    my ( $self, $db, $parameter ) = @_;
+    my $dsn = "dbi:$self->{driver}:dbname=$db";
     my $dbh = DBI->connect( $dsn, '', '', {
         PrintError => 0,
         RaiseError => 1,
@@ -53,14 +59,15 @@ sub db_handle {
 }
 
 
-sub databases {
-    my ( $sf ) = @_;
+sub get_databases {
+    my ( $self ) = @_;
     return \@ARGV if @ARGV;
-    my $dirs = $sf->{dirs_sqlite};
-    my $cache_key = $sf->{plugin} . '_' . join ' ', @$dirs;
+    my $dirs = $self->{sqlite_directories};
+    my $cache_key = __PACKAGE__ . '_' . join ' ', @$dirs;
     my $ax = App::DBBrowser::Auxil->new( {}, {} );
-    my $db_cache = $ax->read_json( $sf->{db_cache_file} );
-    if ( $sf->{sqlite_search} ) {
+    my $cache_sqlite_files = catfile $self->{app_dir}, 'cache_SQLite_files.json';
+    my $db_cache = $ax->read_json( $cache_sqlite_files ); #
+    if ( $self->{reset_search_cache} ) {
         delete $db_cache->{$cache_key};
     }
     my $databases = [];
@@ -91,7 +98,7 @@ sub databases {
         }
         print 'Ended searching' . "\n";
         $db_cache->{$cache_key} = $databases;
-        $ax->write_json( $sf->{db_cache_file}, $db_cache );
+        $ax->write_json( $cache_sqlite_files, $db_cache );
     }
     else {
         $databases = $db_cache->{$cache_key};

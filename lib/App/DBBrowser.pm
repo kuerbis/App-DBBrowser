@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_05';
+our $VERSION = '1.060_06';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -95,13 +95,12 @@ sub __init {
     $sf->{i}{app_dir}          = $app_dir;
     $sf->{i}{file_settings}    = catfile $app_dir, 'general_settings.json';
     $sf->{i}{conf_file_fmt}    = catfile $app_dir, 'config_%s.json';
-    $sf->{i}{db_cache_file}    = catfile $app_dir, 'cache_db_search.json';
     $sf->{i}{input_files}      = catfile $app_dir, 'file_history.txt';
     $sf->{i}{file_attached_db} = catfile $app_dir, 'SQLite_attached_DB.json';
     # check all info
 
     if ( ! eval {
-        my $obj_opt = App::DBBrowser::Opt->new( $sf->{i}, {} );
+        my $obj_opt = App::DBBrowser::Opt->new( $sf->{i}, {} ); #
         my $help;
         GetOptions (
             'h|?|help' => \$help,
@@ -673,7 +672,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_05
+Version 1.060_06
 
 =head1 DESCRIPTION
 
