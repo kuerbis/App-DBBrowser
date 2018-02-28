@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -390,7 +390,7 @@ sub run {
                     my $db_string = 'DB: "'. basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '"';
                     my ( $join, $union, $new, $db_setting ) = ( '  Join', '  Union', '  New', '  Database settings' );
                     my $hidden = $db_string;
-                    my $choices_table = [ $hidden, undef, @tables, $join, $union, $db_setting ];
+                    my $choices_table = [ $hidden, undef, @tables, $join, $union, $db_setting ]; # db_setting only if any
                     my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                     # Choose
                     $ENV{TC_RESET_AUTO_UP} = 0;
@@ -672,7 +672,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 1.060_06
+Version 2.000
 
 =head1 DESCRIPTION
 

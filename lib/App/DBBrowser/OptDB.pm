@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use File::Basename qw( basename );
 
@@ -29,11 +29,11 @@ sub connect_parameter {
     my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
     my $plugin = $sf->{i}{plugin};
     my $cp = {
-        use_env_var => {},
-        required    => {},
-        secret      => {},
-        arguments   => {},
-        attributes  => {},
+#        use_env_var => {},
+#        required    => {},
+#        secret      => {},
+#        arguments   => {},
+#        attributes  => {},
     };
 
     my $env_vars = $obj_db->env_variables();
@@ -102,6 +102,7 @@ sub connect_parameter {
 
 sub database_setting {
     my ( $sf, $db ) = @_;
+    my $old_idx_sec = 0;
 
     SECTION: while ( 1 ) {
         my ( $driver, $plugin, $section );
@@ -115,14 +116,29 @@ sub database_setting {
                 $plugin = $sf->{o}{G}{plugins}[0];
             }
             else {
+                $ENV{TC_RESET_AUTO_UP} = 0;
+                my $choices = [ undef, map( "- $_", @{$sf->{o}{G}{plugins}} ) ];
                 # Choose
-                $plugin = choose(
-                    [ undef, map( "- $_", @{$sf->{o}{G}{plugins}} ) ],
-                    { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_config} }
+                my $idx_sec = choose(
+                    $choices,
+                    { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_config}, default => $old_idx_sec, index => 1 }
                 );
-                return if ! defined $plugin;
+                if ( ! defined $idx_sec || ! defined $choices->[$idx_sec] ) {
+                    return;
+                }
+                if ( $sf->{o}{G}{menu_memory} ) {
+                    if ( $old_idx_sec == $idx_sec && ! $ENV{TC_RESET_AUTO_UP} ) {
+                        $old_idx_sec = 0;
+                        next SECTION;
+                    }
+                    else {
+                        $old_idx_sec = $idx_sec;
+                    }
+                }
+                delete $ENV{TC_RESET_AUTO_UP};
+                $plugin = $choices->[$idx_sec];
+                $plugin =~ s/^-\ //;
             }
-            $plugin =~ s/^-\ //;
             $plugin = 'App::DBBrowser::DB::' . $plugin;
             $sf->{i}{plugin} = $plugin;
             $section = $plugin;
@@ -153,7 +169,7 @@ sub database_setting {
         push @groups, [ 'env_variables', "- ENV Variables"      ] if @{$items->{env_variables}};
         push @groups, [ 'arguments',     "- Login Data"         ] if @{$items->{arguments}};
         push @groups, [ 'attributes',    "- Attributes"         ] if @{$items->{attributes}};
-        push @groups, [ 'dirs_sqlite',   "- Sqlite directories" ] if $driver eq 'SQLite';
+        push @groups, [ 'dirs_sqlite',   "- Sqlite directories" ] if $driver eq 'SQLite' && ! defined $db;
         #my $prompt = defined $db ? 'DB: "' . ( $driver eq 'SQLite' ? basename $db : $db ) . '"'
         #                         : 'Plugin "' . $plugin . '"';
         my $prompt = defined $db ? 'DB: "' . $db . '"' : '"' . $plugin . '"';
@@ -350,7 +366,9 @@ sub __write_db_config_files {
     $plugin=~ s/^App::DBBrowser::DB:://;
     my $file_name = sprintf( $sf->{i}{conf_file_fmt}, $plugin );
     $file_name=~ s/^App::DBBrowser::DB:://;
-    $ax->write_json( $file_name, $db_o );
+    if ( %$db_o ) {
+        $ax->write_json( $file_name, $db_o );
+    }
 }
 
 

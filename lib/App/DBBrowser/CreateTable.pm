@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -47,9 +47,10 @@ sub delete_table {
     $sql->{table} = $ax->quote_table( $dbh, $data->{tables}{$table} );
     my $sth = $dbh->prepare( "SELECT * FROM " . $sql->{table} );
     $sth->execute();
+    my $col_names = $sth->{NAME}; # mysql: before fetchall_arrayref
     my $all_arrayref = $sth->fetchall_arrayref;
     my $row_count = @$all_arrayref;
-    unshift @$all_arrayref, $sth->{NAME};
+    unshift @$all_arrayref, $col_names;
     my $prompt_pt = "ENTER to continue\n$sql->{table}:";
     print_table( $all_arrayref, { %{$sf->{o}{table}}, prompt => $prompt_pt, max_rows => 0, table_expand => 0 } );
     $prompt = sprintf 'DROP TABLE %s  (%d %s)', $sql->{table}, $row_count, $row_count == 1 ? 'row' : 'rows';
@@ -105,10 +106,10 @@ sub create_new_table {
     my $sql = {};
     $ax->reset_sql( $sql ); #
     my @cu_keys = ( qw/create_table_plain create_table_form_copy create_table_form_file settings/ );
-    my %cu = ( create_table_plain  => '- plain',
-               create_table_form_copy   => '- CopyPaste',
-               create_table_form_file   => '- from File',
-               settings      => '  Settings'
+    my %cu = ( create_table_plain      => '- plain',
+               create_table_form_copy  => '- Copy & Paste',
+               create_table_form_file  => '- From File',
+               settings                => '  Settings'
     );
     my $old_idx = 0;
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( first_index );
@@ -36,7 +36,6 @@ sub col_function {
     elsif ( $sql->{select_type} eq 'chosen_cols' ) {
         $cols_type = 'chosen_cols';
     }
-    # if not $sql->{orig_cols}{stmt_type}, then no modified cols in $sql->{stmt_key}
     if ( $cols_type eq 'chosen_cols' ) {
         if ( ! $sql->{orig_cols}{chosen_cols} ) {
             @{$sql->{orig_cols}{'chosen_cols'}} = @{$sql->{chosen_cols}};
@@ -94,11 +93,14 @@ sub col_function {
         }
         # reset col to original, if __col_function is called on a already modified col:
         if ( $sql->{$cols_type}[$idx] ne $sql->{orig_cols}{$cols_type}[$idx] ) {
-            if ( $cols_type eq 'chosen_cols' || $cols_type eq 'group_by_cols' ) {
+            if ( $cols_type ne 'aggr_cols' ) {
                 my $i = first_index { $sql->{$cols_type}[$idx] eq $_ } @{$sql->{modified_cols}};
                 splice( @{$sql->{modified_cols}}, $i, 1 );
             }
             $sql->{$cols_type}[$idx] = $sql->{orig_cols}{$cols_type}[$idx];
+            if ( $cols_type eq 'group_by_cols' ) {
+                $sql->{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{$cols_type}} );
+            }
             $changed++;
             next COL_SCALAR_FUNC;
         }
@@ -117,14 +119,15 @@ sub col_function {
         if ( ! defined $qt_scalar_func ) {
             next COL_SCALAR_FUNC;
         }
+        # modify columns:
         $sql->{$cols_type}[$idx] = $qt_scalar_func;
         if ( $cols_type eq 'group_by_cols' ) {
             $sql->{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{$cols_type}} );
         }
-        # modified_cols: used in WHERE and GROUB BY
-        # skip aggregate functions because aggregate are not allowed in WHERE clauses
-        # no problem for GROUB BY because it doesn't use modified_cols in aggregate mode
         if ( $cols_type ne 'aggr_cols' ) {
+            # $sql->{modified_cols}: make the modified columns available in WHERE and ORDER BY
+            # skip aggregate functions because aggregate are not allowed in WHERE clauses
+            # no problem for ORDER BY because it doesn't use the $sql->{modified_cols} in aggregate mode
             push @{$sql->{modified_cols}}, $qt_scalar_func;
         }
         $changed++;

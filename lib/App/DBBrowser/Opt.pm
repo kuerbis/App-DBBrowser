@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -64,7 +64,7 @@ sub defaults {
         # Parsing
             #_parse_mode
             file_parse_mode      => 0,
-            copy_parse_mode      => 0,
+            copy_parse_mode      => 1,
         # create table defaults:
 #            id_col_name          => 'ID_a',
             default_data_type    => 'TEXT',
@@ -98,13 +98,13 @@ sub __menu_insert {
     my $menu_insert = {
         main_insert => [
 #            { name => 'input_modes',           text => "- Read",           section => 'insert' },
-            { name => 'files_dir',             text => "- File Dir",       section => 'insert' },
-            { name => 'file_encoding',         text => "- File Encoding",  section => 'insert' },
-            { name => 'max_files',             text => "- File History",   section => 'insert' },
-            { name => '_parse_mode',           text => "- Parse-mode",     section => 'insert' },
-            { name => '_module_Text_CSV',      text => "- conf Text::CSV", section => 'csv'    },
-            { name => '_parse_with_split',     text => "- conf 'split'",   section => 'split'  },
-            { name => 'create_table_defaults', text => "- Create-table",   section => 'insert' },
+            { name => 'files_dir',             text => "- File Dir",         section => 'insert' },
+            { name => 'file_encoding',         text => "- File Encoding",    section => 'insert' },
+            { name => 'max_files',             text => "- File History",     section => 'insert' },
+            { name => '_parse_mode',           text => "- Parse-mode",       section => 'insert' },
+            { name => '_module_Text_CSV',      text => "- config Text::CSV", section => 'csv'    },
+            { name => '_parse_with_split',     text => "- config 'split'",   section => 'split'  },
+            { name => 'create_table_defaults', text => "- Create-table",     section => 'insert' },
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'csv' },
@@ -199,8 +199,8 @@ sub config_insert {
             elsif ( $name eq '_parse_mode' ) {
                 my $prompt = 'Parsing mode';
                 my $sub_menu = [
-                    [ 'file_parse_mode', "File:  use", [ 'Text::CSV', 'split', 'Spreadsheet::Read' ] ],
-                    [ 'copy_parse_mode', "Copy:  use", [ 'Text::CSV', 'split', 'Spreadsheet::Read' ] ],
+                    [ 'file_parse_mode', "From File   :", [ 'Text::CSV', 'split', 'Spreadsheet::Read' ] ],
+                    [ 'copy_parse_mode', "Copy & Paste:", [ 'Text::CSV', 'split', 'Spreadsheet::Read' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

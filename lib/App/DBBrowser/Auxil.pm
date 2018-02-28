@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Encode qw( encode );
 
@@ -31,7 +31,7 @@ sub print_sql {
     my $table = $sql->{table};
     my $str = '';
     for my $stmt_type ( @$stmt_typeS ) {
-        if ( $stmt_type eq 'Create_table' ) { #
+        if ( $stmt_type eq 'Create_table' ) {
             my @cols = defined $sql->{create_table_cols} ? @{$sql->{create_table_cols}} : @{$sql->{insert_into_cols}};
             $str .= "CREATE TABLE $table (";
             if ( @cols ) {

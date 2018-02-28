@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -19,7 +19,7 @@ use Encode::Locale    qw();
 use Text::CSV         qw();
 
 use Term::Choose       qw( choose );
-use Term::Choose::Util qw( choose_a_file choose_a_subset );#
+use Term::Choose::Util qw( choose_a_file choose_a_subset );
 use Term::Form         qw();
 
 use App::DBBrowser::Auxil;
@@ -88,8 +88,8 @@ sub build_insert_stmt {
     my @cu_keys = ( qw/insert_col insert_copy insert_file settings/ );
     my %cu = (
         insert_col  => '- plain',
-        insert_copy => '- copy',
-        insert_file => '- file',
+        insert_copy => '- Copy & Paste',
+        insert_file => '- From File',
         settings    => '  Settings'
     );
     my $old_idx = 0;
@@ -204,14 +204,17 @@ sub __parse_setting {
     my ( $sf, $type ) = @_;
     my $i = $sf->{o}{insert}{$type eq 'file' ? 'file_parse_mode' : 'copy_parse_mode'};
     my $parse_mode = ( 'Text::CSV', 'split', 'Spreadsheet::Read' )[$i]; #
-    my $sep = '';
+    my $sep;
     if ( $i == 0 ) {
         $sep = $sf->{o}{csv}{sep_char};
     }
     elsif ( $i == 1 ) {
         $sep = $sf->{o}{split}{i_f_s};
     }
-    return $parse_mode, $sep;
+    my $str = "($parse_mode";
+    $str .= ", sep: $sep" if defined $sep;
+    $str .= ")";
+    return $str;
 }
 
 
@@ -219,20 +222,31 @@ sub from_copy_and_paste {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     $sql->{insert_into_args} = [];
     my ( $fh, $file ) = tempfile( DIR => $sf->{i}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
-    binmode $fh, ':encoding(' . $sf->{o}{insert}{file_encoding} . ')' or die $!;
-    print $sf->{i}{clear_screen};
-    # STDIN
-    my $prompt = sprintf "Mulit row  (%s sep %s):\n", $sf->__parse_setting( 'copy_and_paste' );
-    print $prompt;
-    while ( my $row = <STDIN> ) {
-        print $fh $row;
+    local $SIG{'INT'} = sub { close $fh; exit };
+    if ( ! eval {
+        binmode $fh, ':encoding(' . $sf->{o}{insert}{file_encoding} . ')' or die $!;
+        print $sf->{i}{clear_screen};
+        # STDIN
+        my $prompt = sprintf "Mulit row  %s:\n", $sf->__parse_setting( 'copy_and_paste' );
+        print $prompt;
+        while ( my $row = <STDIN> ) {
+            print $fh $row;
+        }
+        seek $fh, 0, 0;
+        $sf->{i}{input_mode} = 'copy';
+        $sf->__input_filter( $sql, $stmt_typeS, $fh, 'copy' );
+        close $fh;
+        1 }
+    ) {
+        close $fh;
+        my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
+        my $m = join( ', ', @$stmt_typeS, 'copy & paste' );
+        $ax->print_error_message( $@, $m );
+        return;
     }
-    seek $fh, 0, 0;
-    $sf->{i}{input_mode} = 'copy';
-    $sf->__input_filter( $sql, $stmt_typeS, $fh, 'copy' );
     if ( ! @{$sql->{insert_into_args}} ) {
         $sql->{insert_into_cols} = [];
-        return; ###
+        return; #
     }
     return 1;
 }
@@ -280,8 +294,8 @@ sub __file_name { # h?
             close $fh_in;
         }
         my $add_file = '  NEW file';
-        my $del_file = '  DEL file';
-        my $prompt = sprintf "Choose a file (%s, %s):", $sf->__parse_setting( 'file' );
+        my $del_file = '  Remove file';
+        my $prompt = sprintf "Choose a file  %s:", $sf->__parse_setting( 'file' );
         # Choose
         $file = choose(
             [ undef, $add_file, map( '  ' . decode( 'locale_fs', $_ ), @files ), $del_file ],
@@ -291,7 +305,7 @@ sub __file_name { # h?
             return;
         }
         if ( $file eq $add_file ) {
-            my $prompt = sprintf "%s, %s", $sf->__parse_setting( 'file' );
+            my $prompt = sprintf "%s", $sf->__parse_setting( 'file' );
             # Choose_a_file
             $file = choose_a_file( { dir => $sf->{o}{insert}{files_dir}, mouse => $sf->{o}{table}{mouse} } );
             if ( ! defined $file || ! length $file ) {
@@ -501,15 +515,19 @@ sub __parse_file {
         seek $fh, 0, 0;
         my $tmp = [];
         if ( $sf->{o}{insert}{$input_type . '_parse_mode'} == 0 ) {
-            my $csv = Text::CSV->new( { auto_diag => 2, map { $_ => $sf->{o}{csv}{$_} } sort keys %{$sf->{o}{csv}} } ) or die Text::CSV->error_diag();
+            my $csv = Text::CSV->new( { map { $_ => $sf->{o}{csv}{$_} } sort keys %{$sf->{o}{csv}} } ) or die Text::CSV->error_diag(); # auto_diag => 2,
             $csv->callbacks( error => sub {
-                if ( $_[0] == 2012 ) {
+                my ( $code, $str, $pos, $rec, $fld ) = @_;
+                if ( $code == 2012 ) {
                     # ignore this error
                     Text::CSV->SetDiag (0);
                 }
                 else {
-                    print $csv->error_input(), "\n";
-                    die "$_[0] $_[1] - pos:$_[2] rec:$_[3] fld:$_[4]";
+                    my $error_inpunt = $csv->error_input();
+                    my $message =  "Text::CSV:\n";
+                    $message .= "Input: $error_inpunt" if defined $error_inpunt;
+                    $message .= "$code $str - pos:$pos rec:$rec fld:$fld";
+                    die $message;
                 }
             } );
             while ( my $row = $csv->getline( $fh ) ) {
@@ -520,6 +538,7 @@ sub __parse_file {
             local $/;
             push @$tmp, map { [ split /$sf->{o}{split}{i_f_s}/ ] } split /$sf->{o}{split}{i_r_s}/, <$fh>;
         }
+        close $fh;
         $sql->{insert_into_args} = $tmp;
         return;
     }

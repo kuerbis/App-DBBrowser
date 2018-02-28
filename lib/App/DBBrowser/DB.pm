@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Scalar::Util qw( looks_like_number );
 
@@ -20,8 +20,8 @@ sub new {
         app_dir       => $info->{app_dir},
         add_metadata  => $opt->{G}{meta},
 
-        reset_search_cache => $info->{sqlite_search}, ##
-        sqlite_directories => $info->{dirs_sqlite},   ##
+        reset_search_cache => $info->{sqlite_search},
+        sqlite_directories => $info->{dirs_sqlite},
 
     } );
     bless { Plugin => $plugin }, $class;
@@ -36,6 +36,13 @@ sub message_method_undef_return {
 
 sub driver {
     my ( $sf ) = @_;
+    ###
+    if ( ! $sf->{Plugin}->can( 'get_db_driver' ) && $sf->{Plugin}->can( 'db_driver' ) ) {
+        require Term::Choose;
+        Term::Choose::choose( [ 'Close with ENTER' ], { prompt => 'Please update your database Plugin!' } );
+        exit;
+    }
+    ###
     my $driver = $sf->{Plugin}->get_db_driver();
     die $sf->message_method_undef_return( 'driver' ) if ! defined $driver;
     return $driver;
@@ -294,16 +301,18 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 1.060_06
+Version 2.000
 
 =head1 DESCRIPTION
+
+This version introduces backwards incompatible changes.
 
 A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches
 C</^App::DBBrowser::DB::[^:']+\z/> and which is located in one of the C<@INC> directories as a database plugin.
 Plugins with the name C<App::DBBrowser::DB::$database_driver> should be for general use of C<$database_driver>
 databases.
 
-The user can add an installed database plugin to the available plugins in the option menu (C<db-browser -h>) by
+The user can add an installed database plugin to the available plugins in the options menu (C<db-browser -h>) by
 selecting I<DB> and then I<DB Plugins>.
 
 A suitable database plugin provides the methods named in this documentation.
@@ -334,7 +343,7 @@ When C<db-browser> calls the plugin constructor it passes a reference to a hash 
 C<reset_search_cache> is true if C<db-browser> is called with the argument C<-s|--search> - see
 L<db-browser/SYNOPSIS>.
 
-C<sqlite_directories> returns the values set in the option menu I<DB>/I<DB Settings>/I<Sqlite directories>. If this
+C<sqlite_directories> returns the values set in the options menu I<DB>/I<DB Settings>/I<Sqlite directories>. If this
 entry is not set, it defaults to the home directory.
 
 Returns the created object.
@@ -400,9 +409,9 @@ Returns the database handle.
 =head3 DB configuration methods
 
 If the following three methods are available, the C<db-brower> user can configure the different database settings in the
-option menu. These configurations are then available in the C<get_db_handle> argument C<$connect_parameter>.
+options menu. These configurations are then available in the C<get_db_handle> argument C<$connect_parameter>.
 
-If the database driver is SQLite, only C<set_attributes> used.
+If the database driver is C<SQLite>, only C<set_attributes> is used.
 
 =head4 read_arguments()
 
@@ -430,7 +439,7 @@ An example C<read_arguments> method:
         ];
     }
 
-The information returned by the method C<read_arguments> is used to build the C<db-browser> option menu entry I<Fields>
+The information returned by the method C<read_arguments> is used to build the C<db-browser> options menu entry I<Fields>
 and I<Login Data>.
 
 =head4 env_variables()
@@ -461,7 +470,7 @@ C<values> holds the available values for that attribute as an array reference.
 
 The C<values> array entry of the index position C<default> is used as the default value.
 
-Example form the plugin C<App::DBBrowser::DB::SQLite>:
+Example from the plugin C<App::DBBrowser::DB::SQLite>:
 
     sub set_attributes {
         my ( $self ) = @_;
@@ -523,7 +532,7 @@ Example (C<Pg>):
 
 =head4 epoch_to_datetime( $column_name, $interval )
 
-The interval is 1 (seconds), 1000 (milliseconds) or 1000000 (microseconds).
+The interval is C<1> (seconds), C<1000> (milliseconds) or C<1000000> (microseconds).
 
 Returns the SQL "epoch to datetime" substatement.
 
@@ -536,7 +545,7 @@ Example (C<mysql>):
 
 =head4 epoch_to_date( $column_name, $interval )
 
-The interval is 1 (seconds), 1000 (milliseconds) or 1000000 (microseconds).
+The interval is C<1> (seconds), C<1000> (milliseconds) or C<1000000> (microseconds).
 
 Returns the SQL "epoch to date" substatement.
 
@@ -582,7 +591,7 @@ Example (C<Pg>):
         return "CHAR_LENGTH($col)";
     }
 
-=head1 PlUGIN EXAMPLE
+=head1 EXAMPLE
 
 A simple plugin which provides only the required methods:
 

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '1.060_06';
+our $VERSION = '2.000';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( any );
@@ -94,12 +94,11 @@ sub union_tables {
         UNION_COLUMN: while ( 1 ) {
             my ( $all_cols, $privious_cols, $void ) = ( q['*'], q['^'], q[' '] );
             my @short_cuts = ( ( @{$union->{saved_cols}} ? $privious_cols : $void ), $all_cols );
-            my @pre_col = ( $sf->{i}{ok}, @short_cuts );
-            my $choices = [ @pre_col, @{$u->{col_names}{$union_table}} ];
+            my @pre_col = ( undef, $sf->{i}{ok}, @short_cuts );
             $sf->__print_union_statement( $union );
             # Choose
             my @col = choose(
-                $choices,
+                [ @pre_col, @{$u->{col_names}{$union_table}} ],
                 { %{$sf->{i}{lyt_stmt_h}}, prompt => 'Choose Column:', no_spacebar => [ 0 .. $#pre_col ] }
             );
             if ( ! defined $col[0] ) {
@@ -272,7 +271,7 @@ sub join_tables {
         ( my $master = splice( @tables, $idx, 1 ) ) =~ s/^-\s//;
         $join->{used_tables}  = [ $master ];
         $join->{avail_tables} = [ @tables ];
-        $join->{table_alias} = 'a'; # Pg: error if 'A'
+        $join->{table_alias} = $sf->{i}{driver} eq 'Pg' ? 'a' : 'A';
         $join->{stmt}  = "SELECT * FROM " . $ax->quote_table( $dbh, $j->{tables}{$master} ) . " AS " . $join->{table_alias}; ###
         $join->{alias}{$master} = $join->{table_alias};
         my $backup_master = clone( $join );
