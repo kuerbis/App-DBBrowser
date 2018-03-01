@@ -15,6 +15,9 @@ use File::Spec::Functions qw( catfile );
 use DBI            qw();
 use Encode::Locale qw();
 
+use Term::Choose       qw( choose );
+use Term::Choose::Util qw( choose_dirs );
+
 use App::DBBrowser::Auxil;
 
 
@@ -24,7 +27,6 @@ sub new {
         driver  => 'SQLite',
         app_dir => $info->{app_dir},
         reset_search_cache => $info->{reset_search_cache},
-        sqlite_directories => $info->{sqlite_directories},
     };
     bless $self, $class;
 }
@@ -62,47 +64,55 @@ sub get_db_handle {
 sub get_databases {
     my ( $self ) = @_;
     return \@ARGV if @ARGV;
-    my $dirs = $self->{sqlite_directories};
-    my $cache_key = __PACKAGE__ . '_' . join ' ', @$dirs;
-    my $ax = App::DBBrowser::Auxil->new( {}, {} );
     my $cache_sqlite_files = catfile $self->{app_dir}, 'cache_SQLite_files.json';
-    my $db_cache = $ax->read_json( $cache_sqlite_files ); #
-    if ( $self->{reset_search_cache} ) {
-        delete $db_cache->{$cache_key};
+    my $ax = App::DBBrowser::Auxil->new( {}, {} );
+    my $db_cache = $ax->read_json( $cache_sqlite_files );
+    my $dirs = $db_cache->{directories} || [];
+    my $databases = $db_cache->{databases} || [];
+    if ( ! $self->{reset_search_cache} && @$databases ) {
+        return $databases;
     }
-    my $databases = [];
-    if ( ! defined $db_cache->{$cache_key} ) {
-        print 'Searching...' . "\n";
-        for my $dir ( @$dirs ) {
-            File::Find::find( {
-                wanted => sub {
-                    my $file = $_;
-                    return if ! -f $file;
-                    return if ! -s $file; #
-                    return if ! -r $file; #
-                    #print "$file\n";
-                    if ( ! eval {
-                        open my $fh, '<:raw', $file or die "$file: $!";
-                        defined( read $fh, my $string, 13 ) or die "$file: $!";
-                        close $fh;
-                        push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
-                        1 }
-                    ) {
-                        utf8::decode( $@ );
-                        print $@;
-                    }
-                },
-                no_chdir => 1,
-            },
-            encode( 'locale_fs', $dir ) );
+    my ( $ok, $change ) = qw( CONFIRM CHANGE );
+    my $choice = choose( [ undef, $ok, $change ], { prompt => 'Directories: ' . join( ', ', @$dirs ), undef => 'EXIT', layout => 3 } );
+    if ( ! defined $choice ) {
+        return;
+    }
+    elsif ( $choice eq $change ) {
+        my $info = 'cur: ' . join( ', ', @$dirs );
+        my $new_dirs = choose_dirs( { info => $info } );
+        if ( defined $new_dirs && @$new_dirs ) {
+            $dirs = $new_dirs;
         }
-        print 'Ended searching' . "\n";
-        $db_cache->{$cache_key} = $databases;
-        $ax->write_json( $cache_sqlite_files, $db_cache );
     }
-    else {
-        $databases = $db_cache->{$cache_key};
+    $databases = [];
+    print 'Searching ...' . "\n";
+    for my $dir ( @$dirs ) {
+        File::Find::find( {
+            wanted => sub {
+                my $file = $_;
+                return if ! -f $file;
+                return if ! -s $file; #
+                return if ! -r $file; #
+                #print "$file\n";
+                if ( ! eval {
+                    open my $fh, '<:raw', $file or die "$file: $!";
+                    defined( read $fh, my $string, 13 ) or die "$file: $!";
+                    close $fh;
+                    push @$databases, decode( 'locale_fs', $file ) if $string eq 'SQLite format';
+                    1 }
+                ) {
+                    utf8::decode( $@ );
+                    print $@;
+                }
+            },
+            no_chdir => 1,
+        },
+        encode( 'locale_fs', $dir ) );
     }
+    print 'Ended searching' . "\n";
+    $db_cache->{directories} = $dirs;
+    $db_cache->{databases} = $databases;
+    $ax->write_json( $cache_sqlite_files, $db_cache );
     return $databases;
 }
 

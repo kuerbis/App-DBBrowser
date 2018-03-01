@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -169,14 +169,6 @@ sub run {
         }
         $plugin = 'App::DBBrowser::DB::' . $plugin;
         $sf->{i}{plugin} = $plugin;
-        my $obj_o_db = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
-        my $db_o = $obj_o_db->__read_db_config_files();
-        if ( defined $db_o->{$plugin}{dirs_sqlite} ) {
-            $sf->{i}{dirs_sqlite} = delete $db_o->{$plugin}{dirs_sqlite};
-        }
-        else {
-            $sf->{i}{dirs_sqlite} = [ $sf->{i}{home_dir} ];
-        }
         my $obj_db;
         if ( ! eval {
             $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
@@ -189,6 +181,8 @@ sub run {
             last DB_PLUGIN;
         }
         my $driver = $sf->{i}{driver};
+        my $obj_o_db = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
+        my $db_o = $obj_o_db->__read_db_config_files();
 
         # DATABASES
 
@@ -672,7 +666,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.000
+Version 2.001
 
 =head1 DESCRIPTION
 

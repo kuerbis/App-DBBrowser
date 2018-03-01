@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use Clone           qw( clone );
 use List::MoreUtils qw( any first_index );
@@ -567,7 +567,7 @@ sub on_table {
                     $ax->print_sql( $sql, [ $stmt_type ] );
                     # Choose_a_number
                     my $limit = choose_a_number( $digits,
-                        { name => '"LIMIT"', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
+                        { name => 'LIMIT: ', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
                     );
                     if ( ! defined $limit ) {
                         ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @$bu};
@@ -585,7 +585,7 @@ sub on_table {
                     $ax->print_sql( $sql, [ $stmt_type ] );
                     # Choose_a_number
                     my $offset = choose_a_number( $digits,
-                        { name => '"OFFSET"', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
+                        { name => 'OFFSET: ', mouse => $sf->{o}{table}{mouse}, clear_screen => 0 }
                     );
                     if ( ! defined $offset ) {
                         ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @$bu}; #

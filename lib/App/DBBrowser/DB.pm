@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use Scalar::Util qw( looks_like_number );
 
@@ -19,9 +19,7 @@ sub new {
     my $plugin = $db_module->new( {
         app_dir       => $info->{app_dir},
         add_metadata  => $opt->{G}{meta},
-
         reset_search_cache => $info->{sqlite_search},
-        sqlite_directories => $info->{dirs_sqlite},
 
     } );
     bless { Plugin => $plugin }, $class;
@@ -301,7 +299,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.000
+Version 2.001
 
 =head1 DESCRIPTION
 
@@ -335,16 +333,12 @@ When C<db-browser> calls the plugin constructor it passes a reference to a hash 
 
             # for SQLite databases:
             reset_search_cache => $info->{reset_search_cache}, # true ore false
-            sqlite_directories => $info->{sqlite_directories}, # a reference to an array
         };
         return bless $self, $class;
     }
 
 C<reset_search_cache> is true if C<db-browser> is called with the argument C<-s|--search> - see
 L<db-browser/SYNOPSIS>.
-
-C<sqlite_directories> returns the values set in the options menu I<DB>/I<DB Settings>/I<Sqlite directories>. If this
-entry is not set, it defaults to the home directory.
 
 Returns the created object.
 

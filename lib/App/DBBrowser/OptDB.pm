@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use File::Basename qw( basename );
 
@@ -105,10 +105,11 @@ sub database_setting {
     my $old_idx_sec = 0;
 
     SECTION: while ( 1 ) {
-        my ( $driver, $plugin, $section );
+        my ( $plugin, $section );
+        #my ( $driver, $plugin, $section );
         if ( defined $db ) {
             $plugin = $sf->{i}{plugin};
-            $driver = $sf->{i}{driver};
+            #$driver = $sf->{i}{driver};
             $section = $db;
         }
         else {
@@ -144,7 +145,7 @@ sub database_setting {
             $section = $plugin;
         }
         my $obj_db = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-        $driver = $obj_db->driver() if ! $driver;
+        #$driver = $obj_db->driver() if ! $driver;
         my $env_var    = $obj_db->env_variables();
         my $login_data = $obj_db->read_arguments();
         my $attr       = $obj_db->set_attributes();
@@ -169,11 +170,9 @@ sub database_setting {
         push @groups, [ 'env_variables', "- ENV Variables"      ] if @{$items->{env_variables}};
         push @groups, [ 'arguments',     "- Login Data"         ] if @{$items->{arguments}};
         push @groups, [ 'attributes',    "- Attributes"         ] if @{$items->{attributes}};
-        push @groups, [ 'dirs_sqlite',   "- Sqlite directories" ] if $driver eq 'SQLite' && ! defined $db;
-        #my $prompt = defined $db ? 'DB: "' . ( $driver eq 'SQLite' ? basename $db : $db ) . '"'
-        #                         : 'Plugin "' . $plugin . '"';
         my $prompt = defined $db ? 'DB: "' . $db . '"' : '"' . $plugin . '"';
         my $db_o = $sf->__read_db_config_files();
+
         my $changed = 0;
         my $old_idx_group = 0;
 
@@ -308,11 +307,6 @@ sub database_setting {
                 $sf->__settings_menu_wrap_db( $db_o, $section, $sub_menu, $prompt );
                 next GROUP;
             }
-            elsif ( $group eq 'dirs_sqlite' ) {
-                my $opt = 'dirs_sqlite';
-                $sf->__choose_dirs_wrap_db( $db_o, $section, $opt );
-                next GROUP;
-            }
         }
     }
 }
@@ -366,7 +360,7 @@ sub __write_db_config_files {
     $plugin=~ s/^App::DBBrowser::DB:://;
     my $file_name = sprintf( $sf->{i}{conf_file_fmt}, $plugin );
     $file_name=~ s/^App::DBBrowser::DB:://;
-    if ( %$db_o ) {
+    if ( defined $db_o && %$db_o ) {
         $ax->write_json( $file_name, $db_o );
     }
 }

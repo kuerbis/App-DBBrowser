@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use Cwd        qw( realpath );
 use Encode     qw( encode decode );
@@ -285,7 +285,7 @@ sub __file_name { # h?
     FILE: while ( 1 ) {
         my @files;
         if ( $sf->{o}{insert}{max_files} && -e $sf->{i}{input_files} ) {
-            open my $fh_in, '<:encoding(locale_fs)', $sf->{i}{input_files} or die $!; #
+            open my $fh_in, '<:encoding(locale)', $sf->{i}{input_files} or die $!;
             while ( my $fl = <$fh_in> ) {
                 chomp $fl;
                 next if ! -e $fl;
@@ -318,7 +318,7 @@ sub __file_name { # h?
                 while ( @files > $sf->{o}{insert}{max_files} ) {
                     shift @files;
                 }
-                open my $fh_out, '>:encoding(locale_fs)', $sf->{i}{input_files} or die $!; # '>:encoding(locale_fs)'
+                open my $fh_out, '>:encoding(locale)', $sf->{i}{input_files} or die $!;
                 for my $fl ( @files ) {
                     print $fh_out $fl . "\n";
                 }
@@ -331,12 +331,13 @@ sub __file_name { # h?
             my @pre = [ undef, $sf->{i}{ok} ];
             my $idx = choose_a_subset(
                 [ map { decode 'locale_fs', $_ } @files ],
-                { mouse => $sf->{o}{table}{mouse}, prefix => '  ', info => 'Delete files:', no_spacebar => [ @pre ], index => 1, show_fmt => 2, keep_chosen => 0 }
+                { mouse => $sf->{o}{table}{mouse}, prefix => '  ', info => 'Files to remove:',
+                 no_spacebar => [ @pre ], index => 1, show_fmt => 1, keep_chosen => 0, clear_screen => 1 }
             );
             if ( ! defined $idx || ! @$idx ) {
                 next FILE;
             }
-            open my $fh_out, '>:encoding(locale_fs)', $sf->{i}{input_files} or die $!; # '>:encoding(locale_fs)'
+            open my $fh_out, '>:encoding(locale)', $sf->{i}{input_files} or die $!;
             for my $i ( 0 .. $#files ) {
                 if ( any { $i == $_ } @$idx ) {
                     next;
@@ -404,7 +405,7 @@ sub __input_filter {
                 my $col_idx = choose_a_subset(
                     \@{$aoa->[0]},
                     { back => '<<', confirm => $sf->{i}{ok}, index => 1, mark => $mark, layout => 0,
-                      name => 'Cols: ', clear_screen => 0, mouse => $sf->{o}{table}{mouse}, prompt => ' ' }
+                      name => 'Cols: ', clear_screen => 0, mouse => $sf->{o}{table}{mouse} } #
                 );
                 if ( defined $col_idx && @$col_idx ) {
                     $sql->{insert_into_args} = [ map { [ @{$_}[@$col_idx] ] } @$aoa ];
@@ -538,7 +539,6 @@ sub __parse_file {
             local $/;
             push @$tmp, map { [ split /$sf->{o}{split}{i_f_s}/ ] } split /$sf->{o}{split}{i_r_s}/, <$fh>;
         }
-        close $fh;
         $sql->{insert_into_args} = $tmp;
         return;
     }

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.000';
+our $VERSION = '2.001';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -33,7 +33,7 @@ sub defaults {
         G => {
             plugins              => [ 'SQLite', 'mysql', 'Pg' ],
             menu_memory          => 0,
-            thsd_sep             => ',',
+            thsd_sep             => ',', ###
             max_rows             => 50_000,
             meta                 => 0,
             lock_stmt            => 0,
@@ -166,37 +166,37 @@ sub config_insert {
                 }
             }
             delete $ENV{TC_RESET_AUTO_UP};
-            my $name = $idx <= $#pre ? $pre[$idx] : $sub_menu_insert->[$idx - @pre]{name};
-            if ( $name =~ /^_module_/ ) {
+            my $opt = $idx <= $#pre ? $pre[$idx] : $sub_menu_insert->[$idx - @pre]{name};
+            if ( $opt =~ /^_module_/ ) {
                 $backup_old_idx = $old_idx;
                 $old_idx = 0;
-                $group = $name;
+                $group = $opt;
                 redo GROUP_INSERT;
             }
             my $section  = $sub_menu_insert->[$idx - @pre]{section};
             #my $opt_type = 'o';
             my $no_yes   = [ 'NO', 'YES' ];
-#            if ( $name eq 'input_modes' ) {
+#            if ( $opt eq 'input_modes' ) {
 #                    my $available = [ 'Cols', 'Rows', 'Multi-row', 'File' ];
 #                    my $prompt = 'Input Modes:';
-#                    $sf->__choose_a_subset_wrap( $section, $name, $available, $prompt );
+#                    $sf->__choose_a_subset_wrap( $section, $opt, $available, $prompt );
 #            }
-            if ( $name eq 'files_dir' ) {
-                $sf->__choose_a_dir_wrap( $section, $name );
+            if ( $opt eq 'files_dir' ) {
+                $sf->__choose_a_dir_wrap( $section, $opt );
             }
-            elsif ( $name eq 'file_encoding' ) {
+            elsif ( $opt eq 'file_encoding' ) {
                 my $items = [
                     { name => 'file_encoding', prompt => "file_encoding" },
                 ];
                 my $prompt = 'Encoding CSV files';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $name eq 'max_files' ) {
+            elsif ( $opt eq 'max_files' ) {
                 my $digits = 3;
-                my $prompt = '"Max file history"';
-                $sf->__choose_a_number_wrap( $section, $name, $prompt, $digits );
+                my $prompt = 'Max file history: ';
+                $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $name eq '_parse_mode' ) {
+            elsif ( $opt eq '_parse_mode' ) {
                 my $prompt = 'Parsing mode';
                 my $sub_menu = [
                     [ 'file_parse_mode', "From File   :", [ 'Text::CSV', 'split', 'Spreadsheet::Read' ] ],
@@ -204,7 +204,7 @@ sub config_insert {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_csv_char' ) {
+            elsif ( $opt eq '_csv_char' ) {
                 my $items = [
                     { name => 'sep_char',    prompt => "sep_char   " },
                     { name => 'quote_char',  prompt => "quote_char " },
@@ -214,7 +214,7 @@ sub config_insert {
                 my $prompt = '"Text::CSV"';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $name eq '_options_csv' ) {
+            elsif ( $opt eq '_options_csv' ) {
                 my $prompt = '"Text::CSV"';
                 my $sub_menu = [
                     [ 'allow_loose_escapes', "- allow_loose_escapes", [ 'NO', 'YES' ] ],
@@ -226,7 +226,7 @@ sub config_insert {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_parse_with_split' ) {
+            elsif ( $opt eq '_parse_with_split' ) {
                 my $items = [
                     { name => 'i_r_s', prompt => "IRS" },
                     { name => 'i_f_s', prompt => "IFS" },
@@ -234,7 +234,7 @@ sub config_insert {
                 my $prompt = 'Separators (regexp)';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $name eq 'create_table_defaults' ) {
+            elsif ( $opt eq 'create_table_defaults' ) {
                 my $items = [
                     #{ name => 'id_col_name',       prompt => "Default ID col name" },
                     { name => 'default_data_type', prompt => "Default data type" },
@@ -242,7 +242,7 @@ sub config_insert {
                 my $prompt = 'Create-table defaults';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            else { die "Unknown option: $name" }
+            else { die "Unknown option: $opt" }
         }
     }
 }
@@ -341,35 +341,35 @@ sub set_options {
                 }
             }
             delete $ENV{TC_RESET_AUTO_UP};
-            my $name = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
-            if ( $name eq 'config_insert' ) {
+            my $opt = $idx <= $#pre ? $pre[$idx] : $menu->[$idx - @pre]{name};
+            if ( $opt eq 'config_insert' ) {
                 $backup_old_idx = $old_idx;
                 $sf->config_insert();
                 $old_idx = $backup_old_idx;
                 $group = 'main';
                 redo GROUP;
             }
-            elsif ( $name =~ /^config_/ ) {
+            elsif ( $opt =~ /^config_/ ) {
                 $backup_old_idx = $old_idx;
                 $old_idx = 0;
-                $group = $name;
+                $group = $opt;
                 redo GROUP;
             }
-            elsif ( $name eq $sf->{i}{_continue} ) {
+            elsif ( $opt eq $sf->{i}{_continue} ) {
                 if ( $sf->{i}{write_config} ) {
                     $sf->__write_config_files();
                     delete $sf->{i}{write_config};
                 }
                 return $sf->{o};
             }
-            elsif ( $name eq 'help' ) {
+            elsif ( $opt eq 'help' ) {
                 require Pod::Usage;
                 Pod::Usage::pod2usage( {
                     -exitval => 'NOEXIT',
                     -verbose => 2 } );
                 next OPTION;
             }
-            elsif ( $name eq 'path' ) {
+            elsif ( $opt eq 'path' ) {
                 my $version = 'version';
                 my $bin     = '  bin  ';
                 my $app_dir = 'app-dir';
@@ -378,11 +378,11 @@ sub set_options {
                     $bin     => catfile( $RealBin, $RealScript ),
                     $app_dir => $sf->{i}{app_dir},
                 };
-                my $names = [ $version, $bin, $app_dir ];
-                print_hash( $path, { keys => $names, preface => ' Close with ENTER' } );
+                my $opts = [ $version, $bin, $app_dir ];
+                print_hash( $path, { keys => $opts, preface => ' Close with ENTER', clear_screen => 1 } );
                 next OPTION;
             }
-            elsif ( $name eq '_db_defaults' ) {
+            elsif ( $opt eq '_db_defaults' ) {
                 my $obj_o_db = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
                 $obj_o_db->database_setting();
                 next OPTION;
@@ -390,80 +390,80 @@ sub set_options {
             #my $opt_type = 'o';
             my $section  = $menu->[$idx - @pre]{section};
             my $no_yes   = [ 'NO', 'YES' ];
-            if ( $name eq 'plugins' ) {
+            if ( $opt eq 'plugins' ) {
                 my %installed_driver;
                 for my $dir ( @INC ) {
                     my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
                     map { $installed_driver{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
                 }
                 my $prompt = 'Choose DB plugins:';
-                $sf->__choose_a_subset_wrap( $section, $name, [ sort keys %installed_driver ], $prompt );
+                $sf->__choose_a_subset_wrap( $section, $opt, [ sort keys %installed_driver ], $prompt );
             }
-            elsif ( $name eq 'tab_width' ) {
+            elsif ( $opt eq 'tab_width' ) {
                 my $digits = 3;
-                my $prompt = '"Tab width"';
-                $sf->__choose_a_number_wrap( $section, $name, $prompt, $digits );
+                my $prompt = 'Tab width: ';
+                $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $name eq 'grid' ) {
+            elsif ( $opt eq 'grid' ) {
                 my $prompt = '"Grid"';
                 my $list = [ 'NO', 'YES' ];
-                my $sub_menu = [ [ $name, "  Grid", $list ] ];
+                my $sub_menu = [ [ $opt, "  Grid", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'keep_header' ) {
+            elsif ( $opt eq 'keep_header' ) {
                 my $prompt = '"Header each Page"';
                 my $list = [ 'NO', 'YES' ];
-                my $sub_menu = [ [ $name, "  Keep Header", $list ] ];
+                my $sub_menu = [ [ $opt, "  Keep Header", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'binary_filter' ) {
+            elsif ( $opt eq 'binary_filter' ) {
                 my $prompt = 'Print "BNRY" instead of binary data';
                 my $list = [ 'NO', 'YES' ];
-                my $sub_menu = [ [ $name, "  Binary filter", $list ] ];
+                my $sub_menu = [ [ $opt, "  Binary filter", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'min_col_width' ) {
+            elsif ( $opt eq 'min_col_width' ) {
                 my $digits = 3;
-                my $prompt = '"Min column width"';
-                $sf->__choose_a_number_wrap( $section, $name, $prompt, $digits );
+                my $prompt = 'Min column width: ';
+                $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $name eq 'undef' ) {
+            elsif ( $opt eq 'undef' ) {
                 my $items = [
                     { name => 'undef', prompt => "undef" },
                 ];
                 my $prompt = 'Print replacement for undefined table values.';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $name eq 'progress_bar' ) {
+            elsif ( $opt eq 'progress_bar' ) {
                 my $digits = 7;
-                my $prompt = '"Threshold ProgressBar"';
-                $sf->__choose_a_number_wrap( $section, $name, $prompt, $digits );
+                my $prompt = 'Threshold ProgressBar: ';
+                $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $name eq 'max_rows' ) {
+            elsif ( $opt eq 'max_rows' ) {
                 my $digits = 7;
-                my $prompt = '"Max rows"';
-                $sf->__choose_a_number_wrap( $section, $name, $prompt, $digits );
+                my $prompt = 'Max rows: ';
+                $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $name eq 'lock_stmt' ) {
+            elsif ( $opt eq 'lock_stmt' ) {
                 my $prompt = 'SQL statement: ';
                 my $list = [ 'Lk0', 'Lk1' ];
-                my $sub_menu = [ [ $name, "  Lock Mode", $list ] ];
+                my $sub_menu = [ [ $opt, "  Lock Mode", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'meta' ) {
+            elsif ( $opt eq 'meta' ) {
                 my $prompt = 'DB/schemas/tables: ';
                 my $list = $no_yes;
-                my $sub_menu = [ [ $name, "  Add metadata", $list ] ];
+                my $sub_menu = [ [ $opt, "  Add metadata", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_parentheses' ) {
+            elsif ( $opt eq '_parentheses' ) {
                 my $sub_menu = [
                     [ 'parentheses_w', "- Parens in WHERE",     [ 'NO', 'YES' ] ],
                     [ 'parentheses_h', "- Parens in HAVING TO", [ 'NO', 'YES' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu );
             }
-            elsif ( $name eq 'operators' ) {
+            elsif ( $opt eq 'operators' ) {
                 my $available =[
                     "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
                     "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
@@ -471,9 +471,9 @@ sub set_options {
                     "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
                     # "LIKE col", "NOT LIKE col"
                 my $prompt = 'Choose operators:';
-                $sf->__choose_a_subset_wrap( $section, $name, $available, $prompt );
+                $sf->__choose_a_subset_wrap( $section, $opt, $available, $prompt );
             }
-            elsif ( $name eq '_sql_identifiers' ) {
+            elsif ( $opt eq '_sql_identifiers' ) {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
                     [ 'qualified_table_name', "- Qualified table names", [ 'NO', 'YES' ] ],
@@ -481,27 +481,27 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq 'mouse' ) {
+            elsif ( $opt eq 'mouse' ) {
                 my $prompt = 'Choose: ';
                 my $list = [ 0, 1, 2, 3, 4 ];
-                my $sub_menu = [ [ $name, "  Mouse mode", $list ] ];
+                my $sub_menu = [ [ $opt, "  Mouse mode", $list ] ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_menu_memory' ) {
+            elsif ( $opt eq '_menu_memory' ) {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
                     [ 'menu_memory',     "- Menu memory", [ 'NO', 'YES' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $name eq '_table_expand' ) {
+            elsif ( $opt eq '_table_expand' ) {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
                     [ 'table_expand', "- Expand Rows",   [ 'NO', 'YES - fast back', 'YES' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            else { die "Unknown option: $name" }
+            else { die "Unknown option: $opt" }
         }
     }
 }
@@ -515,25 +515,35 @@ sub __settings_menu_wrap {
 }
 
 sub __choose_a_subset_wrap {
-    my ( $sf, $section, $name, $available, $prompt ) = @_;
-    my $current = $sf->{o}{$section}{$name};
+    my ( $sf, $section, $opt, $available, $prompt ) = @_;
+    my $current = $sf->{o}{$section}{$opt};
     # Choose_list
-    my $list = choose_a_subset( $available, { prompt => $prompt, current => $current, index => 0, mouse => $sf->{o}{table}{mouse} } );
+    my $info = 'curr> ' . join( ', ', @$current );
+    my $name = ' new> ';
+    my $list = choose_a_subset(
+        $available,
+        { info => $info, name => $name, prompt => $prompt, prefix => '- ', index => 0,
+          clear_screen => 1, mouse => $sf->{o}{table}{mouse} }
+    );
     return if ! defined $list;
     return if ! @$list;
-    $sf->{o}{$section}{$name} = $list;
+    $sf->{o}{$section}{$opt} = $list;
     $sf->{i}{write_config}++;
     return;
 }
 
 sub __choose_a_number_wrap {
-    my ( $sf, $section, $name, $prompt, $digits ) = @_;
-    my $current = $sf->{o}{$section}{$name};
-    $current = insert_sep( $current, $sf->{o}{G}{thsd_sep} );
+    my ( $sf, $section, $opt, $prompt, $digits ) = @_;
+    my $current = $sf->{o}{$section}{$opt};
+    my $w = $digits + int( ( $digits - 1 ) / 3 ) * length $sf->{o}{G}{thsd_sep};
+    my $info = 'Curr> ' . $prompt . sprintf( "%*s", $w, insert_sep( $current, $sf->{o}{G}{thsd_sep} ) );
+    my $name = ' New> ' . $prompt;
     # Choose_a_number
-    my $choice = choose_a_number( $digits, { name => $prompt, current => $current, mouse => $sf->{o}{table}{mouse} } );
+    my $choice = choose_a_number(
+        $digits, { name => $name, info => $info, mouse => $sf->{o}{table}{mouse}, clear_screen => 1 }
+    );
     return if ! defined $choice;
-    $sf->{o}{$section}{$name} = $choice eq '--' ? undef : $choice;
+    $sf->{o}{$section}{$opt} = $choice;
     $sf->{i}{write_config}++;
     return;
 }
@@ -560,12 +570,12 @@ sub __group_readline {
 }
 
 sub __choose_a_dir_wrap {
-    my ( $sf, $section, $name ) = @_;
-    my $current = $sf->{o}{$section}{$name};
+    my ( $sf, $section, $opt ) = @_;
+    my $current = $sf->{o}{$section}{$opt};
     # Choose_a_dir
     my $dir = choose_a_dir( { mouse => $sf->{o}{table}{mouse}, current => $current } );
     return if ! length $dir;
-    $sf->{o}{$section}{$name} = $dir;
+    $sf->{o}{$section}{$opt} = $dir;
     $sf->{i}{write_config}++;
     return;
 }
@@ -575,8 +585,8 @@ sub __write_config_files {
     my ( $sf ) = @_;
     my $tmp = {};
     for my $section ( keys %{$sf->{o}} ) {
-        for my $name ( keys %{$sf->{o}{$section}} ) {
-            $tmp->{$section}{$name} = $sf->{o}{$section}{$name};
+        for my $opt ( keys %{$sf->{o}{$section}} ) {
+            $tmp->{$section}{$opt} = $sf->{o}{$section}{$opt};
         }
     }
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
@@ -592,8 +602,8 @@ sub read_config_files {
     if ( -f $file_name && -s $file_name ) {
         my $tmp = $ax->read_json( $file_name );
         for my $section ( keys %$tmp ) {
-            for my $name ( keys %{$tmp->{$section}} ) {
-                $o->{$section}{$name} = $tmp->{$section}{$name} if exists $o->{$section}{$name};
+            for my $opt ( keys %{$tmp->{$section}} ) {
+                $o->{$section}{$opt} = $tmp->{$section}{$opt} if exists $o->{$section}{$opt};
             }
         }
     }
