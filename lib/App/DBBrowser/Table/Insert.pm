@@ -6,12 +6,13 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.002';
+our $VERSION = '2.003';
 
 use Cwd            qw( realpath );
 use Encode         qw( encode decode );
 use File::Basename qw( dirname );
-use File::Temp     qw( tempfile );
+use File::Spec::Functions qw( catfile ); #
+#use File::Temp     qw( tempfile ); ###
 use List::Util     qw( all );
 
 use List::MoreUtils   qw( first_index any );
@@ -30,11 +31,13 @@ use App::DBBrowser::Table;
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    bless { i => $info, o => $opt }, $class;
+    my $sf = { i => $info, o => $opt };
+    $sf->{i}{tmp_copy_paste} = catfile $info->{app_dir}, 'copy_and_paste_tmp_file.csv';
+    bless $sf, $class;
 }
 
 
-sub __insert_into_cols {
+sub __insert_into_stmt_cols {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     $sql->{insert_into_cols} = [];
@@ -122,7 +125,7 @@ sub build_insert_stmt {
             $obj_opt->config_insert;
             next MENU;
         }
-        my $cols_ok = $sf->__insert_into_cols( $sql, $stmt_typeS );
+        my $cols_ok = $sf->__insert_into_stmt_cols( $sql, $stmt_typeS );
         if ( ! $cols_ok ) {
             next MENU;
         }
@@ -201,7 +204,6 @@ sub __from_col_by_col {
 }
 
 
-
 sub __file_name {
     my ( $sf, $sql, $file ) = @_;
 
@@ -236,7 +238,7 @@ sub __file_name {
                 next FILE;
             }
             if ( $sf->{o}{insert}{max_files} ) {
-                my $i = first_index { $file eq $_ } @files;
+                my $i = first_index { $file eq $_ } @files; ##
                 splice @files, $i, 1 if $i > -1;
                 push @files, $file;
                 while ( @files > $sf->{o}{insert}{max_files} ) {
@@ -278,7 +280,6 @@ sub __file_name {
 }
 
 
-
 sub __parse_setting {
     my ( $sf, $type ) = @_;
     my $i = $sf->{o}{insert}{$type eq 'file' ? 'file_parse_mode' : 'copy_parse_mode'};
@@ -299,39 +300,33 @@ sub __parse_setting {
 
 sub from_copy_and_paste {
     my ( $sf, $sql, $stmt_typeS ) = @_;
-    my ( $fh, $file );
-    local $SIG{'INT'} = sub {
-        File::Temp::unlink1( $fh, $file ) if defined $fh;
-        exit;
-    };
+    print $sf->{i}{clear_screen};
+    my $prompt = sprintf "Mulit row  %s:\n", $sf->__parse_setting( 'copy_and_paste' );
+    print $prompt;
+    my $file = $sf->{i}{tmp_copy_paste};
+    #local $SIG{INT} = sub { unlink $file; exit };
     if ( ! eval {
-        $fh = File::Temp->new( DIR => $sf->{i}{app_dir}, UNLINK => 1 , SUFFIX => '.csv' );
-        $file = $fh->filename;
-        binmode $fh, ':encoding(' . $sf->{o}{insert}{file_encoding} . ')' or die $!;
-        print $sf->{i}{clear_screen};
+        open my $fh_in, '>:encoding(' . $sf->{o}{insert}{file_encoding} . ')', $file or die $!;
         # STDIN
-        my $prompt = sprintf "Mulit row  %s:\n", $sf->__parse_setting( 'copy_and_paste' );
-        print $prompt;
         while ( my $row = <STDIN> ) {
-            print $fh $row;
+            print $fh_in $row;
         }
-        my $parse_mode = $sf->{o}{insert}{copy_parse_mode};
+        close $fh_in;
+        die "No input!" if ! -s $file;
+        open my $fh, '<:encoding(' . $sf->{o}{insert}{file_encoding} . ')', $file or die $!;
         $sql->{insert_into_args} = [];
-        my $ok = $sf->__parse_file( $sql, $stmt_typeS, $file, $fh, $parse_mode, 1 );
-        File::Temp::unlink1( $fh, $file ) or die $!;
-        return if ! $ok;
+        my $ok = $sf->__parse_file( $sql, $stmt_typeS, $file, $fh, $sf->{o}{insert}{copy_parse_mode} );
+        close $fh;
+        unlink $file or die $!;
+        die "Error __parse_file!" if ! $ok;
         1 }
     ) {
         my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
-        my $m = join( ', ', @$stmt_typeS, 'copy & paste' );
-        $ax->print_error_message( $@, $m );
-        File::Temp::unlink1( $fh, $file ) or die $!;
+        $ax->print_error_message( $@, join ', ', @$stmt_typeS, 'copy & paste' );
+        unlink $file or warn $!;
         return;
     }
-    if ( -e $file ) {
-        die "Could not unlink TEMP file $file!";
-    }
-    return if ! @{$sql->{insert_into_args}};
+    #return if ! @{$sql->{insert_into_args}};
     my $ok = $sf->__input_filter( $sql, $stmt_typeS );
     return if ! $ok;
     return 1;
@@ -352,52 +347,51 @@ sub from_file {
                 next FILE;
             }
             $parse_mode = $sf->{o}{insert}{file_parse_mode};
-            last FILE;
+            my $ok = $sf->__parse_file( $sql, $stmt_typeS, $file, $fh, $parse_mode );
+            if ( ! $ok ) {
+                next FILE;
+            }
+            #next if ! @{$sql->{insert_into_args}};
+            return 1;
         }
         else {
             $parse_mode = 2;
-            last FILE;
+            my ( $sheet_count, $sheet_idx );
+            SHEET: while ( 1 ) {
+                $sql->{insert_into_args} = [];
+                $sheet_count = $sf->__parse_file( $sql, $stmt_typeS, $file, $fh, $parse_mode );
+                if ( ! $sheet_count ) {
+                    next FILE;
+                }
+                if ( ! @{$sql->{insert_into_args}} ) { #
+                    next SHEET if $sheet_count >= 2;
+                    next FILE;
+                }
+                my $ok = $sf->__input_filter( $sql, $stmt_typeS );
+                if ( ! $ok ) {
+                    next SHEET if $sheet_count >= 2;
+                    next FILE;
+                }
+                return 1;
+            }
         }
-    }
-    my ( $sheet_count, $sheet_idx );
-    SHEET: while ( 1 ) {
-        $sql->{insert_into_args} = [];
-        ( $sheet_count ) = $sf->__parse_file( $sql, $stmt_typeS, $file, $fh, $parse_mode );
-        if ( ! $sheet_count ) {
-            return;
-        }
-        if ( ! @{$sql->{insert_into_args}} ) { #
-            next SHEET if $sheet_count >= 2;
-            return;
-        }
-        my $ok = $sf->__input_filter( $sql, $stmt_typeS );
-        if ( ! $ok ) {
-            next SHEET if $sheet_count >= 2;
-            return;
-        }
-        return 1;
     }
 }
 
 
 sub __parse_file {
-    my ( $sf, $sql, $stmt_typeS, $file, $fh, $parse_mode, $from_copy_and_paste ) = @_;
-    local $SIG{'INT'} = sub { #
-        if ( $from_copy_and_paste ) {
-            File::Temp::unlink1( $fh, $file );
-            exit;
-        }
-    };
+    my ( $sf, $sql, $stmt_typeS, $file, $fh, $parse_mode ) = @_;
+    #local $SIG{INT} = sub { unlink $sf->{i}{tmp_copy_paste}; exit };
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o} );
     $ax->print_sql( $sql, $stmt_typeS );
+    print 'Parsing file ...', "\n";
     if ( $parse_mode == 0 ) {
         seek $fh, 0, 0;
         my $tmp = [];
         my $csv = Text::CSV->new( { map { $_ => $sf->{o}{csv}{$_} } keys %{$sf->{o}{csv}} } ) or die Text::CSV->error_diag();
         $csv->callbacks( error => sub {
             my ( $code, $str, $pos, $rec, $fld ) = @_;
-            if ( $code == 2012 ) {
-                # ignore this error
+            if ( $code == 2012 ) { # ignore this error
                 Text::CSV->SetDiag (0);
             }
             else {
@@ -411,6 +405,7 @@ sub __parse_file {
         while ( my $row = $csv->getline( $fh ) ) {
             push @$tmp, $row;
         }
+        $ax->print_sql( $sql, $stmt_typeS );
         $sql->{insert_into_args} = $tmp;
         return 1;
     }
@@ -419,21 +414,23 @@ sub __parse_file {
         local $/;
         seek $fh, 0, 0;
         push @$tmp, map { [ split /$sf->{o}{split}{i_f_s}/ ] } split /$sf->{o}{split}{i_r_s}/, <$fh>;
+        $ax->print_sql( $sql, $stmt_typeS );
         $sql->{insert_into_args} = $tmp;
         return 1;
     }
     else {
-        my $cm = Term::Choose->new( { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
-        my $file_dc = decode( 'locale_fs', $file );
         require Spreadsheet::Read;
+        my $cm = Term::Choose->new( $sf->{i}{lyt_m} );
         my $book = Spreadsheet::Read::ReadData( $file, cells => 0, attr => 0, rc => 1, strip => 0 );
+        $ax->print_sql( $sql, $stmt_typeS );
+        my $file_dc = decode( 'locale_fs', $file );
         if ( ! defined $book ) {
-            $cm->choose( [ $file_dc . ' : no book!' ] );
+            $cm->choose( [ 'Press ENTER' ], { prompt => 'No Book in ' . $file_dc .'!' } );
             return;
         }
         my $sheet_count = @$book - 1; # first sheet in $book contains meta info
         if ( $sheet_count == 0 ) {
-            $cm->choose( [ $file_dc . ' : no sheets!' ] );
+            $cm->choose( [ 'Press ENTER' ], { prompt => 'No Sheets in ' . $file_dc . '!' } );
             return;
         }
         my $sheet_idx;
@@ -445,7 +442,7 @@ sub __parse_file {
             my @pre = ( undef );
             my $choices = [ @pre, @sheets ];
             # Choose
-            $sheet_idx = choose(
+            $sheet_idx = choose( # m
                 $choices,
                 { %{$sf->{i}{lyt_stmt_v}}, index => 1, prompt => 'Choose a sheet' }
             );
@@ -455,7 +452,7 @@ sub __parse_file {
         }
         if ( $book->[$sheet_idx]{maxrow} == 0 ) {
             my $sheet = length $book->[$sheet_idx]{label} ? $book->[$sheet_idx]{label} : 'sheet_' . $_;
-            choose( [ $sheet . ': empty sheet!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Press ENTER' } );
+            $cm->choose( [ 'Press ENTER' ], { prompt => $sheet . ': empty sheet!' } );
             return $sheet_count;
         }
         $sql->{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
@@ -594,9 +591,12 @@ sub __input_filter {
                 next FILTER; # ###
             }
             my $tmp_aoa = [];
-            for my $i ( @idx ) {
-                $i -= @pre;
-                push @$tmp_aoa, [ map { s/^\s+|\s+\z//g; $_ } @{$aoa->[$i]} ];
+            {
+                no warnings 'uninitialized';
+                for my $i ( @idx ) {
+                    $i -= @pre;
+                    push @$tmp_aoa, [ map { s/^\s+|\s+\z//g; $_ } @{$aoa->[$i]} ];
+                }
             }
             $sql->{insert_into_args} = $tmp_aoa;
             next FILTER;

@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.002';
+our $VERSION = '2.003';
 
 use Encode qw( encode );
 

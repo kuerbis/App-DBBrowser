@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.003    2018-03-04
+        - Update Insert module.
+
 2.002    2018-03-02
         - Bugfix in Insert module.
         - Bugfix in Table module.
