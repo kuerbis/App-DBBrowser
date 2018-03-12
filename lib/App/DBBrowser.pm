@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.003';
+our $VERSION = '2.004';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -34,7 +34,6 @@ BEGIN {
     1;
 }
 
-
 sub new {
     my ( $class ) = @_;
     my $info = {
@@ -57,15 +56,6 @@ sub new {
     };
     return bless { i => $info }, $class;
 }
-# <, >, ... work numeric:
-
-# MySQL     mysql_bind_type_guessing    enabled     always
-# MySQL     mysql_bind_type_guessing    disabled    with INT
-
-# postgreSQL                                        with INT
-
-# SQLite                                            with INT
-# SQLite    sqlite_see_if_its_a_number  enabled     with no data tpyes
 
 
 sub __init {
@@ -285,15 +275,16 @@ sub run {
                         $dbh->do( $stmt );
                     }
                     $sf->{i}{db_attached} = 1;
-                    if ( ! exists $sf->{i}{backup_qualy} ) {
-                        $sf->{i}{backup_qualy} = $sf->{o}{G}{qualified_table_name};
+                    if ( ! exists $sf->{i}{backup_qtn} ) {
+                        $sf->{i}{backup_qtn} = $sf->{o}{G}{qualified_table_name};
                     }
                     $sf->{o}{G}{qualified_table_name} = 1;
                 }
             }
-            if ( exists $sf->{i}{backup_qualy} && ! $sf->{i}{db_attached} ) {
-                $sf->{o}{G}{qualified_table_name} = delete $sf->{i}{backup_qualy};
+            if ( exists $sf->{i}{backup_qtn} && ! $sf->{i}{db_attached} ) {
+                $sf->{o}{G}{qualified_table_name} = delete $sf->{i}{backup_qtn};
             }
+            $sf->{i}{stmt_history} = [];
 
             # SCHEMAS
 
@@ -666,7 +657,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.003
+Version 2.004
 
 =head1 DESCRIPTION
 

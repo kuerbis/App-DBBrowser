@@ -1,6 +1,13 @@
 Revision history for App-DBBrowser
 
 
+2.004    2018-03-12
+        - Code refactoring.
+        - New experimental features: subqueries, aggregate in select
+        - Removed "Files dir" option.
+        - Update documentation.
+        - Minimum version "Term::Form" is "0.314".
+
 2.003    2018-03-04
         - Update Insert module.
 

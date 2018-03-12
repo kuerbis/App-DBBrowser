@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.003';
+our $VERSION = '2.004';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.003
+Version 2.004
 
 =cut
 
@@ -126,6 +126,8 @@ C<SELECT> statement is reset. A user defined C<SELECT> resets a previous set C<A
 To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu and choose C<-OK->.
 
 Changing the I<lock> mode (C<Lk0>,C<Lk1>) resets the entire SQL.
+
+See option I<Expert> for the use of subqueries.
 
 =head3 Delete, Update and Insert
 
@@ -318,9 +320,30 @@ Set the default I<lock> value:
 
 - C<Lk1>: Reset the SQL-statement only when a table is selected.
 
-=head4 Parentheses
+=head4 Expert (experimental)
+
+=over
+
+=item I<Aggregate in SELECT>
+
+Enables aggregate function in the SELECT substatement C<&>.
+
+=item I<Subqueries>
+
+If this option is enabled, the last 20 queries are saved temporary. Saved queries can than be chosen as subqueries by
+selecting C<(Q>.
+A query is saved when the table is printed. If a new database is selected the query-history is removed.
+
+=item I<Alias for complex columns>
+
+If enable, it is asked for an alias in I<func> and for subqueries in the SELECT substatement. If entered nothing as alias, no
+alias is added.
+
+=item I<Parentheses>
 
 Enable parentheses in C<WHERE> and/or C<HAVING> clauses.
+
+=back
 
 =head4 Identifiers
 
@@ -382,10 +405,6 @@ the output.
 =head3 Insert
 
 These I<Insert> settings can also be set in the C<INSERT INTO> sub-statement menu.
-
-=head4 File dir
-
-Searching for input files: set the default directory.
 
 =head4 File History
 
@@ -483,15 +502,27 @@ Set different L<Text::CSV> options.
 
 =item
 
-IRS
+Record separator
 
 Set the input record separator (regexp).
 
 =item
 
-IFS
+Field separator
 
 Set the input field separator (regexp).
+
+=item
+
+Trim leading
+
+Expects a regex pattern. If set removes leading characters matching regexp from each field.
+
+=item
+
+Trim trailing
+
+Expects a regex pattern. If set removes trailing characters matching regexp from each field.
 
 =back
 

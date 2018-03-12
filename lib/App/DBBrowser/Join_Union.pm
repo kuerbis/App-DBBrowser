@@ -6,9 +6,8 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.003';
+our $VERSION = '2.004';
 
-use Clone           qw( clone );
 use List::MoreUtils qw( any );
 
 use Term::Choose           qw( choose );
@@ -73,10 +72,10 @@ sub union_tables {
                 used_cols     => {},
                 saved_cols    => [],
             };
-            $sf->{union_all} = 1;
+            $sf->{union_all} = 1; #
             next UNION_TABLE;
         }
-        my $backup_union = clone( $union );
+        my $backup_union = $ax->backup_href( $union );
         $union_table =~ s/^[-+]\s//;
         my $check_idx = $idx_tbl - ( @pre_tbl + @{$union->{used_tables}} );
         if ( $check_idx < 0 ) {
@@ -108,7 +107,6 @@ sub union_tables {
                 }
                 else {
                     delete $sf->{union_all} if $sf->{union_all};
-                    #$union = clone( $backup_union );
                     $union = $backup_union;
                     last UNION_COLUMN;
                 }
@@ -275,13 +273,13 @@ sub join_tables {
         $join->{table_alias} = $sf->{i}{driver} eq 'Pg' ? 'a' : 'A';
         $join->{stmt}  = "SELECT * FROM " . $ax->quote_table( $dbh, $j->{tables}{$master} ) . " AS " . $join->{table_alias}; ###
         $join->{alias}{$master} = $join->{table_alias};
-        my $backup_master = clone( $join );
+        my $backup_master = $ax->backup_href( $join );
 
         JOIN: while ( 1 ) {
             my $idx;
             my $enough_slaves = '  Enough TABLES';
             my @pre = ( undef, $enough_slaves );
-            my $backup_join = clone( $join );
+            my $backup_join = $ax->backup_href( $join );
 
             SLAVE: while ( 1 ) {
                 my $choices = [ @pre, @{$join->{avail_tables}}, $info ];
@@ -296,7 +294,6 @@ sub join_tables {
                         next MASTER;
                     }
                     else {
-                        #$join = clone( $backup_master );
                         $join = $backup_master;
                         next JOIN;
                     }
@@ -341,13 +338,11 @@ sub join_tables {
                     { prompt => 'Choose PRIMARY KEY column:', undef => $sf->{i}{_reset} }
                 );
                 if ( ! defined $pk_col ) {
-                    #$join = clone( $backup_join );
                     $join = $backup_join;
                     next JOIN;
                 }
                 if ( $pk_col eq $sf->{i}{_continue} ) {
                     if ( @{$join->{primary_keys}} == @{$backup_join->{primary_keys}} ) {
-                        #$join = clone( $backup_join );
                         $join = $backup_join;
                         next JOIN;
                     }
@@ -364,7 +359,6 @@ sub join_tables {
                     { prompt => 'Choose FOREIGN KEY column:', undef => $sf->{i}{_reset} }
                 );
                 if ( ! defined $fk_col ) {
-                    #$join = clone( $backup_join );
                     $join = $backup_join;
                     next JOIN;
                 }
