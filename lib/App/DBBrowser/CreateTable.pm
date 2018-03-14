@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -246,7 +246,7 @@ sub create_new_table {
             $sf->__reset_create_table_sql( $sql );
             next MENU;
         }
-        my $ct = sprintf "CREATE TABLE $qt_table ( %s )", join( ', ', @{$sql->{create_table_cols}} );
+        my $ct = sprintf "CREATE TABLE $qt_table (%s)", join( ', ', @{$sql->{create_table_cols}} );
         $dbh->do( $ct ) or die "$ct failed!";
         delete $sql->{create_table_cols};
         my $sth = $dbh->prepare( "SELECT * FROM $qt_table LIMIT 0" );

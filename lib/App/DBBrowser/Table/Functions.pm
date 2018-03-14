@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use List::MoreUtils qw( first_index );
 
@@ -118,7 +118,10 @@ sub col_function {
         }
         # modify columns:
         $sql->{$cols_type}[$idx] = $col_with_func;
-        $sql->{alias}{$col_with_func} = $ax->__alias( $dbh, $col_with_func, $sf->{o}{G}{alias} );
+        my $alias = $ax->__alias( $dbh, $col_with_func );
+        if ( defined $alias && length $alias ) {
+            $sql->{alias}{$col_with_func} = $ax->quote_col_qualified( $dbh, [ $alias ] );
+        }
         if ( $cols_type eq 'group_by_cols' ) {
             $sql->{group_by_stmt} = " GROUP BY " . join( ', ', @{$sql->{group_by_cols}} );
         }

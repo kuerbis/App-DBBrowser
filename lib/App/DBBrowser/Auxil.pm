@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use Encode qw( encode );
 
@@ -59,7 +59,7 @@ sub print_sql {
             my @cols = defined $p_sql->{create_table_cols} ? @{$p_sql->{create_table_cols}} : @{$p_sql->{insert_into_cols}};
             $str .= "CREATE TABLE $table (";
             if ( @cols ) {
-                $str .= " " . join( ', ',  map { defined $_ ? $_ : '' } @cols ) . " ";
+                $str .= join( ', ',  map { defined $_ ? $_ : '' } @cols );
             }
             $str .= ")\n";
         }
@@ -67,7 +67,7 @@ sub print_sql {
             my @cols = @{$p_sql->{insert_into_cols}};
             $str .= "INSERT INTO $table (";
             if ( @cols ) {
-                $str .= " " . join( ', ', map { defined $_ ? $_ : '' } @cols ) . " " ;
+                $str .= join( ', ', map { defined $_ ? $_ : '' } @cols );
             }
             $str .= ")\n";
             $str .= "  VALUES(\n";
@@ -176,16 +176,16 @@ sub __cols_as_string {
 
 
 sub __alias {
-    my ( $sf, $dbh, $col, $add_alias ) = @_;
-    if ( ! $add_alias ) {
-        return '';
+    my ( $sf, $dbh, $raw, $default ) = @_;
+    my $alias;
+    if ( $sf->{o}{G}{alias} ) {
+        my $tf = Term::Form->new();
+        $alias = $tf->readline( $raw . " AS " );
     }
-    my $tf = Term::Form->new();
-    my $str = $tf->readline( "$col AS " );
-    if ( ! defined $str || ! length $str ) {#
-        return '';
+    if ( ! defined $alias || ! length $alias ) {
+        $alias = $default if defined $default && length $default;
     }
-    return $sf->{o}{G}{quote_identifiers} ? $dbh->quote_identifier( $str ) : $str;
+    return $alias;
 }
 
 

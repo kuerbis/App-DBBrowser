@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use List::MoreUtils qw( any first_index );
 
@@ -297,10 +297,10 @@ sub commit_sql {
         if ( ! @{$sql->{insert_into_args}} ) {
             return 1; #
         }
-        $stmt  = "INSERT INTO";
-        $stmt .= ' ' . $sql->{table};
-        $stmt .= " ( " . join( ', ', @{$sql->{insert_into_cols}} ) . " )";
-        $stmt .= " VALUES( " . join( ', ', ( '?' ) x @{$sql->{insert_into_cols}} ) . " )";
+        $stmt  = sprintf "INSERT INTO %s (%s) VALUES(%s)",
+                            $sql->{table},
+                            join( ', ', @{$sql->{insert_into_cols}} ),
+                            join( ', ', ( '?' ) x @{$sql->{insert_into_cols}} );
         $rows_to_execute = $sql->{insert_into_args};
     }
     else {

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use List::MoreUtils   qw( any );
 
@@ -81,7 +81,10 @@ sub __add_aggregate_substmt {
         }
         $tmp->{$cols_type}[$i] .= $f_col . ")";
     }
-    $tmp->{alias}{$tmp->{$cols_type}[$i]} = $ax->__alias( $dbh, $tmp->{$cols_type}[$i], 0 ); # $sf->{o}{G}{alias} );
+    my $alias = $ax->__alias( $dbh, $tmp->{$cols_type}[$i] );
+    if ( defined $alias && length $alias ) {
+        $tmp->{alias}{$tmp->{$cols_type}[$i]} = $ax->quote_col_qualified( $dbh, [ $alias ] );
+    }
     return 1;
 }
 
@@ -138,7 +141,10 @@ sub columns {
             for my $val ( @$values ) {
                 $filled =~ s/\?/$val/;
             }
-            $tmp->{alias}{$filled} = $ax->__alias( $dbh, $filled, $sf->{o}{G}{alias}  );
+            my $alias = $ax->__alias( $dbh, $filled );
+            if ( defined $alias && length $alias ) {
+                $tmp->{alias}{$filled} = $ax->quote_col_qualified( $dbh, [ $alias ] );
+            }
             next COLUMNS;
         }
         elsif ( $col eq $aggr_func ) {
@@ -147,7 +153,6 @@ sub columns {
                 ( $tmp->{chosen_cols}, $tmp->{select_sq_args}, $tmp->{alias} ) = @{pop @$bu};
                 next COLUMNS;
             }
-            #$tmp->{alias}{$tmp->{$cols_type}[$i]} = $ax->__alias( $dbh, $tmp->{$cols_type}[$i], $sf->{o}{G}{alias}  );
         }
         else {
             push @{$tmp->{chosen_cols}}, $col;
@@ -207,9 +212,6 @@ sub aggregate {
             }
             $tmp->{orig_aggr_cols} = [];
             return $tmp;
-        }
-        else {
-            #$tmp->{alias}{$tmp->{$cols_type}[$i]} = $ax->__alias( $dbh, $tmp->{$cols_type}[$i], $sf->{o}{G}{alias}  );
         }
     }
 }
@@ -802,7 +804,7 @@ sub __set_operator_sql {
                 push @{$tmp->{$args}}, @{$sf->{i}{stmt_history}[$idx][1]};     #
             }
             else {
-                my $prompt = $operator =~ /LIKE\z/ ? 'Pattern: ' : 'Value: '; #
+                my $prompt = $operator =~ /^(?:NOT\s)?LIKE\z/ ? 'Pattern: ' : 'Value: '; #
                 # Readline
                 my $value = $trs->readline( $prompt );
                 if ( ! defined $value ) {

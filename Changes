@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.005    2018-03-14
+        - The option 'alias' now also affects aggregate functions, join and union.
+        - Minimum version "Term::Form" is "0.315".
+
 2.004    2018-03-12
         - Code refactoring.
         - New experimental features: subqueries, aggregate in select

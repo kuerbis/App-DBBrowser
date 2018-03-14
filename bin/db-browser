@@ -4,7 +4,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.004';
+our $VERSION = '2.005';
 
 use Encode::Locale qw();
 
@@ -34,7 +34,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.004
+Version 2.005
 
 =cut
 
@@ -336,8 +336,8 @@ A query is saved when the table is printed. If a new database is selected the qu
 
 =item I<Alias for complex columns>
 
-If enable, it is asked for an alias in I<func> and for subqueries in the SELECT substatement. If entered nothing as alias, no
-alias is added.
+If enable, it is asked for an alias for columns with a function, for subqueries, for joined tables and for unions. If
+entered nothing, no alias is added except for joined tables and unions which get a default alias.
 
 =item I<Parentheses>
 
