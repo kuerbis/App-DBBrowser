@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.005';
+our $VERSION = '2.006';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -45,6 +45,11 @@ sub defaults {
             parentheses          => 0,
             quote_identifiers    => 1,
             qualified_table_name => 0,
+            insert_ok            => 0,
+            update_ok            => 0,
+            delete_ok            => 0,
+            create_table_o       => 0,
+            drop_table_ok        => 0,
         },
         table => {
             table_expand         => 1,
@@ -109,7 +114,7 @@ sub __menu_insert {
             { name => '_parse_with_split',     text => "- Config 'split'",   section => 'split'  },
             { name => 'file_encoding',         text => "- File Encoding",    section => 'insert' },
             { name => 'max_files',             text => "- File History",     section => 'insert' },
-            { name => 'create_table_defaults', text => "- Create-table",     section => 'insert' },
+            { name => 'create_table_defaults', text => "- Create-table",     section => 'insert' }, ##
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'csv' },
@@ -279,13 +284,13 @@ sub __menus {
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
-            { name => 'max_rows',           text => "- Auto Limit",         section => 'G' },
-            { name => 'meta',               text => "- Metadata",           section => 'G' },
-            { name => 'operators',         text => "- Operators",          section => 'G' },
-            { name => 'lock_stmt',          text => "- Lock Mode",          section => 'G' },
-            { name => '_expert',            text => "- Expert",             section => 'G' },
-            { name => '_sql_identifiers',   text => "- Identifiers",        section => 'G' },
-
+            { name => 'max_rows',           text => "- Auto Limit",   section => 'G' },
+            { name => 'meta',               text => "- Metadata",     section => 'G' },
+            { name => 'operators',          text => "- Operators",    section => 'G' },
+            { name => 'lock_stmt',          text => "- Lock Mode",    section => 'G' },
+            { name => '_expert',            text => "- Expert",       section => 'G' },
+            { name => '_sql_identifiers',   text => "- Identifiers",  section => 'G' },
+            { name => '_write_access',      text => "- Write access", section => 'G' },
         ],
         config_output => [
             { name => 'min_col_width', text => "- Colwidth",      section => 'table' },
@@ -488,6 +493,17 @@ sub set_options {
                 my $sub_menu = [
                     [ 'qualified_table_name', "- Qualified table names", [ 'NO', 'YES' ] ],
                     [ 'quote_identifiers',    "- Quote identifiers",     [ 'NO', 'YES' ] ],
+                ];
+                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
+            }
+            elsif ( $opt eq '_write_access' ) {
+                my $prompt = 'Write access: ';
+                my $sub_menu = [
+                    [ 'insert_ok',       "- Insert records", [ 'NO', 'YES' ] ],
+                    [ 'update_ok',       "- Update records", [ 'NO', 'YES' ] ],
+                    [ 'delete_ok',       "- Delete records", [ 'NO', 'YES' ] ],
+                    [ 'create_table_ok', "- Create table",   [ 'NO', 'YES' ] ],
+                    [ 'drop_table_ok',   "- Drop   table",   [ 'NO', 'YES' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

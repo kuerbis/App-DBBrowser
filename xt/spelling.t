@@ -38,3 +38,4 @@ RaiseError
 Subqueries
 subqueries
 substatement
+MERCHANTIBILITY

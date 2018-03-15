@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.005';
+our $VERSION = '2.006';
 
 use Encode qw( encode );
 
@@ -98,12 +98,6 @@ sub print_sql {
                 if ( $p_sql->{select_type} eq '*' ) {
                     $cols_sql = ' *';
                 }
-                #elsif ( $p_sql->{select_type} eq 'chosen_cols' ) {
-                #    $cols_sql = ' ' . join( ', ', map { exists $p_sql->{alias}{$_} ? "$_ AS $p_sql->{alias}{$_}" : $_ } @{$p_sql->{chosen_cols}} );
-                #}
-                #elsif ( @{$p_sql->{aggr_cols}} || @{$p_sql->{group_by_cols}} ) {
-                #    $cols_sql = ' ' . join( ', ', @{$p_sql->{group_by_cols}}, @{$p_sql->{aggr_cols}} );
-                #}
                 elsif ( $p_sql->{select_type} eq 'chosen_cols' ) {
                     $cols_sql = ' ' . $sf->__cols_as_string( $p_sql, 'chosen_cols' );
                 }
@@ -116,9 +110,9 @@ sub print_sql {
             }
             $str .= $type_sql{$stmt_type};
             $str .= $p_sql->{distinct_stmt}                   if $p_sql->{distinct_stmt};
-            $str .= $cols_sql                        . "\n" if $cols_sql;
-            $str .= " FROM"                                 if $stmt_type eq 'Select' || $stmt_type eq 'Delete';
-            $str .= ' '      . $table                . "\n";
+            $str .= $cols_sql                          . "\n" if $cols_sql;
+            $str .= " FROM"                                   if $stmt_type eq 'Select' || $stmt_type eq 'Delete';
+            $str .= ' '      . $table                  . "\n";
             $str .= ' '      . $p_sql->{set_stmt}      . "\n" if $p_sql->{set_stmt};
             $str .= ' '      . $p_sql->{where_stmt}    . "\n" if $p_sql->{where_stmt};
             $str .= ' '      . $p_sql->{group_by_stmt} . "\n" if $p_sql->{group_by_stmt};
@@ -151,7 +145,7 @@ sub __cols_as_string {
             while ( $filled =~ /\?/ ) {
                 $filled =~ s/\?/$p_sql->{select_sq_args}[$i++]/;
             }
-            if ( exists $p_sql->{alias}{$filled} && length $p_sql->{alias}{$filled} ) {
+            if ( exists $p_sql->{alias}{$filled} && defined  $p_sql->{alias}{$filled} && length $p_sql->{alias}{$filled} ) {
                 push @tmp, $_ . " AS " . $p_sql->{alias}{$filled};
             }
             else {
@@ -163,7 +157,7 @@ sub __cols_as_string {
     else {
         push @tmp, @{$p_sql->{group_by_cols}};
         for ( @{$p_sql->{aggr_cols}} ) {
-            if ( exists $p_sql->{alias}{$_} && length $p_sql->{alias}{$_} ) {
+            if ( exists $p_sql->{alias}{$_} && defined  $p_sql->{alias}{$_} && length $p_sql->{alias}{$_} ) {
                 push @tmp, $_ . " AS " . $p_sql->{alias}{$_};
             }
             else {
@@ -183,7 +177,7 @@ sub __alias {
         $alias = $tf->readline( $raw . " AS " );
     }
     if ( ! defined $alias || ! length $alias ) {
-        $alias = $default if defined $default && length $default;
+        $alias = $default;
     }
     return $alias;
 }
