@@ -5,9 +5,10 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.006';
+our $VERSION = '2.007';
 
-use Encode qw( encode );
+use Encode         qw( encode );
+use File::Basename qw( dirname );
 
 use Encode::Locale  qw();
 use JSON            qw( decode_json );
@@ -22,8 +23,12 @@ use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 
 
 sub new {
-    my ( $class, $info, $opt ) = @_;
-    bless { i => $info, o => $opt }, $class;
+    my ( $class, $info, $options, $data ) = @_;
+    bless {
+        i => $info,
+        o => $options,
+        d => $data
+    }, $class;
 }
 
 
@@ -99,10 +104,10 @@ sub print_sql {
                     $cols_sql = ' *';
                 }
                 elsif ( $p_sql->{select_type} eq 'chosen_cols' ) {
-                    $cols_sql = ' ' . $sf->__cols_as_string( $p_sql, 'chosen_cols' );
+                    $cols_sql = ' ' . $sf->cols_as_string( $p_sql, 'chosen_cols' );
                 }
                 elsif ( @{$p_sql->{aggr_cols}} || @{$p_sql->{group_by_cols}} ) {
-                    $cols_sql = ' ' . $sf->__cols_as_string( $p_sql, 'aggr_and_group_by_cols' ); ##
+                    $cols_sql = ' ' . $sf->cols_as_string( $p_sql, 'aggr_and_group_by_cols' ); ##
                 }
                 else {
                     $cols_sql = ' *';
@@ -130,8 +135,13 @@ sub print_sql {
     print line_fold( $str, term_width() - 2, '', ' ' x $sf->{i}{stmt_init_tab} );
 }
 
+sub alias_key {
+    my ( $sf, $stmt, $values ) = @_;
+    return $stmt . '__[' . join( '_', @$values ) . ']';
+}
 
-sub __cols_as_string {
+
+sub cols_as_string {
     my ( $sf, $p_sql, $select_type ) = @_;
     if ( ! keys %{$p_sql->{alias}} ) {
         return join( ', ', @{$p_sql->{chosen_cols}} ) if $select_type eq 'chosen_cols';
@@ -139,14 +149,13 @@ sub __cols_as_string {
     }
     my @tmp;
     if ( $select_type eq 'chosen_cols' ) {
-        my $i = 0;
+        my @values = @{$p_sql->{select_sq_args}};
         for ( @{$p_sql->{chosen_cols}} ) {
-            my $filled = $_;
-            while ( $filled =~ /\?/ ) {
-                $filled =~ s/\?/$p_sql->{select_sq_args}[$i++]/;
-            }
-            if ( exists $p_sql->{alias}{$filled} && defined  $p_sql->{alias}{$filled} && length $p_sql->{alias}{$filled} ) {
-                push @tmp, $_ . " AS " . $p_sql->{alias}{$filled};
+            my $alias_key = $_;
+            my $c = $alias_key =~ tr/?/?/;
+            $alias_key = $sf->alias_key( $alias_key, [ splice( @values, 0, $c ) ] );
+            if ( exists $p_sql->{alias}{$alias_key} && defined  $p_sql->{alias}{$alias_key} && length $p_sql->{alias}{$alias_key} ) {
+                push @tmp, $_ . " AS " . $p_sql->{alias}{$alias_key};
             }
             else {
                 push @tmp, $_;
@@ -169,8 +178,8 @@ sub __cols_as_string {
 }
 
 
-sub __alias {
-    my ( $sf, $dbh, $raw, $default ) = @_;
+sub alias {
+    my ( $sf, $raw, $default ) = @_;
     my $alias;
     if ( $sf->{o}{G}{alias} ) {
         my $tf = Term::Form->new();
@@ -183,30 +192,29 @@ sub __alias {
 }
 
 
-
 sub quote_table {
-    my ( $sf, $dbh, $td ) = @_;
+    my ( $sf, $td ) = @_;
     my @idx = $sf->{o}{G}{qualified_table_name} ? ( 0 .. 2 ) : ( 2 );
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $dbh->quote_identifier( @{$td}[@idx] );
+        return $sf->{d}{dbh}->quote_identifier( @{$td}[@idx] );
     }
     return join( $sf->{i}{sep_char}, grep { defined && length } @{$td}[@idx] );
 }
 
 
 sub quote_col_qualified {
-    my ( $sf, $dbh, $cd ) = @_;
+    my ( $sf, $cd ) = @_;
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $dbh->quote_identifier( @$cd );
+        return $sf->{d}{dbh}->quote_identifier( @$cd );
     }
     return join( $sf->{i}{sep_char}, grep { defined && length } @$cd );
 }
 
 
 sub quote_simple_many {
-    my ( $sf, $dbh, $list ) = @_;
+    my ( $sf, $list ) = @_;
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return [ map { $dbh->quote_identifier( $_ ) } @$list ];
+        return [ map { $sf->{d}{dbh}->quote_identifier( $_ ) } @$list ];
     }
     return [ @$list ];
 }
@@ -264,7 +272,9 @@ sub write_json {
 
 sub read_json {
     my ( $sf, $file ) = @_;
-    return {} if ! -f encode( 'locale_fs', $file );
+    if ( ! -e $file ) {
+        return {};
+    }
     open my $fh, '<', encode( 'locale_fs', $file ) or die $!;
     my $json = do { local $/; <$fh> };
     close $fh;
