@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -49,7 +49,6 @@ sub defaults {
             meta                 => 0,
             lock_stmt            => 0,
             operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
-            aggregate_select     => 0,
             #subqueries_select    => 0,
             #subqueries_set       => 0,
             #subqueries_w_h       => 0,
@@ -474,7 +473,6 @@ sub set_options {
             }
             elsif ( $opt eq '_expert' ) {
                 my $sub_menu = [
-                    [ 'aggregate_select',  "- Aggregate in SELECT",        [ 'NO', 'YES' ] ],
                     [ 'subqueries',        "- Subqueries",                 [ 'NO', 'YES' ] ],
                     #[ 'subqueries_select', "- Subqueries SELECT",          [ 'NO', 'YES' ] ],
                     #[ 'subqueries_set',    "- Subqueries UPDATE-SET",      [ 'NO', 'YES' ] ],

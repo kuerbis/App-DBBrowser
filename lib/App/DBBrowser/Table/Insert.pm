@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use Cwd                   qw( realpath );
 use Encode                qw( encode decode );

@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use List::MoreUtils qw( any first_index );
 
@@ -91,9 +91,6 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'columns'} ) {
-            if ( ! ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) ) {
-                $ax->reset_sql( $sql );
-            }
             my $tmp = $sb->columns( $stmt_h, $sql, $stmt_type );
             if ( defined $tmp ) {
                 $sql->{$_} = $tmp->{$_} for keys %$tmp;
@@ -106,9 +103,6 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'aggregate'} ) {
-            if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
-                $ax->reset_sql( $sql );
-            }
             my $tmp = $sb->aggregate( $stmt_h, $sql, $stmt_type );
             if ( defined $tmp ) {
                 $sql->{$_} = $tmp->{$_} for keys %$tmp;
@@ -121,9 +115,6 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'group_by'} ) {
-            if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
-                $ax->reset_sql( $sql );
-            }
             my $tmp = $sb->group_by( $stmt_h, $sql, $stmt_type );
             if ( defined $tmp ) {
                 $sql->{$_} = $tmp->{$_} for keys %$tmp;
@@ -163,25 +154,7 @@ sub on_table {
             }
         }
         elsif ( $custom eq $cu{'print_tbl'} ) {
-            my $cols_sql = " ";
-            if ( $sql->{select_type} eq '*' ) {
-                #if ( $sf->{i}{multi_tbl} eq 'join' ) {          # ?
-                #    $cols_sql .= join( ', ', @{$sql->{cols}} ); #
-                #}                                               #
-                #else {
-                    $cols_sql .= "*";
-                #}
-            }
-            elsif ( $sql->{select_type} eq 'chosen_cols' ) {
-                $cols_sql .= $ax->cols_as_string( $sql, 'chosen_cols' );
-            }
-            elsif ( @{$sql->{aggr_cols}} || @{$sql->{group_by_cols}} ) {
-                $cols_sql .= $ax->cols_as_string( $sql, 'aggr_and_group_by_cols' ); #
-            }
-            #else {
-            #    $cols_sql .= "*";
-            #}
-            my $select .= "SELECT" . $sql->{distinct_stmt} . $cols_sql;
+            my $select .= "SELECT" . $sql->{distinct_stmt} . " " . $ax->cols_as_string( $sql );
             $select .= " FROM " . $sql->{table};
             $select .= $sql->{where_stmt};
             $select .= $sql->{group_by_stmt};
@@ -196,7 +169,7 @@ sub on_table {
             else {
                 $sf->{o}{table}{max_rows} = 0;
             }
-            my @arguments = ( @{$sql->{select_sq_args}}, @{$sql->{where_args}}, @{$sql->{having_args}} );
+            my @arguments = ( @{$sql->{where_args}}, @{$sql->{having_args}} );
             if ( $sf->{o}{G}{subqueries} ) {
                 my $tmp;
                 if ( @{$sf->{i}{stmt_history}||[]} ) {

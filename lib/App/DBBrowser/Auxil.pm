@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use Encode         qw( encode );
 use File::Basename qw( dirname );
@@ -100,22 +100,11 @@ sub print_sql {
             );
             my $cols_sql;
             if ( $stmt_type eq 'Select' ) {
-                if ( $p_sql->{select_type} eq '*' ) {
-                    $cols_sql = ' *';
-                }
-                elsif ( $p_sql->{select_type} eq 'chosen_cols' ) {
-                    $cols_sql = ' ' . $sf->cols_as_string( $p_sql, 'chosen_cols' );
-                }
-                elsif ( @{$p_sql->{aggr_cols}} || @{$p_sql->{group_by_cols}} ) {
-                    $cols_sql = ' ' . $sf->cols_as_string( $p_sql, 'aggr_and_group_by_cols' ); ##
-                }
-                else {
-                    $cols_sql = ' *';
-                }
+                $cols_sql = $sf->cols_as_string( $p_sql );
             }
             $str .= $type_sql{$stmt_type};
             $str .= $p_sql->{distinct_stmt}                   if $p_sql->{distinct_stmt};
-            $str .= $cols_sql                          . "\n" if $cols_sql;
+            $str .= ' '      . $cols_sql               . "\n" if $cols_sql;
             $str .= " FROM"                                   if $stmt_type eq 'Select' || $stmt_type eq 'Delete';
             $str .= ' '      . $table                  . "\n";
             $str .= ' '      . $p_sql->{set_stmt}      . "\n" if $p_sql->{set_stmt};
@@ -127,7 +116,7 @@ sub print_sql {
             $str .= ' '      . $p_sql->{offset_stmt}   . "\n" if $p_sql->{offset_stmt};
         }
     }
-    for my $val ( @{$p_sql->{select_sq_args}}, @{$p_sql->{set_args}}, @{$p_sql->{where_args}}, @{$p_sql->{having_args}} ) {
+    for my $val ( @{$p_sql->{set_args}}, @{$p_sql->{where_args}}, @{$p_sql->{having_args}} ) {
         $str =~ s/\?/$val/;
     }
     $str .= "\n";
@@ -142,30 +131,14 @@ sub alias_key {
 
 
 sub cols_as_string {
-    my ( $sf, $p_sql, $select_type ) = @_;
-    if ( ! keys %{$p_sql->{alias}} ) {
-        return join( ', ', @{$p_sql->{chosen_cols}} ) if $select_type eq 'chosen_cols';
-        return join( ', ', @{$p_sql->{group_by_cols}}, @{$p_sql->{aggr_cols}} );
-    }
+    my ( $sf, $p_sql ) = @_; # p_sql
     my @tmp;
-    if ( $select_type eq 'chosen_cols' ) {
-        my @values = @{$p_sql->{select_sq_args}};
-        for ( @{$p_sql->{chosen_cols}} ) {
-            my $alias_key = $_;
-            my $c = $alias_key =~ tr/?/?/;
-            $alias_key = $sf->alias_key( $alias_key, [ splice( @values, 0, $c ) ] );
-            if ( exists $p_sql->{alias}{$alias_key} && defined  $p_sql->{alias}{$alias_key} && length $p_sql->{alias}{$alias_key} ) {
-                push @tmp, $_ . " AS " . $p_sql->{alias}{$alias_key};
-            }
-            else {
-                push @tmp, $_;
-            }
-        }
-        return join( ', ', @tmp );
+    if ( ! keys %{$p_sql->{alias}} ) {
+        @tmp = ( @{$p_sql->{group_by_cols}}, @{$p_sql->{aggr_cols}}, @{$p_sql->{chosen_cols}} );
     }
     else {
         push @tmp, @{$p_sql->{group_by_cols}};
-        for ( @{$p_sql->{aggr_cols}} ) {
+        for ( @{$p_sql->{aggr_cols}}, @{$p_sql->{chosen_cols}} ) {
             if ( exists $p_sql->{alias}{$_} && defined  $p_sql->{alias}{$_} && length $p_sql->{alias}{$_} ) {
                 push @tmp, $_ . " AS " . $p_sql->{alias}{$_};
             }
@@ -173,8 +146,11 @@ sub cols_as_string {
                 push @tmp, $_;
             }
         }
-        return join( ', ', @tmp );
     }
+    if ( ! @tmp ) {
+        return "*";
+    }
+    return join( ', ', @tmp );
 }
 
 
@@ -242,7 +218,7 @@ sub reset_sql {
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw(       chosen_cols      aggr_cols      group_by_cols
                       orig_chosen_cols orig_aggr_cols orig_group_by_cols  modified_cols
-                      select_sq_args set_args where_args having_args
+                      set_args where_args having_args
                       insert_into_cols insert_into_args );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
@@ -251,7 +227,6 @@ sub reset_sql {
     for my $y ( keys %$backup ) {
         $sql->{$y} = $backup->{$y};
     }
-    $sql->{select_type} = '*';
 }
 
 

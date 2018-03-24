@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile );
@@ -28,7 +28,8 @@ sub new {
     my $sf = {
         i => $info,
         o => $options,
-        d => $data
+        d => $data,
+        sq_file => catfile $info->{app_dir}, 'saved_subqueries.json',
     };
     bless $sf, $class;
 }
@@ -38,40 +39,40 @@ sub choose_subquery {
     my ( $sf, $sql, $tmp, $stmt_type ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my @pre = ( undef );
-    my $h_ref = $ax->read_json( $sf->{i}{sq_file} );
+    my $h_ref = $ax->read_json( $sf->{sq_file} );
     my $saved_subqueries = $h_ref->{$sf->{d}{db}} || []; # reverse
-    my $tmp_subqueries = $sf->{i}{stmt_history};
-    my $pr_saved_subqueries = $sf->__pr_subqueries( $saved_subqueries );
-    my $pr_tmp_subqueries = $sf->__pr_subqueries( $tmp_subqueries );
-
-    while ( 1 ) {
-        my $pr_subqueries = $sf->__pr_subqueries( $saved_subqueries, $tmp_subqueries );
-        my $choices = [ @pre, map( '  ' . $_, @$pr_saved_subqueries ), map( 't ' . $_, @$pr_tmp_subqueries ) ];
-        my $idx = $sf->__choose_see_long( $choices, $sql, $tmp, $stmt_type  );
-        if ( ! $idx ) {
-            return;
+    my $tmp_subqueries = $sf->__fill_history_stmts( $sf->{i}{stmt_history} );
+    my $choices = [ @pre, map( '  ' . $_, @$saved_subqueries ), map( 't ' . $_, @$tmp_subqueries ) ];
+    my $idx = $sf->__choose_see_long( $choices, $sql, $tmp, $stmt_type  );
+    if ( ! $idx ) {
+        return;
+    }
+    else {
+        $idx -= @pre;
+        if ( $idx <= $#$saved_subqueries ) {
+            return $saved_subqueries->[$idx];
         }
         else {
-            $idx -= @pre;
-            if ( $idx <= $#$saved_subqueries ) {
-                return $saved_subqueries->[$idx];
-            }
-            else {
-                $idx -= @$saved_subqueries;
-                return $tmp_subqueries->[$idx];
-            }
+            $idx -= @$saved_subqueries;
+            return $tmp_subqueries->[$idx];
         }
     }
 }
 
 
-sub __pr_subqueries {
+sub __fill_history_stmts {
     my ( $sf, $subqueries ) = @_;
-    my $pr_subqueries = [];
+    my $filled_subqueries = [];
     for my $e ( @$subqueries ) {
-        push @$pr_subqueries, $e->[0] . '  [' . join( ',', @{$e->[1]} ) . ']';
+        my $stmt = $e->[0];
+        my @args = @{$e->[1]};
+        while ( $stmt =~ /(?<=(?:,|\(|\s))\?/ ) {
+            my $arg = $sf->{d}{dbh}->quote( shift @args );
+            $stmt =~ s/(?<=(?:,|\(|\s))\?/$arg/;
+        }
+        push @$filled_subqueries, $stmt;
     }
-    return $pr_subqueries;
+    return $filled_subqueries;
 }
 
 
@@ -105,49 +106,55 @@ sub __choose_see_long {
 sub edit_sq_file {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my ( $add, $remove ) = ( '  Add', '  Remove' );
+    my ( $add, $edit, $remove ) = ( '  Add', '  Edit', '  Remove' );
     my @pre = ( undef );
 
     while ( 1 ) {
-        my $h_ref = $ax->read_json( $sf->{i}{sq_file} );
+        my $h_ref = $ax->read_json( $sf->{sq_file} );
         my $subqueries = $h_ref->{$sf->{d}{db}} || [];
-        my $pr_subqueries = $sf->__pr_subqueries( $subqueries );
-        my @tmp = ( $sf->{d}{db_string}, 'Saved stmts:', map( '  ' . $_, @$pr_subqueries ), ' ' );
+        my @tmp = ( $sf->{d}{db_string}, 'Saved stmts:', map( '  ' . $_, @$subqueries ), ' ' );
         my $info = join "\n", @tmp;
         my $choice = choose(
-            [ @pre, $add, $remove ],
+            [ @pre, $add, $edit, $remove ],
             { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_config}, prompt => 'Choose:', info => $info }
         );
+        my $ok;
         if ( ! defined $choice ) {
             return;
         }
         elsif ( $choice eq $add ) {
-            $sf->__add_subqueries();
+            $ok = $sf->__add_subqueries( $subqueries );
+        }
+        elsif ( $choice eq $edit ) {
+            $ok = $sf->__edit_subqueries( $subqueries );
         }
         elsif ( $choice eq $remove ) {
-            $sf->__remove_subqueries();
+            $ok = $sf->__remove_subqueries( $subqueries );
+        }
+        if ( $ok ) {
+            if ( $subqueries ) {
+                $h_ref->{$sf->{d}{db}} = $subqueries;
+            }
+            else {
+                delete $h_ref->{$sf->{d}{db}};
+            }
+            $ax->write_json( $sf->{sq_file}, $h_ref );
         }
     }
 }
 
 
 sub __add_subqueries {
-    my ( $sf ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $h_ref = $ax->read_json( $sf->{i}{sq_file} );
-    my $subqueries = $h_ref->{$sf->{d}{db}} || [];
-    my $available = [ @{$sf->{i}{stmt_history}} ];
+    my ( $sf, $subqueries ) = @_;
+    my $available = $sf->__fill_history_stmts( $sf->{i}{stmt_history} );
     my $readline = '  readline';
     my @pre = ( undef, $sf->{i}{_confirm}, $readline );
-    my $info = $sf->{d}{db_string} . "\n" . 'Saved stmts:';
     my $bu = [];
 
     while ( 1 ) {
-        my $pr_subqueries = $sf->__pr_subqueries( $subqueries );
-        my @tmp = ( $sf->{d}{db_string}, 'Saved stmts:', map( '  ' . $_, @$pr_subqueries ), ' ' );
+        my @tmp = ( $sf->{d}{db_string}, 'Saved stmts:', map( '  ' . $_, @$subqueries ), ' ' );
         my $info = join "\n", @tmp;
-        my $pr_history = $sf->__pr_subqueries( $available );
-        my $choices = [ @pre, map { '  ' . $_ } @$pr_history ];
+        my $choices = [ @pre, map { '  ' . $_ } @$available ];
         my $idx = choose(
             $choices,
             { %{$sf->{i}{lyt_3}}, prompt => 'Add:', info => $info, index => 1, undef => $sf->{i}{_back} }
@@ -160,13 +167,6 @@ sub __add_subqueries {
             return 0;
         }
         elsif ( $choices->[$idx] eq $sf->{i}{_confirm} ) {
-            if ( $subqueries ) {
-                $h_ref->{$sf->{d}{db}} = $subqueries;
-            }
-            else {
-                delete $h_ref->{$sf->{d}{db}};
-            }
-            $ax->write_json( $sf->{i}{sq_file}, $h_ref );
             return 1;
         }
         elsif ( $choices->[$idx] eq $readline ) {
@@ -179,52 +179,101 @@ sub __add_subqueries {
                 }
                 return 0;
             }
-            my $args = [];
-            ARGS: while ( 1 ) {
-                my $new = '  ' . $stmt . '  [' . join( ',', @$args );
-                my @tmp = ( $sf->{d}{db_string}, 'Saved stmts:', map( '  ' . $_, @$pr_subqueries ), $new, ' ' );
-                my $info = join "\n", @tmp;
-                # Readline
-                my $value = $tf->readline( 'Argument: ', { info => $info, clear_screen => 1 } );
-                if ( ! defined $value ) {
-                    if ( @$args ) {
-                        pop @$args;
-                        next ARGS;
-                    }
-                    return 0;
-                }
-                elsif ( $value eq '' ) {
-                    last ARGS;
-                }
-                else {
-                    push @$args, $value;
-                }
-            }
             push @$bu, [ [ @$subqueries ], [ @$available ] ];
-            push @$subqueries, [ $stmt, $args ];
+            push @$subqueries, $stmt;
         }
         else {
             push @$bu, [ [ @$subqueries ], [ @$available ] ];
-            push @$subqueries, splice( @$available, $idx-@pre, 1 );
+            push @$subqueries, splice @$available, $idx-@pre, 1;
+        }
+    }
+}
+
+
+sub __edit_subqueries {
+    my ( $sf, $subqueries ) = @_;
+    my $indexes = [];
+    my @pre = ( undef, $sf->{i}{_confirm} );
+    my $bu = [];
+    my $old_idx = 0;
+
+    STMT: while ( 1 ) {
+        my @tmp = ( $sf->{d}{db_string}, 'Saved stmts' );
+        my $info = join "\n", @tmp;
+        my @available;
+        for my $i ( 0 .. $#$subqueries ) {
+            my $pre = ( any { $i == $_ } @$indexes ) ? '| ' : '  ';
+            push @available, $pre . $subqueries->[$i];
+        }
+        my $choices = [ @pre, @available ];
+        $ENV{TC_RESET_AUTO_UP} = 0;
+        # Choose
+        my $idx = choose(
+            $choices,
+            { %{$sf->{i}{lyt_3}}, prompt => 'Choose:', info => $info, index => 1, default => $old_idx }
+        );
+        if ( ! $idx ) {
+            if ( @$bu ) {
+                ( $subqueries, $indexes ) = @{pop @$bu};
+                next STMT;
+            }
+            return 0;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx = 0;
+                next STMT;
+            }
+            else {
+                $old_idx = $idx;
+            }
+        }
+        delete $ENV{TC_RESET_AUTO_UP};
+        if ( $choices->[$idx] eq $sf->{i}{_confirm} ) {
+            return 1;
+        }
+        else {
+            $idx -= @pre;
+            my @tmp = ( $sf->{d}{db_string}, 'Saved stmts', 'Choose:', '  BACK', '  CONFIRM' );
+            for my $i ( 0 .. $#$subqueries ) {
+                my $pre = '  ';
+                if ( $i == $idx ) {
+                    $pre = '> ';
+                }
+                elsif ( any { $i == $_ } @$indexes ) {
+                    $pre = '| ';
+                }
+                push @tmp, $pre . $subqueries->[$i];
+            }
+            push @tmp, ' ';
+            my $info = join "\n", @tmp;
+            my $tf = Term::Form->new();
+            my $stmt = $tf->readline( 'Statement: ', { info => $info, clear_screen => 1, default => $subqueries->[$idx]  } );
+            if ( ! defined $stmt || ! length $stmt ) {
+                if ( @$bu ) {
+                    ( $subqueries, $indexes ) = @{pop @$bu};
+                    next STMT; #
+                }
+                return 0;
+            }
+            push @$bu, [ [ @$subqueries ], [ @$indexes ] ];
+            $subqueries->[$idx] = $stmt;
+            push @$indexes, $idx;
         }
     }
 }
 
 
 sub __remove_subqueries {
-    my ( $sf ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $h_ref = $ax->read_json( $sf->{i}{sq_file} );
-    my $subqueries = $h_ref->{$sf->{d}{db}} || [];
+    my ( $sf, $subqueries ) = @_;
     if ( ! @$subqueries ) {
         return 0;
     }
     my @tmp = ( $sf->{d}{db_string}, 'Remove:' );
     my $info = join "\n", @tmp;
     my $prompt = "\n" . 'Choose stmt to remove:';
-    my $pr_subqueries = $sf->__pr_subqueries( $subqueries );
     my $idx = choose_a_subset(
-        $pr_subqueries,
+        $subqueries,
         { mouse => $sf->{o}{table}{mouse}, index => 1, show_fmt => 1,
           keep_chosen => 0, prompt => $prompt, info => $info }
     );
@@ -234,13 +283,7 @@ sub __remove_subqueries {
     for my $i ( sort { $b <=> $a } @$idx ) {
         my $ref = splice( @$subqueries, $i, 1 );
     }
-    if ( $subqueries ) {
-        $h_ref->{$sf->{d}{db}} = $subqueries;
-    }
-    else {
-        delete $h_ref->{$sf->{d}{db}};
-    }
-    $ax->write_json( $sf->{i}{sq_file}, $h_ref );
+    return 1;
 }
 
 

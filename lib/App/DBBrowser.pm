@@ -5,7 +5,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -274,9 +274,9 @@ sub run {
                 user_dbs => $user_dbs,
                 sys_dbs  => $sys_dbs,
             };
-            if ( $sf->{o}{G}{subqueries} ) {
-                $sf->{i}{sq_file} = catfile $sf->{i}{app_dir}, 'subqueries.json';
-            }
+            #if ( $sf->{o}{G}{subqueries} ) {
+            #    $sf->{i}{sq_file} = catfile $sf->{i}{app_dir}, 'subqueries.json';
+            #}
             $sf->{i}{file_attached_db} = catfile $sf->{i}{app_dir}, 'attached_DB.json';
             $sf->{db_attached} = 0;
             if ( $driver eq 'SQLite' && -s $sf->{i}{file_attached_db} ) {
@@ -442,7 +442,7 @@ sub run {
                         my $old_idx_hdn = exists $sf->{old_idx_hdn} ? delete $sf->{old_idx_hdn} : 0;
 
                         HIDDEN: while ( 1 ) {
-                            my ( $create_table, $drop_table, $attach_databases, $detach_databases, $sq_file ) = (
+                            my ( $create_table, $drop_table, $attach_databases, $detach_databases, $edit_sq_file ) = (
                                 '- CREATE table', '- DROP   table', '- Attach DB', '- Detach DB', '  SQ-file'
                             );
                             my $choices_hidden = [ undef ];
@@ -452,7 +452,7 @@ sub run {
                                 push @$choices_hidden, $attach_databases;
                                 push @$choices_hidden, $detach_databases if $sf->{db_attached};
                             }
-                            push @$choices_hidden, $sq_file if $sf->{o}{G}{subqueries};
+                            push @$choices_hidden, $edit_sq_file if $sf->{o}{G}{subqueries};
                             if ( @$choices_hidden == 0 ) {
                                 next TABLE;
                             }
@@ -528,7 +528,7 @@ sub run {
                                 $dbh->disconnect();
                                 next DATABASE;
                             }
-                            elsif ( $choice eq $sq_file ) {
+                            elsif ( $choice eq $edit_sq_file ) {
                                 my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
                                 $sq->edit_sq_file( $db );
                             }
@@ -662,7 +662,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.007
+Version 2.008
 
 =head1 DESCRIPTION
 

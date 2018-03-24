@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.007';
+our $VERSION = '2.008';
 
 use List::MoreUtils   qw( any );
 
@@ -43,12 +43,11 @@ sub new {
 
 
 sub __add_aggregate_substmt {
-    my ( $sf, $sql, $tmp,  $stmt_type, $cols_type ) = @_;
+    my ( $sf, $sql, $tmp,  $stmt_type ) = @_;
     my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my @pre = ( undef );
-    push @pre, $sf->{i}{ok} if $cols_type eq 'aggr_cols';
-    my $i = @{$tmp->{$cols_type}};
+    my @pre = ( undef, $sf->{i}{ok} );
+    my $i = @{$tmp->{aggr_cols}};
     $ax->print_sql( $sql, [ $stmt_type ], $tmp );
     # Choose
     my $aggr = $stmt_h->choose(
@@ -61,11 +60,11 @@ sub __add_aggregate_substmt {
         return $aggr;
     }
     if ( $aggr eq 'COUNT(*)' ) {
-        $tmp->{$cols_type}[$i] = $aggr;
+        $tmp->{aggr_cols}[$i] = $aggr;
     }
     else {
         $aggr =~ s/\(\S\)\z//; #
-        $tmp->{$cols_type}[$i] = $aggr . "(";
+        $tmp->{aggr_cols}[$i] = $aggr . "(";
         if ( $aggr eq 'COUNT' ) {
             $ax->print_sql( $sql, [ $stmt_type ], $tmp );
             # Choose
@@ -76,7 +75,7 @@ sub __add_aggregate_substmt {
                 return;
             }
             if ( $all_or_distinct eq $sf->{distinct} ) {
-                $tmp->{$cols_type}[$i] .= $sf->{distinct} . ' '; #
+                $tmp->{aggr_cols}[$i] .= $sf->{distinct} . ' '; #
             }
         }
         $ax->print_sql( $sql, [ $stmt_type ], $tmp );
@@ -87,11 +86,11 @@ sub __add_aggregate_substmt {
         if ( ! defined $f_col ) {
             return;
         }
-        $tmp->{$cols_type}[$i] .= $f_col . ")";
+        $tmp->{aggr_cols}[$i] .= $f_col . ")";
     }
-    my $alias = $ax->alias( $tmp->{$cols_type}[$i] );
+    my $alias = $ax->alias( $tmp->{aggr_cols}[$i] );
     if ( defined $alias && length $alias ) {
-        $tmp->{alias}{$tmp->{$cols_type}[$i]} = $ax->quote_col_qualified( [ $alias ] );
+        $tmp->{alias}{$tmp->{aggr_cols}[$i]} = $ax->quote_col_qualified( [ $alias ] );
     }
     return 1;
 }
@@ -102,16 +101,12 @@ sub columns {
     my ( $sf, $stmt_h, $sql, $stmt_type ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tmp = {
-        chosen_cols    => [],
-        select_type    => 'chosen_cols',
-        select_sq_args => [],
-        alias          => { %{$sql->{alias}} },
+        chosen_cols => [],
+        alias       => { %{$sql->{alias}} },
     };
-    my $aggr_func = '&';
     my $sq_col = '(Q';
     my $bu = [];
     my @pre = ( undef, $sf->{i}{ok} );
-    push @pre, $aggr_func if $sf->{o}{G}{aggregate_select};
     push @pre, $sq_col if $sf->{o}{G}{subqueries};
 
     COLUMNS: while ( 1 ) {
@@ -123,47 +118,31 @@ sub columns {
         );
         if ( ! defined $col ) {
             if ( @$bu ) {
-                ( $tmp->{chosen_cols}, $tmp->{select_sq_args}, $tmp->{alias} ) = @{pop @$bu};
+                ( $tmp->{chosen_cols}, $tmp->{alias} ) = @{pop @$bu};
                 next COLUMNS;
             }
             return;
         }
         elsif ( $col eq $sf->{i}{ok} ) {
-            $tmp->{select_type}      = '*' if ! @{$tmp->{chosen_cols}};
             $tmp->{orig_chosen_cols} = [];
             $tmp->{modified_cols}    = [];
             return $tmp;
         }
-        push @$bu, [ [ @{$tmp->{chosen_cols}} ], [ @{$tmp->{select_sq_args}} ], { %{$tmp->{alias}} } ];
+        push @$bu, [ [ @{$tmp->{chosen_cols}} ], { %{$tmp->{alias}} } ];
         if ( $col eq $sq_col ) {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $res = $sq->choose_subquery( $sql, $tmp, $stmt_type );
-            if ( ! defined $res ) {
-                ( $tmp->{chosen_cols}, $tmp->{select_sq_args}, $tmp->{alias} ) = @{pop @$bu};
+            my $subquery = $sq->choose_subquery( $sql, $tmp, $stmt_type );
+            if ( ! defined $subquery ) {
+                ( $tmp->{chosen_cols}, $tmp->{alias} ) = @{pop @$bu};
                 next COLUMNS;
             }
-            my ( $subquery, $values ) = @$res;
             $subquery = "(" . $subquery . ")";
             push @{$tmp->{chosen_cols}}, $subquery;
-            push @{$tmp->{select_sq_args}}, @$values; #
-            my $filled = $subquery;
-            for my $val ( @$values ) {
-                $filled =~ s/\?/$val/;
-            }
-            my $alias = $ax->alias( $filled );
-            $filled .= '_' . scalar @$values if @$values;
+            my $alias = $ax->alias( $subquery ); ###
             if ( defined $alias && length $alias ) {
-                my $alias_key = $ax->alias_key( $subquery, $values );
-                $tmp->{alias}{$alias_key} = $ax->quote_col_qualified( [ $alias ] );
+                $tmp->{alias}{$subquery} = $ax->quote_col_qualified( [ $alias ] );
             }
             next COLUMNS;
-        }
-        elsif ( $col eq $aggr_func ) {
-            my $ret = $sf->__add_aggregate_substmt( $sql, $tmp, $stmt_type, 'chosen_cols' );
-            if ( ! $ret ) {
-                ( $tmp->{chosen_cols}, $tmp->{select_sq_args}, $tmp->{alias} ) = @{pop @$bu};
-                next COLUMNS;
-            }
         }
         else {
             push @{$tmp->{chosen_cols}}, $col;
@@ -200,14 +179,12 @@ sub distinct {
 
 sub aggregate {
     my ( $sf, $stmt_h, $sql, $stmt_type ) = @_;
-    my $group_by_cols = $sql->{group_by_cols};
     my $tmp = {
         aggr_cols   => [],
-        select_type => 'aggr_and_group_by_cols',
     };
 
     AGGREGATE: while ( 1 ) {
-        my $ret = $sf->__add_aggregate_substmt( $sql, $tmp, $stmt_type, 'aggr_cols' );
+        my $ret = $sf->__add_aggregate_substmt( $sql, $tmp, $stmt_type );
         if ( ! $ret ) {
             if ( @{$tmp->{aggr_cols}} ) {
                 my $aggr = pop @{$tmp->{aggr_cols}};
@@ -217,9 +194,6 @@ sub aggregate {
             return;
         }
         elsif ( $ret eq $sf->{i}{ok} ) {
-            if ( ! @{$tmp->{aggr_cols}} && ! @$group_by_cols ) {
-                $tmp->{select_type} = '*';
-            }
             $tmp->{orig_aggr_cols} = [];
             return $tmp;
         }
@@ -309,18 +283,15 @@ sub where {
         }
         if ( $quote_col eq $sq_col ) {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );  # sub
-            my $res = $sq->choose_subquery( $sql, $tmp, $stmt_type );
-            if ( ! defined $res ) {
+            my $subquery = $sq->choose_subquery( $sql, $tmp, $stmt_type );
+            if ( ! defined $subquery ) {
                 if ( @$bu ) {
                     ( $tmp->{where_args}, $tmp->{where_stmt}, $AND_OR, $unclosed, $count ) = @{pop @$bu};
                     next WHERE;
                 }
                 return;
             }
-            my ( $subquery, $values ) = @$res;
-            #$tmp->{where_stmt} .= " (" . $subquery . ")";
             $quote_col = "(" . $subquery . ")";
-            push @{$tmp->{where_args}}, @$values; #
         }
         if ( $quote_col eq ')' ) {
             push @$bu, [ [@{$tmp->{where_args}}], $tmp->{where_stmt}, $AND_OR, $unclosed, $count ];
@@ -364,7 +335,6 @@ sub group_by {
     my $tmp = {
         group_by_stmt => " GROUP BY",
         group_by_cols => [],
-        select_type   => 'aggr_and_group_by_cols',
     };
 
     GROUP_BY: while ( 1 ) {
@@ -385,9 +355,6 @@ sub group_by {
         if ( $col eq $sf->{i}{ok} ) {
             if ( ! @{$tmp->{group_by_cols}} ) {
                 $tmp->{group_by_stmt} = '';
-                if ( ! @{$tmp->{aggr_cols}} ) {
-                    $tmp->{select_type} = '*';
-                }
             }
             $tmp->{orig_group_by_cols} = [];
             return $tmp;
@@ -500,10 +467,7 @@ sub order_by {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my @pre = ( undef, $sf->{i}{ok} );
     my @cols;
-    if ( $sql->{select_type} eq '*' || $sql->{select_type} eq 'chosen_cols' ) {
-        @cols = ( @{$sql->{cols}}, @{$sql->{modified_cols}} );
-    }
-    else {
+    if ( @{$sql->{aggr_cols}} || @{$sql->{group_by_cols}} ) {
         @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
         for my $stmt_type ( qw/group_by_cols aggr_cols/ ) {
             # offer also the unmodified columns:
@@ -514,6 +478,9 @@ sub order_by {
                 }
             }
         }
+    }
+    else {
+        @cols = ( @{$sql->{cols}}, @{$sql->{modified_cols}} );
     }
     my $col_sep = ' ';
     my $tmp = { order_by_stmt => " ORDER BY" };
@@ -731,14 +698,12 @@ sub __set_operator_sql {
             $tmp->{$stmt} .= ' ' . $operator;
             if ( $hist ) {
                 my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );  # sub
-                my $res = $sq->choose_subquery( $sql, $tmp, $stmt_type );
-                if ( ! defined $res ) {
+                my $subquery = $sq->choose_subquery( $sql, $tmp, $stmt_type );
+                if ( ! defined $subquery ) {
                     $tmp->{$stmt} = $bu_stmt;
                     next OPERATOR;
                 }
-                my ( $subquery, $values ) = @$res;
                 $tmp->{$stmt} .= " (" . $subquery . ")";
-                push @{$tmp->{$args}}, @$values; #
             }
             else {
                 my $col_sep = '';
@@ -793,14 +758,12 @@ sub __set_operator_sql {
             $ax->print_sql( $sql, [ $stmt_type ], $tmp );
             if ( $hist ) {
                 my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );  # sub
-                my $res = $sq->choose_subquery( $sql, $tmp, $stmt_type );
-                if ( ! defined $res ) {
+                my $subquery = $sq->choose_subquery( $sql, $tmp, $stmt_type );
+                if ( ! defined $subquery ) {
                     $tmp->{$stmt} = $bu_stmt;
                     next OPERATOR;
                 }
-                my ( $subquery, $values ) = @$res;
                 $tmp->{$stmt} .= " (" . $subquery . ")";
-                push @{$tmp->{$args}}, @$values; #
             }
             else {
                 my $prompt = $operator =~ /^(?:NOT\s)?LIKE\z/ ? 'Pattern: ' : 'Value: '; #
