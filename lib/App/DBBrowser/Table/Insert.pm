@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.009';
+our $VERSION = '2.010';
 
 use Cwd                   qw( realpath );
 use Encode                qw( encode decode );
@@ -17,7 +17,7 @@ use List::Util            qw( all );
 use List::MoreUtils   qw( first_index any );
 use Encode::Locale    qw();
 #use Spreadsheet::Read qw( ReadData rows ); # "require"d
-use Text::CSV         qw();
+#use Text::CSV         qw();                # "require"d
 
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( choose_a_file choose_a_subset );
@@ -411,6 +411,7 @@ sub __parse_file {
     if ( $parse_mode == 0 ) {
         seek $fh, 0, 0;
         my $tmp = [];
+        require Text::CSV;
         my $csv = Text::CSV->new( { map { $_ => $sf->{o}{csv}{$_} } keys %{$sf->{o}{csv}} } ) or die Text::CSV->error_diag();
         $csv->callbacks( error => sub {
             my ( $code, $str, $pos, $rec, $fld ) = @_;
