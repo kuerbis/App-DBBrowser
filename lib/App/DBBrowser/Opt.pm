@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.010';
+our $VERSION = '2.011';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -557,7 +557,7 @@ sub __choose_a_subset_wrap {
     my $name = 'New> ';
     my $list = choose_a_subset(
         $available,
-        { info => $info, name => $name, prompt => $prompt, prefix => '- ', index => 0, keep_chosen => 0,
+        { info => $info, name => $name, prompt => $prompt, prefix => '- ', index => 0, remove_chosen => 1,
           clear_screen => 1, mouse => $sf->{o}{table}{mouse}, back => '  BACK', confirm => '  CONFIRM' }
     );
     return if ! defined $list;

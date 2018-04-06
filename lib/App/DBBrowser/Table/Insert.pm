@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.010';
+our $VERSION = '2.011';
 
 use Cwd                   qw( realpath );
 use Encode                qw( encode decode );
@@ -275,7 +275,7 @@ sub __file_name {
             my $idx = choose_a_subset(
                 [ map { decode 'locale_fs', $_ } @files ],
                 { mouse => $sf->{o}{table}{mouse}, prefix => '  ', info => 'Files to remove:',
-                 no_spacebar => [ @pre ], index => 1, show_fmt => 1, keep_chosen => 0, clear_screen => 1 }
+                 no_spacebar => [ @pre ], index => 1, fmt_chosen => 1, remove_chosen => 1, clear_screen => 1 }
             );
             if ( ! defined $idx || ! @$idx ) {
                 next FILE;

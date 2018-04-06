@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.010';
+our $VERSION = '2.011';
 
 use File::Basename qw( basename );
 use List::Util     qw( none any );
@@ -254,7 +254,7 @@ sub __set_columns {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     if ( ! @{$sql->{insert_into_args}} ) {
         $ax->print_sql( $sql, $stmt_typeS );
-        my $col_count = choose_a_number( 3, { small => 1, confirm => 'Confirm', mouse => $sf->{o}{table}{mouse},
+        my $col_count = choose_a_number( 3, { small_on_top => 1, confirm => 'Confirm', mouse => $sf->{o}{table}{mouse},
                                             back => 'Back', name => 'Number of columns: ', clear_screen => 0 } );
         if ( ! $col_count ) {
             return;

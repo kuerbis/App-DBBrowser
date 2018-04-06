@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.010';
+our $VERSION = '2.011';
 
 use List::Util qw( any );
 
@@ -136,7 +136,7 @@ sub detach_db {
     my $prompt = "\n" . 'Choose:';
     my $idx = choose_a_subset(
         [ @choices ],
-        { mouse => $sf->{o}{table}{mouse}, info => $info, index => 1, show_fmt => 1, keep_chosen => 0,
+        { mouse => $sf->{o}{table}{mouse}, info => $info, index => 1, fmt_chosen => 1, remove_chosen => 1,
          prompt => $prompt, info => $info, back => '  BACK', confirm => '  CONFRIM', prefix => '  '}
     );
     if ( ! defined $idx || ! @$idx ) {
