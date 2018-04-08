@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.011';
+our $VERSION = '2.012';
 
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
@@ -117,13 +117,13 @@ sub __menu_insert {
     my ( $sf, $group ) = @_;
     my $menu_insert = {
         main_insert => [
-#            { name => 'files_dir',             text => "- File Dir",         section => 'insert' },
-            { name => '_parse_mode',           text => "- Parse Tool",       section => 'insert' },
-            { name => '_module_Text_CSV',      text => "- Text::CSV config", section => 'csv'    },
-            { name => '_parse_with_split',     text => "- 'split'   config", section => 'split'  },
-            { name => 'file_encoding',         text => "- File Encoding",    section => 'insert' },
-            { name => 'max_files',             text => "- File History",     section => 'insert' },
-            { name => '_create_table',         text => "- Create-table",     section => 'create' }, ##
+#            { name => 'files_dir',         text => "- File Dir",         section => 'insert' },
+            { name => '_parse_with_split', text => "- 'split'   config", section => 'split'  },
+            { name => '_module_Text_CSV',  text => "- Text::CSV config", section => 'csv'    },
+            { name => '_parse_mode',       text => "- Parse Tool",       section => 'insert' },
+            { name => 'file_encoding',     text => "- File Encoding",    section => 'insert' },
+            { name => 'max_files',         text => "- File History",     section => 'insert' },
+            { name => '_create_table',     text => "- Create-table",     section => 'create' }, ##
         ],
         _module_Text_CSV => [
             { name => '_csv_char',    text => "- *_char attributes", section => 'csv' },
@@ -284,15 +284,15 @@ sub __menus {
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
+            { name => 'max_rows',           text => "- Auto Limit",   section => 'G' },
+            { name => 'lock_stmt',          text => "- Lock Mode",    section => 'G' },
             { name => 'meta',               text => "- Metadata",     section => 'G' },
             { name => 'operators',          text => "- Operators",    section => 'G' },
-            { name => 'lock_stmt',          text => "- Lock Mode",    section => 'G' },
-            { name => 'max_rows',           text => "- Auto Limit",   section => 'G' },
-            { name => '_subqueries',        text => "- Subqueries",   section => 'G' },
-            { name => 'parentheses',        text => "- Parentheses",  section => 'G' },
             { name => 'alias',              text => "- Alias",        section => 'G' },
+            { name => '_subqueries',        text => "- Subqueries",   section => 'G' },
             { name => '_sql_identifiers',   text => "- Identifiers",  section => 'G' },
             { name => '_write_access',      text => "- Write access", section => 'G' },
+            { name => 'parentheses',        text => "- Parentheses",  section => 'G' },
         ],
         config_output => [
             { name => 'min_col_width', text => "- Colwidth",      section => 'table' },
