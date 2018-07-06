@@ -6,7 +6,7 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.016';
+our $VERSION = '2.017';
 
 use List::MoreUtils   qw( any );
 
@@ -645,7 +645,8 @@ sub __set_operator_sql {
             $tmp->{$stmt} .= ' ' . $operator;
             $ax->print_sql( $sql, [ $stmt_type ], $tmp );
             # Choose
-            my $quote_col = $stmt_h->choose( $sql->{cols}, { prompt => "$operator:" } );
+            #my $quote_col = $stmt_h->choose( $sql->{cols}, { prompt => "$operator:" } );
+            my $quote_col = $stmt_h->choose( $sql->{cols}, { prompt => 'Col:' } );
             if ( ! defined $quote_col ) {
                 #$tmp->{$stmt} = '';
                 $tmp->{$stmt} = $bu_stmt;
