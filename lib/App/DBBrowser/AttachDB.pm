@@ -6,8 +6,6 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.017';
-
 use List::Util qw( any );
 
 use Term::Choose       qw( choose );

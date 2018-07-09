@@ -6,8 +6,6 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.017';
-
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );

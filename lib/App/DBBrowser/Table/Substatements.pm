@@ -6,8 +6,6 @@ use strict;
 use 5.008003;
 no warnings 'utf8';
 
-our $VERSION = '2.017';
-
 use List::MoreUtils   qw( any );
 
 use Term::Choose       qw( choose );
@@ -215,7 +213,7 @@ sub set {
         $ax->print_sql( $sql, [ $stmt_type ], $tmp );
         # Choose
         my $col = $stmt_h->choose(
-            [ @pre, @{$sql->{cols}} ],
+            [ @pre, @{$sql->{cols}} ]
         );
         if ( ! defined $col ) {
             if ( @$bu ) {

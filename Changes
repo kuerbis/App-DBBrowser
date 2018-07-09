@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.018    2018-07-09
+        - Don't put Version in every pm.
+        - Bugfix join-menu.
+
 2.017    2018-07-06
         - Bugfix undefined database.
         - New option 'squash spaces'.
