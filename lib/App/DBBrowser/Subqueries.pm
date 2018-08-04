@@ -219,7 +219,6 @@ sub __edit_subqueries {
         }
         delete $ENV{TC_RESET_AUTO_UP};
         if ( $choices->[$idx] eq $sf->{i}{_confirm} ) {
-            #return $subqueries;
             return 1;
         }
         else {
@@ -275,7 +274,6 @@ sub __remove_subqueries {
     for my $i ( sort { $b <=> $a } @$idx ) {
         my $ref = splice( @$subqueries, $i, 1 );
     }
-    #return $subqueries;
     return 1;
 }
 
