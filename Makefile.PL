@@ -62,6 +62,7 @@ WriteMakefile(
         'Term::Choose::LineFold'  => '1.621',
         'Term::Choose::Util'      => '0.066',
         'Term::Form'              => '0.321',
+        'Term::ProgressBar'       => 0,
         'Term::TablePrint'        => '0.070',
         'Text::CSV'               => 0,
         %prereqs_os_specific,
