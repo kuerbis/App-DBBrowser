@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.025    2018-08-13
+        - Removed "Term::ProgressBar" from the dependencies since "Term::TablePrint" has now its own progress bar module.
+        - Minimum version "Term::TablePrint" is "0.072".
+
 2.024    2018-08-11
         - Add "Term::ProgressBar" to the dependencies (because "Term::ProgressBar" is now optional in "Term::TablePrint").
 
