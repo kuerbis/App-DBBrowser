@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.028    2018-11-25
+        - New option to disable "File::Find" warnings.
+
 2.027    2018-11-23
         - Added option 'color'.
         - "Term::Choose" => '1.634'.

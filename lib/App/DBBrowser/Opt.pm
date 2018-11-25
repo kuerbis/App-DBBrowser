@@ -44,6 +44,7 @@ sub defaults {
             create_table_ok      => 0,
             delete_ok            => 0,
             drop_table_ok        => 0,
+            file_find_warnings   => 0,
             insert_ok            => 0,
             lock_stmt            => 0,
             max_rows             => 200_000,
@@ -286,7 +287,7 @@ sub __menus {
             { name => 'mouse',         text => "- Mouse Mode",  section => 'table' },
         ],
         config_sql => [
-            { name => 'max_rows',           text => "- Auto Limit",   section => 'G' },
+            { name => 'max_rows',           text => "- Max Rows",     section => 'G' },
             { name => 'lock_stmt',          text => "- Lock Mode",    section => 'G' },
             { name => 'meta',               text => "- Metadata",     section => 'G' },
             { name => 'operators',          text => "- Operators",    section => 'G' },
@@ -297,15 +298,16 @@ sub __menus {
             { name => 'parentheses',        text => "- Parentheses",  section => 'G' },
         ],
         config_output => [
-            { name => 'min_col_width', text => "- Colwidth",      section => 'table' },
-            { name => 'progress_bar',  text => "- ProgressBar",   section => 'table' },
-            { name => 'tab_width',     text => "- Tabwidth",      section => 'table' },
-            { name => 'grid',          text => "- Grid",          section => 'table' },
-            { name => 'color',         text => "- Color",          section => 'table' },
-            { name => 'keep_header',   text => "- Keep Header",   section => 'table' },
-            { name => 'undef',         text => "- Undef",         section => 'table' },
-            { name => 'binary_filter', text => "- Binary filter", section => 'table' },
-            { name => 'squash_spaces', text => "- Squash spaces", section => 'table' },
+            { name => 'min_col_width',      text => "- Colwidth",      section => 'table' },
+            { name => 'progress_bar',       text => "- ProgressBar",   section => 'table' },
+            { name => 'tab_width',          text => "- Tabwidth",      section => 'table' },
+            { name => 'grid',               text => "- Grid",          section => 'table' },
+            { name => 'color',              text => "- Color",         section => 'table' },
+            { name => 'keep_header',        text => "- Keep Header",   section => 'table' },
+            { name => 'undef',              text => "- Undef",         section => 'table' },
+            { name => 'binary_filter',      text => "- Binary filter", section => 'table' },
+            { name => 'squash_spaces',      text => "- Squash spaces", section => 'table' },
+            { name => 'file_find_warnings', text => "- Warnings",      section => 'G' },
         ],
     };
     return $menus->{$group};
@@ -470,9 +472,15 @@ sub set_options {
                 my $prompt = 'Threshold ProgressBar: ';
                 $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
+            elsif ( $opt eq 'file_find_warnings' ) {
+                my $prompt = '"SQLite database search"';
+                my $list = [ 'NO', 'YES' ];
+                my $sub_menu = [ [ $opt, "Enable \"File::Find\" warnings", $list ] ];
+                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
+            }
             elsif ( $opt eq 'max_rows' ) {
                 my $digits = 7;
-                my $prompt = 'Max rows: ';
+                my $prompt = 'SQL auto LIMIT: ';
                 $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
             elsif ( $opt eq 'lock_stmt' ) {
