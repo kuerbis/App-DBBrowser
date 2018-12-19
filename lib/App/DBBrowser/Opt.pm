@@ -86,7 +86,7 @@ sub defaults {
         },
         create => {
             auto_inc_col_name    => 'Id',
-            data_type_guessing   => 0,
+            data_type_guessing   => 1,
         },
         split => {
             i_f_s                => ',',
@@ -482,7 +482,7 @@ sub set_options {
             }
             elsif ( $opt eq 'max_rows' ) {
                 my $digits = 7;
-                my $prompt = 'Set SQL auto LIMIT: ';
+                my $prompt = 'Set the SQL auto LIMIT: ';
                 $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
             elsif ( $opt eq 'lock_stmt' ) {

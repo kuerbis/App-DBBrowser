@@ -124,7 +124,7 @@ C<SpaceBar> are added to the chosen items when C<Return> is pressed. If a mouse 
 right mouse key instead of the C<SpaceBar>. A C<Ctrl-SpaceBar> inverts the made choices - so for example with no items
 chosen C<Ctrl-SpaceBar> chooses everything.
 
-To leave a "readline" in a C<WHERE> or a C<HAVING> substatements without entering anything enter the C<eof> control
+To leave a "readline" in a C<WHERE> or a C<HAVING> substatement without entering anything enter the C<eof> control
 character (C<Ctrl-D> for *nix). Pressing only the C<Enter> key means entering an empty string.
 
 =head1 MENUS
