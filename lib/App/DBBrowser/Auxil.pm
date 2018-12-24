@@ -151,7 +151,7 @@ sub stmt_placeholder_to_value {
     }
     my $rx_placeholder = qr/(?<=(?:,|\s|\())\?(?=(?:,|\s|\)|$))/;
     for my $arg ( @$args ) {
-        if( $quote && $arg && ! looks_like_number $arg ) { #
+        if( $quote && $arg && ! looks_like_number $arg ) {
             $arg = $sf->{d}{dbh}->quote( $arg );
         }
         $stmt =~ s/$rx_placeholder/$arg/;

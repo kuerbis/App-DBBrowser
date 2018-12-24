@@ -23,7 +23,7 @@ sub new {
         i => $info,
         o => $options,
         d => $data,
-        subquery_file => catfile( $info->{app_dir}, 'saved_subqueries.json' ), # ###
+        subquery_file => catfile( $info->{app_dir}, 'subqueries.json' ),
     };
     bless $sf, $class;
 }

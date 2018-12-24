@@ -209,7 +209,7 @@ sub __table_write_access {
         if ( ! defined $stmt_type ) {
             return;
         }
-        $stmt_type =~ s/^[-|\ ]\ //;
+        $stmt_type =~ s/^-\ //;
         $ax->reset_sql( $sql );
         if ( $stmt_type eq 'Insert' ) {
             require App::DBBrowser::Table::Insert;

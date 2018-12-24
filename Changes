@@ -3,6 +3,7 @@ Revision history for App-DBBrowser
 
 2.036    2018-12-24
         - Update subqueries.
+        - New file name for saved subqueries.
         - SQLite: make truncate return a numeric value.
         - Bugfixes in "col_function" and "history_stmt".
 

@@ -383,7 +383,7 @@ sub run {
 
                 TABLE: while ( 1 ) {
 
-                    my ( $join, $union, $from_subquery, $db_setting ) = ( '  Join', '  Union', '  From(SQ)', '  DB settings' ); ## derived tables # two aggregate
+                    my ( $join, $union, $from_subquery, $db_setting ) = ( '  Join', '  Union', '  From(SQ)', '  DB settings' );
                     my $hidden = $db_string;
                     my $table;
                     if ( $sf->{redo_table} ) {
@@ -556,7 +556,7 @@ sub run {
                         next TABLE if ! defined $qt_table;
                     }
                     elsif ( $table eq $from_subquery ) {
-                        $sf->{i}{multi_tbl} = 'subquery'; ##
+                        $sf->{i}{multi_tbl} = 'subquery'; #
                         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         my $tmp = {};

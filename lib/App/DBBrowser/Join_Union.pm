@@ -207,9 +207,7 @@ sub __print_union_statement {
                 $str .= $c < @{$union->{used_tables}} ? " UNION ALL\n" : "\n";
             }
             $str .= ")";
-            #$str .= ") AS ";
-            #$str .= 'Selected_Tables';
-            $str .= " \n";
+            $str .= " \n"; #
         }
     }
     $str .= "\n";
