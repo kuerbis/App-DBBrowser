@@ -80,7 +80,7 @@ sub __add_aggregate_substmt {
         }
         $tmp->{aggr_cols}[$i] .= $f_col . ")";
     }
-    my $alias = $ax->alias( $tmp->{aggr_cols}[$i] );
+    my $alias = $ax->alias( 'AS: ', undef, $tmp->{aggr_cols}[$i] );
     if ( defined $alias && length $alias ) {
         $tmp->{alias}{$tmp->{aggr_cols}[$i]} = $ax->quote_col_qualified( [ $alias ] );
     }
@@ -131,7 +131,7 @@ sub columns {
             }
             $subquery = "(" . $subquery . ")";
             push @{$tmp->{chosen_cols}}, $subquery;
-            my $alias = $ax->alias( $subquery );
+            my $alias = $ax->alias( 'AS: ', undef, $subquery );
             if ( defined $alias && length $alias ) {
                 $tmp->{alias}{$subquery} = $ax->quote_col_qualified( [ $alias ] );
             }

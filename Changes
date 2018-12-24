@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.036    2018-12-24
+        - Update subqueries.
+        - SQLite: make truncate return a numeric value.
+        - Bugfixes in "col_function" and "history_stmt".
+
 2.035    2018-12-20
         - "DBD::MariaDB" database plugin.
 

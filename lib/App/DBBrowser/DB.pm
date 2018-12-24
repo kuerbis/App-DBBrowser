@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.035';
+our $VERSION = '2.036';
 
 use Scalar::Util qw( looks_like_number );
 
@@ -100,7 +100,7 @@ sub get_db_handle {
                     my ( $number, $places ) = @_;
                     return if ! defined $number;
                     return $number if ! looks_like_number( $number );
-                    return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
+                    return 0 + sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
                 }
             );
         }
@@ -299,7 +299,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.035
+Version 2.036
 
 =head1 DESCRIPTION
 

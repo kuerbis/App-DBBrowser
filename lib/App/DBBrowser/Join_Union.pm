@@ -170,7 +170,7 @@ sub union_tables {
     }
     my $default = $sf->{union_all} ? "UNION_ALL_TABLES" : "UNION_SELECTED_TABLES";
     # alias: required if mysql, Pg, ...
-    my $alias = $ax->alias( 'Union', $default );
+    my $alias = $ax->alias( 'AS: ', $default );
     $qt_table .= " AS " . $ax->quote_col_qualified( [ $alias ] );
     return $qt_table, $qt_columns;
 }
@@ -206,8 +206,9 @@ sub __print_union_statement {
                 $str .= " FROM $table";
                 $str .= $c < @{$union->{used_tables}} ? " UNION ALL\n" : "\n";
             }
-            $str .= ") AS ";
-            $str .= 'Selected_Tables';
+            $str .= ")";
+            #$str .= ") AS ";
+            #$str .= 'Selected_Tables';
             $str .= " \n";
         }
     }
@@ -271,7 +272,7 @@ sub join_tables {
         my $qt_master = $ax->quote_table( $j->{tables_info}{$master} );
         $join->{stmt} = "SELECT * FROM " . $qt_master;
         $sf->__print_join_statement( $join->{stmt} );
-        $join->{alias}{$master} = $ax->alias( $qt_master, $default_alias );
+        $join->{alias}{$master} = $ax->alias( 'AS: ', $default_alias, $qt_master );
         $join->{stmt} .= " AS " . $ax->quote_col_qualified( [ $join->{alias}{$master} ] );
         my $backup_master = $ax->backup_href( $join );
 
@@ -315,7 +316,7 @@ sub join_tables {
             my $qt_slave = $ax->quote_table( $j->{tables_info}{$slave} );
             $join->{stmt} .= " LEFT OUTER JOIN " . $qt_slave;
             $sf->__print_join_statement( $join->{stmt} );
-            $join->{alias}{$slave} = $ax->alias( $qt_slave, ++$default_alias );
+            $join->{alias}{$slave} = $ax->alias( 'AS: ', ++$default_alias, $qt_slave );
             $join->{stmt} .= " AS " . $ax->quote_col_qualified( [ $join->{alias}{$slave} ] ). " ON";
             my %avail_pk_cols;
             for my $used_table ( @{$join->{used_tables}} ) {

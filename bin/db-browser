@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.035';
+our $VERSION = '2.036';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.035
+Version 2.036
 
 =cut
 
@@ -337,11 +337,6 @@ The available scalar functions are:
 With C<SQLite> the function C<TRUNCATE> is a user-defined function which returns stringified values.
 
     return sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
-
-When comparing in C<WHERE> or C<HAVING> clauses with numbers, take the non-truncated (original) value for the
-comparison.
-
-Also to get a numeric sort in an C<ORDER BY> clause use the non-truncated (original) values for the ordering.
 
 =head4 Bit_Length
 
