@@ -101,6 +101,11 @@ sub get_db_handle {
                     return if ! defined $number;
                     return $number if ! looks_like_number( $number );
                     return 0 + sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
+                    #if ( $number =~ /^([0-9]+)(\.[0-9]{0,$places})/ ) {
+                    #    return 0 + $1 if ! $places;
+                    #    return 0 + "$1$2";
+                    #}
+                    return $number;
                 }
             );
         }

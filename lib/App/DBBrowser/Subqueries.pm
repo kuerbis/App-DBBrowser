@@ -202,7 +202,7 @@ sub __add_subqueries {
             my $stmt = $tf->readline( 'Stmt: ', { info => $info, clear_screen => 1  } );
             if ( defined $stmt && length $stmt ) {
                 push @$bu, [ [ @$subqueries ], [ @$history ], [ @$used ] ];
-                my $folded_stmt = "\n" . line_fold( 'Stmt: ' . $stmt, term_width() - 1, '', ' ' x length( 'Stmt: ' ) ); # -1: rautf
+                my $folded_stmt = "\n" . line_fold( 'Stmt: ' . $stmt, term_width(), '', ' ' x length( 'Stmt: ' ) );
                 my $name = $tf->readline( 'Name: ', { info => $info . $folded_stmt } );
                 push @$subqueries, [ $stmt, length $name ? $name : () ]; #
             }
@@ -211,7 +211,7 @@ sub __add_subqueries {
             push @$bu, [ [ @$subqueries ], [ @$history ], [ @$used ] ]; #
             push @$used, splice @$history, $idx-@pre, 1;
             my $stmt = $used->[-1];
-            my $folded_stmt = "\n" . line_fold( 'Stmt: ' . $stmt, term_width() - 1, '', ' ' x length( 'Stmt: ' ) ); # -1: rautf
+            my $folded_stmt = "\n" . line_fold( 'Stmt: ' . $stmt, term_width(), '', ' ' x length( 'Stmt: ' ) );
             my $tf = Term::Form->new();
             my $name = $tf->readline( 'Name: ', { info => $info . $folded_stmt } );
             push @$subqueries, [ $stmt, length $name ? $name : () ];
