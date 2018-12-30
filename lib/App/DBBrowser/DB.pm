@@ -98,21 +98,25 @@ sub get_db_handle {
         if ( ! $sf->{Plugin}->can( 'truncate' ) ) {
             $dbh->sqlite_create_function( 'truncate', 2, sub {
                     my ( $number, $places ) = @_;
-                    return if ! defined $number;
-                    return $number if ! looks_like_number( $number );
-                    return 0 + sprintf "%.*f", $places, int( $number * 10 ** $places ) / 10 ** $places;
-                    #if ( $number =~ /^([0-9]+)(\.[0-9]{0,$places})/ ) {
-                    #    return 0 + $1 if ! $places;
-                    #    return 0 + "$1$2";
-                    #}
+                    if ( ! looks_like_number( $number ) ) {
+                        return $number;
+                    }
+                    #my $nu = $number  . '';
+                    #return int( $nu * 10 ** $places ) / 10 ** $places;
+                    elsif ( ! $places ) {
+                        return 0 + ( $number =~ /^([-+]?[0-9]+)/ )[0];
+                    }
+                    elsif ( $number =~ /^([-+]?[0-9]+\.[0-9]{1,$places})/ ) {
+                        return 0 + $1;
+                    }
                     return $number;
                 }
             );
         }
         if ( ! $sf->{Plugin}->can( 'bit_length' ) ) {
             $dbh->sqlite_create_function( 'bit_length', 1, sub {
-                    use bytes;
-                    return length $_[0];
+                    require bytes;
+                    return 8 * bytes::length $_[0];
                 }
             );
         }

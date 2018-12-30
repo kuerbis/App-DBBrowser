@@ -155,10 +155,10 @@ sub on_table {
             print 'Computing:' . "\r" if $sf->{o}{table}{progress_bar};
             my $select = $ax->get_stmt( $sql, 'Select', 'prepare' );
             my @arguments = ( @{$sql->{where_args}}, @{$sql->{having_args}} );
-            if ( $sf->{i}{subqueries} && $sf->{i}{multi_tbl} ne 'subquery' ) {
-                unshift @{$sf->{i}{stmt_history}}, [ $select, \@arguments ];
-                if ( $#{$sf->{i}{stmt_history}} > 50 ) {
-                    $#{$sf->{i}{stmt_history}} = 50;
+            if ( $sf->{i}{subqueries} && $sf->{i}{multi_tbl} ne 'subquery' ) { ##
+                unshift @{$sf->{i}{history}{ $sf->{d}{db} }{print}}, [ $select, \@arguments ];
+                if ( $#{$sf->{i}{history}{ $sf->{d}{db} }{print}} > 50 ) {
+                    $#{$sf->{i}{history}{ $sf->{d}{db} }{print}} = 50;
                 }
             }
             if ( $sf->{o}{G}{max_rows} && ! $sql->{limit_stmt} ) {

@@ -163,9 +163,9 @@ sub stmt_placeholder_to_value {
 
 
 sub alias {
-    my ( $sf, $prompt, $default, $info ) = @_;
+    my ( $sf, $type, $prompt, $default, $info ) = @_;
     my $alias;
-    if ( $sf->{o}{G}{alias} ) {
+    if ( $sf->{o}{alias}{$type} ) {
         my $tf = Term::Form->new();
         $alias = $tf->readline( $prompt, { info => $info } );
     }

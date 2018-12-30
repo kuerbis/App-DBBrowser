@@ -443,8 +443,8 @@ sub run {
                         my $old_idx_hdn = exists $sf->{old_idx_hdn} ? delete $sf->{old_idx_hdn} : 0;
 
                         HIDDEN: while ( 1 ) {
-                            my ( $create_table, $drop_table, $attach_databases, $detach_databases, $save_stmts ) = (
-                                '- CREATE table', '- DROP   table', '- Attach DB', '- Detach DB', '  SQ File'
+                            my ( $create_table, $drop_table, $attach_databases, $detach_databases ) = (
+                                '- CREATE table', '- DROP   table', '- Attach DB', '- Detach DB',
                             );
                             my $choices_hidden = [ undef ];
                             push @$choices_hidden, $create_table if $sf->{o}{G}{create_table_ok};
@@ -453,7 +453,6 @@ sub run {
                                 push @$choices_hidden, $attach_databases;
                                 push @$choices_hidden, $detach_databases if $sf->{db_attached};
                             }
-                            push @$choices_hidden, $save_stmts if $sf->{i}{subqueries};
                             if ( @$choices_hidden == 0 ) {
                                 next TABLE;
                             }
@@ -463,7 +462,10 @@ sub run {
                                 $choices_hidden,
                                 { prompt => $db_string, index => 1, default => $old_idx_hdn, undef => $sf->{i}{_back} }
                             );
-                            my $choice = $choices_hidden->[$idx_hdn] if defined $idx_hdn;
+                            my $choice; ##
+                            if ( defined $idx_hdn ) {
+                                $choice = $choices_hidden->[$idx_hdn];
+                            }
                             if ( ! defined $choice ) {
                                 next TABLE;
                             }
@@ -529,10 +531,6 @@ sub run {
                                 $dbh->disconnect();
                                 next DATABASE;
                             }
-                            elsif ( $choice eq $save_stmts ) {
-                                my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                                $sq->edit_sq_file();
-                            }
                         }
                     }
                     my ( $qt_table, $qt_columns );
@@ -559,16 +557,16 @@ sub run {
                         $sf->{i}{multi_tbl} = 'subquery'; #
                         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                        my $tmp = {};
+                        my $tmp = { table => '(?)' };
                         $ax->reset_sql( $tmp );
-                        my $subquery = $sq->choose_subquery( {}, $tmp, 'Select', 1 );
+                        my $subquery = $sq->choose_subquery( {}, $tmp, 'Select', 'from' );
                         if ( ! defined $subquery ) {
                             next TABLE;
                         }
                         $qt_table = "(" . $subquery . ")";
                         $tmp->{table} = $qt_table;
                         $ax->print_sql( {}, [ 'Select' ], $tmp );
-                        my $alias = $ax->alias( 'AS: ', undef ); # default: name if defined
+                        my $alias = $ax->alias( 'subqueries', 'AS: ', 'From_SQ' ); ##
                         if ( defined $alias && length $alias ) {
                             $qt_table .= " AS " . $alias;
                         }

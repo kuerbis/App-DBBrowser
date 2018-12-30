@@ -103,7 +103,7 @@ sub col_function {
         }
         # modify columns:
         $sql->{$cols_type}[$idx] = $col_with_func;
-        my $alias = $ax->alias( 'AS: ', undef, $col_with_func );
+        my $alias = $ax->alias( 'functions', 'AS: ', undef, $col_with_func );
         #if ( defined $alias && length $alias ) {
             $sql->{alias}{$col_with_func} = $ax->quote_col_qualified( [ $alias ] );
         #}
