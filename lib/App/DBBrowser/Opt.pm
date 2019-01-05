@@ -8,7 +8,7 @@ use 5.008003;
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
-#use Pod::Usage            qw( pod2usage );  # "require"-d
+#use Pod::Usage            qw( pod2usage ); # required
 
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_a_dir );
@@ -42,7 +42,6 @@ sub defaults {
             drop_table_ok        => 0,
             file_find_warnings   => 0,
             insert_ok            => 0,
-            lock_stmt            => 0,
             max_rows             => 200_000,
             menu_memory          => 0,
             meta                 => 0,
@@ -51,10 +50,12 @@ sub defaults {
             plugins              => [ 'SQLite', 'mysql', 'Pg' ],
             qualified_table_name => 0,
             quote_identifiers    => 1,
-            subqueries_select    => 0,
-            subqueries_set       => 0,
-            subqueries_table     => 0,
-            subqueries_w_h       => 0,
+            extend_select        => 0,
+            extend_set           => 0,
+            extend_table         => 0,
+            extend_where         => 0,
+            extend_group_by      => 0,
+            extend_having        => 0,
             thsd_sep             => ',', ###
             update_ok            => 0,
         },
@@ -283,11 +284,10 @@ sub __menus {
         ],
         config_sql => [
             { name => 'max_rows',           text => "- Max Rows",     section => 'G' },
-            { name => 'lock_stmt',          text => "- Lock Mode",    section => 'G' },
             { name => 'meta',               text => "- Metadata",     section => 'G' },
             { name => 'operators',          text => "- Operators",    section => 'G' },
             { name => '_alias',             text => "- Alias",        section => 'alias' },
-            { name => '_subqueries',        text => "- Subqueries",   section => 'G' },
+            { name => '_extended_cols',     text => "- Extentions",     section => 'G' },
             { name => '_sql_identifiers',   text => "- Identifiers",  section => 'G' },
             { name => '_write_access',      text => "- Write access", section => 'G' },
             { name => 'parentheses',        text => "- Parentheses",  section => 'G' },
@@ -487,12 +487,6 @@ sub set_options {
                 my $prompt = 'Set the SQL auto LIMIT: ';
                 $sf->__choose_a_number_wrap( $section, $opt, $prompt, $digits );
             }
-            elsif ( $opt eq 'lock_stmt' ) {
-                my $prompt = 'SQL statement: ';
-                my $list = [ 'Lk0', 'Lk1' ];
-                my $sub_menu = [ [ $opt, "  Lock mode", $list ] ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
             elsif ( $opt eq 'meta' ) {
                 my $prompt = 'DB/schemas/tables: ';
                 my $list = $no_yes;
@@ -510,12 +504,15 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq '_subqueries' ) {
+            elsif ( $opt eq '_extended_cols' ) {
+                my $ext_val = [ 'None', 'Func', 'SQ', 'Func+SQ' ];
                 my $sub_menu = [
-                    [ 'subqueries_select', "- Subqueries in SELECT",       $no_yes ],
-                    [ 'subqueries_w_h',    "- Subqueries in WHERE/HAVING", $no_yes ],
-                    [ 'subqueries_set',    "- Subqueries as SET value",    $no_yes ],
-                    [ 'subqueries_table',  "- Subqueries as table",        $no_yes ],
+                    [ 'extend_select',   "- Extend SELECT",   $ext_val         ],
+                    [ 'extend_where',    "- Extend WHERE",    $ext_val         ],
+                    [ 'extend_group_by', "- Extend GROUB BY", $ext_val         ],
+                    [ 'extend_having',   "- Extend HAVING",   $ext_val         ],
+                    [ 'extend_set',      "- Extend SET",      $ext_val         ],
+                    [ 'extend_table',    "- Extend Table",    [ 'None', 'SQ' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu );
             }

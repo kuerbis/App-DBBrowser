@@ -5,9 +5,12 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.036';
+our $VERSION = '2.037';
 
+#use bytes; # required
 use Scalar::Util qw( looks_like_number );
+
+use List::MoreUtils qw( zip );
 
 
 sub new {
@@ -34,13 +37,6 @@ sub message_method_undef_return {
 
 sub get_db_driver {
     my ( $sf ) = @_;
-    ###
-    if ( ! $sf->{Plugin}->can( 'get_db_driver' ) && $sf->{Plugin}->can( 'db_driver' ) ) {
-        require Term::Choose;
-        Term::Choose::choose( [ 'Close with ENTER' ], { prompt => 'Please update your database Plugin!' } );
-        exit;
-    }
-    ###
     my $driver = $sf->{Plugin}->get_db_driver();
     die $sf->message_method_undef_return( 'get_db_driver' ) if ! defined $driver;
     return $driver;
@@ -223,7 +219,18 @@ sub regexp {
 
 
 sub concatenate {
-    my ( $sf, $arg ) = @_;
+    my ( $sf, $arguments, $separator ) = @_;
+
+    my $arg;
+    if ( defined $separator && length $separator ) {
+        my @sep = ( "'" . $separator . "'" ) x @$arguments;
+        $arg = [ zip( @$arguments, @sep ) ];
+        pop @$arg;
+    }
+    else {
+        $arg = $arguments
+    }
+
     if ( $sf->{Plugin}->can( 'concatenate' ) ) {
         my $concatenated = $sf->{Plugin}->concatenate( $arg );
         die $sf->message_method_undef_return( 'concatenate' ) if ! defined $concatenated;
@@ -231,7 +238,7 @@ sub concatenate {
     }
     return 'concat(' . join( ',', @$arg ) . ')'  if $sf->get_db_driver =~ /^(?:mysql|MariaDB)\z/;
 
-    return join( ' || ', @$arg );
+    return join( ' || ', @$arg ); # " || '$sep' || "
 }
 
 
@@ -308,11 +315,9 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.036
+Version 2.037
 
 =head1 DESCRIPTION
-
-This version introduces backwards incompatible changes.
 
 A database plugin provides the database specific methods. C<App::DBBrowser> considers a module whose name matches
 C</^App::DBBrowser::DB::[^:']+\z/> and which is located in one of the C<@INC> directories as a database plugin.
@@ -637,7 +642,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2012-2018 Matthäus Kiem.
+Copyright 2012-2019 Matthäus Kiem.
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE
 IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
