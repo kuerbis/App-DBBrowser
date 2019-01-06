@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.037';
+our $VERSION = '2.038';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -684,7 +684,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.037
+Version 2.038
 
 =head1 DESCRIPTION
 

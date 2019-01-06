@@ -103,7 +103,7 @@ sub from_copy_and_paste {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $ax->print_sql( $sql, $stmt_typeS );
-    my $prompt = sprintf "Mulit row  %s:\n", $sf->__parse_setting( 'copy_and_paste' );
+    my $prompt = sprintf "Multi row  %s:\n", $sf->__parse_setting( 'copy_and_paste' );
     print $prompt;
     my $file = $sf->{tmp_copy_paste};
     local $SIG{INT} = sub { unlink $file; exit };
@@ -323,8 +323,9 @@ sub __parse_file {
             push @$rows_of_cols, [ map {
                 s/^$lead//   if length $lead;
                 s/$trail\z// if length $trail;
+                $_ = undef   if ! length; # + trimmed spaces: to avoid conflicts with non-string data types # documentation
                 $_
-            } split /$sf->{o}{split}{i_f_s}/, $row ]; ## docu
+            } split /$sf->{o}{split}{i_f_s}/, $row, -1 ]; # negative LIMIT (-1) to preserve trailing empty fields
         }
         $sql->{insert_into_args} = $rows_of_cols;
         $ax->print_sql( $sql, $stmt_typeS, $waiting );

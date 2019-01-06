@@ -26,7 +26,6 @@ sub input_filter {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $stmt_h = Term::Choose->new( $sf->{i}{lyt_stmt_h} );
-    my $r2c = 0;
     my $backup = [ map { [ @$_ ] } @{$sql->{insert_into_args}} ];
 
     FILTER: while ( 1 ) {
@@ -34,7 +33,7 @@ sub input_filter {
         my $input_cols       = 'Choose Columns';
         my $input_rows       = 'Choose Rows';
         my $input_rows_range = 'A Range of Rows';
-        my $cols_to_rows     = $r2c ? 'Cols_to_Rows' : 'Rows_to_Cols';
+        my $cols_to_rows     = 'Cols_to_Rows';
         my $reset            = 'Reset';
         my $choices = [ @pre, $input_cols, $input_rows, $input_rows_range, $cols_to_rows, $reset ];
         my $waiting = 'Working ... ';
@@ -51,7 +50,6 @@ sub input_filter {
         }
         elsif ( $filter eq $reset ) {
             $sql->{insert_into_args} = [ map { [ @$_ ] } @$backup ];
-            $r2c = 0;
             next FILTER
         }
         elsif ( $filter eq $sf->{i}{ok} ) {
@@ -67,7 +65,7 @@ sub input_filter {
             $sf->__range_of_rows( $sql, $stmt_typeS, $waiting );
         }
         elsif ( $filter eq $cols_to_rows ) {
-            $sf->__transpose_rows_to_cols( $sql, $r2c );
+            $sf->__transpose_rows_to_cols( $sql );
         }
     }
 }
@@ -120,56 +118,60 @@ sub __choose_rows {
     GROUP: while ( 1 ) {
         $ax->print_sql( $sql, $stmt_typeS, $waiting );
         my $row_idxs = [];
+        my @choices_rows;
         if ( @keys_sorted == 1 ) {
             $row_idxs = [ 0 .. $#{$aoa} ];
+            {
+                no warnings 'uninitialized';
+                @choices_rows = map { join ',', @$_ } @$aoa;
+            }
         }
         else {
-            my $choices;
+            my @choices_groups;
             my $len = length insert_sep( scalar @{$group{$keys_sorted[0]}}, $sf->{o}{G}{thsd_sep} );
             for my $col_count ( @keys_sorted ) {
                 my $row_count = scalar @{$group{$col_count}};
                 my $row_str = $row_count == 1 ? 'row  has ' : 'rows have';
                 my $col_str = $col_count == 1 ? 'column ' : 'columns';
-                push @$choices, sprintf '%*s %s %2d %s',
+                push @choices_groups, sprintf '  %*s %s %2d %s',
                     $len, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_str,
                     $col_count, $col_str;
             }
             my @pre = ( undef );
             # Choose
             my $idx = $stmt_v->choose(
-                [ @pre, @$choices ],
-                { prompt => 'Choose group:', index => 1 }
+                [ @pre, @choices_groups ],
+                { prompt => 'Choose group:', index => 1, undef => $sf->{i}{back_v_no_ok} }
             );
             if ( ! $idx ) {
                 $sql->{insert_into_args} = $aoa;
                 return;
             }
+            $ax->print_sql( $sql, $stmt_typeS, $waiting );
             $row_idxs = $group{ $keys_sorted[$idx-@pre] };
-        }
-        $ax->print_sql( $sql, $stmt_typeS, $waiting );
-        my @pre = ( undef, $sf->{i}{ok} );
-        my $choices;
-        {
-            no warnings 'uninitialized';
-            $choices = [ @pre, map { join ',', @$_ } @{$aoa}[@$row_idxs] ];
+            {
+                no warnings 'uninitialized';
+                @choices_rows = map { join ',', @$_ } @{$aoa}[@$row_idxs];
+            }
         }
 
         while ( 1 ) {
+            my @pre = ( undef, $sf->{i}{ok} );
             # Choose
             my @idx = $stmt_v->choose(
-                $choices,
+                [ @pre, @choices_rows ],
                 { prompt => 'Choose rows:', index => 1, meta_items => [ 0 .. $#pre ],
-                    undef => '<<', include_highlighted => 2 }
+                  undef => '<<', include_highlighted => 2 }
             );
             $ax->print_sql( $sql, $stmt_typeS );
             if ( ! $idx[0] ) {
-                $sql->{insert_into_args} = $aoa;
                 if ( @keys_sorted == 1 ) {
+                    $sql->{insert_into_args} = $aoa;
                     return;
                 }
+                $sql->{insert_into_args} = [];
                 next GROUP;
             }
-            my $ok;
             if ( $idx[0] == $#pre ) {
                 shift @idx;
                 for my $i ( @idx ) {
@@ -238,16 +240,15 @@ sub __range_of_rows {
 
 
 sub __transpose_rows_to_cols {
-    my ( $sf, $sql, $r2c ) = @_;
+    my ( $sf, $sql ) = @_;
     my $aoa = $sql->{insert_into_args};
-    my $tmp_aoa = []; # name
+    my $tmp_aoa = [];
     for my $row ( 0 .. $#$aoa ) {
         for my $col ( 0 .. $#{$aoa->[$row]} ) {
             $tmp_aoa->[$col][$row] = $aoa->[$row][$col];
         }
     }
     $sql->{insert_into_args} = $tmp_aoa;
-    $r2c = ! $r2c;
     return;
 }
 

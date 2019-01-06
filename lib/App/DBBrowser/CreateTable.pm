@@ -291,11 +291,11 @@ sub __set_columns {
     }
     $sql->{insert_into_cols} = [ @{$sql->{create_table_cols}} ];
     if ( $sf->{col_name_auto_inc} ) {
-        my ( $add, $skip ) = ( '- Add ai-column', '- Skip' );
+        my ( $skip, $add ) = ( '- Skip', '- Add ai-column' );
         $ax->print_sql( $sql, $stmt_typeS );
         # Choose
         my $choice = choose(
-            [ undef, $add, $skip ],
+            [ undef, $skip, $add  ],
             { %{$sf->{i}{lyt_stmt_v}}, prompt => 'Auto increment column:' }
         );
         if ( ! defined $choice ) {

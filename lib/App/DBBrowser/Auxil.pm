@@ -185,7 +185,7 @@ sub tables_data {   # in App::DBBrowser::DB no 'quote_table'
             next if $href->{$table_name} eq 'sqlite_temp_master';
             push @$sys_tbls, $table;
         }
-        else {
+        elsif ( $href->{TABLE_TYPE} ne 'INDEX' ) {
         #elsif ( $href->{TABLE_TYPE} eq 'TABLE' || $href->{TABLE_TYPE} eq 'VIEW' || $href->{TABLE_TYPE} eq 'LOCAL TEMPORARY' ) {
             push @$user_tbls, $table;
         }
