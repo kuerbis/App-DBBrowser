@@ -209,7 +209,7 @@ sub __file_name {
         # Choose
         my $file = choose(
             [ undef, $add_file, map( '  ' . decode( 'locale_fs', $_ ), @files ), $del_file ],
-            { %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt, undef => $sf->{i}{back_config} }
+            { %{$sf->{i}{lyt_stmt_v}}, clear_screen => 1, prompt => $prompt, undef => $sf->{i}{back_v_no_ok} }
         );
         if ( ! defined $file ) {
             return;

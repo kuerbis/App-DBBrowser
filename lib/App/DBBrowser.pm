@@ -52,7 +52,7 @@ sub new {
         _reset        => '  RESET',
         ok            => '-OK-',
         back_s        => '<<',
-        back_config   => '  <=',
+        back_v_no_ok  => '  <=',
         clear_screen  => "\e[H\e[J", #
         stmt_init_tab => 4,
     };
@@ -477,7 +477,7 @@ sub run {
                         next TABLE if ! defined $qt_table;
                     }
                     elsif ( $table eq $from_subquery ) {
-                        $sf->{i}{multi_tbl} = 'subquery'; #
+                        $sf->{i}{multi_tbl} = 'subquery'; ##
                         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         require App::DBBrowser::Subqueries;
                         my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );

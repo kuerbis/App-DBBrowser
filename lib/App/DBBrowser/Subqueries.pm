@@ -93,7 +93,10 @@ sub choose_subquery {
         ];
         $ENV{TC_RESET_AUTO_UP} = 0;
         # Choose
-        my $idx = choose( $choices, { %{$sf->{i}{lyt_stmt_v}}, index => 1, prompt => '', default => $old_idx } );
+        my $idx = choose(
+            $choices,
+            { %{$sf->{i}{lyt_stmt_v}}, index => 1, prompt => '', default => $old_idx, undef => $sf->{i}{back_v_no_ok} }
+        );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
             return;
         }
@@ -120,12 +123,14 @@ sub choose_subquery {
             }
             next SUBQUERY;
         }
+
         my ( $prompt, $default, $info );
         if ( $choices->[$idx] eq $readline ) {
             $prompt = 'Stmt: ';
         }
         else {
-            $info = "\n'Enter' to continue";
+            $info = "\nPress 'Enter'";
+            $prompt = '|';
              $idx -= @pre;
             if ( $idx <= $#$subqueries ) {
                 $default = $subqueries->[$idx][0];
@@ -168,7 +173,7 @@ sub edit_sq_file {
         # Choose
         my $choice = choose(
             [ @pre, $add, $edit, $remove ],
-            { %{$sf->{i}{lyt_stmt_v}}, undef => $sf->{i}{back_config}, info => $info, clear_screen => 1 }
+            { %{$sf->{i}{lyt_3}}, undef => $sf->{i}{back_v_no_ok}, info => $info }
         );
         my $changed = 0;
         if ( ! defined $choice ) {

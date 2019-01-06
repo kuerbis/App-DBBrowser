@@ -212,7 +212,7 @@ Choosing a table leads to the I<SQL Menu>.
 
 Choosing this entry allows one to enter a subquery instead of table name.
 
-This entry is available only if enabled L</Subqueries> is enabled.
+This entry is available only if enabled in L</Subqueries>.
 
 =head3 Join
 
@@ -479,7 +479,7 @@ If set to I<SQ>, C<SQ> is shown as additionally menu entry.
 If set to I<Func+SQ>, C<%%> is shown as additionally menu entry. Selecting C<%%> lets one choose between C<f()> and
 C<SQ>.
 
-If these additionally menu entries are prefix with C<=>, it is required to select an operator before entering a subquery
+If these additionally menu entries are prefixed with C<=>, it is required to select an operator before entering a subquery
 or before selecting a function.
 
 =head4 Functions

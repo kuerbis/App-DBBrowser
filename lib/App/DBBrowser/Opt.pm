@@ -161,7 +161,7 @@ sub config_insert {
             $ENV{TC_RESET_AUTO_UP} = 0;
             my $idx = choose(
                 $choices,
-                { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, undef => $sf->{i}{back_config}, prompt => $prompt }
+                { %{$sf->{i}{lyt_3}}, index => 1, default => $old_idx, undef => $sf->{i}{back_v_no_ok}, prompt => $prompt }
             );
             if ( ! defined $idx || ! defined $choices->[$idx] ) {
                 if ( $group =~ /^_module_/ ) {
@@ -326,7 +326,7 @@ sub set_options {
         my $menu = $sf->__menus( $group );
 
         OPTION: while ( 1 ) {
-            my $back =          $group eq 'main' ? $sf->{i}{_quit}     : $sf->{i}{back_config};
+            my $back =          $group eq 'main' ? $sf->{i}{_quit}     : $sf->{i}{back_v_no_ok};
             my @pre  = ( undef, $group eq 'main' ? $sf->{i}{_continue} : () );
             my $choices = [ @pre, map( $_->{text}, @$menu ) ];
             # Choose

@@ -682,7 +682,7 @@ sub __set_operator_sql {
             $operator = $operators[0];
         }
         else {
-            my @pre = ( undef, $sf->{i}{ok} );
+            my @pre = ( undef );
             $ax->print_sql( $sql, [ $stmt_type ] );
             # Choose
             $operator = $stmt_h->choose( [ @pre, @operators ] );
