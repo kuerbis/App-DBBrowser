@@ -158,9 +158,10 @@ sub __choose_slave_table {
 
     SLAVE: while ( 1 ) {
         my @tmp;
+        my $used = ' (used)';
         for my $table ( @$tables ) {
             if ( any { $_ eq $table } @{$join->{used_tables}} ) {
-                push @tmp, $table . ' (used)';
+                push @tmp, $table . $used;
             }
             else {
                 push @tmp, $table;
@@ -184,6 +185,7 @@ sub __choose_slave_table {
         }
         else {
             $slave =~ s/^-\s//;
+            $slave =~ s/\Q$used\E\z//;
             push @{$join->{used_tables}}, $slave;
             return $slave;
         }

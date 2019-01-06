@@ -1,6 +1,8 @@
 Revision history for App-DBBrowser
 
 
+2.039    2019-01-06
+        - Bugfix in Join.
 
 2.038    2019-01-06
         - Tables: filter out tables of the type 'index'.
