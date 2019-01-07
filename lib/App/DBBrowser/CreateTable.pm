@@ -152,8 +152,7 @@ sub create_new_table {
             next MENU;
         }
         $ax->print_sql( $sql, $stmt_typeS );
-        my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        # if ( $sf->{d}{driver} eq 'SQLite' ) {
+        my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
         if ( $sf->{constraint_auto} = $plui->primary_key_autoincrement_constraint( $sf->{d}{dbh} ) ) {
             $sf->{col_auto} = $sf->{o}{create}{autoincrement_col_name};
         }

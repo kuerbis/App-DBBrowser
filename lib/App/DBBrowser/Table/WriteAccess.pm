@@ -251,7 +251,7 @@ sub commit_sql {
 sub __insert_into_stmt_columns {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
     $sql->{insert_into_cols} = [];
     my @cols = ( @{$sql->{cols}} );
     if ( $plui->first_column_is_autoincrement( $sf->{d}{dbh}, $sf->{d}{schema}, $sf->{d}{table} ) ) {
