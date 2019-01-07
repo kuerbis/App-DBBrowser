@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.039';
+our $VERSION = '2.040';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -498,7 +498,6 @@ sub run {
                             my $sth = $dbh->prepare( "SELECT * FROM " . $qt_table . " LIMIT 0" );
                             $sth->execute() if $driver ne 'SQLite';
                             $qt_columns = $ax->quote_simple_many( $sth->{NAME} );
-                            $sth->finish();
                             1 }
                         ) {
                             $ax->print_error_message( $@, 'Subquery table' );
@@ -515,7 +514,6 @@ sub run {
                             my $sth = $dbh->prepare( "SELECT * FROM " . $qt_table . " LIMIT 0" );
                             $sth->execute() if $driver ne 'SQLite';
                             $sf->{d}{cols} = [ @{$sth->{NAME}} ];
-                            $sth->finish();
                             $qt_columns = $ax->quote_simple_many( $sf->{d}{cols} );
                             1 }
                         ) {
@@ -684,7 +682,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.039
+Version 2.040
 
 =head1 DESCRIPTION
 

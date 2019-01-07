@@ -10,6 +10,7 @@ use Term::Choose::Util qw( insert_sep );
 use Term::TablePrint   qw( print_table );
 
 use App::DBBrowser::Auxil;
+use App::DBBrowser::DB;
 #use App::DBBrowser::GetContent; # required
 use App::DBBrowser::Opt;
 
@@ -250,16 +251,11 @@ sub commit_sql {
 sub __insert_into_stmt_columns {
     my ( $sf, $sql, $stmt_typeS ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
     $sql->{insert_into_cols} = [];
     my @cols = ( @{$sql->{cols}} );
-    if ( $sf->{d}{driver} eq 'SQLite' ) {
-        my ( $row ) = $sf->{d}{dbh}->selectrow_array( "SELECT sql FROM sqlite_master WHERE name = ?", {}, $sf->{d}{table} );
-        my $qt_col   = $sf->{d}{dbh}->quote_identifier( $sf->{d}{cols}[0] );
-        my $qt_table = $sf->{d}{dbh}->quote_identifier( $sf->{d}{table} );
-        if ( $row =~ / ^ \s* CREATE \s+ TABLE \s+ (?: \Q$sf->{d}{table}\E | \Q$qt_table\E ) \s+
-                           \( \s* (?: \Q$sf->{d}{cols}[0]\E | \Q$qt_col\E ) \s+ INTEGER \s+ PRIMARY \s+ KEY [^,]* , /ix ) {
-            shift @cols;
-        }
+    if ( $plui->first_column_is_autoincrement( $sf->{d}{dbh}, $sf->{d}{schema}, $sf->{d}{table} ) ) {
+        shift @cols;
     }
     my $bu_cols = [ @cols ];
 

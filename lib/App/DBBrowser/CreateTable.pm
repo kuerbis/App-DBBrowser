@@ -152,11 +152,13 @@ sub create_new_table {
             next MENU;
         }
         $ax->print_sql( $sql, $stmt_typeS );
-        if ( $sf->{d}{driver} eq 'SQLite' ) {
-            $sf->{col_name_auto_inc} = $sf->{o}{create}{auto_inc_col_name};
+        my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        # if ( $sf->{d}{driver} eq 'SQLite' ) {
+        if ( $sf->{constraint_auto} = $plui->primary_key_autoincrement_constraint( $sf->{d}{dbh} ) ) {
+            $sf->{col_auto} = $sf->{o}{create}{autoincrement_col_name};
         }
         else {
-            $sf->{col_name_auto_inc} = '';
+            $sf->{col_auto} = '';
         }
         my $ok_columns = $sf->__set_columns( $sql, $stmt_typeS );
         if ( ! $ok_columns ) {
@@ -168,7 +170,7 @@ sub create_new_table {
         # quote col names
         $sql->{create_table_cols} = $ax->quote_simple_many( $sql->{create_table_cols} );
         $sql->{insert_into_cols} = [ @{$sql->{create_table_cols}} ];
-        if ( $sf->{col_name_auto_inc} ) {
+        if ( $sf->{col_auto} ) {
             shift @{$sql->{insert_into_cols}};
         }
         $ax->print_sql( $sql, $stmt_typeS );
@@ -197,13 +199,12 @@ sub create_new_table {
         my $stmt = $ax->get_stmt( $sql, 'Create_table', 'prepare' );
         $sf->{d}{dbh}->do( $stmt ) or die "$stmt failed!";
         delete $sql->{create_table_cols};
-        my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM $qt_table LIMIT 0" );
-        $sth->execute() if $sf->{d}{driver} ne 'SQLite';
         if ( $stmt_typeS->[-1] eq 'Insert' ) {
             $stmt_typeS = [ $stmt_typeS->[-1] ];
+            my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM $qt_table LIMIT 0" );
+            $sth->execute() if $sf->{d}{driver} ne 'SQLite';
             my @columns = @{$sth->{NAME}};
-            $sth->finish();
-            if ( length $sf->{col_name_auto_inc} ) {
+            if ( length $sf->{col_auto} ) {
                 shift @columns;
             }
             $sql->{insert_into_cols} = $ax->quote_simple_many( \@columns );
@@ -290,7 +291,7 @@ sub __set_columns {
         }
     }
     $sql->{insert_into_cols} = [ @{$sql->{create_table_cols}} ];
-    if ( $sf->{col_name_auto_inc} ) {
+    if ( $sf->{col_auto} ) {
         my ( $skip, $add ) = ( '- Skip', '- Add ai-column' );
         $ax->print_sql( $sql, $stmt_typeS );
         # Choose
@@ -302,13 +303,13 @@ sub __set_columns {
             return;
         }
         elsif ( $choice eq $skip ) {
-            $sf->{col_name_auto_inc} = '';
+            $sf->{col_auto} = '';
         }
     }
     my $c = 0;
     my $fields = [ map { [ ++$c, defined $_ ? "$_" : '' ] } @{$sql->{create_table_cols}} ];
-    if ( length $sf->{col_name_auto_inc} ) {
-        unshift @$fields, [ 'ai', $sf->{col_name_auto_inc} ];
+    if ( length $sf->{col_auto} ) {
+        unshift @$fields, [ 'ai', $sf->{col_auto} ];
     }
     my $trs = Term::Form->new( 'cols' );
     $ax->print_sql( $sql, $stmt_typeS );
@@ -322,9 +323,9 @@ sub __set_columns {
     }
     $sql->{create_table_cols} = [ map { $_->[1] } @$form ]; # not quoted
     $sql->{insert_into_cols} = [ @{$sql->{create_table_cols}} ];
-    if ( length $sf->{col_name_auto_inc} ) {
+    if ( length $sf->{col_auto} ) {
         my $auto_col = shift @{$sql->{insert_into_cols}};
-        $sf->{col_name_auto_inc} = $auto_col; # the user could have changed or removed the name
+        $sf->{col_auto} = $auto_col; # the user could have changed or removed the name
     }
     $ax->print_sql( $sql, $stmt_typeS );
     return 1;
@@ -347,8 +348,8 @@ sub __set_data_types {
         $fields = [ map { [ $_, '' ] } @{$sql->{insert_into_cols}} ];
     }
     my $read_only = [];
-    if ( length $sf->{col_name_auto_inc} ) {
-        unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_name_auto_inc} ] ), 'INTEGER PRIMARY KEY' ];
+    if ( length $sf->{col_auto} ) {
+        unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_auto} ] ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
     my $trs = Term::Form->new( 'cols' );

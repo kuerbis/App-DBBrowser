@@ -60,58 +60,58 @@ sub defaults {
             update_ok            => 0,
         },
         alias => {
-            aggregate            => 0,
-            functions            => 0,
-            join                 => 0,
-            union                => 0,
-            subqueries           => 0,
+            aggregate  => 0,
+            functions  => 0,
+            join       => 0,
+            union      => 0,
+            subqueries => 0,
         },
         table => {
-            binary_filter        => 0,
-            binary_string        => 'BNRY',
-            codepage_mapping     => 0, # not an option, always 0
-            color                => 0,
-            decimal_separator    => '.',
-            grid                 => 0,
-            keep_header          => 0,
-            min_col_width        => 30,
-            mouse                => 0,
-            progress_bar         => 40_000,
-            squash_spaces        => 0,
-            tab_width            => 2,
-            table_expand         => 1,
-            undef                => '',
+            binary_filter     => 0,
+            binary_string     => 'BNRY',
+            codepage_mapping  => 0, # not an option, always 0
+            color             => 0,
+            decimal_separator => '.',
+            grid              => 0,
+            keep_header       => 0,
+            min_col_width     => 30,
+            mouse             => 0,
+            progress_bar      => 40_000,
+            squash_spaces     => 0,
+            tab_width         => 2,
+            table_expand      => 1,
+            undef             => '',
         },
         insert => {
-            copy_parse_mode      => 1,
-            file_encoding        => 'UTF-8',
-            file_parse_mode      => 0,
-            #files_dir            => undef,
-            #input_modes          => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
-            max_files            => 15,
+            copy_parse_mode => 1,
+            file_encoding   => 'UTF-8',
+            file_parse_mode => 0,
+            #files_dir       => undef,
+            #input_modes     => [ 'Cols', 'Rows', 'Multi-row', 'File' ],
+            max_files       => 15,
         },
         create => {
-            auto_inc_col_name    => 'Id',
-            data_type_guessing   => 1,
+            autoincrement_col_name => 'Id',
+            data_type_guessing     => 1,
         },
         split => {
-            i_f_s                => ',',
-            i_r_s                => '\n',
-            trim_leading         => '\s+',
-            trim_trailing        => '\s+',
+            i_f_s         => ',',
+            i_r_s         => '\n',
+            trim_leading  => '\s+',
+            trim_trailing => '\s+',
         },
         csv => {
-            allow_loose_escapes  => 0,
-            allow_loose_quotes   => 0,
-            allow_whitespace     => 0,
-            auto_diag            => 1,
-            blank_is_undef       => 1,
-            binary               => 1,
-            empty_is_undef       => 0,
-            eol                  => '',
-            escape_char          => '"',
-            quote_char           => '"',
-            sep_char             => ',',
+            allow_loose_escapes => 0,
+            allow_loose_quotes  => 0,
+            allow_whitespace    => 0,
+            auto_diag           => 1,
+            blank_is_undef      => 1,
+            binary              => 1,
+            empty_is_undef      => 0,
+            eol                 => '',
+            escape_char         => '"',
+            quote_char          => '"',
+            sep_char            => ',',
         }
     };
     return $defaults                   if ! $section;
@@ -307,8 +307,8 @@ sub __menus {
             { name => 'file_find_warnings', text => "- Warnings",          section => 'G' },
         ],
         config_create => [
-            { name => 'auto_inc_col_name',  text => "Auto increment column", section => 'create' },
-            { name => 'data_type_guessing', text => "Data type guessing",    section => 'create' },
+            { name => 'autoincrement_col_name', text => "Auto increment column", section => 'create' },
+            { name => 'data_type_guessing',     text => "Data type guessing",    section => 'create' },
         ],
     };
     return $menus->{$group};
@@ -569,9 +569,9 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq 'auto_inc_col_name' ) {
+            elsif ( $opt eq 'autoincrement_col_name' ) {
                 my $items = [
-                    { name => 'auto_inc_col_name', prompt => "AI column name" },
+                    { name => 'autoincrement_col_name', prompt => "AI column name" },
                 ];
                 my $prompt = 'Default auto increment column name';
                 $sf->__group_readline( $section, $items, $prompt );
