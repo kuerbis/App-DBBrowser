@@ -325,7 +325,6 @@ sub __edit_subqueries {
                 }
                 return;
             }
-            $stmt = _sanitize_subquery( $stmt );
             my $folded_stmt = "\n" . line_fold( 'Stmt: ' . $stmt, term_width(), '', ' ' x length( 'Stmt: ' ) );
             my $name = $tf->readline( 'Name: ', { info => $info . $folded_stmt, default => $subqueries->[$idx][1] } );
             {

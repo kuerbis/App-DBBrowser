@@ -76,7 +76,7 @@ sub join_tables {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $master = $sq->choose_subquery( $join, 'Join', 'join' );
             if ( ! defined $master ) {
-                next SLAVE;
+                next MASTER;
             }
             $qt_master = $master;
         }
