@@ -625,7 +625,7 @@ sub __create_drop_or_attach {
             }
             else {
                 $sf->{old_idx_hidden} = $old_idx;
-                $sf->{redo_db} = $sf->{d}{db};
+                $sf->{redo_schema} = $sf->{d}{schema};
                 $sf->{redo_table} = $table;
                 return;
             }
