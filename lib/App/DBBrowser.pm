@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.043';
+our $VERSION = '2.044';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -319,7 +319,15 @@ sub run {
                 if ( $sf->{redo_schema} ) {
                     $schema = delete $sf->{redo_schema};
                 }
-                elsif ( @schemas <= 1 ) {
+                elsif ( ! @schemas ) {
+                    if ( $driver eq 'Pg' ) {
+                        # no @schemas if 'add meta data' is disabled with no user-schemas
+                        # with an undefined schema 'information_schema' would be used
+                        @schemas = ( 'public' );
+                        $schema = $schemas[0];
+                    }
+                }
+                elsif ( @schemas == 1 ) {
                     $schema = $schemas[0];
                     $schema =~ s/^[-\ ]\s//;
                     $auto_one++ if $auto_one == 2
@@ -410,7 +418,7 @@ sub run {
                     else {
                         my $choices_table = [ $hidden, undef, map( "- $_", sort @$user_tables ) ];
                         push @$choices_table, map( "  $_", sort @$sys_tables ) if $sf->{o}{G}{meta};
-                        push @$choices_table, $from_subquery                   if $sf->{o}{G}{extend_table};
+                        push @$choices_table, $from_subquery                   if $sf->{o}{extend}{table};
                         push @$choices_table, $join, $union;
                         push @$choices_table, $db_setting                      if $sf->{i}{db_settings};
                         my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
@@ -460,7 +468,7 @@ sub run {
                         next TABLE;
                     }
                     if ( $table eq $hidden ) {
-                        $sf->__create_drop_attach( $lyt_v_clear, $table );
+                        $sf->__create_drop_or_attach( $lyt_v_clear, $table );
                         if ( $sf->{redo_db} ) {
                             $dbh->disconnect();
                             next DATABASE;
@@ -555,7 +563,7 @@ sub __browse_the_table {
 }
 
 
-sub __create_drop_attach {
+sub __create_drop_or_attach {
     my ( $sf, $lyt_v_clear, $table ) = @_;
     my $old_idx = exists $sf->{old_idx_hidden} ? delete $sf->{old_idx_hidden} : 0;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -602,13 +610,13 @@ sub __create_drop_attach {
             my $changed;
             if ( $choice eq $create_table ) {
                 if ( ! eval { $changed = $ct->create_new_table(); 1 } ) {
-                    $ax->print_error_message( $@, 'Create table' );
+                    $ax->print_error_message( $@, 'Create Table' );
                     next HIDDEN;
                 }
             }
             elsif ( $choice eq $drop_table ) {
                 if ( ! eval { $changed = $ct->delete_table(); 1 } ) {
-                    $ax->print_error_message( $@, 'Drop table' );
+                    $ax->print_error_message( $@, 'Drop Table' );
                     next HIDDEN;
                 }
             }
@@ -617,8 +625,8 @@ sub __create_drop_attach {
             }
             else {
                 $sf->{old_idx_hidden} = $old_idx;
-                $sf->{redo_schema} = $sf->{d}{schema};
-                $sf->{redo_table}  = $table;
+                $sf->{redo_db} = $sf->{d}{db};
+                $sf->{redo_table} = $table;
                 return;
             }
         }
@@ -697,7 +705,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.043
+Version 2.044
 
 =head1 DESCRIPTION
 

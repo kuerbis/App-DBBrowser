@@ -51,14 +51,7 @@ sub defaults {
             plugins              => [ 'SQLite', 'mysql', 'Pg' ],
             qualified_table_name => 0,
             quote_identifiers    => 1,
-            extend_select        => 0,
-            extend_group_by      => 0,
-            extend_having        => 0,
-            extend_join          => 0,
-            extend_set           => 0,
-            extend_table         => 0,
-            extend_where         => 0,
-            thsd_sep             => ',', ###
+            thsd_sep             => ',',
             update_ok            => 0,
         },
         alias => {
@@ -67,6 +60,16 @@ sub defaults {
             join       => 0,
             union      => 0,
             subqueries => 0,
+        },
+        extend => {
+            select   => 0,
+            group_by => 0,
+            having   => 0,
+            join     => 0,
+            set      => 0,
+            table    => 0,
+            union    => 0,
+            where    => 0,
         },
         table => {
             binary_filter     => 0,
@@ -293,7 +296,7 @@ sub __menus {
             { name => 'meta',               text => "- Metadata",     section => 'G' },
             { name => 'operators',          text => "- Operators",    section => 'G' },
             { name => '_alias',             text => "- Alias",        section => 'alias' },
-            { name => '_extended_cols',     text => "- Extentions",   section => 'G' },
+            { name => '_extended_cols',     text => "- Extentions",   section => 'extend' },
             { name => '_sql_identifiers',   text => "- Identifiers",  section => 'G' },
             { name => '_write_access',      text => "- Write access", section => 'G' },
             { name => 'parentheses',        text => "- Parentheses",  section => 'G' },
@@ -512,13 +515,14 @@ sub set_options {
             }
             elsif ( $opt eq '_extended_cols' ) {
                 my $sub_menu = [
-                    [ 'extend_select',   "- Extend SELECT",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'extend_where',    "- Extend WHERE",    [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'extend_group_by', "- Extend GROUB BY", [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'extend_having',   "- Extend HAVING",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'extend_set',      "- Extend SET",      [ 'None', 'Func', 'SQ', '=N', 'Func/SQ/=N' ] ],
-                    [ 'extend_table',    "- Extend Table",    [ 'None',         'SQ'                     ] ],
-                    [ 'extend_join',     "- Extend Join",     [ 'None',         'SQ'                     ] ],
+                    [ 'select',   "- Extend SELECT",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
+                    [ 'where',    "- Extend WHERE",    [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
+                    [ 'group_by', "- Extend GROUB BY", [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
+                    [ 'having',   "- Extend HAVING",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
+                    [ 'set',      "- Extend SET",      [ 'None', 'Func', 'SQ', '=N', 'Func/SQ/=N' ] ],
+                    [ 'table',    "- Extend Table",    [ 'None',         'SQ'                     ] ],
+                    [ 'join',     "- Extend Join",     [ 'None',         'SQ'                     ] ],
+                    [ 'union',    "- Extend Union",    [ 'None',         'SQ'                     ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu );
             }
