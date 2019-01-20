@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.044';
+our $VERSION = '2.045';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -85,7 +85,8 @@ sub __init {
     # check all info
 
     if ( ! eval {
-        my $opt = App::DBBrowser::Opt->new( $sf->{i}, {} ); #
+        my $opt = App::DBBrowser::Opt->new( $sf->{i}, {} );
+        $sf->{o} = $opt->read_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,
@@ -98,22 +99,13 @@ sub __init {
                     $sf->{i}{$key}{mouse} = $sf->{o}{table}{mouse};
                 }
             }
-            $sf->{o} = $opt->set_options(); #
-            if ( defined $sf->{o}{table}{mouse} ) {
-                for my $key ( keys %{$sf->{i}} ) {
-                    next if $key !~ /^lyt_/;
-                    $sf->{i}{$key}{mouse} = $sf->{o}{table}{mouse};
-                }
-            }
-        }
-        else {
-            $sf->{o} = $opt->read_config_files(); #
+            $sf->{o} = $opt->set_options();
         }
         1 }
     ) {
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, {}, {} );
         $ax->print_error_message( $@, 'Configfile/Options' );
-        my $opt = App::DBBrowser::Opt->new( $sf->{i}, {} ); #
+        my $opt = App::DBBrowser::Opt->new( $sf->{i}, {} );
         $sf->{o} = $opt->defaults();
         while ( $ARGV[0] && $ARGV[0] =~ /^-/ ) {
             my $arg = shift @ARGV;
@@ -705,7 +697,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.044
+Version 2.045
 
 =head1 DESCRIPTION
 

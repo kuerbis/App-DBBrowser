@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.045    2019-01-20
+        - Bugfix: make the mouse work also in the help menu.
+        - Parse mode 'split': new option to trim records.
+
 2.044    2019-01-19
         - Union: allow to use tables more than one time.
         - Union: possibility to use a subquery instead of a table.

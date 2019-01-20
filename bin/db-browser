@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.044';
+our $VERSION = '2.045';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.044
+Version 2.045
 
 =cut
 
@@ -798,19 +798,31 @@ Set the input record separator (regexp).
 
 =item
 
+Trim record left
+
+Expects a regex pattern. If set, removes leading characters matching regexp from each record.
+
+=item
+
+Trim record right
+
+Expects a regex pattern. If set, removes trailing characters matching regexp from each record.
+
+=item
+
 Field separator
 
 Set the input field separator (regexp).
 
 =item
 
-Trim leading
+Trim field left
 
 Expects a regex pattern. If set, removes leading characters matching regexp from each field.
 
 =item
 
-Trim trailing
+Trim field right
 
 Expects a regex pattern. If set, removes trailing characters matching regexp from each field.
 

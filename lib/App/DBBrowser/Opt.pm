@@ -100,10 +100,12 @@ sub defaults {
             data_type_guessing     => 1,
         },
         split => {
-            i_f_s         => ',',
-            i_r_s         => '\n',
-            trim_leading  => '\s+',
-            trim_trailing => '\s+',
+            record_sep    => '\n',
+            record_l_trim => '',
+            record_r_trim => '',
+            field_sep     => ',',
+            field_l_trim  => '\s+',
+            field_r_trim  => '\s+',
         },
         csv => {
             allow_loose_escapes => 0,
@@ -253,10 +255,13 @@ sub config_insert {
             }
             elsif ( $opt eq '_parse_with_split' ) {
                 my $items = [
-                    { name => 'i_r_s',         prompt => "Record separator" },
-                    { name => 'i_f_s',         prompt => "Field separator" },
-                    { name => 'trim_leading',  prompt => "Trim leading" },
-                    { name => 'trim_trailing', prompt => "Trim trailing" },
+                    { name => 'field_sep',     prompt => "Field separator  " },
+                    { name => 'field_l_trim',  prompt => "Trim field left  " },
+                    { name => 'field_r_trim',  prompt => "Trim field right " },
+                    { name => 'record_sep',    prompt => "Record separator " },
+                    { name => 'record_l_trim', prompt => "Trim record left " },
+                    { name => 'record_r_trim', prompt => "Trim record right" },
+
                 ];
                 my $prompt = 'Separators (regexp)';
                 $sf->__group_readline( $section, $items, $prompt );
