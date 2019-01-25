@@ -119,7 +119,7 @@ sub choose_subquery {
             $prompt = 'Stmt: ';
         }
         else {
-            $info = "\nPress 'Enter'\n";
+            $info = "\nPress 'Enter'";
             $prompt = '';
             $idx -= @pre;
             if ( $history->[$idx][0] ne $history->[$idx][1] ) {
