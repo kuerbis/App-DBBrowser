@@ -70,14 +70,41 @@ sub __get_history {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $h_ref = $ax->read_json( $sf->{subquery_file} );
     my $saved_history = $h_ref->{ $sf->{d}{driver} }{ $sf->{d}{db} }{ $clause } || [];
-    my $tmp_history = $sf->__tmp_history( $clause, $saved_history );
+    my $tmp_history = $sf->__tmp_history( $clause, $saved_history ) || [];
     my $history = [ @$saved_history, @$tmp_history ];
     return $history;
 }
 
 
+sub __fix_subqueries_file_format { # remove this subroutine
+    my ( $sf ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $h_ref = $ax->read_json( $sf->{subquery_file} );
+    my $changed = 0;
+    for my $driver ( keys %$h_ref ) {
+        for my $db ( keys %{$h_ref->{$driver}} ) {
+            for my $clause ( keys %{$h_ref->{$driver}{$db}} ) {
+                for my $entry ( @{$h_ref->{$driver}{$db}{$clause}} ) {
+                    if ( @$entry == 1 ) {
+                        $entry = [ $entry->[0], $entry->[0] ];
+                        $changed = 1;
+                    }
+                }
+            }
+        }
+    }
+    if ( $changed ) {
+        $ax->write_json( $sf->{subquery_file}, $h_ref );
+    }
+}
+
+
 sub choose_subquery {
     my ( $sf, $sql, $clause ) = @_;
+    ##########
+    # remove this
+    $sf->__fix_subqueries_file_format();
+    ##########
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $history = $sf->__get_history( $clause );
     my $edit_sq_file = 'Choose SQ:';
@@ -116,15 +143,16 @@ sub choose_subquery {
         }
         my ( $prompt, $default, $info );
         if ( $choices->[$idx] eq $readline ) {
+            $info = ' ';
             $prompt = 'Stmt: ';
         }
         else {
             $info = "\nPress 'Enter'";
             $prompt = '';
             $idx -= @pre;
-            if ( $history->[$idx][0] ne $history->[$idx][1] ) {
-                return "(" . $history->[$idx][0] . ")";
-            }
+            #if ( $history->[$idx][0] ne $history->[$idx][1] ) {
+            #    return "(" . $history->[$idx][0] . ")";
+            #}
             $default = $history->[$idx][0];
         }
         my $tf = Term::Form->new();
@@ -132,14 +160,16 @@ sub choose_subquery {
         my $stmt = $tf->readline( $prompt,
             { default => $default, info => $info, show_context => 1 }
         );
-        if ( defined $stmt && length $stmt ) {
-            my $db = $sf->{d}{db};
-            unshift @{$sf->{i}{history}{$db}{$clause}}, $stmt;
-            if ( $stmt !~ /^\s*\([^)(]+\)\s*\z/ ) {
-                $stmt = "(" . $stmt . ")";
-            }
-            return $stmt;
+        if ( ! defined $stmt && ! length $stmt ) {
+            $ax->print_sql( $sql );
+            next SUBQUERY;
         }
+        my $db = $sf->{d}{db};
+        unshift @{$sf->{i}{history}{$db}{$clause}}, $stmt;
+        if ( $stmt !~ /^\s*\([^)(]+\)\s*\z/ ) {
+            $stmt = "(" . $stmt . ")";
+        }
+        return $stmt;
     }
 }
 
