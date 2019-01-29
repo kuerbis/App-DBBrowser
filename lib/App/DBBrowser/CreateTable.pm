@@ -233,6 +233,9 @@ sub __set_table_name {
             $info = sprintf "\nFile: '%s'", $file;
             ( $default = $file ) =~ s/\.[^.]{1,4}\z//;
         }
+        if ( defined $sf->{d}{sheet_name} && length $sf->{d}{sheet_name} ) {
+            $default .= '_' . delete $sf->{d}{sheet_name};
+        }
         # Readline
         $table = $trs->readline( 'Table name: ', { info => $info, default => $default } );
         if ( ! length $table ) {
