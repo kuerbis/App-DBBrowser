@@ -6,8 +6,8 @@ use strict;
 use 5.008003;
 
 use File::Basename qw( basename );
-use List::Util     qw( none any );
 
+use List::MoreUtils    qw( none any duplicates );
 #use SQL::Type::Guess  qw(); # required
 
 use Term::Choose       qw( choose );
@@ -295,7 +295,12 @@ sub __set_columns {
                 }
                 $ax->print_sql( $sql );
                 if ( any { ! length } @{$sql->{create_table_cols}} ) {
-                    choose( [ 'Column with no name!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Close with ENTER' } );
+                    choose( [ 'Column with no name!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Continue with ENTER' } );
+                    next COL_NAMES;
+                }
+                my @duplicates = duplicates @{$sql->{create_table_cols}};
+                if ( @duplicates ) {
+                    choose( [ 'Duplicate column name!' ], { %{$sf->{i}{lyt_m}}, prompt => 'Continue with ENTER' } );
                     next COL_NAMES;
                 }
                 my @bu_cols_with_name = @{$sql->{create_table_cols}};
