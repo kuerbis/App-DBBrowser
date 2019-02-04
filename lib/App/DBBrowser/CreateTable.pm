@@ -40,7 +40,7 @@ sub delete_table {
     my $prompt = $sf->{d}{db_string} . "\n" . 'Drop table';
     # Choose
     my $table = choose( #
-        [ undef, map { "- $_" } @{$sf->{d}{user_tables}} ],
+        [ undef, map { "- $_" } sort @{$sf->{d}{user_tables}} ],
         { %{$sf->{i}{lyt_v_clear}}, prompt => $prompt, undef => '  <=' }
     );
     if ( ! defined $table || ! length $table ) {
@@ -66,14 +66,12 @@ sub delete_table {
     my $all_arrayref = $sth->fetchall_arrayref;
     my $row_count = @$all_arrayref;
     unshift @$all_arrayref, $col_names;
-    if ( @$all_arrayref > 1 ) {
-        my $prompt_pt = sprintf "DROP TABLE %s     (on last look at the table)\n", $sql->{table};
-        print_table(
-            $all_arrayref,
-            { %{$sf->{o}{table}}, grid => 2, prompt => $prompt_pt, max_rows => 0,
-            keep_header => 1, table_expand => $sf->{o}{G}{info_expand} }
-        );
-    }
+    my $prompt_pt = sprintf "DROP TABLE %s     (on last look at the table)\n", $sql->{table};
+    print_table(
+        $all_arrayref,
+        { %{$sf->{o}{table}}, grid => 2, prompt => $prompt_pt, max_rows => 0,
+        keep_header => 1, table_expand => $sf->{o}{G}{info_expand} }
+    );
     $prompt = sprintf 'DROP TABLE %s  (%s %s)', $sql->{table}, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_count == 1 ? 'row' : 'rows';
     $prompt .= "\n\nCONFIRM:";
     # Choose
@@ -236,6 +234,9 @@ sub __set_table_name {
         if ( exists $sf->{d}{sheet_name} && defined $sf->{d}{sheet_name} && length $sf->{d}{sheet_name} ) {
             $default .= '_' . delete $sf->{d}{sheet_name};
         }
+        if ( defined $default ) {
+            $default =~ s/ /_/g;
+        }
         # Readline
         $table = $trs->readline( 'Table name: ', { info => $info, default => $default } );
         if ( ! length $table ) {
@@ -353,16 +354,16 @@ sub __autoincrement_column {
         $sf->{col_auto} = $sf->{o}{create}{autoincrement_col_name};
     }
     if ( $sf->{col_auto} ) {
-        my ( $skip, $add ) = ( '- Skip', '- Add AI column' );
+        my ( $no, $yes ) = ( '- NO ', '- YES' );
         # Choose
         my $choice = choose(
-            [ undef, $skip, $add  ],
-            { %{$sf->{i}{lyt_stmt_v}}, prompt => 'Auto increment column:' }
+            [ undef, $yes, $no  ],
+            { %{$sf->{i}{lyt_stmt_v}}, prompt => 'Add AUTO INCREMENT column:',  }
         );
         if ( ! defined $choice ) {
             return;
         }
-        elsif ( $choice eq $skip ) {
+        elsif ( $choice eq $no ) {
             $sf->{col_auto} = '';
         }
         else {
