@@ -114,7 +114,7 @@ With the option I<mouse> enabled it can be used the mouse with the left mouse ke
 To confirm a chosen menu item use the C<Return> key.
 
 In some sub-menus it is possible to select more then one item before C<Return> is pressed (for example I<Choose Rows>
-and I<Choose Cols> from the input filter - see L</Input Filters>); in such sub-menus the list of items marked with the
+and I<Choose Cols> from the input filters; in such sub-menus the list of items marked with the
 C<SpaceBar> are added to the chosen items when C<Return> is pressed. If a mouse mode is enabled, it can be used the
 right mouse key instead of the C<SpaceBar>. A C<Ctrl-SpaceBar> inverts the made choices - so for example to select all
 but one select the one with the C<SpaceBar> and then press C<Ctrl-SpaceBar>.
