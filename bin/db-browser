@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.054';
+our $VERSION = '2.055';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.054
+Version 2.055
 
 =cut
 
@@ -192,46 +192,26 @@ The menu entries of the table menu:
 
 Selecting the prompt line (the database name) opens a menu with these entries:
 
-=head4 Create Table
-
-Selecting I<Create Table> opens a sub-menu with these entries:
-
 =over
 
-=item Plain
+=item Create Table
 
-Create a table.
+See L</WRITE ACCESS>
 
-=item Copy and Paste
+=item Drop Table
 
-Reads from STDIN until the end of input. Then it creates a table and inserts the records of fields parsed from the input
-data. In the I<Settings> one can configure how the data is parsed.
+See L</WRITE ACCESS>
 
-See also L</Create Table>.
-
-=item From File
-
-Like I<Copy and Paste> with the difference that the data is read from a chosen file.
-
-=item Settings
-
-Selecting I<Settings> allows one to set the options described in the option group L</Insert Into> for the current
-database.
-
-=back
-
-=head4 Drop table
-
-Drop a table. The whole table is shown before the user confirms to drop the table.
-
-=head4 Attache DB
+=item Attach DB
 
 I<Attache DB> is available only for C<SQLite> databases. I<Attach DB> can be used to attach databases to the current
 database.
 
-=head4 Detach DB
+=item Detach DB
 
 This entry is available if a C<SQLite> database has attached databases.
+
+=back
 
 =head3 Tables
 
@@ -268,10 +248,108 @@ The SQL Menu has the following menu entries:
 
 Selecting this prompt line (I<Customize:>) opens a menu with these entries:
 
-(C<DELETE>, C<UPDATE> or C<INSERT INTO> are not available with C<JOIN> and C<UNION> statements (except C<INSERT> with
-C<mysql> and C<JOIN>))
+=over
 
-=head4 Insert Into
+=item Insert Into
+
+=item Update
+
+=item Delete
+
+=back
+
+See L</WRITE ACCESS>
+
+=head3 Print TABLE
+
+Select I<Print TABLE> to show the result of the formed statement on the screen.
+
+=head3 The Sub-Statements
+
+To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu and choose C<-OK->.
+
+See also L</Extensions>, L</Parentheses>, L</Operators>
+
+=head4 SELECT
+
+Choose the required columns for the C<SELECT> sub-statement.
+
+It is possible to ad many columns at once by marking them with the C<SpaceBar> key. If columns are marked with the
+C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is pressed.
+
+If an I<AGGREGATE> function or a I<GROUP BY> columns is selected, the available choices of this sub-statement are the
+selected aggregate functions and the selected group-by columns.
+
+=head4 AGGREGATE
+
+C<AVG>, C<COUNT>, C<COUNT(*)>, C<GROUP_CONCAT>/C<STRING_AGG>, C<MAX>, C<MIN>, C<SUM>
+
+=head4 DISTINCT
+
+=head4 WHERE
+
+=head4 GROUP BY
+
+It is possible to ad many columns at once by marking them with the C<SpaceBar> key. If columns are marked with the
+C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is pressed.
+
+=head4 HAVING
+
+=head4 ORDER BY
+
+=head4 LIMIT
+
+=head3 Reset
+
+Reset the SQL statement.
+
+=head1 WRITE ACCESS
+
+=head2 Create/Drop Table
+
+I<Create/Drop Table> can be reached by selecting the prompt-line in the L</Table Menu> if the respective option is
+activated.
+
+=head3 Create Table
+
+Selecting I<Create Table> opens a sub-menu with these entries:
+
+=over
+
+=item Plain
+
+Create a table.
+
+=item Copy and Paste
+
+Reads from STDIN until the end of input. Then it creates a table and inserts the records of fields parsed from the input
+data. In the I<Settings> one can configure how the data is parsed.
+
+See also L</Create Table>.
+
+=item From File
+
+Like I<Copy and Paste> with the difference that the data is read from a chosen file.
+
+=item Settings
+
+Selecting I<Settings> allows one to set the options described in the option group L</Insert Into> for the current
+database.
+
+=back
+
+=head3 Drop table
+
+Drop a table. The whole table is shown before the user confirms to drop the table.
+
+=head2 Insert Into/Update/Delete
+
+I<Insert Into>, I<Update> and I<Delete> can be reached by selecting the prompt-line in the L</SQL Menu> if the respective
+option is activated.
+
+I<Delete>, I<Update> or I<Insert Into>  may not be available with C<JOIN> and C<UNION> statements.
+
+=head3 Insert Into
 
 Three different ways to insert data into a table are available:
 
@@ -294,7 +372,7 @@ Read the input from am file. Supported file formats: text files and file formats
 If the first column of a table is an auto-increment column, the C<INSERT INTO> statement is build without this first
 column. This feature is available if it is supported by the database plugin.
 
-Input filters:
+=head4 Input filters
 
 =over
 
@@ -331,7 +409,6 @@ With I<Plain> and I<Copy & Paste> this filter is enabled by default.
 =item Reset
 
 Reset the filters to the default values.
-
 
 =item Cols_to_Rows
 
@@ -385,58 +462,15 @@ Transpose columns to rows.
 
 =back
 
-=head4 Update
+=head3 Update
 
 Update records.
 
 See also L</Extended SET> and L</Extended WHERE>
 
-=head4 Delete
+=head3 Delete
 
 Delete records.
-
-=head3 Print TABLE
-
-Select I<Print TABLE> to show the result of the formed statement on the screen.
-
-=head3 The Sub-Statements
-
-To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu and choose C<-OK->.
-
-See also L</Extensions>, L</Parentheses>, L</Operators>
-
-=head4 SELECT
-
-Choose the required columns for the C<SELECT> sub-statement.
-
-It is possible to ad many columns at once by marking them with the C<SpaceBar> key. If columns are marked with the
-C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is pressed.
-
-If an I<AGGREGATE> function or a I<GROUP BY> columns is selected, the available choices of this sub-statement are the
-selected aggregate functions and the selected group-by columns.
-
-=head4 AGGREGATE
-
-C<AVG>, C<COUNT>, C<COUNT(*)>, C<GROUP_CONCAT>/C<STRING_AGG>, C<MAX>, C<MIN>, C<SUM>
-
-=head4 DISTINCT
-
-=head4 WHERE
-
-=head4 GROUP BY
-
-It is possible to ad many columns at once by marking them with the C<SpaceBar> key. If columns are marked with the
-C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is pressed.
-
-=head4 HAVING
-
-=head4 ORDER BY
-
-=head4 LIMIT
-
-=head3 Reset
-
-Reset the SQL statement.
 
 =head1 OPTIONS
 
