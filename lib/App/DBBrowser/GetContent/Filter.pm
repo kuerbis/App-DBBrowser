@@ -5,8 +5,6 @@ use warnings;
 use strict;
 use 5.008003;
 
-use List::MoreUtils qw( first_index uniq );
-
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( choose_a_subset choose_a_number settings_menu insert_sep );
 
