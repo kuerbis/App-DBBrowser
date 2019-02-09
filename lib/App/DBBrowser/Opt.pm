@@ -281,7 +281,7 @@ sub __menus {
             { name => 'config_menu',     text => "- Menu"   },
             { name => 'config_sql',      text => "- SQL",   },
             { name => 'config_output',   text => "- Output" },
-            { name => 'config_insert',   text => "- Input" },
+            { name => 'config_insert',   text => "- Get Data" },
         ],
         config_database => [
             { name => 'plugins',      text => "- DB Plugins", section => 'G' },
