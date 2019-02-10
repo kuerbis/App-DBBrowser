@@ -235,9 +235,6 @@ sub config_insert {
                 ];
                 my $prompt = '"Text::CSV"';
                 $sf->__group_readline( $section, $items, $prompt );
-                if ( $sf->{o}{$section}{sep_char} =~ /\\t/ ) {
-                    $sf->{o}{$section}{sep_char}=~ s/\\t/\t/g;
-                }
             }
             elsif ( $opt eq '_options_csv' ) {
                 my $prompt = '"Text::CSV"';

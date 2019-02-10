@@ -155,7 +155,7 @@ sub choose_subquery {
         my $stmt = $tf->readline( $prompt,
             { default => $default, show_context => 1 }
         );
-        if ( ! defined $stmt && ! length $stmt ) {
+        if ( ! defined $stmt || ! length $stmt ) {
             $ax->print_sql( $sql );
             next SUBQUERY;
         }

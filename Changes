@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.060    2019-02-10
+        - Use String::Unescape to unescape options for Text::CSV.
+        - Bugfix subqueries: replaced '&&' with '||'.
+
 2.059    2019-02-10
         - Added the possibility to edit join conditions.
 
