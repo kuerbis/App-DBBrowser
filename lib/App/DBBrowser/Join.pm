@@ -293,7 +293,7 @@ sub __add_join_condition {
                 # Readline
                 $condition = $tr->readline( 'Edit: ', { default => $condition, show_context => 1 } );
                 if ( ! defined $condition ) {
-                    next return;
+                    return;
                 }
                 $join->{stmt} = $bu_stmt . " " . $condition;
                 return 1;
