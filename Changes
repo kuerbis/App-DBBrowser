@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.059    2019-02-10
+        - Added the possibility to edit join conditions.
+
 2.058    2019-02-09
         - Update input filter 'Search Replace'.
 

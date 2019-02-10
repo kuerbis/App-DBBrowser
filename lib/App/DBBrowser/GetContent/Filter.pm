@@ -508,7 +508,7 @@ sub __split_column {
 sub __search_and_replace {
     my ( $sf, $sql, $waiting ) = @_;
 
-    SEARCHREPLACE: while ( 1 ) {
+    SEARCH_REPLACE: while ( 1 ) {
         my $mods = [ 'g', 'i', 'e', 'e' ];
         my $chosen_mods = [];
         my @bu;
@@ -551,13 +551,13 @@ sub __search_and_replace {
         # Readline
         my $pattern = $trl->readline( 'Pattern: ', { info => $info } );
         if ( ! defined $pattern ) {
-            next SEARCHREPLACE;
+            next SEARCH_REPLACE;
         }
         $info = sprintf "s/%s/%s/%s;\n", $pattern, '', $mods_str;
         # Readline
         my $replacement = $trl->readline( 'Replacement: ', { info => $info } );
         if ( ! defined $replacement ) {
-            next SEARCHREPLACE;
+            next SEARCH_REPLACE;
         }
         $info = sprintf "s/%s/%s/%s;\n", $pattern, $replacement, $mods_str;
         my $aoa = $sql->{insert_into_args};
@@ -568,7 +568,7 @@ sub __search_and_replace {
             name => 'Columns: ', clear_screen => 0, mouse => $sf->{o}{table}{mouse} }
         );
         if ( ! defined $col_idx || ! @$col_idx ) {
-            next SEARCHREPLACE;
+            next SEARCH_REPLACE;
         }
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
         $ax->print_sql( $sql, $waiting );
