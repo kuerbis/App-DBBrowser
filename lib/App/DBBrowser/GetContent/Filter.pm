@@ -507,59 +507,67 @@ sub __split_column {
 
 sub __search_and_replace {
     my ( $sf, $sql, $waiting ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $mods = [ 'g', 'i', 'e', 'e' ];
+    my $chosen_mods = [];
+    my @bu;
 
-    SEARCH_REPLACE: while ( 1 ) {
-        my $mods = [ 'g', 'i', 'e', 'e' ];
-        my $chosen_mods = [];
-        my @bu;
-
-        MOD: while ( 1 ) {
-            my $info = 's///' . join( '',  sort { $b cmp $a } @$chosen_mods ) . ";\n";
-            my @pre = ( undef, $sf->{i}{ok} );
-            # Choose
-            my @idx = choose(
-                [ @pre, map { "[$_]" } @$mods ],
-                { %{$sf->{i}{lyt_stmt_h}}, meta_items => [ 0 .. $#pre ], index => 1,
-                include_highlighted => 2, prompt => 'Modifieres: ', info => $info }
-            );
-            my $last;
-            if ( ! $idx[0] ) {
-                if ( @bu ) {
-                    ( $mods, $chosen_mods ) = @{pop @bu};
-                    next MOD;
-                }
-                return;
+    MODIFIERS: while ( 1 ) {
+        $ax->print_sql( $sql, $waiting );
+        my $info = 's///' . join( '',  sort { $b cmp $a } @$chosen_mods ) . ";\n";
+        my @pre = ( undef, $sf->{i}{ok} );
+        # Choose
+        my @idx = choose(
+            [ @pre, map { "[$_]" } @$mods ],
+            { %{$sf->{i}{lyt_stmt_h}}, meta_items => [ 0 .. $#pre ], index => 1,
+            include_highlighted => 2, prompt => 'Modifieres: ', info => $info }
+        );
+        my $last;
+        if ( ! $idx[0] ) {
+            if ( @bu ) {
+                ( $mods, $chosen_mods ) = @{pop @bu};
+                next MODIFIERS;
             }
-            elsif ( $idx[0] eq $#pre ) {
-                $last = shift @idx;
-            }
-            push @bu, [ [ @$mods ], [ @$chosen_mods ] ];
-            for my $i ( reverse @idx ) {
-                $i -= @pre;
-                push @$chosen_mods, splice @$mods, $i, 1;
-            }
-            if ( defined $last ) {
-                last MOD;
-            }
+            return;
+        }
+        elsif ( $idx[0] eq $#pre ) {
+            $last = shift @idx;
+        }
+        push @bu, [ [ @$mods ], [ @$chosen_mods ] ];
+        for my $i ( reverse @idx ) {
+            $i -= @pre;
+            push @$chosen_mods, splice @$mods, $i, 1;
+        }
+        if ( defined $last ) {
+            return;
         }
         my $insensitive = ( grep( $_ eq 'i', @$chosen_mods ) )[0] || '';
         my $globally    = ( grep( $_ eq 'g', @$chosen_mods ) )[0] || '';
         my @e_s = grep { $_ eq 'e' } @$chosen_mods;
         my $mods_str = join '', $insensitive, $globally, @e_s;
-        my $info = sprintf "s/%s/%s/%s;\n", '', '', $mods_str;
+        $info = sprintf "s/%s/%s/%s;\n", '', '', $mods_str;
+        $ax->print_sql( $sql, $waiting );
         my $trl = Term::Form->new();
         # Readline
         my $pattern = $trl->readline( 'Pattern: ', { info => $info } );
         if ( ! defined $pattern ) {
-            next SEARCH_REPLACE;
+            $chosen_mods = [];
+            $mods = [ 'g', 'i', 'e', 'e' ];
+            @bu = ();
+            next MODIFIERS;
         }
         $info = sprintf "s/%s/%s/%s;\n", $pattern, '', $mods_str;
+        $ax->print_sql( $sql, $waiting );
         # Readline
         my $replacement = $trl->readline( 'Replacement: ', { info => $info } );
         if ( ! defined $replacement ) {
-            next SEARCH_REPLACE;
+            $chosen_mods = [];
+            $mods = [ 'g', 'i', 'e', 'e' ];
+            @bu = ();
+            next MODIFIERS;
         }
         $info = sprintf "s/%s/%s/%s;\n", $pattern, $replacement, $mods_str;
+        $ax->print_sql( $sql, $waiting );
         my $aoa = $sql->{insert_into_args};
         # Choose
         my $col_idx = choose_a_subset(
@@ -568,9 +576,11 @@ sub __search_and_replace {
             name => 'Columns: ', clear_screen => 0, mouse => $sf->{o}{table}{mouse} }
         );
         if ( ! defined $col_idx || ! @$col_idx ) {
-            next SEARCH_REPLACE;
+            $chosen_mods = [];
+            $mods = [ 'g', 'i', 'e', 'e' ];
+            @bu = ();
+            next MODIFIERS;
         }
-        my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
         $ax->print_sql( $sql, $waiting );
         my $regex = $insensitive ? qr/(?${insensitive}:${pattern})/ : qr/${pattern}/;
         my $replacement_code = sub { return $replacement };

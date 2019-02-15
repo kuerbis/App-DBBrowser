@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.061';
+our $VERSION = '2.062';
 
 use Encode                qw( decode );
 use File::Basename        qw( basename );
@@ -566,8 +566,8 @@ sub __create_drop_or_attach {
             '- CREATE table', '- DROP   table', '- Attach DB', '- Detach DB',
         );
         my @choices;
-        push @choices, $create_table if $sf->{o}{G}{create_table_ok};
-        push @choices, $drop_table   if $sf->{o}{G}{drop_table_ok};
+        push @choices, $create_table if $sf->{o}{G}{enable_create_table};
+        push @choices, $drop_table   if $sf->{o}{G}{enable_drop_table};
         if ( $sf->{d}{driver} eq 'SQLite' ) {
             push @choices, $attach_databases;
             push @choices, $detach_databases if $sf->{db_attached};
@@ -691,7 +691,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.061
+Version 2.062
 
 =head1 DESCRIPTION
 

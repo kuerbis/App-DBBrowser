@@ -180,6 +180,20 @@ sub __parse_settings_copy_paste {
     return join "\n", @tmp_str;
 }
 
+sub _options_copy_and_paste {
+    my $groups = [
+        { name => 'group_insert', text => '' }
+    ];
+    my $options = [
+        { name => '_split_config', text => "- Config 'split'   ", section => 'split'  },
+        { name => '_csv_char',     text => "- Config Text-CSV a", section => 'csv'    },
+        { name => '_csv_options',  text => "- Config Text-CSV b", section => 'csv'    },
+        { name => '_parse_copy',   text => "- Parse Mode",        section => 'insert' },
+    ];
+    return $groups, $options;
+}
+
+
 sub from_copy_and_paste {
     my ( $sf, $sql ) = @_;
     my $ax  = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -204,7 +218,7 @@ sub from_copy_and_paste {
         }
         elsif ( $choice eq $change ) {
             my $opt = App::DBBrowser::Opt->new( $sf->{i}, $sf->{o} );
-            $opt->config_insert();
+            $opt->set_options( _options_copy_and_paste() );
             $parse_mode_idx = $sf->{o}{insert}{copy_parse_mode};
             next SETTINGS;
         }
@@ -271,6 +285,21 @@ sub __parse_settings_file {
     return $str;
 }
 
+sub _options_file {
+    my $groups = [
+        { name => 'group_insert', text => '' }
+    ];
+    my $options = [
+        { name => '_split_config',  text => "- Config 'split'   ", section => 'split'  },
+        { name => '_csv_char',      text => "- Config Text-CSV a", section => 'csv'    },
+        { name => '_csv_options',   text => "- Config Text-CSV b", section => 'csv'    },
+        { name => '_parse_file',    text => "- Parse Mode",        section => 'insert' },
+        { name => '_file_encoding', text => "- File Encoding",     section => 'insert' },
+        { name => 'max_files',      text => "- File History",      section => 'insert' },
+    ];
+    return $groups, $options;
+}
+
 
 sub from_file {
     my ( $sf, $sql ) = @_;
@@ -321,7 +350,7 @@ sub from_file {
             delete $ENV{TC_RESET_AUTO_UP};
             if ( $choices->[$idx] eq $hidden ) {
                 my $opt = App::DBBrowser::Opt->new( $sf->{i}, $sf->{o} );
-                $opt->config_insert();
+                $opt->set_options( _options_file() );
                 $parse_mode_idx = $sf->{o}{insert}{file_parse_mode};
                 next FILE;
             }

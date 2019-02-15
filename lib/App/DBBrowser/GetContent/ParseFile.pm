@@ -75,8 +75,8 @@ sub __parse_file_split { # 1
     seek $fh, 0, 0;
     my $record_lead  = $sf->{o}{split}{record_l_trim};
     my $record_trail = $sf->{o}{split}{record_r_trim};
-    my $field_lead  = $sf->{o}{split}{field_l_trim};
-    my $field_trail = $sf->{o}{split}{field_r_trim};
+    my $field_lead   = $sf->{o}{split}{field_l_trim};
+    my $field_trail  = $sf->{o}{split}{field_r_trim};
     for my $row ( split /$sf->{o}{split}{record_sep}/, <$fh> ) {
         $row =~ s/^$record_lead//   if length $record_lead;
         $row =~ s/$record_trail\z// if length $record_trail;
