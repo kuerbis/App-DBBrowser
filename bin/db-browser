@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.062';
+our $VERSION = '2.063';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.062
+Version 2.063
 
 =cut
 
@@ -186,7 +186,7 @@ If there is not more than one schema, this menu is not shown but the schema is c
 
 =head2 Tables Menu
 
-The menu entries of the table menu:
+The menu entries of the tables menu:
 
 =head3 Prompt Line
 
@@ -198,9 +198,13 @@ Selecting the prompt line (the database name) opens a menu with these entries:
 
 See L</WRITE ACCESS>
 
+This entry is available only if enabled in L</Extensions>.
+
 =item Drop Table
 
 See L</WRITE ACCESS>
+
+This entry is available only if enabled in L</Extensions>.
 
 =item Attach DB
 
@@ -221,19 +225,25 @@ Choosing a table leads to the I<SQL Menu>.
 
 Choosing this entry allows one to enter a subquery and use it as a table.
 
-This entry is available only if enabled in L</Subqueries>.
+This entry is available only if enabled in L</Extensions>.
 
 =head3 Join
 
 Join tables.
 
+This entry is available only if enabled in L</Extensions>.
+
 =head3 Union
 
 Combine the result from multiple SELECT statements.
 
+This entry is available only if enabled in L</Extensions>.
+
 =head3 Settings
 
 See L</DB Settings>.
+
+This entry is available only if enabled in L</Extensions>.
 
 =head2 SQL Menu
 
@@ -257,6 +267,8 @@ Selecting this prompt line (I<Customize:>) opens a menu with these entries:
 
 See L</WRITE ACCESS>
 
+This entries are available only if enabled in L</Extensions>.
+
 =head3 Print TABLE
 
 Select I<Print TABLE> to show the result of the formed statement on the screen.
@@ -265,7 +277,7 @@ Select I<Print TABLE> to show the result of the formed statement on the screen.
 
 To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu and choose C<-OK->.
 
-See also L</Extensions>, L</Parentheses>, L</Operators>
+See also L</Extensions> and L</Operators>
 
 =head4 SELECT
 
@@ -326,7 +338,7 @@ data. In the I<Settings> one can configure how the data is parsed.
 
 Like I<Copy and Paste> with the difference that the data is read from a chosen file.
 
-Selecting the prompt line of the I<Files> menu allows one to set the options described in the option group L</Data>.
+Selecting the prompt line of the I<Files> menu allows one to set the options described in L</Data>.
 
 =back
 
@@ -362,7 +374,7 @@ Read the input from am file. Supported file formats: text files and file formats
 =back
 
 If the first column of a table is an auto-increment column, the C<INSERT INTO> statement is build without this first
-column. This feature is available if it is supported by the database plugin.
+column. This feature is available if supported by the database plugin.
 
 =head4 Input filters
 
@@ -462,7 +474,7 @@ Transpose columns to rows.
 
 Update records.
 
-See also L</Extended SET> and L</Extended WHERE>
+See also I<Subqueries> in L</Extensions>
 
 =head3 Delete
 
@@ -490,8 +502,8 @@ Choose the required database plugins.
 
 These driver specific I<DB Settings> are used as the default database settings.
 
-There is also in each L</Tables Menu> the entry I<Settings> to make database specific settings. If no database specific
-settings are set, these global (to the database plugin) I<DB Settings> are used.
+There is also in each L</Tables Menu> the entry I<Settings> (if enabled in L</Extensions>) to make database specific
+settings. If no database specific settings are set, these global (to the database plugin) I<DB Settings> are used.
 
 User defined database plugins: it depends on the plugin which items are offered to set in each option and whether the
 selections made by the user are considered.
@@ -600,8 +612,6 @@ Derived table - see L</Subqueries>.
 
 =back
 
-Values: NO or YES
-
 =head3 Join menu
 
 =over
@@ -611,8 +621,6 @@ Values: NO or YES
 Derived table - see L</Subqueries>.
 
 =back
-
-Values: NO or YES
 
 =head3 Union menu
 
@@ -626,11 +634,9 @@ Derived table - see L</Subqueries>.
 
 =back
 
-Values: NO or YES
-
 =head3 Substatements
 
-Substatement additions:
+Substatement additions for:
 
 =over
 
@@ -728,8 +734,6 @@ Enable write access - use with care.
 =item Drop table
 
 =back
-
-Values: NO or YES
 
 =head2 SQL
 
@@ -876,7 +880,7 @@ If a file is not a text file, then it is always used C<Spreadsheet::Read> to par
 
 Text::CSV
 
-To decode the files it is used the I<File encoding>.
+To decode the files it is used the L</File encoding>.
 
 Advantages:
 
@@ -899,7 +903,7 @@ split
 Reads to whole input at once and splits the input with the input record separator (IRS) to get the records (rows). Then
 it splits the records with the input field separator (IFS) to get the fields (columns) of each record.
 
-To decode the files it is used the I<File encoding>.
+To decode the files it is used the L</File encoding>.
 
 Advantages:
 
@@ -1010,9 +1014,9 @@ eol
 
 =head3 CSV settings-b
 
-Set Text::CSV options other than mentioned in I<CSV settings-a>:
+Set Text::CSV options not mentioned in I<CSV settings-a>:
 
-For the different options see L<Text::CSV>.
+For the meaning of the different options see L<Text::CSV>.
 
 =head3 File encoding
 
@@ -1024,7 +1028,7 @@ Set how many searched directories should be saved.
 
 A value of C<0> disables the history.
 
-    If I<Dir history> is set to C<1> and a directory has already been saved, the directory is chosen automatically.
+If I<Dir history> is set to C<1> and a directory has already been saved, the directory is chosen automatically.
 
 =head1 CONFIGURATION FILES
 
