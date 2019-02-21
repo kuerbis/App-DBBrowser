@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.063';
+our $VERSION = '2.064';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.063
+Version 2.064
 
 =cut
 
@@ -338,7 +338,7 @@ data. In the I<Settings> one can configure how the data is parsed.
 
 Like I<Copy and Paste> with the difference that the data is read from a chosen file.
 
-Selecting the prompt line of the I<Files> menu allows one to set the options described in L</Data>.
+Selecting the prompt line of the I<Files> menu allows one to set the options described in L</Insert Data>.
 
 =back
 
@@ -866,7 +866,7 @@ to the default value (dot).
 
 Enable/disable C<File::Find> warnings when searching for C<SQLite> databases.
 
-=head2 Data
+=head2 Insert Data
 
 =head3 Parse file
 

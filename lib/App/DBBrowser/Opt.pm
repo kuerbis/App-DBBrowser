@@ -146,7 +146,7 @@ sub _groups {
         { name => 'group_enable',   text => "- Extensions"  },
         { name => 'group_sql',      text => "- SQL",        },
         { name => 'group_output',   text => "- Output"      },
-        { name => 'group_insert',   text => "- Data"        },
+        { name => 'group_insert',   text => "- Insert Data" },
     ];
     return $groups;
 }
