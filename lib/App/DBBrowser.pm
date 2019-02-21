@@ -100,6 +100,7 @@ sub __init {
                     $sf->{i}{$key}{mouse} = $sf->{o}{table}{mouse};
                 }
             }
+            print CLEAR_SCREEN;
             $sf->{o} = $opt->set_options();
         }
         1 }
@@ -411,9 +412,10 @@ sub run {
                     else {
                         my $choices_table = [ $hidden, undef, map( "- $_", sort @$user_tables ) ];
                         push @$choices_table, map( "  $_", sort @$sys_tables ) if $sf->{o}{G}{meta};
-                        push @$choices_table, $from_subquery                   if $sf->{o}{extend}{table};
-                        push @$choices_table, $join, $union;
-                        push @$choices_table, $db_setting                      if $sf->{i}{db_settings};
+                        push @$choices_table, $from_subquery                   if $sf->{o}{enable}{m_derived};
+                        push @$choices_table, $join                            if $sf->{o}{enable}{join};
+                        push @$choices_table, $union                           if $sf->{o}{enable}{union};
+                        push @$choices_table, $db_setting                      if $sf->{o}{enable}{db_settings};
                         my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                         # Choose
                         $ENV{TC_RESET_AUTO_UP} = 0;
@@ -566,8 +568,8 @@ sub __create_drop_or_attach {
             '- CREATE table', '- DROP   table', '- Attach DB', '- Detach DB',
         );
         my @choices;
-        push @choices, $create_table if $sf->{o}{G}{enable_create_table};
-        push @choices, $drop_table   if $sf->{o}{G}{enable_drop_table};
+        push @choices, $create_table if $sf->{o}{enable}{create_table};
+        push @choices, $drop_table   if $sf->{o}{enable}{drop_table};
         if ( $sf->{d}{driver} eq 'SQLite' ) {
             push @choices, $attach_databases;
             push @choices, $detach_databases if $sf->{db_attached};
