@@ -113,12 +113,12 @@ sub insert_into_args_info_format {
     my $list_sep = ', ';
     my $last_i = $#{$sql->{insert_into_args}};
     my $tmp = [];
-    if ( @{$sql->{insert_into_args}} > $max + 2 ) { # 3
+    if ( @{$sql->{insert_into_args}} > $max + 3 ) {
         for my $row ( @{$sql->{insert_into_args}}[ 0 .. $begin ] ) {
             push @$tmp, $indent . join $list_sep, map { defined $_ ? $_ : '' } @$row;
         }
         push @$tmp, $indent . '...';
-        #push @$tmp, $indent . '...';
+        push @$tmp, $indent . '...';
         for my $row ( @{$sql->{insert_into_args}}[ $last_i - $end .. $last_i ] ) {
             push @$tmp, $indent . join $list_sep, map { defined $_ ? $_ : '' } @$row;
         }

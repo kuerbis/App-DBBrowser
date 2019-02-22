@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.008003;
 
-our $VERSION = '2.064';
+our $VERSION = '2.065';
 
 use Term::Choose::Constants qw( :screen );
 
@@ -50,7 +50,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.064
+Version 2.065
 
 =cut
 
@@ -467,6 +467,8 @@ Transpose columns to rows.
      63 | 9,745.8                           64 | 9818.2
     ----|---------
      64 | 9,818.2
+
+In the replacement it can be used the variable C<$c> as a counter. C<$c> is set to C<0> before each C<s///>.
 
 =back
 

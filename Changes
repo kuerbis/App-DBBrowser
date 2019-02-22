@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.065    2019-02-22
+        - Update filter 'replace'.
+
 2.064    2019-02-21
         - Update documentation.
 

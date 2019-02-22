@@ -483,11 +483,13 @@ sub __search_and_replace {
     SEARCH_AND_REPLACE: while ( 1 ) {
         my $mods = [ 'g', 'i', 'e', 'e' ];
         my $chosen_mods = [];
+        my $info_fmt = "s/%s/%s/%s;\n";
         my @bu;
 
         MODIFIERS: while ( 1 ) {
             $ax->print_sql( $sql, $waiting );
-            my $info = 's///' . join( '',  sort { $b cmp $a } @$chosen_mods ) . ";\n";
+            my $mods_str = join '', sort { $b cmp $a } @$chosen_mods;
+            my $info = sprintf $info_fmt, '', '', $mods_str;
             my @pre = ( undef, $sf->{i}{ok} );
             # Choose
             my @idx = choose(
@@ -519,7 +521,7 @@ sub __search_and_replace {
         my $globally    = ( grep( $_ eq 'g', @$chosen_mods ) )[0] || '';
         my @e_s = grep { $_ eq 'e' } @$chosen_mods;
         my $mods_str = join '', $insensitive, $globally, @e_s;
-        my $info = sprintf "s/%s/%s/%s;\n", '', '', $mods_str;
+        my $info = sprintf $info_fmt, '', '', $mods_str;
         $ax->print_sql( $sql, $waiting );
         my $trl = Term::Form->new();
         # Readline
@@ -527,14 +529,15 @@ sub __search_and_replace {
         if ( ! defined $pattern ) {
             next SEARCH_AND_REPLACE;
         }
-        $info = sprintf "s/%s/%s/%s;\n", $pattern, '', $mods_str;
+        $info = sprintf $info_fmt, $pattern, '', $mods_str;
         $ax->print_sql( $sql, $waiting );
+        my $c; # counter available in the replacement
         # Readline
         my $replacement = $trl->readline( 'Replacement: ', { info => $info } );
         if ( ! defined $replacement ) {
             next SEARCH_AND_REPLACE;
         }
-        $info = sprintf "s/%s/%s/%s;\n", $pattern, $replacement, $mods_str;
+        $info = sprintf $info_fmt, $pattern, $replacement, $mods_str;
         $ax->print_sql( $sql, $waiting );
         my $aoa = $sql->{insert_into_args};
         # Choose
@@ -549,12 +552,14 @@ sub __search_and_replace {
         $ax->print_sql( $sql, $waiting );
         my $regex = $insensitive ? qr/(?${insensitive}:${pattern})/ : qr/${pattern}/;
         my $replacement_code = sub { return $replacement };
-        for ( @e_s ) { # execute (e) substitution
+        for ( @e_s ) {
             my $recurse = $replacement_code;
-            $replacement_code = sub { return eval $recurse->() };
+            $replacement_code = sub { return eval $recurse->() }; # execute (e) substitution
         }
+
         for my $row ( @$aoa ) { # modifies $aoa
             for my $i ( @$col_idx ) {
+                $c = 0;
                 if ( ! defined $row->[$i] ) {
                     next;
                 }
