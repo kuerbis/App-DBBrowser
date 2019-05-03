@@ -1,22 +1,24 @@
 package # hide from PAUSE
-App::DBBrowser::Opt;
+App::DBBrowser::Opt::Set;
 
 use warnings;
 use strict;
-use 5.008003;
+use 5.010001;
 
+use Encode                qw( decode );
 use File::Basename        qw( fileparse );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealBin $RealScript );
 #use Pod::Usage            qw( pod2usage ); # required
 
+use Encode::Locale     qw();
 use Term::Choose       qw( choose );
 use Term::Choose::Util qw( insert_sep print_hash choose_a_number choose_a_subset settings_menu choose_a_dir );
 use Term::Form         qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::OptDB;
-
+use App::DBBrowser::Opt::DBSet;
+use App::DBBrowser::Opt::Get;
 
 sub new {
     my ( $class, $info, $options ) = @_;
@@ -33,115 +35,11 @@ sub new {
 }
 
 
-sub defaults {
-    my ( $sf, $section, $key ) = @_;
-    my $defaults = {
-        G => {
-            info_expand          => 0,
-            max_rows             => 200_000,
-            menu_memory          => 0,
-            meta                 => 0,
-            operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
-            plugins              => [ 'SQLite', 'mysql', 'Pg' ],
-            qualified_table_name => 0,
-            quote_identifiers    => 1,
-            thsd_sep             => ',',
-            file_find_warnings   => 0,
-        },
-        alias => {
-            aggregate  => 0,
-            functions  => 0,
-            join       => 0,
-            union      => 0,
-            subqueries => 0,
-        },
-        enable => {
-            create_table => 0,
-            drop_table   => 0,
-
-            insert_into => 0,
-            update      => 0,
-            delete      => 0,
-
-            expand_select   => 0,
-            expand_where    => 0,
-            expand_group_by => 0,
-            expand_having   => 0,
-            expand_order_by => 0,
-            expand_set      => 0,
-
-            parentheses => 0,
-
-            m_derived   => 0,
-            join        => 0,
-            union       => 0,
-            db_settings => 0,
-
-            j_derived  => 0,
-
-            u_derived => 0,
-            union_all => 0,
-        },
-        table => {
-            binary_filter     => 0,
-            binary_string     => 'BNRY',
-            codepage_mapping  => 0, # not an option, always 0
-            color             => 0,
-            decimal_separator => '.',
-            grid              => 1,
-            keep_header       => 1,
-            min_col_width     => 30,
-            mouse             => 0,
-            progress_bar      => 40_000,
-            squash_spaces     => 0,
-            tab_width         => 2,
-            table_expand      => 1,
-            undef             => '',
-        },
-        insert => {
-            copy_parse_mode => 1,
-            file_encoding   => 'UTF-8',
-            file_parse_mode => 0,
-            history_dirs    => 4,
-        },
-        create => {
-            autoincrement_col_name => 'Id',
-            data_type_guessing     => 1,
-        },
-        split => {
-            record_sep    => '\n',
-            record_l_trim => '',
-            record_r_trim => '',
-            field_sep     => ',',
-            field_l_trim  => '\s+',
-            field_r_trim  => '\s+',
-        },
-        csv => {
-            sep_char            => ',',
-            quote_char          => '"',
-            escape_char         => '"',
-            eol                 => '',
-
-            allow_loose_escapes => 0,
-            allow_loose_quotes  => 0,
-            allow_whitespace    => 0,
-            auto_diag           => 1,
-            blank_is_undef      => 1,
-            binary              => 1,
-            empty_is_undef      => 0,
-        }
-    };
-    return $defaults                   if ! $section;
-    return $defaults->{$section}       if ! $key;
-    return $defaults->{$section}{$key};
-}
-
-
 sub _groups {
     my $groups = [
         { name => 'group_help',     text => "  HELP"        },
         { name => 'group_path',     text => "  Path"        },
-        { name => 'group_database', text => "- DB Settings" },
+        { name => 'group_database', text => "- DB Options" },
         { name => 'group_behavior', text => "- Behavior"    },
         { name => 'group_enable',   text => "- Extensions"  },
         { name => 'group_sql',      text => "- SQL",        },
@@ -162,8 +60,8 @@ sub _options {
             { name => 'path', text => '', section => '' }
         ],
         group_database => [
-            { name => 'plugins',      text => "- DB plugins",  section => 'G' },
-            { name => '_db_defaults', text => "- DB settings", section => '' },
+            { name => 'plugins',      text => "- DB Plugins",  section => 'G' },
+            { name => '_db_defaults', text => "- DB Settings", section => '' },
         ],
         group_behavior => [
             { name => '_menu_memory',  text => "- Menu memory",  section => 'G'     },
@@ -217,7 +115,8 @@ sub _options {
 sub set_options {
     my ( $sf, $arg_groups, $arg_options ) = @_;
     if ( ! $sf->{o} || ! %{$sf->{o}} ) {
-        $sf->{o} = $sf->read_config_files();
+        my $opt_get = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
+        $sf->{o} = $opt_get->read_config_files();
     }
     my $groups;
     if ( $arg_groups ) {
@@ -237,7 +136,6 @@ sub set_options {
             my @pre  = ( undef, $sf->{i}{_continue} );
             my $choices = [ @pre, map( $_->{text}, @$groups ) ];
             # Choose
-            $ENV{TC_RESET_AUTO_UP} = 0;
             my $grp_idx = choose(
                 $choices,
                 { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $grp_old_idx, undef => $sf->{i}{_quit} }
@@ -262,7 +160,6 @@ sub set_options {
                     next GROUP;
                 }
             }
-            delete $ENV{TC_RESET_AUTO_UP};
             if ( $choices->[$grp_idx] eq $sf->{i}{_continue} ) {
                 if ( $sf->{write_config} ) {
                     $sf->__write_config_files();
@@ -291,7 +188,6 @@ sub set_options {
                 my @pre  = ( undef );
                 my $choices = [ @pre, map( $_->{text}, @$options ) ];
                 # Choose
-                $ENV{TC_RESET_AUTO_UP} = 0;
                 my $opt_idx = choose(
                     $choices,
                     { %{$sf->{i}{lyt_stmt_v}}, index => 1, default => $opt_old_idx, undef => '  <=' }
@@ -319,7 +215,6 @@ sub set_options {
                         next OPTION;
                     }
                 }
-                delete $ENV{TC_RESET_AUTO_UP};
                 $section = $options->[$opt_idx-@pre]{section};
                 $opt     = $options->[$opt_idx-@pre]{name};
             }
@@ -329,19 +224,21 @@ sub set_options {
                 Pod::Usage::pod2usage( { -exitval => 'NOEXIT', -verbose => 2 } );
             }
             elsif ( $opt eq 'path' ) {
-                my $version = 'version';
-                my $bin     = '  bin  ';
-                my $app_dir = 'app-dir';
+                my $key_version = 'version';
+                my $key_bin     = '  bin  ';
+                my $key_app_dir = 'app-dir';
+                my $app_dir = $sf->{i}{app_dir};
+                eval { $app_dir = decode( 'locale', $app_dir ) };
                 my $path = {
-                    $version => $main::VERSION,
-                    $bin     => catfile( $RealBin, $RealScript ),
-                    $app_dir => $sf->{i}{app_dir},
+                    $key_version => $main::VERSION,
+                    $key_bin     => catfile( $RealBin, $RealScript ),
+                    $key_app_dir => $app_dir,
                 };
-                my $opts = [ $version, $bin, $app_dir ];
+                my $opts = [ $key_version, $key_bin, $key_app_dir ];
                 print_hash( $path, { keys => $opts, preface => ' Close with ENTER', clear_screen => 1 } );
             }
             elsif ( $opt eq '_db_defaults' ) {
-                my $odb = App::DBBrowser::OptDB->new( $sf->{i}, $sf->{o} );
+                my $odb = App::DBBrowser::Opt::DBSet->new( $sf->{i}, $sf->{o} );
                 $odb->database_setting();
             }
             elsif ( $opt eq 'plugins' ) {
@@ -494,7 +391,7 @@ sub set_options {
             elsif ( $opt eq '_meta' ) {
                 my $prompt = 'DB/schemas/tables ';
                 my $sub_menu = [
-                    [ 'meta', "- Add metadata", [ $no, $yes ] ]
+                    [ 'metadata', "- Add metadata", [ $no, $yes ] ]
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -592,11 +489,13 @@ sub set_options {
             elsif ( $opt eq '_e_write_access' ) {
                 my $prompt = 'Write access: ';
                 my $sub_menu = [
-                    [ 'insert_into',  "- Insert records", [ $no, $yes ] ],
-                    [ 'update',       "- Update records", [ $no, $yes ] ],
-                    [ 'delete',       "- Delete records", [ $no, $yes ] ],
-                    [ 'create_table', "- Create table",   [ $no, $yes ] ],
-                    [ 'drop_table',   "- Drop   table",   [ $no, $yes ] ],
+                    [ 'insert_into',  "- Insert Records", [ $no, $yes ] ],
+                    [ 'update',       "- Update Records", [ $no, $yes ] ],
+                    [ 'delete',       "- Delete Records", [ $no, $yes ] ],
+                    [ 'create_table', "- Create Table",   [ $no, $yes ] ],
+                    [ 'drop_table',   "- Drop   Table",   [ $no, $yes ] ],
+                    [ 'create_view',  "- Create View",    [ $no, $yes ] ],
+                    [ 'drop_view',    "- Drop   View",    [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -727,25 +626,8 @@ sub __write_config_files {
         }
     }
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
-    my $file_name = $sf->{i}{f_settings};
-    $ax->write_json( $file_name, $tmp  );
-}
-
-
-sub read_config_files {
-    my ( $sf ) = @_;
-    my $o = $sf->defaults();
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
-    my $file_name = $sf->{i}{f_settings};
-    if ( -f $file_name && -s $file_name ) {
-        my $tmp = $ax->read_json( $file_name );
-        for my $section ( keys %$tmp ) {
-            for my $opt ( keys %{$tmp->{$section}} ) {
-                $o->{$section}{$opt} = $tmp->{$section}{$opt} if exists $o->{$section}{$opt};
-            }
-        }
-    }
-    return $o;
+    my $file_name_fs = $sf->{i}{f_settings};
+    $ax->write_json( $file_name_fs, $tmp  );
 }
 
 
