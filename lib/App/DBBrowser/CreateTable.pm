@@ -33,13 +33,13 @@ sub new {
 
 sub drop_table {
     my ( $sf ) = @_;
-    return $sf->__choose_drop_item( 'TABLE' );
+    return $sf->__choose_drop_item( 'table' );
 }
 
 
 sub drop_view {
     my ( $sf ) = @_;
-    return $sf->__choose_drop_item( 'VIEW' );
+    return $sf->__choose_drop_item( 'view' );
 }
 
 
@@ -49,8 +49,8 @@ sub __choose_drop_item {
     my $tc = Term::Choose->new( $sf->{i}{default} );
     my $sql = {};
     $ax->reset_sql( $sql );
-    my $tables = [ grep { $sf->{d}{tables_info}{$_}[3] eq $type } @{$sf->{d}{user_tables}} ];
-    my $prompt = $sf->{d}{db_string} . "\n" . 'Drop ' . lc $type;
+    my $tables = [ grep { $sf->{d}{tables_info}{$_}[3] eq uc $type } @{$sf->{d}{user_tables}} ];
+    my $prompt = $sf->{d}{db_string} . "\n" . 'Drop ' . $type;
     # Choose
     my $table = $tc->choose(
         [ undef, map { "- $_" } sort @$tables ],
@@ -68,14 +68,10 @@ sub __choose_drop_item {
 
 sub __drop {
     my ( $sf, $sql, $type ) = @_;
-    my $stmt_type;
-    if ( $type eq 'VIEW' ) {
-        $stmt_type = 'Drop_view';
+    if ( $type ne 'view' ) {
+        $type = 'table';
     }
-    else {
-        $stmt_type = 'Drop_table';
-        $type = 'TABLE';
-    }
+    my $stmt_type = 'Drop_' . $type;
     $sf->{i}{stmt_types} = [ $stmt_type ];
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{default} );
@@ -97,18 +93,18 @@ sub __drop {
         my $all_arrayref = $sth->fetchall_arrayref;
         my $row_count = @$all_arrayref;
         unshift @$all_arrayref, $col_names;
-        my $prompt_pt = sprintf "DROP %s %s     (on last look at the %s)\n", $type, $sql->{table}, lc $type;
+        my $prompt_pt = sprintf "DROP %s %s     (on last look at the %s)\n", uc $type, $sql->{table}, $type;
         my $tp = Term::TablePrint->new( $sf->{o}{table} );
         $tp->print_table(
             $all_arrayref,
             { grid => 2, prompt => $prompt_pt, max_rows => 0, keep_header => 1,
               table_expand => $sf->{o}{G}{info_expand} }
         );
-        $prompt = sprintf 'DROP %s %s  (%s %s)', $type, $sql->{table}, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_count == 1 ? 'row' : 'rows';
+        $prompt = sprintf 'DROP %s %s  (%s %s)', uc $type, $sql->{table}, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_count == 1 ? 'row' : 'rows';
         1; }
     ) {
         $ax->print_error_message( $@, "Drop $type info output" );
-        $prompt = sprintf 'DROP %s %s', $type, $sql->{table};
+        $prompt = sprintf 'DROP %s %s', uc $type, $sql->{table};
     }
     $prompt .= "\n\nCONFIRM:";
     # Choose
@@ -124,7 +120,6 @@ sub __drop {
     }
     return;
 }
-
 
 
 sub create_view {
@@ -243,7 +238,7 @@ sub create_table {
         if ( @{$sql->{insert_into_args}} ) {
             my $ok_insert = $sf->__insert_data( $sql );
             if ( ! $ok_insert ) {
-                my $drop_ok = $sf->__drop( $sql, 'TABLE' );
+                my $drop_ok = $sf->__drop( $sql, 'table' );
                 if ( ! $drop_ok ) {
                     return;
                 }
@@ -256,7 +251,6 @@ sub create_table {
 
 sub __create {
     my ( $sf, $sql, $type ) = @_;
-    $type = lc $type;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{default} );
     $ax->print_sql( $sql );

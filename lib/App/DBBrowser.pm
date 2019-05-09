@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.201';
+our $VERSION = '2.202';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -159,7 +159,7 @@ sub run {
             if ( defined $idx_plugin ) {
                 $plugin = $choices_plugins->[$idx_plugin];
             }
-            if ( ! defined $plugin ){
+            if ( ! defined $plugin ) {
                 last PLUGIN;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
@@ -716,7 +716,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.201
+Version 2.202
 
 =head1 DESCRIPTION
 

@@ -50,8 +50,8 @@ sub __tmp_history {
         push @print_history, $filled_stmt;
     }
     my @clause_history = uniq @{$sf->{i}{history}{$db}{substmt}};
-    if ( @clause_history > 8 ) {
-        $#clause_history = 7;
+    if ( @clause_history > 10 ) {
+        $#clause_history = 9;
     }
     my $tmp_history = [];
     for my $tmp ( uniq( @clause_history, @print_history ) ) {
