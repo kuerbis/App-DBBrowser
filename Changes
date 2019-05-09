@@ -3,6 +3,7 @@ Revision history for App-DBBrowser
 
 2.202    2019-05-09
         - Update minimum version: Term::Choose, Term::Choose::Util, Term::From.
+        - Code refactoring.
 
 2.201    2019-05-08
         - Bugfix in reading db options.
