@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.204    2019-07-04
+        - Bugfixes by raising required "Term::Form"- and "Term::TablePrint"-versions.
+        - Code refactoring.
+
 2.203    2019-06-30
         - Fetching column names and types: eval sql code.
         - Keep the cursor hidden, avoid cursor flickering.
