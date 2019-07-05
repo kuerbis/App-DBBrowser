@@ -188,10 +188,7 @@ sub print_sql {
     }
     print CLEAR_SCREEN;
     print $str;
-    #print line_fold( $str, term_width() - 2, { init_tab => '', subseq => ' ' x 4 } );
     if ( defined $waiting ) {
-        local $| = 1;
-        #print HIDE_CURSOR;
         print $waiting;
     }
 }

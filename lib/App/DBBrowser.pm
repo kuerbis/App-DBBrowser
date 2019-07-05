@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.204';
+our $VERSION = '2.205';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -120,11 +120,11 @@ sub __init {
 
 sub run {
     my ( $sf ) = @_;
+    local $| = 1;
     local $SIG{INT} = sub {
         if ( defined $sf->{i}{f_copy_paste} && -e $sf->{i}{f_copy_paste} ) {
             unlink $sf->{i}{f_copy_paste};
         }
-        # ###
         exit;
     };
     $sf->__init();
@@ -570,12 +570,12 @@ sub __create_drop_or_attach {
 
     HIDDEN: while ( 1 ) {
         my ( $create_table,    $drop_table,      $create_view,    $drop_view,      $attach_databases, $detach_databases ) = (
-          '- CREATE Table', '- DROP Table', '- CREATE View', '- DROP View', '- Attach DB',     '- Detach DB',
+          '- Create TABLE', '- Drop   TABLE', '- Create VIEV', '- Drop   VIEW', '- Attach DB',     '- Detach DB',
         );
         my @choices;
         push @choices, $create_table if $sf->{o}{enable}{create_table};
-        push @choices, $create_view  if $sf->{o}{enable}{create_view};
         push @choices, $drop_table   if $sf->{o}{enable}{drop_table};
+        push @choices, $create_view  if $sf->{o}{enable}{create_view};
         push @choices, $drop_view    if $sf->{o}{enable}{drop_view};
         if ( $sf->{i}{driver} eq 'SQLite' ) {
             push @choices, $attach_databases;
@@ -602,7 +602,7 @@ sub __create_drop_or_attach {
         }
         die if $idx < @pre;
         my $choice = $choices[$idx-@pre];
-        if ( $choice =~ /^-\ (?:CREATE|DROP)/ ) {
+        if ( $choice =~ /^-\ (?:Create|Drop)/i ) {
             #require App::DBBrowser::CreateTable;
             my $ct = App::DBBrowser::CreateTable->new( $sf->{i}, $sf->{o}, $sf->{d} );
             if ( $choice eq $create_table ) {
@@ -706,7 +706,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.204
+Version 2.205
 
 =head1 DESCRIPTION
 
