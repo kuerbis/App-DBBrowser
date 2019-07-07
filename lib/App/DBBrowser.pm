@@ -116,13 +116,9 @@ sub __options {
             last if $arg eq '--';
         }
     }
-    if ( ! defined $sf->{o} ) {
-        return;
-    }
     if ( $sf->{o}{table}{mouse} ) {
         $sf->{i}{tc_default}{mouse} = $sf->{o}{table}{mouse};
     }
-    return 1;
 }
 
 

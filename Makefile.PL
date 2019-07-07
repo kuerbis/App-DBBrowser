@@ -58,7 +58,7 @@ WriteMakefile(
         'Spreadsheet::Read'       => 0,
         'String::Unescape'        => 0,
         'SQL::Type::Guess'        => 0,
-        'Term::Choose'            => '1.653',
+        'Term::Choose'            => '1.654',
         'Term::Choose::Util'      => '0.074',
         'Term::Form'              => '0.517',
         'Term::TablePrint'        => '0.116',
