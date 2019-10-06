@@ -421,9 +421,9 @@ Insert a cell in a chosen row. The new cell is inserted in front of a chosen cel
 
 =item Append Col
 
-Append an empty column. Appends an header element to the header row and adjusts the remaining rows to the length of the
+Append an empty column. Appends a header element to the header row and adjusts the remaining rows to the length of the
 header row. If the input has rows with different numbers of cells, use the L<Row Group> filter first to select the right
-group rows.
+row-group.
 
 =item Empty to NULL
 
