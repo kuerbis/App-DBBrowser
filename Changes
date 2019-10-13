@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.214    2019-10-13
+        - Update documentation.
+
 2.213    2019-10-13
         - New parse mode: "Template".
         - Update input filter menu.
