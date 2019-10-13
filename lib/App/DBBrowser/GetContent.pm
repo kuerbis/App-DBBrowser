@@ -176,7 +176,7 @@ sub from_copy_and_paste {
     my $parse_mode_idx = $sf->{o}{insert}{copy_parse_mode};
     print clear_screen();
     print show_cursor();
-    print "Paste multi-row:  (+ 2 x Ctrl-D)\n";
+    print "Paste multi-row:  (then press Ctrl-D)\n";
     my $file_fs = $sf->{i}{f_copy_paste};
     if ( ! eval {
         open my $fh_in, '>', $file_fs or die $!;
