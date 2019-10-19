@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.215    2019-10-19
+        - New filter 'fill_up_rows', 'join_columns'.
+        - Update filter 'merge_rows'.
+
 2.214    2019-10-13
         - Update documentation.
 
