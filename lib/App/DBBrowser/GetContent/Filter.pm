@@ -710,7 +710,7 @@ sub __merge_rows {
           layout => 3, order => 0, all_by_default => 0, prompt => $prompt, index => 1,
           confirm => $sf->{i}{ok}, back => '<<', info => $filter_str } # order
     );
-    if ( ! defined $chosen_idxs ) {
+    if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
     }
     my $merged = [];
