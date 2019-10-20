@@ -761,7 +761,7 @@ sub __join_columns {
         { current_selection_label => 'Cols: ', layout => 0, order => 0, index => 1, confirm => $sf->{i}{ok},
           back => '<<', info => $filter_str } # order
     );
-    if ( ! defined $chosen_idxs ) {
+    if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
     }
     $ax->print_sql( $sql, $sf->{i}{working} );
