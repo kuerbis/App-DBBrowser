@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.218    2019-10-23
+        - Update documentation.
+
 2.217    2019-10-20
         - Bugfix 'choose_a_subset' return values: check for empty arrays.
 
