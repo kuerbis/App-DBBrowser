@@ -170,7 +170,6 @@ sub __print_filter_info {
                 $sf->{i}{occupied_term_height} += 1;
             }
             else {
-                my $cols_in_a_row = 0;
                 my $joined_cols = $longest;
                 my $cols_in_a_row = 1;
                 while ( $joined_cols < $term_w ) {
@@ -292,7 +291,7 @@ sub __range_of_rows {
 
 sub __row_groups {
     my ( $sf, $sql, $filter_str ) = @_;
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $aoa = $sql->{insert_into_args};
     my %group; # group rows by the number of cols
     for my $row_idx ( 0 .. $#$aoa ) {
@@ -311,21 +310,24 @@ sub __row_groups {
             $len, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_str,
             $col_count, $col_str;
     }
-    $sf->__print_filter_info( $sql, 1 + @choices_groups, undef );
+    $sf->__print_filter_info( $sql, 4 + @choices_groups, undef );
     my $prompt = 'Choose group:';
-    my @pre = ( undef );
-    # Choose
-    my $idx = $tc->choose(
-        [ @pre, @choices_groups ],
-        { %{$sf->{i}{lyt_v}}, info => $filter_str, prompt => $prompt, index => 1, undef => '  <=', busy_string => $sf->{i}{gc}{working} }
+    my $idxs = $tu->choose_a_subset(
+        \@choices_groups,
+        { info => $filter_str, prompt => $prompt, layout => 3, index => 1, confirm => $sf->{i}{ok}, back => '<<',
+          all_by_default => 1, current_selection_label => "Chosen groups:\n", current_selection_separator => "\n",
+          current_selection_end => "\n" }
     );
-    $sf->__print_filter_info( $sql, 1 + @choices_groups, undef );
-    if ( ! $idx ) {
+    $sf->__print_filter_info( $sql, 4 + @choices_groups, undef );
+    if ( ! defined $idxs ) {
         return;
     }
     else {
-        my $row_idxs = $group{ $keys_sorted[$idx-@pre] };
-        $sql->{insert_into_args} = [ @{$aoa}[@$row_idxs] ];
+        my $row_idxs = [];
+        for my $idx ( @$idxs ) {
+            push @$row_idxs, @{$group{ $keys_sorted[$idx] }};
+        }
+        $sql->{insert_into_args} = [ @{$aoa}[sort { $a <=> $b } @$row_idxs] ];
         return;
     }
 }
