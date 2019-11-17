@@ -202,13 +202,23 @@ sub __choose_columns {
     my $aoa = $sql->{insert_into_args};
     my $empty_cells_of_col_count =  $sf->__count_empty_cells_of_cols( $aoa );
     my $header = $sf->__prepare_header( $aoa, $empty_cells_of_col_count );
-    my $mark = $sf->__prepare_mark( $aoa, $empty_cells_of_col_count );
     $sf->__print_filter_info( $sql, 0, [ '<<', $sf->{i}{ok}, @$header ] );
+    my $row_count = @$aoa;
+    my $col_count = @{$aoa->[0]};
+    my $mark = [];
+    for my $col_idx ( 0 .. $col_count - 1 ) {
+        if ( $empty_cells_of_col_count->[$col_idx] < $row_count ) {
+            push @$mark, $col_idx;
+        }
+    }
+    if ( @$mark == $col_count ) {
+        $mark = undef; # no preselect if all cols have entries
+    }
     # Choose
     my $col_idx = $tu->choose_a_subset(
         $header,
         { current_selection_label => 'Cols: ', layout => 0, order => 0, mark => $mark, all_by_default => 1,
-          index => 1, confirm => $sf->{i}{ok}, back => '<<', info => $filter_str }
+          index => 1, confirm => $sf->{i}{ok}, back => '<<', info => $filter_str, busy_string => $sf->{i}{gc}{working} }
     );
     if ( ! defined $col_idx ) {
         return;
@@ -216,6 +226,7 @@ sub __choose_columns {
     $sql->{insert_into_args} = [ map { [ @{$_}[@$col_idx] ] } @$aoa ];
     return 1;
 }
+
 
 sub __choose_rows {
     my ( $sf, $sql, $filter_str ) = @_;
@@ -324,7 +335,7 @@ sub __row_groups {
         \@choices_groups,
         { info => $filter_str, prompt => $prompt, layout => 3, index => 1, confirm => $sf->{i}{ok}, back => '<<',
           all_by_default => 1, current_selection_label => "Chosen groups:\n", current_selection_separator => "\n",
-          current_selection_end => "\n" }
+          current_selection_end => "\n", busy_string => $sf->{i}{gc}{working} }
     );
     $sf->__print_filter_info( $sql, 4 + @choices_groups, undef );
     if ( ! defined $idxs ) {
@@ -568,7 +579,7 @@ sub __search_and_replace {
         my $col_idx = $tu->choose_a_subset(
             $header,
             { current_selection_label => 'Columns: ', info => $info, layout => 0, all_by_default => 1,
-              index => 1, confirm => $sf->{i}{ok}, back => '<<' }
+              index => 1, confirm => $sf->{i}{ok}, back => '<<', busy_string => $sf->{i}{gc}{working} }
         );
         if ( ! defined $col_idx ) {
             next SEARCH_AND_REPLACE;
@@ -683,7 +694,7 @@ sub __merge_rows {
         \@stringified_rows,
         { current_selection_separator => "\n", current_selection_end => "\n",
           layout => 3, order => 0, all_by_default => 0, prompt => $prompt, index => 1,
-          confirm => $sf->{i}{ok}, back => '<<', info => $filter_str } # order
+          confirm => $sf->{i}{ok}, back => '<<', info => $filter_str, busy_string => $sf->{i}{gc}{working} }
     );
     if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
@@ -735,7 +746,7 @@ sub __join_columns {
     my $chosen_idxs = $tu->choose_a_subset(
         $header,
         { current_selection_label => 'Cols: ', layout => 0, order => 0, index => 1, confirm => $sf->{i}{ok},
-          back => '<<', info => $filter_str } # order
+          back => '<<', info => $filter_str, busy_string => $sf->{i}{gc}{working} }
     );
     if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
@@ -862,22 +873,6 @@ sub __prepare_header {
         }
     }
     return $header;
-}
-
-sub __prepare_mark {
-    my ( $sf, $aoa, $empty_cells_of_col_count ) = @_;
-    my $row_count = @$aoa;
-    my $col_count = @{$aoa->[0]};
-    my $mark = [];
-    for my $col_idx ( 0 .. $col_count - 1 ) {
-        if ( $empty_cells_of_col_count->[$col_idx] < $row_count ) {
-            push @$mark, $col_idx;
-        }
-    }
-    if ( @$mark == $col_count ) {
-        $mark = undef; # no preselect if all cols have entries
-    }
-    return $mark;
 }
 
 sub __choose_a_column_idx {
