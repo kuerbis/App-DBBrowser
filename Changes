@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.226    2019-11-17
+        - Bugfix in filter split_column.
+
 2.225    2019-11-17
         - Code refactoring.
         - Update required Term::Choose-Util-versions.

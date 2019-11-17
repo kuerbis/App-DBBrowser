@@ -499,7 +499,7 @@ sub __split_column {
         return;
     }
     my $info = $filter_str;
-    my $prompt = "Split column \"$header->[$idx]\"";
+    $prompt = "Split column \"$header->[$idx]\"";
     my $fields = [
         [ 'Pattern', ],
         [ 'Limit', ],
