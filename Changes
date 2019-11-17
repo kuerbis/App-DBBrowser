@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.224    2019-11-17
+        - Filter "Choose Rows": preselect non-empty rows if the data contains empty rows.
+
 2.223    2019-11-16
         - Update documentation.
         - Coming back from a not completed "create table": keep track of sheet index.

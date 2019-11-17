@@ -153,7 +153,7 @@ sub get_content {
                             $parse_ok = $cp->__parse_with_split( $sql, $fh );
                         }
                         elsif ( $parse_mode_idx == 2 ) {
-                            $parse_ok = $cp->__parse_with_template( $sql, $fh, $sf->{i}{gc}{source_type} ); #
+                            $parse_ok = $cp->__parse_with_template( $sql, $fh );
                             if ( $parse_ok && $parse_ok == -1 ) {
                                 next PARSE;
                             }
