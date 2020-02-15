@@ -568,7 +568,7 @@ sub __choose_a_subset_wrap {
     my $name = 'New: ';
     my $list = $tu->choose_a_subset(
         $available,
-        { prompt => $prompt, current_selection_label => $name, info => $info, prefix => '- ', keep_chosen => 0,
+        { prompt => $prompt, cs_label => $name, info => $info, prefix => '- ', keep_chosen => 0,
           index => 0, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back}, layout => 3,
           clear_screen => 1 }
     );
@@ -590,7 +590,7 @@ sub __choose_a_number_wrap {
     #$info = $prompt . "\n" . $info;
     # Choose_a_number
     my $choice = $tu->choose_a_number( $digits,
-        { prompt => $prompt, current_selection_label => $name, info => $info, small_first => $small_first, clear_screen => 1 }
+        { prompt => $prompt, cs_label => $name, info => $info, small_first => $small_first, clear_screen => 1 }
     );
     return if ! defined $choice;
     $sf->{o}{$section}{$opt} = $choice;

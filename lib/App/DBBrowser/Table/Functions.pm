@@ -89,7 +89,7 @@ sub __choose_columns {
         # Choose
         my $subset = $tu->choose_a_subset(
             $cols,
-            { current_selection_label => $function . ': ', layout => 1, current_selection_separator => ',', keep_chosen => 1 }
+            { cs_label => $function . ': ', layout => 1, cs_separator => ',', keep_chosen => 1 }
         );
         if ( ! defined $subset || ! @$subset ) {
             return;
@@ -132,7 +132,7 @@ sub __prepare_col_func {
         my $info = $func . ': ' . $qt_col;
         my $name = "Decimal places: ";
         my $precision = $tu->choose_a_number( 2,
-            { current_selection_label => $name, info => $info, small_first => 1 }
+            { cs_label => $name, info => $info, small_first => 1 }
         );
         return if ! defined $precision;
         $quote_f = $plui->truncate( $qt_col, $precision );
@@ -141,7 +141,7 @@ sub __prepare_col_func {
         my $info = $func . ': ' . $qt_col;
         my $name = "Decimal places: ";
         my $precision = $tu->choose_a_number( 2,
-            { current_selection_label => $name, info => $info, small_first => 1 }
+            { cs_label => $name, info => $info, small_first => 1 }
         );
         return if ! defined $precision;
         my $positive_precision = 'ROUND(' . $qt_col . ',  ' . $precision . ')';
