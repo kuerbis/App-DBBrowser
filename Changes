@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.234    2020-02-16
+        - Fixed 'empty_to_null' filter.
+
 2.233    2020-02-15
         - Added 'round' function.
         - Bugfix in 'Credentials.pm'.
