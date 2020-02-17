@@ -105,6 +105,7 @@ sub _options {
             { name => '_split_config',      text => "- split settings", section => 'split'  },
             { name => '_csv_char',          text => "- CSV settings-a", section => 'csv'    },
             { name => '_csv_options',       text => "- CSV settings-b", section => 'csv'    },
+            { name => '_empty_to_null',     text => "- Empty to NULL",  section => 'insert' },
             { name => '_file_encoding',     text => "- File encoding",  section => 'insert' },
             { name => 'history_dirs',       text => "- Dir history",    section => 'insert' },
             { name => '_file_filter',       text => "- File filter",    section => 'insert' },
@@ -353,6 +354,15 @@ sub set_options {
                     [ 'blank_is_undef',      "- blank_is_undef",      [ $no, $yes ] ],
                     [ 'binary',              "- binary",              [ $no, $yes ] ],
                     [ 'empty_is_undef',      "- empty_is_undef",      [ $no, $yes ] ],
+                ];
+                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
+            }
+            elsif ( $opt eq '_empty_to_null' ) {
+                my $prompt = 'Enable "Empty to NULL" by default:';
+                my $sub_menu = [
+                    [ 'empty_to_null_plain',  "- Source type 'plain'",  [ $no, $yes ] ],
+                    [ 'empty_to_null_copy',   "- Source type 'copy'",   [ $no, $yes ] ],
+                    [ 'empty_to_null_file',   "- Source tpye 'file'",   [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

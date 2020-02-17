@@ -26,7 +26,7 @@ sub new {
 
 
 sub input_filter {
-    my ( $sf, $sql, $default_e2n ) = @_;
+    my ( $sf, $sql ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     $sf->{i}{gc}{working} = 'Working ... ';
     my $confirm       = '     OK';
@@ -48,7 +48,8 @@ sub input_filter {
     my $fill_up_rows  = 'Fill_up_Rows';
     my $cols_to_rows  = 'Cols_to_Rows';
     my $empty_to_null = 'Empty_2_NULL';
-    $sf->{empty_to_null} = $default_e2n;
+    $sf->{empty_to_null} = $sf->{o}{insert}{'empty_to_null_' . $sf->{i}{gc}{source_type}};
+
     my $old_idx = 0;
 
     FILTER: while ( 1 ) {
@@ -82,7 +83,7 @@ sub input_filter {
         if ( $filter eq $reset ) {
             $sf->__print_filter_info( $sql, 3, undef );
             $sql->{insert_into_args} = [ map { [ @$_ ] } @{$sf->{i}{gc}{bu_insert_into_args}} ];
-            $sf->{empty_to_null} = $default_e2n;
+            $sf->{empty_to_null} = $sf->{o}{insert}{'empty_to_null_' . $sf->{i}{gc}{source_type}};
             next FILTER
         }
         elsif ( $filter eq $confirm ) {
