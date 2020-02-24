@@ -316,7 +316,7 @@ sub __parse_with_Spreadsheet_Read {
                 }
                 $old_idx = $idx;
                 $sf->{i}{S_R}{$file_fs}{old_idx} = $idx;
-                # safe the last active user chosen idx as the old_idx and not the auto-jumped idx (0)
+                # save the last active user chosen idx as the old_idx and not the auto-jumped idx (0)
             }
             $sheet_idx = $idx - @pre + 1;
             last SHEET;
