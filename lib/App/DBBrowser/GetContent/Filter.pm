@@ -151,7 +151,7 @@ sub __print_filter_info {
     my ( $sf, $sql, $row_count, $horizontal_choices ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     print $sf->{i}{working} . "\r";
-    $sf->{i}{occupied_term_height} = 1; #
+    $sf->{i}{occupied_term_height} = 0;
     #$sf->{i}{occupied_term_height} += 1; # keep bottom line empty
     $sf->{i}{occupied_term_height} += $row_count;
     if ( defined $horizontal_choices ) {
@@ -159,7 +159,7 @@ sub __print_filter_info {
         my $longest = 0;
         my @tmp_cols = map{ ! length $_ ? '--' : $_ } @$horizontal_choices;
         for my $col ( @tmp_cols ) {
-            my $col_w = print_columns $col;
+            my $col_w = print_columns( $col );
             $longest = $col_w if $col_w > $longest;
         }
         if ( $longest * 2 + 2 > $term_w ) {
