@@ -43,20 +43,6 @@ sub __stmt_fold {
 }
 
 
-#sub __CREATE_TABLE_stmt {
-#    my ( $sf, $sql, $term_w, $indent0 ) = @_;
-#    my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
-#    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
-#}
-
-
-#sub __INSERT_INTO_stmt_first_part {
-#    my ( $sf, $sql, $term_w, $indent0 ) = @_;
-#    my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
-#    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
-#}
-
-
 sub get_stmt {
     my ( $sf, $sql, $stmt_type, $used_for ) = @_;
     my $term_w;

@@ -52,7 +52,8 @@ sub input_filter {
     my $old_idx = 0;
 
     FILTER: while ( 1 ) {
-        $sf->__print_filter_info( $sql, 5, undef );
+        my $count_static_rows = 5; # prompt and 4 menu rows (fix width)
+        $sf->__print_filter_info( $sql, $count_static_rows, undef );
         my $choices = [
             undef,    $choose_cols,   $choose_rows,  $range_rows, $row_groups,
             $confirm, $remove_cell,   $insert_cell,  $append_col, $split_column,
@@ -65,7 +66,7 @@ sub input_filter {
             { prompt => 'Filter:', layout => 0, order => 0, max_width => 78, index => 1, default => $old_idx,
               undef => $back }
         );
-        $sf->__print_filter_info( $sql, 5, undef );
+        #$sf->__print_filter_info( $sql, $count_static_rows, undef );
         if ( ! $idx ) {
             $sql->{insert_into_args} = []; #
             return;
@@ -80,21 +81,22 @@ sub input_filter {
         my $filter = $choices->[$idx];
         my $filter_str = sprintf( "Filter: %s", $filter );
         if ( $filter eq $reset ) {
-            $sf->__print_filter_info( $sql, 3, undef );
+            $sf->__print_filter_info( $sql, $count_static_rows, undef ); #
             $sql->{insert_into_args} = [ map { [ @$_ ] } @{$sf->{i}{gc}{bu_insert_into_args}} ];
             $sf->{empty_to_null} = $sf->{o}{insert}{'empty_to_null_' . $sf->{i}{gc}{source_type}};
             next FILTER
         }
         elsif ( $filter eq $confirm ) {
             if ( $sf->{empty_to_null} ) {
-                $sf->__print_filter_info( $sql, 3, undef );
+                $sf->__print_filter_info( $sql, $count_static_rows, undef );
                 no warnings 'uninitialized';
                 $sql->{insert_into_args} = [ map { [ map { length ? $_ : undef } @$_ ] } @{$sql->{insert_into_args}} ];
             }
             return 1;
         }
         elsif ( $filter eq $reparse ) {
-            $sf->__print_filter_info( $sql, 7, undef );
+            my $count_static_rows = 9; # bigges settings sub-menu 9 rows
+            $sf->__print_filter_info( $sql, $count_static_rows, undef );
             return -1;
         }
         elsif ( $filter eq $choose_cols  ) {
@@ -185,7 +187,7 @@ sub __print_filter_info {
             }
         }
     }
-    #$sf->{i}{occupied_term_height} += 1; # keep bottom line empty
+    #$sf->{i}{occupied_term_height} += 1; # to keep bottom line empty
     my $indent = '';
     my $bu_stmt_types = [ @{$sf->{i}{stmt_types}} ];
     $sf->{i}{stmt_types} = [];
@@ -237,7 +239,7 @@ sub __choose_rows {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $aoa = $sql->{insert_into_args};
-    my $count_static_rows = 2 + @$aoa; # filter_str and prompt and aoa
+    my $count_static_rows = 2 + @$aoa; # filter_str, prompt and aoa
     $sf->__print_filter_info( $sql, $count_static_rows, undef );
     my @pre = ( undef, $sf->{i}{ok} );
     my @stringified_rows;
@@ -262,7 +264,7 @@ sub __choose_rows {
             { %{$sf->{i}{lyt_v}}, prompt => $prompt, info => $filter_str, meta_items => [ 0 .. $#pre ],
               include_highlighted => 2, index => 1, undef => '<<', busy_string => $sf->{i}{working}, mark => $mark }
         );
-        my $count_static_rows = 2 + @$aoa; # filter_str and prompt and aoa
+        my $count_static_rows = 2 + @$aoa; # filter_str, prompt and aoa
         $sf->__print_filter_info( $sql, $count_static_rows, undef );
         if ( ! $idx[0] ) {
             $sql->{insert_into_args} = $aoa;
@@ -289,7 +291,7 @@ sub __choose_rows {
 sub __range_of_rows {
     my ( $sf, $sql, $filter_str ) = @_;
     my $aoa = $sql->{insert_into_args};
-    my $count_static_rows = 2 + @$aoa; # filter_str and prompt and aoa
+    my $count_static_rows = 2 + @$aoa; # filter_str, prompt and aoa
     $sf->__print_filter_info( $sql, $count_static_rows, undef );
     # Choose
     my $prompt = "Choose first row:";
@@ -298,7 +300,7 @@ sub __range_of_rows {
     if ( ! defined $idx_first_row ) {
         return;
     }
-    $count_static_rows = 2 + @$aoa; # filter_str and prompt and aoa
+    $count_static_rows = 2 + @$aoa; # filter_str, prompt and aoa
     $sf->__print_filter_info( $sql, $count_static_rows, undef );
     $prompt = "Choose last row:";
     # Choose
@@ -618,7 +620,7 @@ sub __search_and_replace {
                     next;
                 }
                 elsif ( $modifiers =~ /g/ ) {
-                    if ( $modifiers =~ /s/ ) {
+                    if ( $modifiers =~ /s/ ) { # s not documented
                         $row->[$i] =~ s/$regex/$replacement_code->()/gse;
                     }
                     else {
@@ -626,7 +628,7 @@ sub __search_and_replace {
                     }
                 }
                 else {
-                    if ( $modifiers =~ /s/ ) {
+                    if ( $modifiers =~ /s/ ) { # s not documented
                         $row->[$i] =~ s/$regex/$replacement_code->()/se;
                     }
                     else {
