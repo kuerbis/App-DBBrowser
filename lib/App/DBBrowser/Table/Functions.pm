@@ -43,10 +43,11 @@ sub col_function {
         Concat              => 9, # Concatenate
         Epoch_to_Date       => 1,
         Epoch_to_DateTime   => 1,
-        Truncate            => 1,
+        Replace             => 1,
         Round               => 1,
+        Truncate            => 1,
     };
-    my @functions_sorted = qw( Concat Truncate Round Bit_Length Char_Length Epoch_to_Date Epoch_to_DateTime );
+    my @functions_sorted = qw( Bit_Length Char_Length Concat Epoch_to_Date Epoch_to_DateTime Replace Round Truncate );
 
     SCALAR_FUNC: while ( 1 ) {
         # Choose
@@ -155,6 +156,26 @@ sub __prepare_col_func {
             $precision = -$precision;
         }
         $quote_f = $plui->round( $qt_col, $precision );
+    }
+    elsif ( $func eq 'Replace' ) {
+        my $info = $func . '(' . $qt_col . ', from_str, to_str)';
+        my $tf = Term::Form->new( $sf->{i}{tf_default} );
+        my $fields = [
+            [ ' from str', ],
+            [ '   to str', ],
+        ];
+        my $form = $tf->fill_form(
+            $fields,
+            { info => $info, prompt => '', auto_up => 2,
+              confirm => '  OK', back => '  <<' }
+        );
+        if ( ! $form ) {
+            return;
+        }
+        my $string_to_replace =  $sf->{d}{dbh}->quote( $form->[0][1] );
+        my $replacement_string = $sf->{d}{dbh}->quote( $form->[1][1] );
+        #return if ! ...;
+        $quote_f = $plui->replace( $qt_col, $string_to_replace, $replacement_string  );
     }
     elsif ( $func eq 'Bit_Length' ) {
         $quote_f = $plui->bit_length( $qt_col );

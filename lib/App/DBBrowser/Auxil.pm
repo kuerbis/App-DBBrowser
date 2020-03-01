@@ -37,21 +37,25 @@ sub __stmt_fold {
         }
         return line_fold( $stmt, $term_w, $fold_opt );
     }
-    return ' ' . $stmt;
+    else {
+        return ' ' . $stmt;
+    }
 }
 
 
-sub __CREATE_TABLE_stmt {
-    my ( $sf, $sql, $term_w, $indent0 ) = @_;
-    my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
-    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
-}
+#sub __CREATE_TABLE_stmt {
+#    my ( $sf, $sql, $term_w, $indent0 ) = @_;
+#    my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
+#    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
+#}
 
-sub __INSERT_INTO_stmt_first_part {
-    my ( $sf, $sql, $term_w, $indent0 ) = @_;
-    my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
-    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
-}
+
+#sub __INSERT_INTO_stmt_first_part {
+#    my ( $sf, $sql, $term_w, $indent0 ) = @_;
+#    my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
+#    return $sf->__stmt_fold( $stmt, $term_w, $indent0 );
+#}
+
 
 sub get_stmt {
     my ( $sf, $sql, $stmt_type, $used_for ) = @_;
@@ -75,7 +79,10 @@ sub get_stmt {
         @tmp = ( $sf->__stmt_fold( "DROP VIEW $table", $term_w, $indent0 ) );
     }
     elsif ( $stmt_type eq 'Create_table' ) {
-        @tmp = ( $sf->__CREATE_TABLE_stmt( $sql, $term_w, $indent0 ) );
+        my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
+        @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
+        $sf->{i}{occupied_term_height} += @tmp;
+
     }
     elsif ( $stmt_type eq 'Create_view' ) {
         @tmp = ( $sf->__stmt_fold( "CREATE VIEW $table", $term_w, $indent0 ) );
@@ -101,12 +108,15 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $sql->{where_stmt}, $term_w, $indent1, $sql->{where_args} ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Insert' ) {
-        @tmp = ( $sf->__INSERT_INTO_stmt_first_part( $sql, $term_w, $indent0 ) );
+        my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
+        @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
         if ( $used_for eq 'prepare' ) {
             push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_into_cols}} );
         }
         else {
             push @tmp, $sf->__stmt_fold( "VALUES(", $term_w, $indent1 );
+            $sf->{i}{occupied_term_height} += @tmp;
+            $sf->{i}{occupied_term_height} += 1; # ")"
             my $arg_rows = $sf->insert_into_args_info_format( $sql, $indent2->{init_tab} );
             push @tmp, @$arg_rows;
             push @tmp, $sf->__stmt_fold( ")", $term_w, $indent1 );
@@ -148,38 +158,25 @@ sub insert_into_args_info_format {
     my $term_h = get_term_height();
     my $term_w = get_term_width();
     $term_w++ if $^O ne 'MSWin32' && $^O ne 'cygwin';
-    my $avail_h;
-    if ( defined $sf->{i}{occupied_term_height} ) {
-        my $in = ' ' x $sf->{o}{G}{base_indent};
-        my $indent0 = { init_tab => $in x 0, subseq_tab => $in x 1 };
-        my @tmp;
-        push @tmp, $sf->__CREATE_TABLE_stmt(           $sql, $term_w, $indent0 ) if $sf->{i}{stmt_types}[0]  // '' eq 'Create_table';
-        push @tmp, $sf->__INSERT_INTO_stmt_first_part( $sql, $term_w, $indent0 ) if $sf->{i}{stmt_types}[-1] // '' eq 'Insert';
-        my $stmt = join "\n", @tmp;
-        my $count = $stmt =~ tr/\n// + 1;
-        $avail_h = $term_h - $sf->{i}{occupied_term_height} - $count - 3;
-        if ( @{$sql->{insert_into_args}} > $avail_h ) {
-            $avail_h -= 2;
-        }
+    my $row_count = @{$sql->{insert_into_args}};
+    my $avail_h = $term_h - $sf->{i}{occupied_term_height};
+    if ( $avail_h < 5) {
+        $avail_h = 5;
     }
-    else {
-        $avail_h = $term_h - 14;
-    }
-    if ( $avail_h < 3) {
-        $avail_h = 3;
-    }
-    my $first_part_end = int( $avail_h / 1.5 );
-    my $second_part_begin = $avail_h - $first_part_end;
-    $first_part_end--;
-    $second_part_begin--;
-    my $last_i = $#{$sql->{insert_into_args}};
     my $tmp = [];
-    if ( @{$sql->{insert_into_args}} > $avail_h ) {
-        for my $row ( @{$sql->{insert_into_args}}[ 0 .. $first_part_end ] ) {
+    if ( $row_count > $avail_h ) {
+        $avail_h -= 2; # for [...] + [count rows]
+        my $count_part_1 = int( $avail_h / 1.5 );
+        my $count_part_2 = $avail_h - $count_part_1;
+        my $begin_idx_part_1 = 0;
+        my $end___idx_part_1 = $count_part_1 - 1;
+        my $begin_idx_part_2 = $row_count - $count_part_2;
+        my $end___idx_part_2 = $row_count - 1;
+        for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_1 .. $end___idx_part_1 ] ) {
             push @$tmp, _prepare_table_row( $row, $indent, $term_w );
         }
         push @$tmp, $indent . '[...]';
-        for my $row ( @{$sql->{insert_into_args}}[ $last_i - $second_part_begin .. $last_i ] ) {
+        for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_2 .. $end___idx_part_2 ] ) {
             push @$tmp, _prepare_table_row( $row, $indent, $term_w );
         }
         my $row_count = scalar( @{$sql->{insert_into_args}} );
