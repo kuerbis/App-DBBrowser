@@ -106,7 +106,22 @@ sub __prepare_col_func {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $quote_f;
-    if ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
+    if ( $func eq 'Bit_Length' ) {
+        $quote_f = $plui->bit_length( $qt_col );
+    }
+    elsif ( $func eq 'Char_Length' ) {
+        $quote_f = $plui->char_length( $qt_col );
+    }
+    elsif ( $func eq 'Concat' ) {
+        my $info = "\n" . 'Concat( ' . join( ',', @$qt_col ) . ' )';
+        my $tf = Term::Form->new( $sf->{i}{tf_default} );
+        my $sep = $tf->readline( 'Separator: ',
+            { info => $info }
+        );
+        return if ! defined $sep;
+        $quote_f = $plui->concatenate( $qt_col, $sep );
+    }
+    elsif ( $func =~ /^Epoch_to_Date(?:Time)?\z/ ) {
         my $prompt = $func eq 'Epoch_to_Date' ? 'DATE' : 'DATETIME';
         $prompt .= "($qt_col)\nInterval:";
         my ( $microseconds, $milliseconds, $seconds ) = (
@@ -129,34 +144,6 @@ sub __prepare_col_func {
             $quote_f = $plui->epoch_to_date( $qt_col, $div );
         }
     }
-    elsif ( $func eq 'Truncate' ) {
-        my $info = $func . ': ' . $qt_col;
-        my $name = "Decimal places: ";
-        my $precision = $tu->choose_a_number( 2,
-            { cs_label => $name, info => $info, small_first => 1 }
-        );
-        return if ! defined $precision;
-        $quote_f = $plui->truncate( $qt_col, $precision );
-    }
-    elsif ( $func eq 'Round' ) {
-        my $info = $func . ': ' . $qt_col;
-        my $name = "Decimal places: ";
-        my $precision = $tu->choose_a_number( 2,
-            { cs_label => $name, info => $info, small_first => 1 }
-        );
-        return if ! defined $precision;
-        my $positive_precision = 'ROUND(' . $qt_col . ',  ' . $precision . ')';
-        my $negative_precision = 'ROUND(' . $qt_col . ', -' . $precision . ')';
-        my $choice = $tc->choose(
-            [ undef, $positive_precision, $negative_precision ],
-            { layout => 3, undef => '<<', prompt => 'Choose sign:' }
-        );
-        return if ! defined $choice;
-        if ( $choice eq $negative_precision  ) {
-            $precision = -$precision;
-        }
-        $quote_f = $plui->round( $qt_col, $precision );
-    }
     elsif ( $func eq 'Replace' ) {
         my $info = $func . '(' . $qt_col . ', from_str, to_str)';
         my $tf = Term::Form->new( $sf->{i}{tf_default} );
@@ -177,20 +164,33 @@ sub __prepare_col_func {
         #return if ! ...;
         $quote_f = $plui->replace( $qt_col, $string_to_replace, $replacement_string  );
     }
-    elsif ( $func eq 'Bit_Length' ) {
-        $quote_f = $plui->bit_length( $qt_col );
-    }
-    elsif ( $func eq 'Char_Length' ) {
-        $quote_f = $plui->char_length( $qt_col );
-    }
-    elsif ( $func eq 'Concat' ) {
-        my $info = "\n" . 'Concat( ' . join( ',', @$qt_col ) . ' )';
-        my $tf = Term::Form->new( $sf->{i}{tf_default} );
-        my $sep = $tf->readline( 'Separator: ',
-            { info => $info }
+    elsif ( $func eq 'Round' ) {
+        my $info = $func . ': ' . $qt_col;
+        my $name = "Decimal places: ";
+        my $precision = $tu->choose_a_number( 2,
+            { cs_label => $name, info => $info, small_first => 1 }
         );
-        return if ! defined $sep;
-        $quote_f = $plui->concatenate( $qt_col, $sep );
+        return if ! defined $precision;
+        my $positive_precision = 'ROUND(' . $qt_col . ',  ' . $precision . ')';
+        my $negative_precision = 'ROUND(' . $qt_col . ', -' . $precision . ')';
+        my $choice = $tc->choose(
+            [ undef, $positive_precision, $negative_precision ],
+            { layout => 3, undef => '<<', prompt => 'Choose sign:' }
+        );
+        return if ! defined $choice;
+        if ( $choice eq $negative_precision  ) {
+            $precision = -$precision;
+        }
+        $quote_f = $plui->round( $qt_col, $precision );
+    }
+    elsif ( $func eq 'Truncate' ) {
+        my $info = $func . ': ' . $qt_col;
+        my $name = "Decimal places: ";
+        my $precision = $tu->choose_a_number( 2,
+            { cs_label => $name, info => $info, small_first => 1 }
+        );
+        return if ! defined $precision;
+        $quote_f = $plui->truncate( $qt_col, $precision );
     }
     return $quote_f;
 }
