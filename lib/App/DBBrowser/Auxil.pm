@@ -146,7 +146,7 @@ sub insert_into_args_info_format {
     my $term_w = get_term_width();
     $term_w++ if $^O ne 'MSWin32' && $^O ne 'cygwin';
     my $row_count = @{$sql->{insert_into_args}};
-    my $avail_h = $term_h - $sf->{i}{occupied_term_height};
+    my $avail_h = $term_h - $sf->{i}{occupied_term_height}; # where {occupied_term_height} is used
     if ( $avail_h < 5) {
         $avail_h = 5;
     }
@@ -378,8 +378,8 @@ sub column_names_and_types { # db
         if ( ! eval {
             my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sf->quote_table( $sf->{d}{tables_info}{$table} ) . " LIMIT 0" );
             $sth->execute() if $sf->{i}{driver} ne 'SQLite';
-            $col_names->{$table} ||= $sth->{NAME};
-            $col_types->{$table} ||= $sth->{TYPE};
+            $col_names->{$table} //= $sth->{NAME};
+            $col_types->{$table} //= $sth->{TYPE};
             1 }
         ) {
             $sf->print_error_message( $@ );
@@ -390,14 +390,14 @@ sub column_names_and_types { # db
 
 
 sub write_json {
-    my ( $sf, $file_fs, $h_ref ) = @_;
-    if ( ! defined $h_ref || ! keys %$h_ref ) {
+    my ( $sf, $file_fs, $ref ) = @_;
+    if ( ! defined $ref ) {
         open my $fh, '>', $file_fs or die "$file_fs: $!";
         print $fh;
         close $fh;
         return;
     }
-    my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $h_ref );
+    my $json = JSON->new->utf8( 1 )->pretty->canonical->encode( $ref );
     open my $fh, '>', $file_fs or die "$file_fs: $!";
     print $fh $json;
     close $fh;
@@ -407,19 +407,19 @@ sub write_json {
 sub read_json {
     my ( $sf, $file_fs ) = @_;
     if ( ! defined $file_fs || ! -e $file_fs ) {
-        return {};
+        return;
     }
     open my $fh, '<', $file_fs or die "$file_fs: $!";
     my $json = do { local $/; <$fh> };
     close $fh;
-    my $h_ref = {};
+    my $ref;
     if ( ! eval {
-        $h_ref = decode_json( $json ) if $json;
+        $ref = decode_json( $json ) if $json;
         1 }
     ) {
         die "In '$file_fs':\n$@";
     }
-    return $h_ref;
+    return $ref;
 }
 
 

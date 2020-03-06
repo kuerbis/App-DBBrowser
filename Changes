@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.242    2020-03-06
+        - Filter 'search_and_replace': option to save substitution code.
+        - Bugfix deleting tmp files.
+
 2.241    2020-03-02
         - Bugfix info output.
 

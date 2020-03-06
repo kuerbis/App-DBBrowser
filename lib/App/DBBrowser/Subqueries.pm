@@ -67,9 +67,9 @@ sub __tmp_history {
 sub __get_history {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} );
-    my $history_HD = $h_ref->{ $sf->{i}{driver} }{ $sf->{d}{db} }{substmt} || [];
-    my $history_RAM = $sf->__tmp_history( $history_HD ) || [];
+    my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} ) // {};
+    my $history_HD = $h_ref->{ $sf->{i}{driver} }{ $sf->{d}{db} }{substmt} // [];
+    my $history_RAM = $sf->__tmp_history( $history_HD ) // [];
     return [ @$history_HD, @$history_RAM ];
 }
 
@@ -149,8 +149,8 @@ sub __edit_sq_file {
 
     while ( 1 ) {
         my $top_lines = [ 'Stored Subqueries:' ];
-        my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} );
-        my $history_HD = $h_ref->{$driver}{$db}{substmt} || [];
+        my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} ) // {};
+        my $history_HD = $h_ref->{$driver}{$db}{substmt} // [];
         my @tmp_info = (
             @$top_lines,
             map( line_fold( $_->[-1], get_term_width(), { init_tab => '  ', subseq_tab => '    ' } ), @$history_HD ),

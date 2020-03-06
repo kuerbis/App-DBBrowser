@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.241';
+our $VERSION = '2.242';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -53,7 +53,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.241
+Version 2.242
 
 =head1 SYNOPSIS
 
@@ -469,6 +469,8 @@ row-group.
 In the replacement it can be used the variable C<$c> as a counter. C<$c> is set to C<0> before each C<s///>.
 
 Available modifiers: C<g>, C<i>, C<e>.
+
+By selecting the prompt line (C<Choose:>) one can save search & replace instructions for later use.
 
 =item Split Table
 

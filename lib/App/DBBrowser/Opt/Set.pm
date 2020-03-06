@@ -659,7 +659,7 @@ sub __group_readline {
 sub __new_dir_search { # used in Read.pm
     my ( $sf ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $default_dir = $sf->{i}{tmp_files_dir} || $sf->{i}{home_dir};
+    my $default_dir = $sf->{i}{tmp_files_dir} // $sf->{i}{home_dir};
     # Choose
     my $dir_fs = $tu->choose_a_directory(
         { init_dir => $default_dir, decoded => 0, clear_screen => 1 }

@@ -124,7 +124,9 @@ sub input_filter {
             $sf->__split_column( $sql, $filter_str );
         }
         elsif ( $filter eq $s_and_replace ) {
-            $sf->__search_and_replace( $sql, $filter_str );
+            require App::DBBrowser::GetContent::Filter::SearchAndReplace;
+            my $sr = App::DBBrowser::GetContent::Filter::SearchAndReplace->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $sr->__search_and_replace( $sql, $filter_str );
         }
         elsif ( $filter eq $split_table ) {
             $sf->__split_table( $sql, $filter_str );
@@ -391,7 +393,7 @@ sub __remove_cell {
     }
 }
 
-sub _stringify_row {
+sub _stringify_row { # used only once
     my ( $row ) = @_;
     no warnings 'uninitialized';
     my $stringified_row = '"' . join( '", "', @$row ) . '"';
@@ -558,89 +560,6 @@ sub __split_column {
     $sql->{insert_into_args} = $aoa;
 }
 
-
-sub __search_and_replace {
-    my ( $sf, $sql, $filter_str ) = @_;
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $tf = Term::Form->new( $sf->{i}{tf_default} );
-    my $bu_form = [
-        [ 'Pattern', ],
-        [ 'Replacement', ],
-        [ 'Modifiers', ]
-    ];
-
-    SEARCH_AND_REPLACE: while ( 1 ) {
-        my $info = $filter_str;
-        my $fields = [ @$bu_form ];
-        my $c;
-        my $count_static_rows = 4 + @$fields; # filter_str, prompt, back, confirm and fields
-        $sf->__print_filter_info( $sql, $count_static_rows, undef );
-        # Fill_form
-        my $form = $tf->fill_form(
-            $fields,
-            { info => $info, prompt => 'Build s///:', auto_up => 2,
-              confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
-        );
-        if ( ! $form ) {
-            return;
-        }
-        $bu_form = [ @$form ];
-        my ( $pattern, $replacement, $modifiers ) = map { $_->[1] // '' } @$form;
-        $modifiers =~ s/[^geis]+//g;
-        $info = $filter_str;
-        $info .= "\n";
-        $info .= "s/$pattern/$replacement/$modifiers";
-        my $aoa = $sql->{insert_into_args};
-        my $empty_cells_of_col_count =  $sf->__count_empty_cells_of_cols( $aoa ); ##
-        my $header = $sf->__prepare_header( $aoa, $empty_cells_of_col_count );
-        $count_static_rows = 3; # filter_str, prompt and cs_label
-        $sf->__print_filter_info( $sql, $count_static_rows, [ '<<', $sf->{i}{ok}, @$header ] );
-        # Choose
-        my $col_idx = $tu->choose_a_subset(
-            $header,
-            { cs_label => 'Columns: ', info => $info, layout => 0, all_by_default => 1, index => 1,
-              confirm => $sf->{i}{ok}, back => '<<', busy_string => $sf->{i}{working} }
-        );
-        if ( ! defined $col_idx ) {
-            next SEARCH_AND_REPLACE;
-        }
-        $sf->__print_filter_info( $sql, $count_static_rows, [ '<<', $sf->{i}{ok}, @$header ] ); #
-        my $regex = $modifiers =~ /i/ ? qr/(?i:${pattern})/ : qr/${pattern}/;
-        my $replacement_code = sub { return $replacement };
-        for ( grep { /^e\z/ } split( //, $modifiers ) ) {
-            my $recurse = $replacement_code;
-            $replacement_code = sub { return eval $recurse->() }; # execute (e) substitution
-        }
-
-        for my $row ( @$aoa ) { # modifies $aoa
-            for my $i ( @$col_idx ) {
-                $c = 0;
-                if ( ! defined $row->[$i] ) {
-                    next;
-                }
-                elsif ( $modifiers =~ /g/ ) {
-                    if ( $modifiers =~ /s/ ) { # s not documented
-                        $row->[$i] =~ s/$regex/$replacement_code->()/gse;
-                    }
-                    else {
-                        $row->[$i] =~ s/$regex/$replacement_code->()/ge;
-                    }
-                }
-                else {
-                    if ( $modifiers =~ /s/ ) { # s not documented
-                        $row->[$i] =~ s/$regex/$replacement_code->()/se;
-                    }
-                    else {
-                        $row->[$i] =~ s/$regex/$replacement_code->()/e;
-                    }
-                }
-            }
-        }
-        $sql->{insert_into_args} = $aoa;
-        return;
-    }
-}
 
 sub __split_table {
     my ( $sf, $sql, $filter_str ) = @_;

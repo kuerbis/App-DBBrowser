@@ -138,7 +138,7 @@ sub read_config_files {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $file_fs = $sf->{i}{f_settings};
     if ( -f $file_fs && -s $file_fs ) {
-        my $tmp = $ax->read_json( $file_fs );
+        my $tmp = $ax->read_json( $file_fs ) // {};
         for my $section ( keys %$tmp ) {
             for my $opt ( keys %{$tmp->{$section}} ) {
                 $o->{$section}{$opt} = $tmp->{$section}{$opt} if exists $o->{$section}{$opt};
