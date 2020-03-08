@@ -41,7 +41,7 @@ sub __print_args {
     my $term_w = get_term_width();
     my @tmp = ( 'Table Data:' );
     for my $row ( @$aoa ) {
-        push @tmp, line_fold( join( ', ', @$row ), $term_w, { subseq_tab => ' ' x 4 } );
+        push @tmp, line_fold( join( ', ', @$row ), $term_w, { subseq_tab => ' ' x 4, join => 0 } );
     }
     my $str = join( "\n", @tmp ) . "\n\n";
     print clear_screen();
@@ -339,6 +339,14 @@ sub __file_setting_menu_entries {
         { name => 'history_dirs',       text => "- Dir History",   section => 'insert' },
         { name => '_file_encoding',     text => "- File Encoding", section => 'insert' },
     ];
+    #if ( $sf->{o}{insert}{data_source} == 2 ) {
+    #    unshift @$options,
+    #    { name => '_parse_file',    text => "- Parse tool for File",         section => 'insert' },
+    #    { name => '_parse_copy',    text => "- Parse tool for Copy & Paste", section => 'insert' },
+    #    { name => '_split_config',  text => "- Settings 'split'",            section => 'split'  },
+    #    { name => '_csv_char',      text => "- Settings 'CSV-a'",            section => 'csv'    },
+    #    { name => '_csv_options',   text => "- Settings 'CSV-b'",            section => 'csv'    };
+    #}
     if ( $sf->{o}{insert}{history_dirs} == 1 ) {
         push @$options, { name => 'add_file_dir', text => "- NEW search", section => 'insert' };
     }

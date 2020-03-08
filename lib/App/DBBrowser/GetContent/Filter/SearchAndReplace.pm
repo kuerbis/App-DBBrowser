@@ -45,7 +45,7 @@ sub __search_and_replace {
             push @info, '  s/' . join( '/', @$sr_args ) . ';';
         }
         push @info, '';
-        my ( $hidden, $select_cols, $add ) = ( 'Choose:', '  SELECT Cols', '  ADD s_&_r' );
+        my ( $hidden, $select_cols, $add ) = ( 'Choose:', '  SELECT COLUMNS', '  ADD s_&_r' );
         my @pre = ( $hidden, undef, $add );
         if ( @$all_sr ) {
             splice @pre, 2, 0, $select_cols;
@@ -59,11 +59,11 @@ sub __search_and_replace {
         my $choices = [ @pre, map { '- ' . $_->[1] } @$available ];
         my $count_static_rows = @info + @$choices; # @info and @$choices
         $cf->__print_filter_info( $sql, $count_static_rows, undef );
-        my $info = join( "\n", @info );
+        my $info_str = join( "\n", @info );
         # Choose
         my $idx = $tc->choose(
             $choices,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', default => $old_idx, index => 1, undef => '  <=' }
+            { %{$sf->{i}{lyt_v}}, info => $info_str, prompt => '', default => $old_idx, index => 1, undef => '  <=' }
         );
         if ( ! defined $idx || ! defined $choices->[$idx] ) {
             if ( @bu ) {
@@ -72,13 +72,13 @@ sub __search_and_replace {
             }
             return;
         }
-        #if ( $sf->{o}{G}{menu_memory} ) {
-        #    if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-        #        $old_idx = 1;
-        #        next MENU;
-        #    }
-        #    $old_idx = $idx;
-        #}
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx = 1;
+                next MENU;
+            }
+            $old_idx = $idx;
+        }
         my $choice = $choices->[$idx];
         if ( $choice eq $hidden ) {
             $sf->__history( $sql );
@@ -89,7 +89,7 @@ sub __search_and_replace {
             if ( ! @$all_sr ) {
                 return;
             }
-            my $ok = $sf->__apply_to_cols( $sql, $info, $all_sr );
+            my $ok = $sf->__apply_to_cols( $sql, $info_str, $all_sr );
             if ( $ok ) {
                 $all_sr = [];
                 $used_names = [];
@@ -105,13 +105,12 @@ sub __search_and_replace {
                 [ '  Replacement', ],
                 [ '  Modifiers', ]
             ];
-            my $info_count = $info =~ tr/\n// + 1;
-            my $count_static_rows = $info_count + 3 + @$fields; # info_count, prompt, back, confirm and fields
+            my $count_static_rows = @info + 3 + @$fields; # info, prompt, back, confirm and fields
             $cf->__print_filter_info( $sql, $count_static_rows, undef );
             # Fill_form
             my $form = $tf->fill_form(
                 $fields,
-                { info => $info, prompt => $prompt, auto_up => 2, confirm => '  ' . $sf->{i}{confirm},
+                { info => $info_str, prompt => $prompt, auto_up => 2, confirm => '  ' . $sf->{i}{confirm},
                 back => '  ' . $sf->{i}{back} . '   ' }
             );
             if ( ! defined $form ) {
@@ -205,6 +204,7 @@ sub __history {
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $old_idx_menu = 0;
 
     MENU: while ( 1 ) {
         my $info = 'Saved s_&_r:';
@@ -213,82 +213,132 @@ sub __history {
             $info .= "\n" . '  ' . $sr->[1];
         }
         $info .= "\n";
-        my ( $add, $remove ) = ( '- Add    s_&_r', '- Remove s_&_r' );
+        my ( $add, $edit, $remove ) = ( '- Add    s_&_r', '- Edit   s_&_r', '- Remove s_&_r' );
+        my $choices = [ undef, $add, $edit, $remove ];
         # Choose
-        my $choice = $tc->choose(
-            [ undef, $add, $remove ],
-            { %{$sf->{i}{lyt_v}}, clear_screen => 1, info => $info }
+        my $idx = $tc->choose(
+            $choices,
+            { %{$sf->{i}{lyt_v}}, clear_screen => 1, info => $info, undef => '  <=',
+              index => 1, default => $old_idx_menu }
         );
-        if ( ! defined $choice ) {
+        if ( ! defined $idx || ! defined $choices->[$idx] ) {
             return;
         }
-        elsif ( $choice eq $add ) {
-            my ( $pattern, $replacement, $modifiers );
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx_menu == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx_menu = 0;
+                next MENU;
+            }
+            $old_idx_menu = $idx;
+        }
+        my $choice = $choices->[$idx];
+        if ( $choice eq $add || $choice eq $edit) {
+            my ( $prompt, $pattern, $replacement, $modifiers, $name, $spliced );
+            my $old_idx_edit = 0;
 
-            CODE: while ( 1 ) {
-                my $prompt = 'Add s_&_r:';
-                my $fields = [
-                    [ '  Pattern',     $pattern     ],
-                    [ '  Replacement', $replacement ],
-                    [ '  Modifiers',   $modifiers   ]
-                ];
-                # Fill_form
-                my $form = $tf->fill_form(
-                    $fields,
-                    { info => $info, prompt => $prompt, auto_up => 2, confirm => '  ' . $sf->{i}{confirm},
-                    back => '  ' . $sf->{i}{back} . '   ', clear_screen => 1 }
-                );
-                if ( ! defined $form ) {
-                    next MENU;
+            EDIT: while ( 1 ) {
+                if ( $choice eq $edit ) {
+                    if ( ! @$saved ) {
+                        next MENU;
+                    }
+                    $prompt = 'Edit s_&_r:';
+                    my @pre = ( undef );
+                    my $choices = [ @pre, map { '- ' . $_->[1] } @$saved ];
+                    # Choose
+                    my $idx = $tc->choose(
+                        $choices,
+                        { %{$sf->{i}{lyt_v}}, clear_screen => 1, prompt => $prompt, index => 1,
+                          undef => '  <=', default => $old_idx_edit }
+                    );
+                    if ( ! defined $idx || ! defined $choices->[$idx] ) {
+                        next MENU;
+                    }
+                    if ( $sf->{o}{G}{menu_memory} ) {
+                        if ( $old_idx_edit == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                            $old_idx_edit = 0;
+                            next EDIT;
+                        }
+                        $old_idx_edit = $idx;
+                    }
+                    $spliced = splice @$saved, $idx - @pre, 1;
+                    ( $pattern, $replacement, $modifiers ) = @{$spliced->[0]};
+                    $name = $spliced->[1];
                 }
-                ( $pattern, $replacement, $modifiers ) = map { $_->[1] // '' } @$form;
-                $modifiers = $sf->__filter_modifiers( $modifiers );
-                my $sr_args = [ $pattern, $replacement, $modifiers ];
-                my $code = 's/' . join( '/', @$sr_args );
-                my $name = $code;
-                my $count = 1;
+                else {
+                    $prompt = 'Add s_&_r:';
+                }
 
-                NAME: while ( 1 ) {
+                CODE: while ( 1 ) {
                     my $fields = [
-                        [ '  Code', $code ],
-                        [ '  Name', $name ]
+                        [ '  Pattern',     $pattern     ],
+                        [ '  Replacement', $replacement ],
+                        [ '  Modifiers',   $modifiers   ]
                     ];
-                    my $prompt = 'Edit name:';
                     # Fill_form
                     my $form = $tf->fill_form(
                         $fields,
                         { info => $info, prompt => $prompt, auto_up => 2, confirm => '  ' . $sf->{i}{confirm},
-                        back => '  ' . $sf->{i}{back} . '   ', clear_screen => 1, read_only => [ 0 ] }
+                        back => '  ' . $sf->{i}{back} . '   ', clear_screen => 1 }
                     );
-                    if ( ! $form ) {
-                        next CODE;
+                    if ( ! defined $form ) {
+                        if ( $choice eq $edit ) {
+                            push @$saved, $spliced;
+                            $saved = [ sort { $a->[1] cmp $b->[1] } @$saved ];
+                            next EDIT;
+                        }
+                        next MENU;
                     }
-                    $name = $form->[1][1];
-                    if ( ! length $name ) {
-                        next CODE;
-                    }
-                    if ( any { $name eq $_ } map { $_->[1] } @$saved ) {
-                        my $prompt = "\"$name\" already exists.";
-                        my $choice = $tc->choose(
-                            [ undef, '  New name' ],
-                            { %{$sf->{i}{lyt_v}}, prompt => $prompt, info => $info }
+                    ( $pattern, $replacement, $modifiers ) = map { $_->[1] // '' } @$form;
+                    $modifiers = $sf->__filter_modifiers( $modifiers );
+                    my $sr_args = [ $pattern, $replacement, $modifiers ];
+                    my $code = 's/' . join( '/', @$sr_args );
+                    $name = $name // $code;
+                    my $count = 1;
+
+                    NAME: while ( 1 ) {
+                        my $fields = [
+                            [ '  Code', $code ],
+                            [ '  Name', $name ]
+                        ];
+                        my $prompt = 'Edit name:';
+                        # Fill_form
+                        my $form = $tf->fill_form(
+                            $fields,
+                            { info => $info, prompt => $prompt, auto_up => 2, confirm => '  ' . $sf->{i}{confirm},
+                            back => '  ' . $sf->{i}{back} . '   ', clear_screen => 1, read_only => [ 0 ] }
                         );
-                        if ( ! defined $choice ) {
+                        if ( ! defined $form ) {
                             next CODE;
                         }
-                        if ( $count > 1 ) {
-                            $name = undef;
+                        $name = $form->[1][1];
+                        if ( ! length $name ) {
+                            next CODE;
                         }
-                        $count++;
-                        next NAME;
+                        if ( any { $name eq $_ } map { $_->[1] } @$saved ) {
+                            my $prompt = "\"$name\" already exists.";
+                            my $choice = $tc->choose(
+                                [ undef, '  New name' ],
+                                { %{$sf->{i}{lyt_v}}, prompt => $prompt, info => $info }
+                            );
+                            if ( ! defined $choice ) {
+                                next CODE;
+                            }
+                            if ( $count > 1 ) {
+                                $name = undef;
+                            }
+                            $count++;
+                            next NAME;
+                        }
+                        else {
+                            last NAME;
+                        }
                     }
-                    else {
-                        last NAME;
-                    }
+                    push @$saved, [ $sr_args, $name ];
+                    $saved = [ sort { $a->[1] cmp $b->[1] } @$saved ];
+                    $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
+                    next EDIT if $choice eq $edit;
+                    next MENU;
                 }
-                unshift @$saved, [ $sr_args, $name ];
-                $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
-                next MENU;
             }
         }
         elsif ( $choice eq $remove ) {
@@ -296,8 +346,8 @@ sub __history {
             # Choose
             my $col_idx = $tu->choose_a_subset(
                 $list,
-                { prefix => '  ', cs_label => 'Saved s_&_r to remove:' . "\n  ", cs_separator => "\n  ", cs_end => "\n",
-                  layout => 3, all_by_default => 0, index => 1, confirm => $sf->{i}{ok}, back => '<<',
+                { prefix => '- ', cs_label => 'Saved s_&_r to remove:' . "\n  ", cs_separator => "\n  ", cs_end => "\n",
+                  layout => 3, all_by_default => 0, index => 1, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back},
                   busy_string => $sf->{i}{working}, clear_screen => 1, prompt => 'Remove:' }
             );
             if ( ! defined $col_idx ) {
@@ -306,7 +356,7 @@ sub __history {
             for my $i ( reverse @$col_idx ) {
                 splice @$saved, $i, 1;
             }
-            $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
+            $ax->write_json( $sf->{i}{f_search_and_replace}, [ sort { $a->[1] cmp $b->[1] } @$saved ] );
         }
     }
 }

@@ -408,7 +408,7 @@ sub __insert_cell {
     my $aoa = $sql->{insert_into_args};
 
     while ( 1 ) {
-        my $count_static_rows = 2 + $aoa; # filter_str, prompt and aoa
+        my $count_static_rows = 2 + @$aoa; # filter_str, prompt and aoa
         $sf->__print_filter_info( $sql, $count_static_rows, undef );
         my $prompt = "Choose row:";
         # Choose
@@ -431,18 +431,16 @@ sub __insert_cell {
         $str_row_with_placeholder =~ s/"<\*>"/<*>/;
         my $term_w = get_term_width();
         my $label = 'Row: ';
-        my $info = $filter_str;
-        $info .= "\n";
-        $info .= line_fold(
+        my @info = ( $filter_str, ' ' );
+        push @info, line_fold(
             $label . $str_row_with_placeholder, $term_w,
-            { subseq_tab => ' ' x length $label }
+            { subseq_tab => ' ' x length $label, join => 0 }
         );
-        my $count_info_rows = $info =~ tr/\n// + 1;
         $prompt = "<*>: ";
-        $count_static_rows = $count_info_rows + 1; # count_info_rows and readline
+        $count_static_rows = @info + 1; # info and readline
         $sf->__print_filter_info( $sql, $count_static_rows, undef );
         # Readline
-        my $cell = $tf->readline( $prompt, { info => $info } );
+        my $cell = $tf->readline( $prompt, { info => join( "\n", @info ) } );
         splice( @{$aoa->[$row_idx]}, $col_idx, 0, $cell );
         $sql->{insert_into_args} = $aoa;
         return;
@@ -624,7 +622,7 @@ sub __merge_rows {
         @stringified_rows = map {
             my $str_row = join( ',', @$_ );
             if ( print_columns( $str_row ) > $term_w ) {
-                unicode_sprintf( $str_row, $term_w, { add_dots => 1 } );
+                unicode_sprintf( $str_row, $term_w, { mark_if_trundated => $sf->{i}{dots}[ $sf->{o}{G}{dots} ] } );
             }
             else {
                 $str_row;
@@ -694,17 +692,16 @@ sub __join_columns {
     if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
     }
+    my @info = ( $filter_str );
     my $label = 'Cols: ';
-    my $col_info = line_fold(
+    push @info, line_fold(
         $label . '"' . join( '", "', @{$header}[@$chosen_idxs] ) . '"', get_term_width(),
-        { subseq_tab => ' ' x length $label }
+        { subseq_tab => ' ' x length $label, join => 0 }
     );
-    my $info = "$filter_str\n$col_info";
-    my $count_info_rows = $info =~ tr/\n// + 1;
-    $count_static_rows = $count_info_rows + 1; # count_info_rows and readline
+    $count_static_rows = @info + 1; # info_rows and readline
     $sf->__print_filter_info( $sql, $count_static_rows, undef );
     # Readline
-    my $join_char = $tf->readline( 'Join-string: ', { info => $info } );
+    my $join_char = $tf->readline( 'Join-string: ', { info => join( "\n", @info ) } );
     if ( ! defined $join_char ) {
         return;
     }

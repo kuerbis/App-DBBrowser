@@ -35,7 +35,7 @@ sub __stmt_fold {
                 $stmt = $filled;
             }
         }
-        return line_fold( $stmt, $term_w, $fold_opt );
+        return line_fold( $stmt, $term_w, { %$fold_opt, join => 0 } );
     }
     else {
         return ' ' . $stmt;
@@ -67,7 +67,7 @@ sub get_stmt {
     elsif ( $stmt_type eq 'Create_table' ) {
         my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
         @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
-        $sf->{i}{occupied_term_height} += $tmp[-1] =~ tr/\n// + 1;
+        $sf->{i}{occupied_term_height} += @tmp;
 
     }
     elsif ( $stmt_type eq 'Create_view' ) {
@@ -96,13 +96,12 @@ sub get_stmt {
     elsif ( $stmt_type eq 'Insert' ) {
         my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
         @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
-        $sf->{i}{occupied_term_height} += $tmp[-1] =~ tr/\n// + 1;
         if ( $used_for eq 'prepare' ) {
             push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_into_cols}} );
         }
         else {
             push @tmp, $sf->__stmt_fold( "VALUES(", $term_w, $indent1 );
-            $sf->{i}{occupied_term_height} += $tmp[-1] =~ tr/\n// + 1;;
+            $sf->{i}{occupied_term_height} += @tmp;
             $sf->{i}{occupied_term_height} += 2; # ")" and empty row
             my $arg_rows = $sf->insert_into_args_info_format( $sql, $indent2->{init_tab} );
             push @tmp, @$arg_rows;
@@ -160,29 +159,29 @@ sub insert_into_args_info_format {
         my $begin_idx_part_2 = $row_count - $count_part_2;
         my $end___idx_part_2 = $row_count - 1;
         for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_1 .. $end___idx_part_1 ] ) {
-            push @$tmp, _prepare_table_row( $row, $indent, $term_w );
+            push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
         push @$tmp, $indent . '[...]';
         for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_2 .. $end___idx_part_2 ] ) {
-            push @$tmp, _prepare_table_row( $row, $indent, $term_w );
+            push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
         my $row_count = scalar( @{$sql->{insert_into_args}} );
         push @$tmp, $indent . '[' . insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ) . ' rows]';
     }
     else {
         for my $row ( @{$sql->{insert_into_args}} ) {
-            push @$tmp, _prepare_table_row( $row, $indent, $term_w );
+            push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
     }
     return $tmp;
 }
 
-sub _prepare_table_row {
-    my ( $row, $indent, $term_w ) = @_;
+sub __prepare_table_row {
+    my ( $sf, $row, $indent, $term_w ) = @_;
     my $list_sep = ', ';
     no warnings 'uninitialized';
     my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/[NL]/g; s/\v/[VWS]/g; $_ } @$row );
-    return unicode_sprintf( $indent . $row_str, $term_w, { add_dots => 1 } );
+    return unicode_sprintf( $indent . $row_str, $term_w, { mark_if_truncated => $sf->{i}{dots}[ $sf->{o}{G}{dots} ] } );
 }
 
 
