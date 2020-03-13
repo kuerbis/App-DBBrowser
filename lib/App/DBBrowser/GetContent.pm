@@ -94,7 +94,6 @@ sub get_content {
                 if ( $choices->[$idx] eq $hidden ) {
                     require App::DBBrowser::Opt::Set;
                     my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-                    my $info = "Parse options:";
                     $opt_set->set_options( $sf->__setting_menu_entries( 1 ) );
                     next MENU;
                 }
