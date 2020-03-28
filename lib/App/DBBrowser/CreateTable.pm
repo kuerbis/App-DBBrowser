@@ -249,10 +249,18 @@ sub __set_table_name {
             my $file_fs = $sf->{i}{gc}{file_fs};
             my $file_name = basename decode( 'locale_fs', $file_fs );
             $info = sprintf "File: '%s'", $file_name;
-            ( $sf->{i}{ct}{default_table_name} = $file_name ) =~ s/\.[^.]{1,4}\z//;
             my $sheet_name = $sf->{i}{S_R}{$file_fs}{sheet_name};
             if ( defined $sheet_name && length $sheet_name ) {
-                $sf->{i}{ct}{default_table_name} .= '_' . $sheet_name;
+                if ( $sf->{i}{S_R}{$file_fs}{sheet_count} > 1 ) {
+                    $sf->{i}{ct}{default_table_name} = $sheet_name;
+                }
+                else {
+                    $file_name =~ s/\.[^.]{1,4}\z//;
+                    $sf->{i}{ct}{default_table_name} = $file_name . '_' . $sheet_name;
+                }
+            }
+            else {
+                ( $sf->{i}{ct}{default_table_name} = $file_name ) =~ s/\.[^.]{1,4}\z//;
             }
             $sf->{i}{ct}{default_table_name} =~ s/ /_/g;
         }
@@ -534,26 +542,20 @@ sub __data_types {
         unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_auto} ] ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
-    my $db = $sf->{d}{db};
-    my $col_name_and_type;
-
-    while ( 1 ) {
-        $sf->{i}{occupied_term_height} = 3 + @$fields; # prompt, back, confirm and fiels
-        $ax->print_sql( $sql );
-        # Fill_form
-        $col_name_and_type = $tf->fill_form(
-            $fields,
-            { prompt => 'Column data types:', auto_up => 2, read_only => $read_only, confirm => $sf->{i}{confirm},
-            back => $sf->{i}{back} . '   ' }
-        );
-        if ( ! $col_name_and_type ) {
-            return;
-        }
-        else {
-            no warnings 'uninitialized';
-            $sql->{create_table_cols} = [ map { join ' ', @$_ }  @$col_name_and_type ];
-            last;
-        }
+    $sf->{i}{occupied_term_height} = 3 + @$fields; # prompt, back, confirm and fiels
+    $ax->print_sql( $sql );
+    # Fill_form
+    my $col_name_and_type = $tf->fill_form(
+        $fields,
+        { prompt => 'Column data types:', auto_up => 2, read_only => $read_only, confirm => $sf->{i}{confirm},
+        back => $sf->{i}{back} . '   ' }
+    );
+    if ( ! $col_name_and_type ) {
+        return;
+    }
+    else {
+        no warnings 'uninitialized';
+        $sql->{create_table_cols} = [ map { join ' ', @$_ }  @$col_name_and_type ];
     }
     return 1;
 }
