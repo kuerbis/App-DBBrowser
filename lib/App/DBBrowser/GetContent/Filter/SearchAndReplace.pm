@@ -14,6 +14,7 @@ use Term::Form         qw();
 use App::DBBrowser::Auxil;
 use App::DBBrowser::GetContent::Filter;
 
+$SIG{__WARN__} = sub { die @_ };
 
 sub new {
     my ( $class, $info, $options, $data ) = @_;
@@ -373,7 +374,7 @@ sub __history {
                     }
                     my $code_tab = 8;
                     my $old_code = $sf->__stringified_code( $sr_group );
-                    my $info_add_fmt = "\nChosen entry:\n  Name: \"%s\"\n  Code: %s\n\n";
+                    my $info_add_fmt = "\nChosen entry:\n  Name: \"%s\"\n  Code: %s\n\n"; #
                     my $info_add = sprintf $info_add_fmt, $name, $old_code;
                     # Fill_form
                     my $form = $tf->fill_form(
@@ -416,6 +417,7 @@ sub __history {
             if ( ! defined $idxs ) {
                 next;
             }
+            # Ask yes/no with code
             my @names = @{$list}[@$idxs];
             delete @{$saved}{@names};
             $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
