@@ -14,7 +14,6 @@ use Term::Form         qw();
 use App::DBBrowser::Auxil;
 use App::DBBrowser::GetContent::Filter;
 
-$SIG{__WARN__} = sub { die @_ };
 
 sub new {
     my ( $class, $info, $options, $data ) = @_;

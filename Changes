@@ -3,7 +3,8 @@ Revision history for App-DBBrowser
 
 2.252    2020-07-27
         - App::DBBrowser::Table::Substatements: fixed wrong LABEL.
-        - App::DBBrowser::GetContent::Read: remove unused code.
+        - App::DBBrowser::GetContent::Read: removed unused code.
+        - Code cleanup.
 
 2.251    2020-05-31
         - Parse with template: bugfix in 'reparse'.
