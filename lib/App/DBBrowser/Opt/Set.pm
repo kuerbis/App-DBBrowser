@@ -66,7 +66,6 @@ sub _options {
         ],
         group_behavior => [
             { name => '_menu_memory',  text => "- Menu memory",       section => 'G'     },
-            { name => '_keep_header',  text => "- Keep header",       section => 'table' },
             { name => '_table_expand', text => "- Expand table",      section => 'table' },
             { name => '_info_expand',  text => "- Expand info-table", section => 'G'     },
             { name => '_f3',           text => "- F3 filter",         section => 'table' },
@@ -94,7 +93,6 @@ sub _options {
             { name => 'min_col_width',       text => "- Col width",       section => 'table' },
             { name => 'progress_bar',        text => "- Progress bar",    section => 'table' },
             { name => 'tab_width',           text => "- Tab width",       section => 'table' },
-            { name => '_grid',               text => "- Grid",            section => 'table' },
             { name => '_color',              text => "- Color",           section => 'table' },
             { name => '_binary_filter',      text => "- Binary filter",   section => 'table' },
             { name => '_squash_spaces',      text => "- Squash spaces",   section => 'table' },
@@ -395,13 +393,6 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq '_grid' ) {
-                my $prompt = '"Grid"';
-                my $sub_menu = [
-                    [ 'grid', "- Grid", [ $no, $yes ] ]
-                ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
             elsif ( $opt eq '_dots' ) {
                 my $prompt = '"How to mark truncated lines"';
                 my $sub_menu = [
@@ -473,13 +464,6 @@ sub set_options {
                 my $prompt = 'Choose: ';
                 my $sub_menu = [
                     [ 'menu_memory', "- Menu memory", [ $no, $yes ] ],
-                ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
-            elsif ( $opt eq '_keep_header' ) {
-                my $prompt = '"Header each Page"';
-                my $sub_menu = [
-                    [ 'keep_header', "- Keep header", [ $no, $yes ] ]
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

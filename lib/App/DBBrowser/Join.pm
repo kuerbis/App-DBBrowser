@@ -351,7 +351,7 @@ sub __print_join_info {
         $r++;
     }
     my $tp = Term::TablePrint->new( $sf->{o}{table} );
-    $tp->print_table( $aref, { keep_header => 0, tab_width => 3, grid => 1 } );
+    $tp->print_table( $aref, { tab_width => 3 } );
 }
 
 

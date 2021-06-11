@@ -88,8 +88,7 @@ sub __drop {
         my $tp = Term::TablePrint->new( $sf->{o}{table} );
         $tp->print_table(
             $all_arrayref,
-            { grid => 2, prompt => $prompt_pt, max_rows => 0, keep_header => 1,
-              table_expand => $sf->{o}{G}{info_expand} }
+            { prompt => $prompt_pt, max_rows => 0, table_expand => $sf->{o}{G}{info_expand} }
         );
         $prompt = sprintf 'DROP %s %s  (%s %s)', uc $type, $sql->{table}, insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_count == 1 ? 'row' : 'rows';
         1; }

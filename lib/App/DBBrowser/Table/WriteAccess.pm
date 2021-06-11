@@ -167,13 +167,12 @@ sub commit_sql {
             $ax->print_error_message( $@ );
         }
         my $prompt = $ax->print_sql( $sql );
-        $prompt .= "Affected records:";
+        $prompt .= "Affected records:\n";
         if ( @$all_arrayref > 1 ) {
             my $tp = Term::TablePrint->new( $sf->{o}{table} );
             $tp->print_table(
                 $all_arrayref,
-                { grid => 2, prompt => $prompt, max_rows => 0, keep_header => 1,
-                  table_expand => $sf->{o}{G}{info_expand} }
+                { prompt => $prompt, max_rows => 0, table_expand => $sf->{o}{G}{info_expand} }
             );
         }
     }

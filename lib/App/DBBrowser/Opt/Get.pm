@@ -79,8 +79,6 @@ sub defaults {
             color             => 0,
             decimal_separator => '.',
             f3                => 1,
-            grid              => 1,
-            keep_header       => 1,
             min_col_width     => 30,
             mouse             => 0,
             progress_bar      => 40_000,
