@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.265';
+our $VERSION = '2.266';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -581,9 +581,7 @@ sub __browse_the_table {
         if ( ! defined $all_arrayref ) {
             last PRINT_TABLE;
         }
-        if ( $sf->{o}{G}{show_table_name} ) {
-            $sf->{o}{table}{table_name} = '- ' . $sf->{d}{table};
-        }
+        $sf->{o}{table}{table_name} = "    '" . $sf->{d}{table} . "'    ";
 
         print_table( $all_arrayref, $sf->{o}{table} );
 
@@ -747,7 +745,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.265
+Version 2.266
 
 =head1 DESCRIPTION
 

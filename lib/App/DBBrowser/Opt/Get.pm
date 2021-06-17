@@ -30,7 +30,6 @@ sub defaults {
             qualified_table_name => 0,
             quote_identifiers    => 1,
             thsd_sep             => ',',
-            show_table_name      => 1,
             dots                 => 0,
             base_indent          => 1,
             file_find_warnings   => 0,

@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.266    2021-06-17
+        - Removed option 'show_table_name'.
+
 2.265    2021-06-11
         - Removed options 'grid' and 'keep_header'.
 

@@ -96,7 +96,6 @@ sub _options {
             { name => '_color',              text => "- Color",           section => 'table' },
             { name => '_binary_filter',      text => "- Binary filter",   section => 'table' },
             { name => '_squash_spaces',      text => "- Squash spaces",   section => 'table' },
-            { name => '_show_table_name',    text => "- Show table name", section => 'G'     },
             { name => '_base_indent',        text => "- Indentation",     section => 'G'     },
             { name => '_dots',               text => "- Truncated rows",  section => 'G'     },
             { name => '_set_string',         text => "- Set string",      section => 'table' },
@@ -421,15 +420,8 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq '_show_table_name' ) {
-                my $prompt = 'Show the table name in the bottom left corner';
-                my $sub_menu = [
-                    [ 'show_table_name', "- Show the table name", [ $no, $yes ] ]
-                ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
             elsif ( $opt eq '_base_indent' ) {
-                my $prompt = 'Set the indentation width';
+                my $prompt = 'Set the indentation width for SQL substatements';
                 my $sub_menu = [
                     [ 'base_indent', "- Indentation", [ 0, 1, 2, 3, 4 ] ]
                 ];
