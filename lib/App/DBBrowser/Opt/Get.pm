@@ -21,7 +21,6 @@ sub defaults {
     my ( $sf, $section, $key ) = @_;
     my $defaults = {
         G => {
-            info_expand          => 0,
             max_rows             => 200_000,
             menu_memory          => 1,
             metadata             => 0,
