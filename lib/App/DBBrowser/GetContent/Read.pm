@@ -72,7 +72,7 @@ sub from_col_by_col {
             $fields,
             { info => $info, prompt => 'Col names:', auto_up => 2, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} . '   ' }
         );
-        if ( ! $form ) { # number of cols ###
+        if ( ! $form ) { ## number of cols
             return;
         }
         $col_names = [ map { $_->[1] } @$form ]; # not quoted

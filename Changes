@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.268    2021-06-23
+        - Makefile.PL: fixed wrong Term::Form minimum version.
+
 2.267    2021-06-22
         - Update UI input filter.
         - Removed option 'Expand info table'.

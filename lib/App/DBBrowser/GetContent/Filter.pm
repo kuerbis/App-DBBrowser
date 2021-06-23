@@ -189,7 +189,7 @@ sub __get_filter_info {
             if ( $r <= 1 ) {
                 $row_count_menu = 1;
             }
-            elsif ( $longest * 2 + 2 > $term_w ) {
+            elsif ( $longest * 2 + 2 > $term_w ) { ## pad 2
                 $row_count_menu = @tmp_cols;
             }
             else {
@@ -218,7 +218,7 @@ sub __get_filter_info {
     }
     $sf->{i}{occupied_term_height} += $row_count_menu;
 #    if ( $sf->{i}{occupied_term_height} + 1 < get_term_height()  ) {
-        $sf->{i}{keep} = 1; #$row_count_menu;
+        $sf->{i}{keep} = 1; ##;
 #    }
     my $indent = '';
     my $bu_stmt_types = [ @{$sf->{i}{stmt_types}} ];
@@ -910,7 +910,7 @@ sub __choose_a_row_idx {
     # Choose
     my $row_idx = $tc->choose(
         [ @pre, @stringified_rows ],
-        { layout => 3, index => 1, undef => '<<', info => $info, prompt => $prompt, #keep => $sf->{i}{keep},
+        { layout => 3, index => 1, undef => '<<', info => $info, prompt => $prompt, ## keep => $sf->{i}{keep},
           busy_string => $sf->{i}{working} }
     );
     if ( ! $row_idx ) {
