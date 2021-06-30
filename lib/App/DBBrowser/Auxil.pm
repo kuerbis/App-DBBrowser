@@ -44,7 +44,7 @@ sub __stmt_fold {
 }
 
 
-sub get_stmt {                                                  # modifies$sf->{i}{occupied_term_height}
+sub get_stmt {
     my ( $sf, $sql, $stmt_type, $used_for ) = @_;
     my $term_w;
     my ( $indent0, $indent1, $indent2 );
@@ -238,7 +238,7 @@ sub get_sql_info {
     my ( $sf, $sql ) = @_;
     my $stmt = '';
     for my $stmt_type ( @{$sf->{i}{stmt_types}} ) {
-         $stmt .= $sf->get_stmt( $sql, $stmt_type, 'print' );   #if $stmt_type == 'Insert' and $used_for == 'print'  ==>  occupied_term_height is changed
+         $stmt .= $sf->get_stmt( $sql, $stmt_type, 'print' );   # occupied_term_height could be changed
     }
     return $stmt;
 }

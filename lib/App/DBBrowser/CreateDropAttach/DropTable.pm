@@ -5,10 +5,9 @@ use warnings;
 use strict;
 use 5.010001;
 
-use Term::Choose         qw();
-use Term::Choose::Screen qw( clear_screen ); #
-use Term::Choose::Util   qw( insert_sep );
-use Term::TablePrint     qw();
+use Term::Choose       qw();
+use Term::Choose::Util qw( insert_sep );
+use Term::TablePrint   qw();
 
 use App::DBBrowser::Auxil;
 
