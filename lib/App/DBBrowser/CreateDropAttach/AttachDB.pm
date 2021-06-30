@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::AttachDB;
+App::DBBrowser::CreateDropAttach::AttachDB;
 
 use warnings;
 use strict;
@@ -46,12 +46,14 @@ sub attach_db {
             my @pre = ( undef );
             my @choices = ( @{$sf->{d}{user_dbs}}, @{$sf->{d}{sys_dbs}} );
             my $menu = [ @pre, @choices ];
+            my $info = join( "\n", @info );
             # Choose
             my $idx = $tc->choose(
                 $menu,
-                { %{$sf->{i}{lyt_v}}, prompt => "ATTACH DATABASE", info => join( "\n", @info ),
+                { %{$sf->{i}{lyt_v}}, prompt => "ATTACH DATABASE", info => $info,
                   undef => $sf->{i}{back}, index => 1, default => $old_idx }
             );
+            $ax->print_sql_info( $info );
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 if ( @$new_attached ) {
                     shift @$new_attached;
@@ -71,21 +73,25 @@ sub attach_db {
             push @info, "ATTACH DATABASE $db AS";
 
             ALIAS: while ( 1 ) {
+                my $info = join( "\n", @info );
                 # Readline
-                my $alias = $tf->readline(
+                my $alias = $tf->readline( ##
                     'alias: ',
-                    { info => join( "\n", @info ), clear_screen => 1 }
+                    { info => $info, clear_screen => 1 }
                 );
+                $ax->print_sql_info( $info );
                 if ( ! length $alias ) {
                     last ALIAS;
                 }
                 elsif ( any { $_->[1] eq $alias } @$cur_attached, @$new_attached ) {
                     my $prompt = "alias '$alias' already used:";
+                    my $info = join( "\n", @info );
                     # Choose
                     my $retry = $tc->choose(
                         [ undef, 'New alias' ],
-                        { prompt => $prompt, info => join( "\n", @info ), undef => $sf->{i}{back}, clear_screen => 1 }
+                        { prompt => $prompt, info => $info, undef => $sf->{i}{back}, clear_screen => 1 }
                     );
+                    $ax->print_sql_info( $info );
                     last ALIAS if ! defined $retry;
                     next ALIAS;
                 }
@@ -100,11 +106,13 @@ sub attach_db {
                 push @info, map { "ATTACH DATABASE $_->[0] AS $_->[1]" } @$cur_attached, @$new_attached;
                 push @info, '';
                 my ( $ok, $more ) = ( 'OK', '++' );
+                my $info = join( "\n", @info );
                 # Choose
                 my $choice = $tc->choose(
                     [ undef, $ok, $more ],
-                    { info => join( "\n", @info ), clear_screen => 1 }
+                    { info => $info, clear_screen => 1 }
                 );
+                $ax->print_sql_info( $info );
                 if ( ! defined $choice ) {
                     if ( @$new_attached > 1 ) {
                         pop @$new_attached;
@@ -146,18 +154,19 @@ sub detach_db {
         for my $detach ( @chosen ) {
             push @tmp_info, sprintf 'DETACH DATABASE %s (%s)', $detach->[1], $detach->[0];
         }
-        my $info = join "\n", @tmp_info;
         my @choices;
         for my $elem ( @$attached_db ) {
             push @choices, sprintf '- %s  (%s)', @$elem[1,0];
         }
         my $prompt = "\n" . 'Choose:';
         my @pre = ( undef, $sf->{i}{_confirm} );
+        my $info = join "\n", @tmp_info;
         # Choose
         my $idx = $tc->choose(
             [ @pre, @choices ],
             { %{$sf->{i}{lyt_v}}, prompt => $prompt, info => $info, index => 1 }
         );
+        $ax->print_sql_info( $info );
         if ( ! $idx ) {
             return;
         }

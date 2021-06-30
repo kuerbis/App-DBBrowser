@@ -1,13 +1,14 @@
 package # hide from PAUSE
-App::DBBrowser::DropTable;
+App::DBBrowser::CreateDropAttach::DropTable;
 
 use warnings;
 use strict;
 use 5.010001;
 
-use Term::Choose       qw();
-use Term::Choose::Util qw( insert_sep );
-use Term::TablePrint   qw();
+use Term::Choose         qw();
+use Term::Choose::Screen qw( clear_screen ); #
+use Term::Choose::Util   qw( insert_sep );
+use Term::TablePrint     qw();
 
 use App::DBBrowser::Auxil;
 
@@ -51,32 +52,31 @@ sub __choose_drop_item {
         return;
     }
     $table =~ s/\-\s//;
-    $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table} );
-    my $drop_ok = $sf->__drop( $sql, $type );
+    my $drop_ok = $sf->__drop( $sql, $type, $table );
     return $drop_ok;
 }
 
 
 sub __drop {
-    my ( $sf, $sql, $type ) = @_;
+    my ( $sf, $sql, $type, $table ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     if ( $type ne 'view' ) {
         $type = 'table';
     }
+    $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table} );
     my $stmt_type = 'Drop_' . $type;
     $sf->{i}{stmt_types} = [ $stmt_type ];
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $info = $ax->get_sql_info( $sql );
     # Choose
     my $ok = $tc->choose(
         [ undef, $sf->{i}{_confirm} . ' Stmt'],
         { %{$sf->{i}{lyt_v}}, info => $info }
     );
+    $ax->print_sql_info( $info );
     if ( ! $ok ) {
         return;
     }
-    #$ax->print_sql_info( $sql );
-    print "\rComputing: ...";
     my $row_count;
     if ( ! eval {
         my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sql->{table} );
@@ -89,14 +89,14 @@ sub __drop {
         my $tp = Term::TablePrint->new( $sf->{o}{table} );
         $tp->print_table(
             $all_arrayref,
-            { prompt => $prompt_pt, max_rows => 0, table_name => "     '" . $sf->{d}{table} . "'     " }
+            { prompt => $prompt_pt, max_rows => 0, table_name => "     '" . $table . "'     " }
         );
         1; }
     ) {
         $ax->print_error_message( $@ );
     }
     if ( $row_count ) {
-        chomp $info; ###
+        chomp $info;
         $info .= sprintf "  (%s %s)\n", insert_sep( $row_count, $sf->{o}{G}{thsd_sep} ), $row_count == 1 ? 'row' : 'rows';
     }
     my $prompt = "CONFIRM:";
@@ -105,7 +105,7 @@ sub __drop {
         [ undef, 'YES' ],
         { info => $info, prompt => $prompt, undef => 'NO', clear_screen => 1 }
     );
-    $ax->print_sql_info( $sql );
+    $ax->print_sql_info( $info );
     if ( defined $choice && $choice eq 'YES' ) {
         my $stmt = $ax->get_stmt( $sql, $stmt_type, 'prepare' );
         $sf->{d}{dbh}->do( $stmt ) or die "$stmt failed!";
