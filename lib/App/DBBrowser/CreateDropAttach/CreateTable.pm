@@ -111,7 +111,7 @@ sub create_table {
     my $skip_to = '';
     my $count_table_name_loop = 0;
 
-    GET_CONTENT: while ( 1 ) { ## content
+    GET_CONTENT: while ( 1 ) {
         $sf->{i}{stmt_types} = [ 'Create_table', 'Insert' ];
         # first use of {stmt_types} in get_content/from_col_by_col
         my $ok = $gc->get_content( $sql, $skip_to );
