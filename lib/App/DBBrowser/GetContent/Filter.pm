@@ -674,11 +674,13 @@ sub __merge_rows {
     my $term_w = get_term_width();
     my $stringified_rows;
     {
+        my $dots = $sf->{i}{dots}[ $sf->{o}{G}{dots} ];
+        my $dots_w = print_columns( $dots );
         no warnings 'uninitialized';
         @$stringified_rows = map {
             my $str_row = join( ',', @$_ );
             if ( print_columns( $str_row ) > $term_w ) {
-                unicode_sprintf( $str_row, $term_w, { mark_if_trundated => $sf->{i}{dots}[ $sf->{o}{G}{dots} ] } );
+                unicode_sprintf( $str_row, $term_w, { mark_if_trundated => [ $dots, $dots_w ] } );
             }
             else {
                 $str_row;

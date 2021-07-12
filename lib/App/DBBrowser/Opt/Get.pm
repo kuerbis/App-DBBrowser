@@ -35,11 +35,11 @@ sub defaults {
             round_precision_sign => 0,
         },
         alias => {
-            aggregate  => 0,
-            functions  => 0,
-            join       => 0,
-            union      => 0,
-            subqueries => 0,
+            select        => 0,
+            aggregate     => 0,
+            derived_table => 0,
+            join          => 0,
+            union         => 0,
         },
         enable => {
             create_table => 0,

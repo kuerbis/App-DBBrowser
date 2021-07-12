@@ -397,7 +397,7 @@ sub set_options {
             elsif ( $opt eq '_dots' ) {
                 my $prompt = '"How to mark truncated lines"';
                 my $sub_menu = [
-                    [ 'dots', "- Mark of truncated lines", [ '...', '|', 'none' ] ]
+                    [ 'dots', "- Mark of truncated lines", [ $sf->{i}{dots}[0], $sf->{i}{dots}[1], 'none' ] ]
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -446,11 +446,11 @@ sub set_options {
             elsif ( $opt eq '_alias' ) {
                 my $prompt = 'Alias for:';
                 my $sub_menu = [
-                    [ 'aggregate',  "- Aggregate",  [ $no, $yes ] ], # s - p
-                    [ 'functions',  "- Functions",  [ $no, $yes ] ],
-                    [ 'join',       "- Join",       [ $no, $yes ] ],
-                    [ 'subqueries', "- Subqueries", [ $no, $yes ] ],
-                    [ 'union',      "- Union",      [ $no, $yes ] ],
+                    [ 'select',        "- Functions/Subqueries in SELECT",  [ $no, $yes ] ],
+                    [ 'aggregate',     "- AGGREGATE functions",             [ $no, $yes ] ],
+                    [ 'derived_table', "- Derived table",                   [ $no, $yes ] ],
+                    [ 'join',          "- JOIN",                            [ $no, $yes ] ],
+                    [ 'union',         "- UNION",                           [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -508,15 +508,22 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             elsif ( $opt eq '_e_substatements' ) {
-                my $prompt = 'Substatement Additions:';
+                my $prompt = 'Enable Substatement Additions (functions, subqueries):';
                 my $sub_menu = [
-                    [ 'expand_select',   "- SELECT",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'expand_where',    "- WHERE",    [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'expand_group_by', "- GROUB BY", [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'expand_having',   "- HAVING",   [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'expand_order_by', "- ORDER BY", [ 'None', 'Func', 'SQ',       'Func/SQ'    ] ],
-                    [ 'expand_set',      "- SET",      [ 'None', 'Func', 'SQ', '=N', 'Func/SQ/=N' ] ],
+                    [ 'expand_select',   "- SELECT",   [ $no, $yes ] ],
+                    [ 'expand_where',    "- WHERE",    [ $no, $yes ] ],
+                    [ 'expand_group_by', "- GROUB BY", [ $no, $yes ] ],
+                    [ 'expand_having',   "- HAVING",   [ $no, $yes ] ],
+                    [ 'expand_order_by', "- ORDER BY", [ $no, $yes ] ],
+                    [ 'expand_set',      "- SET",      [ $no, $yes ] ],
                 ];
+                ############################################# 06.07.2021
+                for my $key ( keys %{$sf->{o}{$section}} ) {
+                    if ( $sf->{o}{$section}{$key} > 1 ) {
+                        $sf->{o}{$section}{$key} = 1;
+                    }
+                }
+                #############################################
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             elsif ( $opt eq '_e_parentheses' ) {

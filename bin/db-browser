@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.271';
+our $VERSION = '2.272';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -53,7 +53,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.271
+Version 2.272
 
 =head1 SYNOPSIS
 
@@ -744,47 +744,34 @@ Union All
 
 =head3 Substatements
 
-Substatement additions for:
+Enable substatement additions for:
 
 =over
 
 =item SELECT
 
-I<None>, I<Func>, I<SQ>, I<Func/SQ>
-
 =item WHERE
-
-I<None>, I<Func>, I<SQ>, I<Func/SQ>
 
 =item GROUP BY
 
-I<None>, I<Func>, I<SQ>, I<Func/SQ>
-
-=item HAVING
-
-I<None>, I<Func>, I<SQ>, I<Func/SQ>
-
 =item ORDER BY
-
-I<None>, I<Func>, I<SQ>, I<Func/SQ>
 
 =item SET
 
-I<None>, I<Func>, I<SQ>, I<=N>, I<Func/SQ/=N>
-
 =back
 
-If set to I<None>, no menu extensions are available.
+If enabled, C<%%> is shown as additionally menu entry. Selecting C<%%> lets one choose between the available extensions:
 
-If set to I<Func>, C<f()> is shown as additionally menu entry. Selecting C<f()> opens the L</Functions> menu.
+=over
 
-If set to I<SQ>, C<SQ> is shown as additionally menu entry. Selecting C<SQ> opens the L</Subqueries> menu.
+=item Functions (C<f()>). Selecting C<f()> opens the L</Functions> menu.
 
-If set to I<=N>, C<=N> is shown as additionally menu entry (available after the C<SET> in an C<UPDATE> statement).
-Selecting C<=N> sets the column to C<NULL>.
+=item Subqueries (C<SQ>). Selecting C<SQ> opens the L</Subqueries> menu.
 
-If set to I<Func/SQ> (or I<Func/SQ/=N>), C<%%> is shown as additionally menu entry. Selecting C<%%> lets one choose
-between all available extensions.
+=item Set column to C<NULL> (C<=N>). Available after the C<SET> in an C<UPDATE> statement. Selecting C<=N> sets the
+column to C<NULL>.
+
+=back
 
 If these menu entries are prefixed with C<=>, it is required to select the wanted operator I<after> the extended menu
 entry has been chosen.
@@ -909,7 +896,11 @@ derived tables which get then a default alias.
 
 =item
 
-Aggregate
+Functions/Subqueries in SELECT
+
+=item
+
+AGGREGATE functions
 
 =item
 
@@ -917,19 +908,11 @@ Derived tables
 
 =item
 
-Functions in the SELECT sub-statement.
+JOIN
 
 =item
 
-Join
-
-=item
-
-Subqueries in the SELECT sub-statement.
-
-=item
-
-Union
+UNION
 
 =back
 

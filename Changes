@@ -1,6 +1,13 @@
 Revision history for App-DBBrowser
 
 
+2.272    2021-07-12
+        - Simplified substatements extensions.
+        - Update option 'Alias'.
+        - Code refactoring.
+        - Update UI Functions.
+        - Bugfix function aliases.
+
 2.271    2021-07-05
         - Code refactoring.
         - Update UI.
