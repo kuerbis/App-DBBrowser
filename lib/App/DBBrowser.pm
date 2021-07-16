@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.272';
+our $VERSION = '2.273';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -75,7 +75,7 @@ sub __init {
     }
     my $app_dir = catdir( $config_home // $home, 'db_browser' );
     mkdir $app_dir or die $! if ! -d $app_dir;
-    $sf->{i}{home_dir} = $home;
+    $sf->{i}{home_dir} = $home; ##
     $sf->{i}{app_dir}  = $app_dir;
     $sf->{i}{f_settings}           = catfile $app_dir, 'general_settings.json';
     $sf->{i}{conf_file_fmt}        = catfile $app_dir, 'config_%s.json';
@@ -480,7 +480,7 @@ sub run {
                         if ( $ok ) {
                             $sf->{redo_db}     = $sf->{d}{db};
                             $sf->{redo_schema} = $sf->{d}{schema};
-                            $sf->{redo_table}  = $table; # $table == $hidden, redo create_drop_or_attach
+                            $sf->{redo_table}  = $table; # if $table == $hidden => redo 'create_drop_or_attach'
                         }
                         else {
                             # when leaving 'create_drop_or_attach'-menu:
@@ -603,7 +603,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.272
+Version 2.273
 
 =head1 DESCRIPTION
 

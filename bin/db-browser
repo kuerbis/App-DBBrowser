@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.272';
+our $VERSION = '2.273';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -53,7 +53,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.272
+Version 2.273
 
 =head1 SYNOPSIS
 
@@ -327,9 +327,9 @@ C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is
 
 =head4 LIMIT
 
-=head3 Reset
+=head3 Export
 
-Reset the SQL statement.
+Export the result of the chosen SQL statement to a C<CSV>-file.
 
 =head1 WRITE ACCESS
 
@@ -1239,6 +1239,21 @@ If I<file> is selected as the data source type, only files matching this glob pa
 
 If I<file> is selected as the data source type, this setting determines if hidden files are part of the available files
 or not.
+
+=head2 Export to CSV
+
+=head3 Destination folder
+
+Set the folder where the data to be exported will be saved as a CSV file.
+
+=head3 Auto-File-Extension
+
+If this option is enabled and if within the entered file-name is no dot, the file extension C<csv> is added
+automatically to the file-name.
+
+=head3 Encoding to CSV
+
+Set the C<Text::CSV::csv>-option C<encoding>.
 
 =head1 CONFIGURATION FILES
 

@@ -76,6 +76,9 @@ sub select {
         if ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
             shift @idx;
             push @{$sql->{select_cols}}, @{$menu}[@idx];
+            if ( ! @{$sql->{select_cols}} ) {
+                return 0;
+            }
             return 1;
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
@@ -124,6 +127,9 @@ sub distinct {
             return;
         }
         elsif ( $select_distinct eq $sf->{i}{ok} ) {
+            if ( ! length $sql->{distinct_stmt} ) {
+                return 0;
+            }
             return 1;
         }
         $sql->{distinct_stmt} = ' ' . $select_distinct;
@@ -147,6 +153,9 @@ sub aggregate {
             return;
         }
         elsif ( $ret eq $sf->{i}{ok} ) {
+            if ( ! @{$sql->{aggr_cols}} ) {
+                return 0;
+            }
             return 1;
         }
     }
@@ -249,6 +258,9 @@ sub set {
             if ( $col_sep eq ' ' ) {
                 $sql->{set_stmt} = '';
             }
+            if ( ! length $sql->{set_stmt} ) {
+                return 0;
+            }
             return 1;
         }
         push @bu_col, [ $sql->{set_stmt}, [@{$sql->{set_args}}], $col_sep ];
@@ -321,6 +333,9 @@ sub where {
             if ( $unclosed == 1 ) { # close an open parentheses automatically on OK
                 $sql->{where_stmt} .= " )";
                 $unclosed = 0;
+            }
+            if ( ! length $sql->{where_stmt} ) {
+                return 0;
             }
             return 1;
         }
@@ -428,6 +443,9 @@ sub group_by {
             else {
                 $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
             }
+            if ( ! length $sql->{group_by_stmt} ) {
+                return 0;
+            }
             return 1;
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
@@ -486,6 +504,9 @@ sub having {
             if ( $unclosed == 1 ) { # close an open parentheses automatically on OK
                 $sql->{having_stmt} .= ")";
                 $unclosed = 0;
+            }
+            if ( ! length $sql->{having_stmt} ) {
+                return 0;
             }
             return 1;
         }
@@ -585,6 +606,9 @@ sub order_by {
             if ( $col_sep eq ' ' ) {
                 $sql->{order_by_stmt} = '';
             }
+            if ( ! length $sql->{order_by_stmt} ) {
+                return 0;
+            }
             return 1;
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
@@ -644,6 +668,9 @@ sub limit_offset {
             return;
         }
         if ( $choice eq $sf->{i}{ok} ) {
+            if ( ! length $sql->{limit_stmt} && ! length $sql->{offset_stmt} ) {
+                return 0;
+            }
             return 1;
         }
         push @bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];

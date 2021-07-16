@@ -127,7 +127,12 @@ sub defaults {
             blank_is_undef      => 1,
             binary              => 1,
             empty_is_undef      => 0,
-        }
+        },
+        export => {
+            export_dir      => $sf->{i}{home_dir},
+            add_extension   => 0,
+            export_encoding => 'UTF-8',
+        },
     };
     return $defaults                   if ! $section;
     return $defaults->{$section}       if ! $key;
