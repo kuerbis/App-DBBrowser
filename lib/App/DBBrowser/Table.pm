@@ -5,9 +5,9 @@ use warnings;
 use strict;
 use 5.010001;
 
-use Cwd                   qw( realpath ); ##
-use Encode                qw( encode decode ); ## decode
-use File::Spec::Functions qw( catfile ); ##
+use Cwd                   qw( realpath );
+use Encode                qw( encode decode );
+use File::Spec::Functions qw( catfile );
 
 use Term::Choose         qw();
 use Term::Choose::Screen qw( hide_cursor clear_screen );
