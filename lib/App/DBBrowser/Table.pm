@@ -236,7 +236,7 @@ sub __get_filename_fs {
         if ( ! length $file_name ) {
             return;
         }
-        if ( $sf->{o}{export}{add_extesion} && $file_name !~ /^.+\..+\z/ ) {
+        if ( $sf->{o}{export}{add_extension} && $file_name !~ /^.+\..+\z/ ) {
             $file_name .= '.csv';
         }
         my $file_fs = realpath encode( 'locale_fs', catfile $dir, $file_name );

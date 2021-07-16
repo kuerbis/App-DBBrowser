@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.274    2021-07-16
+        - Bugfix option auto-extension.
+
 2.273    2021-07-16
         - Option to export the result of a chosen SQL statement to a CSV-file.
         - Code refactoring.
