@@ -224,8 +224,12 @@ sub __get_filename_fs {
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $file_name;
+    my $count = 0;
 
     FILE_NAME: while ( 1 ) {
+        if ( ++$count > 2 ) {
+            $file_name = '';
+        }
         my $info = $ax->get_sql_info( $sql );
         # Readline
         $file_name = $tf->readline(
@@ -236,7 +240,7 @@ sub __get_filename_fs {
         if ( ! length $file_name ) {
             return;
         }
-        if ( $sf->{o}{export}{add_extension} && $file_name !~ /^.+\..+\z/ ) {
+        if ( $sf->{o}{export}{add_extension} && $file_name !~ /\.csv\z/i ) {
             $file_name .= '.csv';
         }
         my $file_fs = realpath encode( 'locale_fs', catfile $dir, $file_name );

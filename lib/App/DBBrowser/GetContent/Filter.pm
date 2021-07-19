@@ -62,8 +62,8 @@ sub input_filter {
         my $skip = ' ';
         my $regex = qr/^\Q$skip\E\z/;
         my $menu = [
-            undef,          $choose_cols,   $skip,         $skip,
-            $confirm,       $choose_rows,   $range_rows,   $row_groups,
+            undef,          $choose_rows,   $range_rows,   $row_groups,
+            $confirm,       $choose_cols,   $skip,         $skip,
             $reset,         $s_and_replace, $skip,         $skip,
             $reparse,       $remove_cell,   $insert_cell,  $skip,
             $empty_to_null, $join_columns,  $split_column, $append_col,
