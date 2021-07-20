@@ -14,8 +14,9 @@ use Term::Choose::Screen qw( hide_cursor clear_screen );
 use Term::TablePrint     qw();
 
 use App::DBBrowser::Auxil;
+#use App::DBBrowser::Opt::Set;                      # required
 use App::DBBrowser::Table::Substatements;
-#use App::DBBrowser::Table::InsertUpdateDelete;  # required
+#use App::DBBrowser::Table::InsertUpdateDelete;     # required
 
 
 sub new {
@@ -165,8 +166,7 @@ sub __on_table {
             $sql = $backup_sql; # so no need for table_write_access to return $sql
         }
         elsif ( $chosen eq $export ) {
-            my $dir = $sf->{o}{export}{export_dir};
-            my $file_fs = $sf->__get_filename_fs( $sql, $dir );
+            my $file_fs = $sf->__get_filename_fs( $sql );
             if ( ! length $file_fs ) {
                 next CUSTOMIZE;
             }
@@ -219,7 +219,7 @@ sub __selected_statement_result {
 
 
 sub __get_filename_fs {
-    my ( $sf, $sql, $dir ) = @_;
+    my ( $sf, $sql ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -240,58 +240,70 @@ sub __get_filename_fs {
         if ( ! length $file_name ) {
             return;
         }
-        if ( $sf->{o}{export}{add_extension} && $file_name !~ /\.csv\z/i ) {
-            $file_name .= '.csv';
-        }
-        my $file_fs = realpath encode( 'locale_fs', catfile $dir, $file_name );
-        my ( $new_name, $overwrite ) = ( '- New name', '- Overwrite' );
-        my $chosen;
-        if ( -e $file_fs ) {
-            my $menu;
-            my $prompt;
-            if ( -d $file_fs ) {
-                $prompt = 'A directory with name "' . $file_name . '" already exists.';
-                $menu = [ undef, $new_name ];
+
+        FULL_FILE_NAME: while ( 1 ) {
+            my $file_name_plus = $file_name;
+            if ( $sf->{o}{export}{add_extension} && $file_name !~ /\.csv\z/i ) {
+                $file_name_plus .= '.csv';
+            }
+            my $dir = $sf->{o}{export}{export_dir};
+            $file_name_plus = catfile $dir, $file_name_plus;
+            my $file_fs = realpath encode( 'locale_fs', $file_name_plus );
+            my ( $new_name, $overwrite ) = ( '- New name', '- Overwrite' );
+            my $chosen;
+            if ( -e $file_fs ) {
+                my $menu;
+                my $prompt;
+                if ( -d $file_fs ) {
+                    $prompt = 'A directory with name "' . $file_name_plus . '" already exists.';
+                    $menu = [ undef, $new_name ];
+                }
+                else {
+                    $prompt =  'A file with name "' . $file_name_plus . '" already exists.';
+                    $menu = [ undef, $new_name, $overwrite ];
+                }
+                # Choose
+                $chosen = $tc->choose(
+                    $menu,
+                    { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, keep => scalar( @$menu ) }
+                );
+                $ax->print_sql_info( $info );
+                if ( ! defined $chosen ) {
+                    return;
+                }
+                elsif ( $chosen eq $new_name ) {
+                    next FILE_NAME;
+                }
+            }
+            my ( $yes, $no ) = ( '- YES', '- NO' );
+            my $hidden;
+            if ( defined $chosen && $chosen eq $overwrite ) {
+                $hidden = 'Overwrite "' . decode( 'locale_fs', $file_fs ) . '"?';
             }
             else {
-                $prompt =  'A file with name "' . $file_name . '" already exists.';
-                $menu = [ undef, $new_name, $overwrite ];
+                $hidden = 'Write data to "' . decode( 'locale_fs', $file_fs ) . '"?';
             }
             # Choose
-            $chosen = $tc->choose(
-                $menu,
-                { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, keep => scalar( @$menu ) }
+            my $choice = $tc->choose(
+                [ $hidden, undef, $yes, $no ],
+                { info => $info, prompt => '', default => 1, layout => 3, undef => '  <<' }
             );
             $ax->print_sql_info( $info );
-            if ( ! defined $chosen ) {
-                return;
-            }
-            elsif ( $chosen eq $new_name ) {
+            if ( ! defined $choice ) {
                 next FILE_NAME;
             }
-        }
-        my ( $yes, $no ) = ( '- YES', '- NO' );
-        my $prompt;
-        if ( defined $chosen && $chosen eq $overwrite ) {
-            $prompt = 'Overwrite "' . decode( 'locale_fs', $file_fs ) . '"?';
-        }
-        else {
-            $prompt = 'Write data to "' . decode( 'locale_fs', $file_fs ) . '"?';
-        }
-        # Choose
-        my $choice = $tc->choose(
-            [ undef, $yes, $no ],
-            { info => $info, prompt => $prompt, layout => 3, undef => '  <<' }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $choice ) {
-            next FILE_NAME;
-        }
-        elsif ( $choice eq $no ) {
-            return;
-        }
-        else {
-            return $file_fs;
+            elsif ( $choice eq $hidden ) {
+                require App::DBBrowser::Opt::Set;
+                my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
+                $sf->{o} = $opt_set->set_options( [ { name => 'group_export', text => '' } ] );
+                next FULL_FILE_NAME;
+            }
+            elsif ( $choice eq $no ) {
+                return;
+            }
+            else {
+                return $file_fs;
+            }
         }
     }
 }

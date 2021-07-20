@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.276    2021-07-20
+        - Update export file_name.
+
 2.275    2021-07-19
         - Update option auto-extension.
         - Bugfix export file_name.
