@@ -196,7 +196,7 @@ sub database_setting {
                     push @$sub_menu, [ $opt, $prompt, $item->{values} ];
                     $db_opt->{$section}{$opt} //= $db_opt->{$plugin}{$opt} // $item->{values}[$item->{default}];
                 }
-                my $prompt = ( 'Options (' . $plugin . '):' );
+                my $prompt = 'Options ' . $plugin . ':';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
                 next GROUP;
             }

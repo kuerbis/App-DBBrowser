@@ -33,7 +33,7 @@ sub read_db_config_files {
 
 
 sub attributes {
-    my ( $sf, $db, $db_opt ) = @_; #
+    my ( $sf, $db, $db_opt ) = @_;
     my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
     my $plugin = $sf->{i}{plugin};
     # attributes added by hand to the config file:
