@@ -121,7 +121,7 @@ sub _options {
             { name => '_export_csv_settings', text => "- Encoding to CSV",     section => 'export' },
         ],
         group_function => [ # available only in the Function-menu
-            { name => 'round_precision_sign', text => "- Function round", section => 'G' },
+            { name => '_round_precision_sign', text => "- Function round", section => 'G' },
         ],
     };
     return $groups->{$group};
@@ -574,7 +574,7 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq 'round_precision_sign' ) {
+            elsif ( $opt eq '_round_precision_sign' ) {
                 my $prompt = 'Funtion \'round\': ask for precision sign?';
                 my $sub_menu = [
                     [ 'round_precision_sign', "- ROUND: precision sign", [ $no, $yes ] ]
@@ -620,6 +620,7 @@ sub set_options {
 
 
 sub __settings_menu_wrap {
+    # sets the options to the index of the chosen values, not to the values itself
     my ( $sf, $section, $sub_menu, $prompt ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $changed = $tu->settings_menu(

@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.276';
+our $VERSION = '2.277';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -53,7 +53,7 @@ C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL> databases and their tabl
 
 =head1 VERSION
 
-Version 2.276
+Version 2.277
 
 =head1 SYNOPSIS
 
@@ -617,7 +617,7 @@ Choose the required database plugins.
 
 These driver specific I<DB Settings> are used as the default database settings.
 
-There is also in each L</Tables Menu> the entry I<Settings> (if enabled in L</Extensions>) to make database specific
+There is also in each L</Tables Menu> the entry I<DB Settings> (if enabled in L</Extensions>) to make database specific
 settings. If no database specific settings are set, these global (to the database plugin) I<DB Settings> are used.
 
 User defined database plugins: it depends on the plugin which items are offered to be set in each option and whether the
@@ -642,6 +642,10 @@ to the database.
 =item Attributes
 
 For the meaning of these driver specific attributes check the appropriate driver documentation.
+
+C<SQLite> unicode handling: if the C<DBD::SQLite> version is equal or greater then C<1.68>, the C<sqlite_string_mode>
+attribute is used, else the deprecated C<sqlite_unicode> attribute. Read in the
+L<SQLite documentation|https://metacpan.org/pod/DBD::SQLite#sqlite_string_mode> how these two attributes are used.
 
 =item Reset DB
 

@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.277    2021-07-28
+        - SQLite: replace 'sqlite_unicode' with 'sqlite_string_mode' if DBD::SQLite version >= 1.68.
+        - Bugfix in 'attributes': use the values not the indexes.
+        - Bugfix: apply DB specific setting immediately.
+
 2.276    2021-07-20
         - Update export file_name.
 
