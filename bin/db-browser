@@ -640,8 +640,8 @@ to the database.
 For the meaning of these driver specific attributes check the appropriate driver documentation.
 
 C<SQLite> unicode handling: if the C<DBD::SQLite> version is equal or greater then C<1.68>, the C<sqlite_string_mode>
-attribute is used, else the deprecated C<sqlite_unicode> attribute. Read in the
-L<SQLite documentation|https://metacpan.org/pod/DBD::SQLite#sqlite_string_mode> how these two attributes are used.
+attribute is used, else the deprecated C<sqlite_unicode> attribute. Read in the C<SQLite>
+L<documentation|https://metacpan.org/pod/DBD::SQLite#sqlite_string_mode> how these two attributes are used.
 
 =item Reset DB
 
