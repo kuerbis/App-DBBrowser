@@ -173,7 +173,7 @@ sub tables_info { # not public
         my $table = $info_table->{$table_name};
         if ( ! defined $schema && $equal_table_names{$table}++ ) {
             # The $schema is undefined if: SQLite + attached databases
-            # With atteched databases there could be tables with the same name.
+            # With attached databases there could be tables with the same name.
             if ( $equal_table_names{$table} == 2 ) {
                 my $tmp = delete $tables_info->{$table};
                 $table = '[' . join ']', grep { length } @{$tmp}[0..2];
