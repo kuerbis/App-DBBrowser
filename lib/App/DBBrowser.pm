@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.281';
+our $VERSION = '2.282';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -377,9 +377,11 @@ sub run {
 
                 my $tables_info;
                 if ( ! eval {
-                    # if a SQLite database has databases attached, set $schema to undef so 'table_info' in 'tables_data'
-                    # returns also the tables from the attached databases
-                    $tables_info = $plui->tables_data( $dbh, $sf->{i}{db_attached} ? undef : $schema );
+                    # if a SQLite database has databases attached, set $schema to undef so '$dbh->table_info' in
+                    # 'tables_info' returns also the tables from the attached databases
+                    # if a SQLite database has databases attached, the fully qualified table name is used in the SQL
+                    # code regardless of the setting of the option 'qualified_table_name'.
+                    $tables_info = $plui->tables_info( $dbh, $sf->{i}{db_attached} ? undef : $schema );
                     1 }
                 ) {
                     $ax->print_error_message( $@ );
@@ -598,7 +600,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.281
+Version 2.282
 
 =head1 DESCRIPTION
 
