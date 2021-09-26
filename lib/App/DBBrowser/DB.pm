@@ -172,7 +172,7 @@ sub tables_info { # not public
     for my $info_table ( @$info_tables ) {
         next if $info_table->{TABLE_TYPE} eq 'INDEX';
         next if $info_table->{TABLE_TYPE} =~ /^SYSTEM/ && ! $sf->{Plugin}{o}{G}{metadata};
-        my $table = $info_table->{$table_name};
+        my $table;
         if ( $sf->get_db_driver eq 'SQLite' && ! defined $schema ) {
             # The $schema is undefined if: SQLite + attached databases
             if ( $info_table->{$table_schem} =~ /^main\z/ ) {
@@ -182,11 +182,11 @@ sub tables_info { # not public
             else {
                 $table = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
             }
-            $tables_info->{$table} = [ @{$info_table}{@keys} ];
         }
         else {
-            $tables_info->{$table} = [ @{$info_table}{@keys} ];
+            $table = $info_table->{$table_name};
         }
+        $tables_info->{$table} = [ @{$info_table}{@keys} ];
     }
     return $tables_info;
 }

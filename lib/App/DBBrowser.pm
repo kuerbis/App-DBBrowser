@@ -392,7 +392,7 @@ sub run {
                     last PLUGIN;
                 }
                 my ( $user_tables, $sys_tables ) = ( [], [] );
-                for my $table ( keys %$tables_info ) {
+                for my $table ( sort keys %$tables_info ) {
                     if ( $tables_info->{$table}[3] =~ /SYSTEM/ ) {
                         push @$sys_tables, $table;
                     }
@@ -414,12 +414,12 @@ sub run {
                         $table = delete $sf->{redo_table};
                     }
                     else {
-                        my $menu_table = [ $hidden, undef, map( "- $_", sort @$user_tables ) ];
-                        push @$menu_table, map( "  $_", sort @$sys_tables ) if $sf->{o}{G}{metadata};
-                        push @$menu_table, $from_subquery                   if $sf->{o}{enable}{m_derived};
-                        push @$menu_table, $join                            if $sf->{o}{enable}{join};
-                        push @$menu_table, $union                           if $sf->{o}{enable}{union};
-                        push @$menu_table, $db_setting                      if $sf->{o}{enable}{db_settings};
+                        my $menu_table = [ $hidden, undef, map( "- $_", @$user_tables ) ];
+                        push @$menu_table, map( "  $_", @$sys_tables ) if $sf->{o}{G}{metadata};
+                        push @$menu_table, $from_subquery              if $sf->{o}{enable}{m_derived};
+                        push @$menu_table, $join                       if $sf->{o}{enable}{join};
+                        push @$menu_table, $union                      if $sf->{o}{enable}{union};
+                        push @$menu_table, $db_setting                 if $sf->{o}{enable}{db_settings};
                         my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                         # Choose
                         my $idx_tbl = $tc->choose(
