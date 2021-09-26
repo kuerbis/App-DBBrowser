@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.283    2021-09-26
+        - Attached databases: update tables menu.
+
 2.282    2021-09-24
         - Term::Choose::Util minimum version is '1.739'.
         - Code refactoring.

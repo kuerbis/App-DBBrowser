@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.282';
+our $VERSION = '2.283';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -149,6 +149,8 @@ sub get_databases {
 sub tables_info { # not public
     my ( $sf, $dbh, $schema ) = @_;
     my $tables_info = {};
+    # The table names in the $tables_info keys are used in the tables menu but not in SQL code. To get the table names
+    # for SQL code it is used the 'quote_table' routine.
     my ( $table_schem, $table_name );
     if ( $sf->get_db_driver eq 'Pg' ) {
         $table_schem = 'pg_schema';
@@ -171,23 +173,21 @@ sub tables_info { # not public
         next if $info_table->{TABLE_TYPE} eq 'INDEX';
         next if $info_table->{TABLE_TYPE} =~ /^SYSTEM/ && ! $sf->{Plugin}{o}{G}{metadata};
         my $table = $info_table->{$table_name};
-        if ( ! defined $schema && $equal_table_names{$table}++ ) {
+        if ( $sf->get_db_driver eq 'SQLite' && ! defined $schema ) {
             # The $schema is undefined if: SQLite + attached databases
-            # With attached databases there could be tables with the same name.
-            if ( $equal_table_names{$table} == 2 ) {
-                my $tmp = delete $tables_info->{$table};
-                $table = '[' . join ']', grep { length } @{$tmp}[0..2];
-                $tables_info->{$table} = $tmp;
+            if ( $info_table->{$table_schem} =~ /^main\z/ ) {
+                $table = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
+                # \x{001f} keeps the main tables on top of the tables menu.
             }
-            $table = '[' . join ']', grep { length } @{$info_table}{@keys[0..2]};
+            else {
+                $table = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
+            }
             $tables_info->{$table} = [ @{$info_table}{@keys} ];
         }
         else {
             $tables_info->{$table} = [ @{$info_table}{@keys} ];
         }
     }
-    # The table names in the $tables_info keys are used in the choose menus but not in SQL code. To get the table names
-    # for SQL code it is used the 'quote_table' routine.
     return $tables_info;
 }
 
@@ -377,7 +377,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.282
+Version 2.283
 
 =head1 DESCRIPTION
 

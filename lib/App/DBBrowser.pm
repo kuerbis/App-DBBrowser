@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.282';
+our $VERSION = '2.283';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -377,7 +377,7 @@ sub run {
 
                 my $tables_info;
                 if ( ! eval {
-                    # if a SQLite database has databases attached, set $schema to undef so '$dbh->table_info' in
+                    # if a SQLite database has databases attached, set $schema to undef so that '$dbh->table_info' in
                     # 'tables_info' returns also the tables from the attached databases
                     # if a SQLite database has databases attached, the fully qualified table name is used in the SQL
                     # code regardless of the setting of the option 'qualified_table_name'.
@@ -400,13 +400,6 @@ sub run {
                         push @$user_tables, $table;
                     }
                 }
-                #if ( $sf->{i}{db_attached} ) {     # table menu: show the [alias] in front of the table name
-                #    for my $table ( @$user_tables ) {
-                #        my $tmp = delete $tables_info->{$table};
-                #        $table = '[' . $tmp->[1] . ']' . $tmp->[2];
-                #        $tables_info->{$table} = $tmp;
-                #    }
-                #}
                 $sf->{d}{tables_info} = $tables_info;
                 $sf->{d}{user_tables} = $user_tables;
                 $sf->{d}{sys_tables}  = $sys_tables;
@@ -600,7 +593,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.282
+Version 2.283
 
 =head1 DESCRIPTION
 
