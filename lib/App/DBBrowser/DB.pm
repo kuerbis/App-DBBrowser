@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010001;
 
-our $VERSION = '2.283';
+our $VERSION = '2.284';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -175,7 +175,7 @@ sub tables_info { # not public
         my $table;
         if ( $sf->get_db_driver eq 'SQLite' && ! defined $schema ) {
             # The $schema is undefined if: SQLite + attached databases
-            if ( $info_table->{$table_schem} =~ /^main\z/ ) {
+            if ( $info_table->{$table_schem} =~ /^main\z/i ) {
                 $table = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
                 # \x{001f} keeps the main tables on top of the tables menu.
             }
@@ -377,7 +377,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.283
+Version 2.284
 
 =head1 DESCRIPTION
 
