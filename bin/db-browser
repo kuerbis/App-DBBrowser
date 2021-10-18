@@ -953,10 +953,15 @@ To disable the automatic limit set I<Max Rows> to C<0>.
 
 =head2 Output
 
-=head3 Col width
+=head3 Truncate column threshold
 
-Columns with a width below or equal I<Colwidth> are only trimmed if it is still required to lower the row width despite
-all columns wider than I<Colwidth> have been trimmed to I<Colwidth>.
+Columns with a width below or equal I<Trunc col threshold> are only trimmed if it is still required to lower the row
+width despite all columns wider than I<Trunc col threshold> have been trimmed to I<Trunc col threshold>.
+
+=head3 Truncate fractions first
+
+If the terminal width is not wide enough and I<Trunc fract first> is enabled, the first step to reduce the width of the
+columns is to truncate the fraction part of numbers to 2 decimal places.
 
 =head3 Progress bar
 
