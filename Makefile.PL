@@ -56,7 +56,7 @@ WriteMakefile(
         'File::Which'             => 0,
         'FindBin'                 => 0,
         'Getopt::Long'            => 0,
-        'JSON'                    => 0,
+        'JSON::MaybeXS'           => 0,
         'List::MoreUtils'         => '0.428',
         'Pod::Usage'              => 0,
         'Scalar::Util'            => 0,
