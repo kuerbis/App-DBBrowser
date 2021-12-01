@@ -3,7 +3,7 @@ App::DBBrowser::Auxil;
 
 use warnings;
 use strict;
-use 5.010001;
+use 5.014;
 
 use Scalar::Util qw( looks_like_number );
 
