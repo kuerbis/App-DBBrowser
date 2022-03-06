@@ -143,14 +143,14 @@ sub database_setting {
                     );
                     next GROUP;
                 }
-                my $menu = $tu->choose_a_subset(
+                my $db_to_reset = $tu->choose_a_subset(
                     [ sort @databases ],
-                    { cs_label => 'Reset DB: ' }
+                    { cs_label => 'DB to reset: ', layout => 2, cs_separator => "\n", cs_begin => "\n", prompt => "\nChoose:" }
                 );
-                if ( ! $menu->[0] ) {
+                if ( ! $db_to_reset->[0] ) {
                     next GROUP;
                 }
-                for my $db ( @$menu ) {
+                for my $db ( @$db_to_reset ) {
                     delete $db_opt->{$db};
                 }
                 $sf->{write_config}++;
@@ -167,7 +167,7 @@ sub database_setting {
                 }
                 my $prompt = 'Required fields (' . $plugin . '):';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                next GROUP;
+                #next GROUP;
             }
             elsif ( $group eq 'arguments' ) {
                for my $item ( @{$items->{$group}} ) {
@@ -186,7 +186,7 @@ sub database_setting {
                 }
                 my $prompt = 'Use ENV variables (' . $plugin . '):';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                next GROUP;
+                #next GROUP;
             }
             elsif ( $group eq 'attributes' ) {
                 my $sub_menu = [];
@@ -198,7 +198,7 @@ sub database_setting {
                 }
                 my $prompt = 'Options ' . $plugin . ':';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                next GROUP;
+                #next GROUP;
             }
         }
     }
