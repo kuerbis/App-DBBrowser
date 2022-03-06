@@ -97,18 +97,16 @@ sub database_setting {
             );
             return;
         }
+        push @groups, [ 'reset_databases', "  Reset DB" ] if ! defined $db;
         my $prompt = defined $db ? 'DB: ' . $db . '' : '' . $plugin . '';
         my $db_opt_get = App::DBBrowser::Opt::DBGet->new( $sf->{i}, $sf->{o} );
         my $db_opt = $db_opt_get->read_db_config_files();
-
         my $changed = 0;
         my $old_idx_group = 0;
 
         GROUP: while ( 1 ) {
-            my $reset = '  Reset DB';
             my @pre = ( undef );
             my $menu = [ @pre, map( $_->[1], @groups ) ];
-            push @$menu, $reset if ! defined $db;
             # Choose
             my $idx_group = $tc->choose(
                 $menu,
@@ -130,7 +128,8 @@ sub database_setting {
                 }
                 $old_idx_group = $idx_group;
             }
-            if ( $menu->[$idx_group] eq $reset ) {
+            my $group  = $groups[$idx_group-@pre][0];
+            if ( $group eq 'reset_databases' ) {
                 my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
                 my @databases;
                 for my $section ( keys %$db_opt ) {
@@ -154,10 +153,8 @@ sub database_setting {
                     delete $db_opt->{$db};
                 }
                 $sf->{write_config}++;
-                next GROUP;;
             }
-            my $group  = $groups[$idx_group-@pre][0];
-            if ( $group eq 'required' ) {
+            elsif ( $group eq 'required' ) {
                 my $sub_menu = [];
                 for my $item ( @{$items->{$group}} ) {
                     my $required = $item->{name};
@@ -167,7 +164,6 @@ sub database_setting {
                 }
                 my $prompt = 'Required fields (' . $plugin . '):';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                #next GROUP;
             }
             elsif ( $group eq 'arguments' ) {
                for my $item ( @{$items->{$group}} ) {
@@ -186,7 +182,6 @@ sub database_setting {
                 }
                 my $prompt = 'Use ENV variables (' . $plugin . '):';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                #next GROUP;
             }
             elsif ( $group eq 'attributes' ) {
                 my $sub_menu = [];
@@ -198,7 +193,6 @@ sub database_setting {
                 }
                 my $prompt = 'Options ' . $plugin . ':';
                 $sf->__settings_menu_wrap_db( $db_opt, $section, $sub_menu, $prompt );
-                #next GROUP;
             }
         }
     }
