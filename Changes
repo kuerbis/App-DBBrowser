@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.298    2022-06-23
+        - Update and bugfixes Functions.pm.
+
 2.297    2022-06-20
         - Added Firebird-plugin.
         - Update plugin-API: 'sqlite_search' is now 'search'.

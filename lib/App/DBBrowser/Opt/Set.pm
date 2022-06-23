@@ -122,9 +122,6 @@ sub _options {
             { name => '_exported_files',      text => "- Auto-File-Extension", section => 'export' },
             { name => '_export_csv_settings', text => "- Encoding to CSV",     section => 'export' },
         ],
-        group_function => [ # available only in the Function-menu
-            { name => '_round_precision_sign', text => "- Function round", section => 'G' },
-        ],
     };
     return $groups->{$group};
 }

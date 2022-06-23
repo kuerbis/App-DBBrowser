@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.297';
+our $VERSION = '2.298';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -388,19 +388,19 @@ sub concatenate {
 
 sub epoch_to_date {
     my ( $sf, $col, $interval ) = @_;
-    return "DATE($col/$interval,'unixepoch','localtime')"        if $sf->get_db_driver eq 'SQLite';
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')"            if $sf->get_db_driver =~ /^(?:mysql|MariaDB)\z/;
-    return "TO_TIMESTAMP(${col}::bigint/$interval)::date"        if $sf->get_db_driver eq 'Pg';
-    return "DATEADD($col/$interval SECOND TO DATE '1970-01-01')" if $sf->get_db_driver eq 'Firebird';
+    return "DATE($col/$interval,'unixepoch','localtime')"                        if $sf->get_db_driver eq 'SQLite';
+    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')"                            if $sf->get_db_driver =~ /^(?:mysql|MariaDB)\z/;
+    return "TO_TIMESTAMP(${col}::bigint/$interval)::date"                        if $sf->get_db_driver eq 'Pg';
+    return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')" if $sf->get_db_driver eq 'Firebird';
 }
 
 
 sub epoch_to_datetime {
     my ( $sf, $col, $interval ) = @_;
-    return "DATETIME($col/$interval,'unixepoch','localtime')"                  if $sf->get_db_driver eq 'SQLite';
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s')"                 if $sf->get_db_driver =~ /^(?:mysql|MariaDB)\z/;        # mysql: FROM_UNIXTIME doesn't work with negative timestamps
-    return "TO_TIMESTAMP(${col}::bigint/$interval)::timestamp"                 if $sf->get_db_driver eq 'Pg';
-    return "DATEADD($col/$interval SECOND TO TIMESTAMP '1970-01-01 00:00:00')" if $sf->get_db_driver eq 'Firebird';
+    return "DATETIME($col/$interval,'unixepoch','localtime')"                                  if $sf->get_db_driver eq 'SQLite';
+    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s')"                                 if $sf->get_db_driver =~ /^(?:mysql|MariaDB)\z/;        # mysql: FROM_UNIXTIME doesn't work with negative timestamps
+    return "TO_TIMESTAMP(${col}::bigint/$interval)::timestamp"                                 if $sf->get_db_driver eq 'Pg';
+    return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO TIMESTAMP '1970-01-01 00:00:00')" if $sf->get_db_driver eq 'Firebird';
 }
 
 
@@ -427,7 +427,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.297
+Version 2.298
 
 =head1 DESCRIPTION
 

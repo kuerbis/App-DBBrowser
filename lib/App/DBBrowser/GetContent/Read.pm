@@ -131,7 +131,6 @@ sub from_col_by_col {
             { info => $info, auto_up => 1, confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
         );
         $ax->print_sql_info( $info );
-       # my $default;
         if ( ! defined $row ) {
             $default = 0;
         }
