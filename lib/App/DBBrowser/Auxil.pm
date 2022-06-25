@@ -84,7 +84,7 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $sql->{group_by_stmt}, $term_w, $indent2                      ) if $sql->{group_by_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{having_stmt},   $term_w, $indent2, $sql->{having_args} ) if $sql->{having_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{order_by_stmt}, $term_w, $indent2                      ) if $sql->{order_by_stmt};
-        if ( $sf->{i}{driver} eq 'Firebird' ) {
+        if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
             push @tmp, $sf->__stmt_fold( $sql->{offset_stmt},   $term_w, $indent2 ) if $sql->{offset_stmt};
             push @tmp, $sf->__stmt_fold( $sql->{limit_stmt},    $term_w, $indent2 ) if $sql->{limit_stmt};
         }
@@ -399,7 +399,7 @@ sub print_error_message {
 
 sub sql_limit {
     my ( $sf, $rows ) = @_;
-    if ( $sf->{i}{driver} eq 'Firebird' ) {
+    if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
         return " FETCH NEXT $rows ROWS ONLY" # 0
     }
     else {

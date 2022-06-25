@@ -680,7 +680,8 @@ sub limit_offset {
         push @bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];
         my $digits = 7;
         if ( $choice eq $limit ) {
-            if ( $sf->{i}{driver} eq 'Firebird' ) {
+            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+                # https://www.ibm.com/docs/en/db2-for-zos/12?topic=subselect-fetch-clause
                 $sql->{limit_stmt} = "FETCH NEXT";
             }
             else {
@@ -697,7 +698,7 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{limit_stmt} .=  sprintf ' %d', $limit;
-            if ( $sf->{i}{driver} eq 'Firebird' ) {
+            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
                 $sql->{limit_stmt} .= " ROWS ONLY";
             }
         }
@@ -719,7 +720,7 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{offset_stmt} .= sprintf ' %d', $offset;
-            if ( $sf->{i}{driver} eq 'Firebird' ) {
+            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
                 $sql->{offset_stmt} .= " ROWS";
             }
         }

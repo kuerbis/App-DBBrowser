@@ -7,7 +7,7 @@ use 5.014;
 
 use Scalar::Util qw( looks_like_number );
 
-use List::MoreUtils qw( all minmax );
+use List::MoreUtils qw( all minmax uniq );
 
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( print_columns line_fold );
@@ -178,8 +178,7 @@ sub col_function {
             $col_with_func = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Data type: ', [] );
         }
         elsif ( $func =~ /^(?:$Round|$Truncate)\z/ ) {
-            my $history = [ reverse 0 .. 9 ];
-            $col_with_func = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Decimal places: ', $history  );
+            $col_with_func = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Decimal places: ', [ 0 .. 9 ] );
         }
         elsif ( $func eq $Concat ) {
             $col_with_func = $sf->__func_Concat( $sql, $cols, $func, $multi_col );
@@ -222,6 +221,7 @@ sub __func_with_col_and_arg {
     if ( ! defined $chosen_cols ) {
         return;
     }
+    my @local_history;
     my $col_with_func = [];
     my $value;
     my $i = 0;
@@ -231,7 +231,10 @@ sub __func_with_col_and_arg {
         my $incomplete = $func . '(' . $qt_col . ', ? )';
         my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $col_with_func, $incomplete );
         my $info = join "\n", @tmp_info;
-        my $readline = $tr->readline( $prompt, { info => $info, history => $history } );
+        my $readline = $tr->readline(
+            $prompt,
+            { info => $info, history => [ @local_history, @$history ] }
+        );
         if ( ! length $readline ) {
             if ( $i == 0 ) {
                 return;
@@ -244,6 +247,7 @@ sub __func_with_col_and_arg {
         }
         else {
             $value = $readline;
+            @local_history = ( uniq $value, @local_history );
             push @$col_with_func, $plui->function_with_col_and_arg( $func, $qt_col, $value );
             $i++;
             if ( $i > $#$chosen_cols ) {
@@ -445,7 +449,7 @@ sub __get_select_sprintf_fmt {
     else {
         $fmt = "SELECT %s FROM $sql->{table} WHERE %s IS NOT NULL";
     }
-    if ( $sf->{i}{driver} eq 'Firebird' ) {
+    if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
         $fmt .= " " . $sql->{offset_stmt} if $sql->{offset_stmt};
         $fmt .= " " . $sql->{limit_stmt}  if $sql->{limit_stmt};
     }

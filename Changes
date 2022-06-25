@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.299    2022-06-25
+        - Update Functions.pm.
+        - Term::Form minimum version is '0.551'.
+
 2.298    2022-06-23
         - Update and bugfixes Functions.pm.
 
