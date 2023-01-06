@@ -61,7 +61,7 @@ sub parse_with_Text_CSV {
     require String::Unescape;
     my $options = {
         map { $_ => String::Unescape::unescape( $sf->{o}{csv_in}{$_} ) }
-        # keep the default value if the option is set to '' or to undef:
+        # grep length: keep the default value if the option is set to ''
         grep { length $sf->{o}{csv_in}{$_} }
         keys %{$sf->{o}{csv_in}}
     };

@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.309    2023-01-06
+        - Bugfix regex operator.
+
 2.308    2023-01-03
         - Use Text::CSV_XS.
         - Bugfix/update option 'eol'.
