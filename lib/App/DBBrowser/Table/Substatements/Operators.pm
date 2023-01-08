@@ -365,8 +365,8 @@ sub _regexp {
             return " $col NOT REGEXP BINARY ?" if   $case_sensitive;
         }
         else {
-            return " $col REGEXP ?"            if ! $case_sensitive;
-            return " $col REGEXP BINARY ?"     if   $case_sensitive;
+            return " $col REGEXP ?"        if ! $case_sensitive;
+            return " $col REGEXP BINARY ?" if   $case_sensitive;
         }
     }
     elsif ( $sf->{i}{driver} eq 'Pg' ) {
@@ -375,8 +375,8 @@ sub _regexp {
             return " ${col}::text !~ ?"  if   $case_sensitive;
         }
         else {
-            return " ${col}::text ~* ?"  if ! $case_sensitive;
-            return " ${col}::text ~ ?"   if   $case_sensitive;
+            return " ${col}::text ~* ?" if ! $case_sensitive;
+            return " ${col}::text ~ ?"  if   $case_sensitive;
         }
     }
     elsif ( $sf->{i}{driver} eq 'Firebird' ) {
@@ -397,8 +397,8 @@ sub _regexp {
             return " NOT REGEXP_LIKE($col,?,'c')" if   $case_sensitive;
         }
         else {
-            return " REGEXP_LIKE($col,?,'i')"     if ! $case_sensitive;
-            return " REGEXP_LIKE($col,?,'c')"     if   $case_sensitive;
+            return " REGEXP_LIKE($col,?,'i')" if ! $case_sensitive;
+            return " REGEXP_LIKE($col,?,'c')" if   $case_sensitive;
         }
     }
 }
