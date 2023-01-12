@@ -40,7 +40,7 @@ sub __choose_drop_item {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $sql = {};
     $ax->reset_sql( $sql );
-    my $tables = [ grep { $sf->{d}{tables_info}{$_}[3] eq uc $type } @{$sf->{d}{user_tables}} ];
+    my $tables = [ grep { $sf->{d}{tables_info}{$_}[3] eq uc $type } @{$sf->{d}{user_table_keys}} ];
     my $prompt = $sf->{d}{db_string} . "\n" . 'Drop ' . $type;
     # Choose
     my $table = $tc->choose(

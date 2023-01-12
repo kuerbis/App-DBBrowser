@@ -226,12 +226,12 @@ sub __add_aggregate_substmt {
                 $sql->{aggr_cols}[$i] .= "${qt_col}::text,',')";
             }
             elsif ( $sf->{i}{driver} =~ /^(?:DB2|oracle)\z/ ) {
-                # DB2: no default separator
+                # DB2, LISTAGG: no default separator
                 $sql->{aggr_cols}[$i] .= "$qt_col,',')";
             }
             else {
                 # https://sqlite.org/forum/info/221c2926f5e6f155
-                # SQLite: group_concat with DISTINCT and custom seperator does not work
+                # SQLite: GROUP_CONCAT with DISTINCT and custom seperator does not work
                 $sql->{aggr_cols}[$i] .= "$qt_col)";
             }
             #my $sep = ',';
@@ -250,8 +250,9 @@ sub __add_aggregate_substmt {
             #    $sql->{aggr_cols}[$i] .= "$qt_col ORDER BY $qt_col SEPARATOR '$sep')";
             #}
             #elsif ( $sf->{i}{driver} eq 'Pg' ) {
-            #    # Pg: separator mandatory
-            #    # STRING_AGG expects text type as argument
+            #    # Pg, STRING_AGG:
+            #    # separator mandatory
+            #    # expects text type as argument
             #    # with DISTINCT the STRING_AGG col and the ORDER BY col must be identical
             #    $sql->{aggr_cols}[$i] .= "${qt_col}::text,'$sep' ORDER BY ${qt_col}::text)";
             #}
