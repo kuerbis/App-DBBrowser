@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.311';
+our $VERSION = '2.312';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -78,7 +78,6 @@ sub get_schemas {
         my $driver = $dbh->{Driver}{Name}; #
         if ( $driver eq 'SQLite' ) {
             $user_schema = [ 'main' ]; # [ undef ];
-            # user_schema set to undef: temp.sqlite_temp_master
         }
         elsif( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
             # MySQL 8.0 Reference Manual / MySQL Glossary / Schema:
@@ -179,7 +178,7 @@ sub tables_info { # not public
     }
     my @keys = ( 'TABLE_CAT', $table_schem, $table_name, 'TABLE_TYPE' );
     if ( $db_driver eq 'SQLite' && $sf->{Plugin}{i}{db_attached} ) {
-        # If a SQLite database has databases attached, set $schema to 'undef' so that
+        # If a SQLite database has databases attached, set $schema to 'undef'.
         # If $schema is `undef` `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp, aliases
         # of attached databases - with its tables.
         $schema = undef;
@@ -244,7 +243,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.311
+Version 2.312
 
 =head1 DESCRIPTION
 

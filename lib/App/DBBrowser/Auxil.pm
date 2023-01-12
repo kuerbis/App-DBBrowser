@@ -315,8 +315,9 @@ sub quote_table {
     my ( $sf, $td ) = @_; # n
     my @idx;
     if ( $sf->{o}{G}{qualified_table_name} || $sf->{i}{db_attached} ) {
-        # If a SQLite database has databases attached, the fully qualified table name is used SQL code regardless of the
-        # setting of the option 'qualified_table_name' because attached databases could have tables with the same name.
+        # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
+        # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
+        # name.
         @idx = ( 0 .. 2 );
     }
     else {

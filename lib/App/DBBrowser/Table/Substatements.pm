@@ -760,8 +760,8 @@ sub limit_offset {
         if ( $choice eq $offset ) {
             if ( ! $sql->{limit_stmt} ) {
                 # SQLite/mysql/MariaDB: no offset without limit
-                $sql->{limit_stmt} = "LIMIT " . ( $sf->{o}{G}{auto_limit} || '9223372036854775807'  ) if $sf->{i}{driver} eq 'SQLite';   # 2 ** 63 - 1
-                $sql->{limit_stmt} = "LIMIT " . ( $sf->{o}{G}{auto_limit} || '18446744073709551615' ) if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;    # 2 ** 64 - 1
+                $sql->{limit_stmt} = "LIMIT " . '9223372036854775807'  if $sf->{i}{driver} eq 'SQLite';   # 2 ** 63 - 1
+                $sql->{limit_stmt} = "LIMIT " . '18446744073709551615' if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;    # 2 ** 64 - 1
                 # MySQL 8.0 Reference Manual - SQL Statements/Data Manipulation Statements/Select Statement/Limit clause:
                 #    SELECT * FROM tbl LIMIT 95,18446744073709551615;   -> all rows from the 95th to the last
             }

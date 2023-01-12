@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.312    2023-01-12
+        - Removed option 'auto_limit'.
+
 2.311    2023-01-12
         - SQLite: 'sqlite_'-tables are system tables.
         - No reconnect database after create/drop table.
