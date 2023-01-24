@@ -14,11 +14,11 @@ use App::DBBrowser::Auxil;
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     bless {
         i => $info,
         o => $options,
-        d => $data
+        d => $d
     }, $class;
 }
 
@@ -41,7 +41,7 @@ sub create_drop_or_attach {
         push @entries, $drop_view    if $sf->{o}{enable}{drop_view};
         if ( $sf->{i}{driver} eq 'SQLite' ) {
             push @entries, $attach_databases;
-            push @entries, $detach_databases if $sf->{i}{db_attached};
+            push @entries, $detach_databases;
         }
         if ( ! @entries ) {
             return;
@@ -56,8 +56,8 @@ sub create_drop_or_attach {
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             # Here this menu is left without comming back hence the cleanup.
             # (with a true return value, this menu is - after leaving to update data - reopened automatically)
-            delete $sf->{i}{ss} if exists $sf->{i}{ss};  # delete saved books
-            delete $sf->{i}{gc} if exists $sf->{i}{gc};  # delete datasource-file menu memory
+            delete $sf->{d}{ss} if exists $sf->{d}{ss};  # delete saved Spreadsheet::Read books
+            delete $sf->{d}{gc} if exists $sf->{d}{gc};  # delete datasource-file menu memory
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {

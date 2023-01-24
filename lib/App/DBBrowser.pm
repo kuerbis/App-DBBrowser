@@ -269,10 +269,16 @@ sub run {
             # DB-HANDLE
 
             my $dbh;
+            $sf->{d} = {
+                db => $db,
+                user_dbs => $user_dbs,
+                sys_dbs => $sys_dbs,
+            };
+            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
-                $sf->{i}{quote_char} = $dbh->get_info(29)  // '"', # SQL_IDENTIFIER_QUOTE_CHAR
-                $sf->{i}{sep_char}   = $dbh->get_info(41)  // '.'; # SQL_CATALOG_NAME_SEPARATOR # name
+                $sf->{d}{quote_char} = $dbh->get_info(29)  // '"', # SQL_IDENTIFIER_QUOTE_CHAR
+                $sf->{d}{sep_char}   = $dbh->get_info(41)  // '.'; # SQL_CATALOG_NAME_SEPARATOR # name
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -283,13 +289,7 @@ sub run {
                 next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
                 last PLUGIN;
             }
-            $sf->{d} = {
-                db       => $db,
-                dbh      => $dbh,
-                user_dbs => $user_dbs,
-                sys_dbs  => $sys_dbs,
-            };
-            $sf->{i}{db_attached} = 0;
+            $sf->{d}{dbh} = $dbh;
             if ( $driver eq 'SQLite' && -s $sf->{i}{f_attached_db} ) {
                 my $h_ref = $ax->read_json( $sf->{i}{f_attached_db} ) // {};
                 my $attached_db = $h_ref->{$db} // [];
@@ -298,11 +298,9 @@ sub run {
                         my $stmt = sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $ref->[0] ), $dbh->quote( $ref->[1] );
                         $dbh->do( $stmt );
                     }
-                    $sf->{i}{db_attached} = 1;
+                    $sf->{d}{db_attached} = 1;
                 }
             }
-            $sf->{i}{stmt_history} = [];
-            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
 
             # SCHEMAS
 
@@ -380,13 +378,12 @@ sub run {
                 $sf->{d}{user_schemas} = $user_schemas;
                 $sf->{d}{sys_schemas}  = $sys_schemas;
                 $sf->{d}{db_string}    = $db_string;
-                $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
 
                 # TABLES
 
                 my ( $tables_info, $user_table_keys, $sys_table_keys );
                 if ( ! eval {
-                    ( $tables_info, $user_table_keys, $sys_table_keys ) = $plui->tables_info( $dbh, $schema, $is_system_schema );
+                    ( $tables_info, $user_table_keys, $sys_table_keys ) = $plui->tables_info( $dbh, $schema, $is_system_schema, $sf->{d}{db_attached} );
                     1 }
                 ) {
                     $ax->print_error_message( $@ );
@@ -398,7 +395,7 @@ sub run {
                 }
                 $sf->{d}{tables_info} = $tables_info;
                 $sf->{d}{user_table_keys} = $user_table_keys;
-                $sf->{d}{sys_table_keys}  = $sf->{o}{G}{metadata} ? $sys_table_keys : [];
+                $sf->{d}{sys_table_keys} = $sf->{o}{G}{metadata} ? $sys_table_keys : [];
                 my $old_idx_tbl = 1;
 
                 TABLE: while ( 1 ) {
@@ -489,7 +486,7 @@ sub run {
                     if ( $table eq $join ) {
                         require App::DBBrowser::Join;
                         my $new_j = App::DBBrowser::Join->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                        $sf->{i}{special_table} = 'join';
+                        $sf->{d}{special_table} = 'join';
                         if ( ! eval { ( $qt_table, $qt_columns ) = $new_j->join_tables(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
@@ -499,7 +496,7 @@ sub run {
                     elsif ( $table eq $union ) {
                         require App::DBBrowser::Union;
                         my $new_u = App::DBBrowser::Union->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                        $sf->{i}{special_table} = 'union';
+                        $sf->{d}{special_table} = 'union';
                         if ( ! eval { ( $qt_table, $qt_columns ) = $new_u->union_tables(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
@@ -507,7 +504,7 @@ sub run {
                         next TABLE if ! defined $qt_table;
                     }
                     elsif ( $table eq $from_subquery ) {
-                        $sf->{i}{special_table} = 'subquery';
+                        $sf->{d}{special_table} = 'subquery';
                         if ( ! eval { ( $qt_table, $qt_columns ) = $sf->__derived_table(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
@@ -515,7 +512,7 @@ sub run {
                         next TABLE if ! defined $qt_table;
                     }
                     else {
-                        $sf->{i}{special_table} = '';
+                        $sf->{d}{special_table} = '';
                         if ( ! eval {
                             $table =~ s/^[-\ ]\s//;
                             $sf->{d}{table_key} = $table;
@@ -530,9 +527,9 @@ sub run {
                         }
                     }
                     my $table_footer;
-                    if ( $sf->{i}{special_table} ) {
-                        $table_footer = ucfirst $sf->{i}{special_table};
-                        my $qc = quotemeta $sf->{i}{quote_char};
+                    if ( $sf->{d}{special_table} ) {
+                        $table_footer = ucfirst $sf->{d}{special_table};
+                        my $qc = quotemeta $sf->{d}{quote_char};
                         if ( $qt_table =~ /\sAS\s$qc([^$qc]+)$qc\z/ ) {
                             $table_footer .= ': ' . $1;
                         }
@@ -557,7 +554,7 @@ sub __derived_table {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     require App::DBBrowser::Subqueries;
     my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    $sf->{i}{stmt_types} = [ 'Select' ];
+    $sf->{d}{stmt_types} = [ 'Select' ];
     my $tmp = { table => '()' };
     $ax->reset_sql( $tmp );
     $ax->print_sql_info( $ax->get_sql_info( $tmp ) );

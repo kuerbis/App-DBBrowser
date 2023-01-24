@@ -13,18 +13,18 @@ use App::DBBrowser::Auxil;
 #use App::DBBrowser::Subqueries; # required
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     bless {
         i => $info,
         o => $options,
-        d => $data
+        d => $d
     }, $class;
 }
 
 
 sub union_tables {
     my ( $sf ) = @_;
-    $sf->{i}{stmt_types} = [ 'Union' ];
+    $sf->{d}{stmt_types} = [ 'Union' ];
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];

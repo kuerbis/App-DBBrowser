@@ -16,11 +16,11 @@ use App::DBBrowser::Table::Substatements;
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     bless $sf, $class;
 }
@@ -33,12 +33,12 @@ sub table_write_access {
     my $cs = App::DBBrowser::Table::CommitWriteSQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my @stmt_types;
-    if ( ! $sf->{i}{special_table} ) {
+    if ( ! $sf->{d}{special_table} ) {
         push @stmt_types, 'Insert' if $sf->{o}{enable}{insert_into};
         push @stmt_types, 'Update' if $sf->{o}{enable}{update};
         push @stmt_types, 'Delete' if $sf->{o}{enable}{delete};
     }
-    elsif ( $sf->{i}{special_table} eq 'join' && $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $sf->{d}{special_table} eq 'join' && $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
         push @stmt_types, 'Update' if $sf->{o}{enable}{update};
     }
     if ( ! @stmt_types ) {
@@ -73,15 +73,15 @@ sub table_write_access {
             next STMT_TYPE;
         }
         $stmt_type =~ s/^-\ //;
-        $sf->{i}{stmt_types} = [ $stmt_type ];
+        $sf->{d}{stmt_types} = [ $stmt_type ];
         $ax->reset_sql( $sql );
         if ( $stmt_type eq 'Insert' ) {
             my $ok = $sf->__build_insert_stmt( $sql );
             if ( $ok ) {
                 $ok = $cs->commit_sql( $sql );
             }
-            delete $sf->{i}{ss} if exists $sf->{i}{ss};
-            delete $sf->{i}{gc} if exists $sf->{i}{gc};
+            delete $sf->{d}{ss} if exists $sf->{d}{ss};
+            delete $sf->{d}{gc} if exists $sf->{d}{gc};
             next STMT_TYPE;
         }
         my $sub_stmts = {

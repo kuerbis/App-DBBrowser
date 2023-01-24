@@ -15,11 +15,11 @@ use App::DBBrowser::Auxil;
 #use App::DBBrowser::Subqueries; # required
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     if ( $info->{driver} eq 'SQLite' ) {
         $sf->{join_types} = [ 'INNER JOIN', 'LEFT JOIN', 'CROSS JOIN' ];
@@ -30,7 +30,7 @@ sub new {
     else {
         $sf->{join_types} = [ 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'CROSS JOIN' ];
     }
-    $sf->{i}{stmt_types} = [ 'Join' ];
+    $sf->{d}{stmt_types} = [ 'Join' ];
     bless $sf, $class;
 }
 

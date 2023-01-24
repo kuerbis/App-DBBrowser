@@ -16,11 +16,11 @@ use App::DBBrowser::Table::Extensions;
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     bless $sf, $class;
 }

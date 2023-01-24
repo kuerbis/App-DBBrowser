@@ -23,11 +23,11 @@ use App::DBBrowser::GetContent;
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     bless {
         i => $info,
         o => $options,
-        d => $data
+        d => $d
     }, $class;
 }
 
@@ -41,7 +41,7 @@ sub create_view {
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $sql = {};
     $ax->reset_sql( $sql );
-    $sf->{i}{stmt_types} = [ 'Create_view' ];
+    $sf->{d}{stmt_types} = [ 'Create_view' ];
 
     SELECT_STMT: while ( 1 ) {
         $sql->{table} = '';
@@ -111,7 +111,7 @@ sub create_table {
     my $count_table_name_loop = 0;
 
     GET_CONTENT: while ( 1 ) {
-        $sf->{i}{stmt_types} = [ 'Create_table', 'Insert' ];
+        $sf->{d}{stmt_types} = [ 'Create_table', 'Insert' ];
         # first use of {stmt_types} in get_content/from_col_by_col
         my $ok = $gc->get_content( $sql, $skip_to );
         if ( ! $ok ) {
@@ -120,15 +120,15 @@ sub create_table {
         $skip_to = '';
 
         my $sheet_count = 1;
-        my $file_fs = $sf->{i}{gc}{file_fs};
-        if ( exists $sf->{i}{ss}{$file_fs}{sheet_count} ) {
-            $sheet_count = $sf->{i}{ss}{$file_fs}{sheet_count};
+        my $file_fs = $sf->{d}{gc}{file_fs};
+        if ( exists $sf->{d}{ss}{$file_fs}{sheet_count} ) {
+            $sheet_count = $sf->{d}{ss}{$file_fs}{sheet_count};
         }
-        my $table_name = ''; # table_name memory # n
+        my $table_name_default = ''; # table_name memory # n
 
         GET_TABLE_NAME: while ( 1 ) {
-            $table_name = $sf->__get_table_name( $sql, $table_name, $count_table_name_loop ); # first time print_sql
-            if ( ! $table_name ) {
+            $table_name_default = $sf->__get_table_name( $sql, $table_name_default, $count_table_name_loop ); # first time print_sql
+            if ( ! $table_name_default ) {
                 if ( $sf->{o}{insert}{enable_input_filter} ) {
                     $skip_to = 'FILTER';
                 }
@@ -241,7 +241,7 @@ sub create_table {
 
 
 sub __get_table_name {
-    my ( $sf, $sql, $table_name, $count_table_name_loop ) = @_;
+    my ( $sf, $sql, $default, $count_table_name_loop ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
@@ -249,39 +249,39 @@ sub __get_table_name {
 
     while ( 1 ) {
         my $file_info;
-        if ( $sf->{i}{gc}{source_type} eq 'file' ) {
-            my $file_fs = $sf->{i}{gc}{file_fs};
+        if ( $sf->{d}{gc}{source_type} eq 'file' ) {
+            my $file_fs = $sf->{d}{gc}{file_fs};
             my $file_name = basename decode( 'locale_fs', $file_fs );
             $file_info = sprintf "File: '%s'", $file_name;
-            if ( ! length $table_name ) {
-                my $sheet_name = $sf->{i}{ss}{$file_fs}{sheet_name};
+            if ( ! length $default ) {
+                my $sheet_name = $sf->{d}{ss}{$file_fs}{sheet_name};
                 if ( defined $sheet_name && length $sheet_name ) {
-                    if ( $sf->{i}{ss}{$file_fs}{sheet_count} > 1 ) {
-                        $table_name = $sheet_name;
+                    if ( $sf->{d}{ss}{$file_fs}{sheet_count} > 1 ) {
+                        $default = $sheet_name;
                     }
                     else {
                         $file_name =~ s/\.[^.]{1,4}\z//;
-                        $table_name = $file_name . '_' . $sheet_name;
+                        $default = $file_name . '_' . $sheet_name;
                     }
                 }
                 else {
-                    $table_name = $file_name =~ s/\.[^.]{1,4}\z//r;
+                    $default = $file_name =~ s/\.[^.]{1,4}\z//r;
                 }
-                $table_name =~ s/ /_/g;
+                $default =~ s/ /_/g;
             }
         }
-        $sf->{i}{occupied_term_height} = 2; # readline, trailing empty line
+        $sf->{d}{occupied_term_height} = 2; # readline, trailing empty line
         if ( $file_info ) {
-            $sf->{i}{occupied_term_height} += 1;
+            $sf->{d}{occupied_term_height} += 1;
         }
-        if ( $count_table_name_loop > 1 ) {
-            $table_name = '';
+        if ( $count_table_name_loop > 1 ) { # to avoid infinite loop when going back with `ENTER`
+            $default = '';
         }
         my $info = $ax->get_sql_info( $sql ) . ( $file_info ? "\n" . $file_info : '' );
         # Readline
-        $table_name = $tr->readline(
+        my $table_name = $tr->readline(
             'Table name: ',
-            { info => $info, default => $table_name }
+            { info => $info, default => $default }
         );
         $ax->print_sql_info( $info );
         if ( ! length $table_name ) {
@@ -291,7 +291,7 @@ sub __get_table_name {
         if ( none { $sql->{table} eq $ax->quote_table( $sf->{d}{tables_info}{$_} ) } keys %{$sf->{d}{tables_info}} ) {
             return $table_name;
         }
-        $sf->{i}{occupied_term_height} = 4; # prompt, $menu, trailing empty line
+        $sf->{d}{occupied_term_height} = 4; # prompt, $menu, trailing empty line
         my $prompt = "Table $sql->{table} already exists.";
         my $menu = [ undef, '  New name' ];
         $info = $ax->get_sql_info( $sql );
@@ -316,7 +316,7 @@ sub __get_column_names {
     my @pre = ( undef );
     my $menu = [ @pre, $first_row, $user_input ];
     my $header_row;
-    $sf->{i}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
+    $sf->{d}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
     my $info = $ax->get_sql_info( $sql );
     # Choose
     my $chosen = $tc->choose(
@@ -351,7 +351,7 @@ sub __autoincrement_column {
     if ( $sf->{col_auto} ) {
         my ( $no, $yes ) = ( '- NO ', '- YES' );
         my $menu = [ undef, $yes, $no  ];
-        $sf->{i}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
+        $sf->{d}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
         my $info = $ax->get_sql_info( $sql );
         # Choose
         my $chosen = $tc->choose(
@@ -423,7 +423,7 @@ sub __edit_column_names {
     else {
         $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @{$sql->{create_table_cols}} ];
     }
-    $sf->{i}{occupied_term_height} = 3 + @{$sql->{create_table_cols}};
+    $sf->{d}{occupied_term_height} = 3 + @{$sql->{create_table_cols}};
     my $info = $ax->get_sql_info( $sql );
     # Fill_form
     my $form = $tf->fill_form(
@@ -455,7 +455,7 @@ sub __edit_column_types {
     }
     my $fields;
     if ( ! %$data_types && $sf->{o}{create}{data_type_guessing} ) {
-        $sf->{i}{occupied_term_height} = 4 + @{$sql->{insert_into_cols}}; # busy string at the height of the prompt
+        $sf->{d}{occupied_term_height} = 4 + @{$sql->{insert_into_cols}}; # busy string at the height of the prompt
         $ax->print_sql_info( $ax->get_sql_info( $sql ), 'Column data types: guessing ... ' );
         require SQL::Type::Guess;
         my $g = SQL::Type::Guess->new();
@@ -482,7 +482,7 @@ sub __edit_column_types {
         unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_auto} ] ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
-    $sf->{i}{occupied_term_height} = 3 + @$fields; # prompt, back, confirm and fiels # 4 with trailing empty line
+    $sf->{d}{occupied_term_height} = 3 + @$fields; # prompt, back, confirm and fiels # 4 with trailing empty line
     my $info = $ax->get_sql_info( $sql );
     # Fill_form
     my $col_name_and_type = $tf->fill_form(
@@ -509,14 +509,14 @@ sub __create {
     my ( $no, $yes ) = ( '- NO', '- YES' );
     my $menu = [ undef, $yes, $no ];
     my $prompt = "Create $type $sql->{table}";
-    $sf->{i}{occupied_term_height} = @$menu + 2;  # + 2 for prompt and empty line
+    $sf->{d}{occupied_term_height} = @$menu + 2;  # + 2 for prompt and empty line
     if ( @{$sql->{insert_into_args}} ) {
         my $row_count = @{$sql->{insert_into_args}};
         $prompt .= "\nInsert " . insert_sep( $row_count, $sf->{i}{info_thsd_sep} ) . " row";
         if ( @{$sql->{insert_into_args}} > 1 ) {
             $prompt .= "s";
         }
-        $sf->{i}{occupied_term_height} += 1; # second prompt line
+        $sf->{d}{occupied_term_height} += 1; # second prompt line
     }
     my $info = $ax->get_sql_info( $sql );
     # Choose
@@ -532,7 +532,7 @@ sub __create {
         return 0;
     }
     my $stmt = $ax->get_stmt( $sql, 'Create_' . $type, 'prepare' );
-    # don't reset `$sql->{create_table_cols}` and `$sf->{i}{stmt_types}`:
+    # don't reset `$sql->{create_table_cols}` and `$sf->{d}{stmt_types}`:
     #    to get a consistent print_sql_info output in CommitSQL
     #    to avoid another confirmation prompt in CommitSQL
     if ( ! eval { $sf->{d}{dbh}->do( $stmt ); 1 } ) {

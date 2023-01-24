@@ -26,11 +26,11 @@ use open ':encoding(locale)';
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     bless $sf, $class;
 }
@@ -55,7 +55,7 @@ sub from_col_by_col {
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $aoa = [];
     my $col_names;
-    if ( $sf->{i}{stmt_types}[0] eq 'Create_table' ) {
+    if ( $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
         my $col_count;
         my $info = 'CREATE TABLE';
 
@@ -153,14 +153,14 @@ sub from_file {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
 
     DIR: while ( 1 ) {
-        if ( ! @{$sf->{i}{gc}{files_in_chosen_dir}//[]} ) {
+        if ( ! @{$sf->{d}{gc}{files_in_chosen_dir}//[]} ) {
             my $dir = $sf->__directory( $sql );
             if ( ! defined $dir ) {
                 return;
             }
-            $sf->{i}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
+            $sf->{d}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
         }
-        $sf->{i}{gc}{old_idx_file} //= 1;
+        $sf->{d}{gc}{old_idx_file} //= 1;
 
         FILE: while ( 1 ) {
             my $hidden = 'Choose File:';
@@ -169,26 +169,26 @@ sub from_file {
             if ( $sf->{o}{insert}{history_dirs} == 1 ) {
                 push @pre, $change_dir;
             }
-            my $menu = [ @pre, map { '  ' . basename $_ } @{$sf->{i}{gc}{files_in_chosen_dir}} ]; #
+            my $menu = [ @pre, map { '  ' . basename $_ } @{$sf->{d}{gc}{files_in_chosen_dir}} ]; #
             # Choose
             my $idx = $tc->choose(
                 $menu,
-                { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $sf->{i}{gc}{old_idx_file},
+                { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $sf->{d}{gc}{old_idx_file},
                   undef => '  <=' }
             );
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
-                delete $sf->{i}{gc}{files_in_chosen_dir};
+                delete $sf->{d}{gc}{files_in_chosen_dir};
                 if ( $sf->{o}{insert}{history_dirs} == 1 ) {
                     return;
                 }
                 next DIR;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $sf->{i}{gc}{old_idx_file} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                    $sf->{i}{gc}{old_idx_file} = 1;
+                if ( $sf->{d}{gc}{old_idx_file} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                    $sf->{d}{gc}{old_idx_file} = 1;
                     next FILE;
                 }
-                $sf->{i}{gc}{old_idx_file} = $idx;
+                $sf->{d}{gc}{old_idx_file} = $idx;
             }
             if ( $menu->[$idx] eq $hidden ) {
                 require App::DBBrowser::Opt::Set;
@@ -198,10 +198,10 @@ sub from_file {
             }
             elsif ( $menu->[$idx] eq $change_dir ) {
                 my $dir = $sf->__new_search_dir();
-                $sf->{i}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
+                $sf->{d}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
                 next FILE;
             }
-            my $file_fs = encode( 'locale_fs', $sf->{i}{gc}{files_in_chosen_dir}[$idx-@pre] );
+            my $file_fs = encode( 'locale_fs', $sf->{d}{gc}{files_in_chosen_dir}[$idx-@pre] );
             return 1, $file_fs;
         }
     }
@@ -244,7 +244,7 @@ sub __directory {
             return $h_ref->{dirs}[0];
         }
     }
-    $sf->{i}{gc}{old_idx_dir} //= 0;
+    $sf->{d}{gc}{old_idx_dir} //= 0;
 
     DIR: while ( 1 ) {
         my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
@@ -256,18 +256,18 @@ sub __directory {
         # Choose
         my $idx = $tc->choose( ##
             $menu,
-            { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $sf->{i}{gc}{old_idx_dir},
+            { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $sf->{d}{gc}{old_idx_dir},
               undef => '  <=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $sf->{i}{gc}{old_idx_dir} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $sf->{i}{gc}{old_idx_dir} = 0;
+            if ( $sf->{d}{gc}{old_idx_dir} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $sf->{d}{gc}{old_idx_dir} = 0;
                 next DIR;
             }
-            $sf->{i}{gc}{old_idx_dir} = $idx;
+            $sf->{d}{gc}{old_idx_dir} = $idx;
         }
         my $dir;
         if ( $menu->[$idx] eq $new_search ) {

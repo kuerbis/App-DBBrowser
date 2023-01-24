@@ -18,11 +18,11 @@ use Term::Form::ReadLine    qw();
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     bless {
         i => $info,
         o => $options,
-        d => $data
+        d => $d
     }, $class;
 }
 
@@ -59,27 +59,27 @@ sub get_stmt {
         $indent1 = { init_tab => $in x 1, subseq_tab => $in x 2 };
         $indent2 = { init_tab => $in x 2, subseq_tab => $in x 3 };
     }
-    my $table = $sql->{table}; # q
+    my $qt_table = $sql->{table}; # q
     my @tmp;
     if ( $stmt_type eq 'Drop_table' ) {
-        @tmp = ( $sf->__stmt_fold( "DROP TABLE $table", $term_w, $indent0 ) );
+        @tmp = ( $sf->__stmt_fold( "DROP TABLE $qt_table", $term_w, $indent0 ) );
     }
     elsif ( $stmt_type eq 'Drop_view' ) {
-        @tmp = ( $sf->__stmt_fold( "DROP VIEW $table", $term_w, $indent0 ) );
+        @tmp = ( $sf->__stmt_fold( "DROP VIEW $qt_table", $term_w, $indent0 ) );
     }
     elsif ( $stmt_type eq 'Create_table' ) {
-        my $stmt = sprintf "CREATE TABLE $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
+        my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
         @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
-        $sf->{i}{occupied_term_height} += @tmp;                                     # modifies  $sf->{i}{occupied_term_height}
+        $sf->{d}{occupied_term_height} += @tmp;
 
     }
     elsif ( $stmt_type eq 'Create_view' ) {
-        @tmp = ( $sf->__stmt_fold( "CREATE VIEW $table", $term_w, $indent0 ) );
+        @tmp = ( $sf->__stmt_fold( "CREATE VIEW $qt_table", $term_w, $indent0 ) );
         push @tmp, $sf->__stmt_fold( "AS " . $sql->{view_select_stmt}, $term_w, $indent1 );
     }
     elsif ( $stmt_type eq 'Select' ) {
         @tmp = ( $sf->__stmt_fold( "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $term_w, $indent0 ) );
-        push @tmp, $sf->__stmt_fold( "FROM " . $table,      $term_w, $indent1 );
+        push @tmp, $sf->__stmt_fold( "FROM " . $qt_table,      $term_w, $indent1 );
         push @tmp, $sf->__stmt_fold( $sql->{where_stmt},    $term_w, $indent2, $sql->{where_args}  ) if $sql->{where_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{group_by_stmt}, $term_w, $indent2                      ) if $sql->{group_by_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{having_stmt},   $term_w, $indent2, $sql->{having_args} ) if $sql->{having_stmt};
@@ -94,11 +94,11 @@ sub get_stmt {
         }
     }
     elsif ( $stmt_type eq 'Delete' ) {
-        @tmp = ( $sf->__stmt_fold( "DELETE FROM " . $table, $term_w, $indent0 ) );
+        @tmp = ( $sf->__stmt_fold( "DELETE FROM " . $qt_table, $term_w, $indent0 ) );
         push @tmp, $sf->__stmt_fold( $sql->{where_stmt}, $term_w, $indent1, $sql->{where_args} ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Update' ) {
-        @tmp = ( $sf->__stmt_fold( "UPDATE " . $table, $term_w, $indent0 ) );
+        @tmp = ( $sf->__stmt_fold( "UPDATE " . $qt_table, $term_w, $indent0 ) );
         push @tmp, $sf->__stmt_fold( $sql->{set_stmt},   $term_w, $indent1, $sql->{set_args} )   if $sql->{set_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{where_stmt}, $term_w, $indent1, $sql->{where_args} ) if $sql->{where_stmt};
     }
@@ -110,8 +110,8 @@ sub get_stmt {
         }
         else {
             push @tmp, $sf->__stmt_fold( "VALUES(", $term_w, $indent1 );
-            $sf->{i}{occupied_term_height} += @tmp;                                 # modifies  $sf->{i}{occupied_term_height}
-            $sf->{i}{occupied_term_height} += 2; # ")" and empty row
+            $sf->{d}{occupied_term_height} += @tmp;
+            $sf->{d}{occupied_term_height} += 2; # ")" and empty row
             my $arg_rows = $sf->info_format_insert_args( $sql, $indent2->{init_tab} );
             push @tmp, @$arg_rows;
             push @tmp, $sf->__stmt_fold( ")", $term_w, $indent1 );
@@ -156,14 +156,14 @@ sub info_format_insert_args {
         $term_w += WIDTH_CURSOR;
     }
     my $row_count = @{$sql->{insert_into_args}};
-    my $avail_h = $term_h - $sf->{i}{occupied_term_height}; # <= where {occupied_term_height} is used
+    my $avail_h = $term_h - $sf->{d}{occupied_term_height}; # <= where $sf->{d}{occupied_term_height} is used
     $avail_h -= 1; # 1 for the footer line
     if ( $avail_h < 5) {
         $avail_h = 5;
     }
     my $tmp = [];
     if ( $row_count > $avail_h ) {
-        $avail_h -= 2; # for [...] + [count rows]
+        $avail_h -= 2; # for "[...]" + "[count rows]"
         my $count_part_1 = int( $avail_h / 1.5 );
         my $count_part_2 = $avail_h - $count_part_1;
         my $begin_idx_part_1 = 0;
@@ -203,7 +203,7 @@ sub __select_cols {
     my ( $sf, $sql ) = @_;
     my @cols = @{$sql->{selected_cols}} ? @{$sql->{selected_cols}} : ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
     if ( ! @cols ) {
-        if ( $sf->{i}{special_table} eq 'join' ) {
+        if ( $sf->{d}{special_table} eq 'join' ) {
             # join: use qualified col names in the prepare stmt (different cols could have the same name)
             return ' ' . join ', ', @{$sql->{cols}};
         }
@@ -245,7 +245,7 @@ sub print_sql_info {
 sub get_sql_info {
     my ( $sf, $sql ) = @_;
     my $stmt = '';
-    for my $stmt_type ( @{$sf->{i}{stmt_types}} ) {
+    for my $stmt_type ( @{$sf->{d}{stmt_types}} ) {
          $stmt .= $sf->get_stmt( $sql, $stmt_type, 'print' );   # occupied_term_height could be changed
     }
     return $stmt;
@@ -253,14 +253,14 @@ sub get_sql_info {
 
 
 sub stmt_placeholder_to_value {
-    my ( $sf, $stmt, $values, $quote ) = @_;
+    my ( $sf, $stmt, $values, $quote_values ) = @_;
     if ( ! @$values ) {
         return $stmt;
     }
     my $rx_placeholder = qr/(?<=(?:,|\s|\())\?(?=(?:,|\s|\)|$))/;
     for my $value ( @$values ) {
         my $value_copy;
-        if ( $quote && $value && ! looks_like_number $value ) {
+        if ( $quote_values && $value && ! looks_like_number $value ) {
             $value_copy = $sf->{d}{dbh}->quote( $value );
         }
         else {
@@ -312,9 +312,9 @@ sub alias {
 
 
 sub quote_table {
-    my ( $sf, $td ) = @_; # n
+    my ( $sf, $table_identifier_parts ) = @_; # n
     my @idx;
-    if ( $sf->{o}{G}{qualified_table_name} || $sf->{i}{db_attached} ) {
+    if ( $sf->{o}{G}{qualified_table_name} || $sf->{d}{db_attached} ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
         # name.
@@ -324,18 +324,18 @@ sub quote_table {
         @idx = ( 2 );
     }
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $sf->{d}{dbh}->quote_identifier( @{$td}[@idx] );
+        return $sf->{d}{dbh}->quote_identifier( @{$table_identifier_parts}[@idx] );
     }
-    return join( $sf->{i}{sep_char}, grep { length } @{$td}[@idx] );
+    return join( $sf->{d}{sep_char}, grep { length } @{$table_identifier_parts}[@idx] );
 }
 
 
 sub quote_col_qualified {
-    my ( $sf, $cd ) = @_;
+    my ( $sf, $col_identifier_parts ) = @_;
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $sf->{d}{dbh}->quote_identifier( @$cd );
+        return $sf->{d}{dbh}->quote_identifier( @$col_identifier_parts );
     }
-    return join( $sf->{i}{sep_char}, grep { length } @$cd );
+    return join( $sf->{d}{sep_char}, grep { length } @$col_identifier_parts );
 }
 
 
@@ -412,14 +412,14 @@ sub sql_limit {
 
 
 sub tables_column_names_and_types { # db
-    my ( $sf, $tables ) = @_;
+    my ( $sf, $table_keys ) = @_;
     my ( $col_names, $col_types );
-    for my $table ( @$tables ) {
+    for my $table_k ( @$table_keys ) {
         if ( ! eval {
-            my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sf->quote_table( $sf->{d}{tables_info}{$table} ) . $sf->sql_limit( 0 ) );
+            my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sf->quote_table( $sf->{d}{tables_info}{$table_k} ) . $sf->sql_limit( 0 ) );
             $sth->execute() if $sf->{i}{driver} ne 'SQLite';
-            $col_names->{$table} //= $sth->{NAME};
-            $col_types->{$table} //= $sth->{TYPE};
+            $col_names->{$table_k} //= $sth->{NAME};
+            $col_types->{$table_k} //= $sth->{TYPE};
             1 }
         ) {
             $sf->print_error_message( $@ );

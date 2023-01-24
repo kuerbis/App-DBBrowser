@@ -13,7 +13,7 @@ use Scalar::Util qw( looks_like_number );
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    my $db_module  = $info->{plugin};
+    my $db_module = $info->{plugin};
     eval "require $db_module" or die $@;
     my $plugin = $db_module->new( $info, $opt );
     bless { Plugin => $plugin }, $class;
@@ -159,7 +159,7 @@ sub get_databases {
 
 
 sub tables_info { # not public
-    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
+    my ( $sf, $dbh, $schema, $is_system_schema, $has_attached_db ) = @_;
     my $db_driver = $sf->get_db_driver();
     my ( $table_schem, $table_name );
     if ( $db_driver eq 'Pg' ) {
@@ -179,7 +179,7 @@ sub tables_info { # not public
     # DBD::Pg: TABLE_CAT: The name of the database that the table or view is in (always the current database).
     # The others: nothing
     my @keys = ( 'TABLE_CAT', $table_schem, $table_name, 'TABLE_TYPE' );
-    if ( $db_driver eq 'SQLite' && $sf->{Plugin}{i}{db_attached} ) {
+    if ( $db_driver eq 'SQLite' && $has_attached_db ) {
         # If a SQLite database has databases attached, set $schema to `undef`.
         # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
         # aliases of attached databases - with its tables.
@@ -193,35 +193,35 @@ sub tables_info { # not public
         if ( $info_table->{TABLE_TYPE} eq 'INDEX' ) {
             next;
         }
-        # The table name in $table_key is used in the tables-menu but not in SQL code.
+        # The table name in $table_keys is used in the tables-menu but not in SQL code.
         # To get the table names for SQL code it is used the 'quote_table' routine in Auxil.pm.
-        my $table_key;
+        my $table_keys;
         if ( $db_driver eq 'SQLite' && ! defined $schema ) {
             # The $schema is `undef` if a SQLite database has attached databases.
             next if $info_table->{$table_name} eq 'sqlite_temp_master'; # no 'create temp table'
             if ( $info_table->{$table_schem} =~ /^main\z/i ) {
-                $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
+                $table_keys = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
                 # \x{001f} keeps the main tables on top of the tables menu.
             }
             else {
-                $table_key = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
+                $table_keys = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
             }
         }
         else {
-            $table_key = $info_table->{$table_name};
+            $table_keys = $info_table->{$table_name};
         }
         if ( $is_system_schema ) {
-            push @sys_table_keys, $table_key;
+            push @sys_table_keys, $table_keys;
         }
         else {
             if ( $info_table->{TABLE_TYPE} =~ /^SYSTEM/ || ( $db_driver eq 'SQLite' && $info_table->{TABLE_NAME} =~ /^sqlite_/ ) ) {
-                push @sys_table_keys, $table_key;
+                push @sys_table_keys, $table_keys;
             }
             else {
-                push @user_table_keys, $table_key;
+                push @user_table_keys, $table_keys;
             }
         }
-        $tables_info->{$table_key} = [ @{$info_table}{@keys} ];
+        $tables_info->{$table_keys} = [ @{$info_table}{@keys} ];
     }
     return $tables_info, [ sort @user_table_keys ], [ sort @sys_table_keys ];
 }

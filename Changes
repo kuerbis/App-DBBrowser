@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.314    2023-00-00
+        - New data-structure for subquery file.
+        - Update Subqueries.pm.
+
 2.313    2023-01-13
         - Bugfix in first_column_is_autoincrement.
         - Update attach/detach SQLite databases.

@@ -18,11 +18,11 @@ use open ':encoding(locale)';
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     bless $sf, $class;
 }
@@ -39,8 +39,8 @@ sub get_content {
         [ 'plain', '- Plain' ],
         [ 'file',  '- From File' ],
     );
-    $sf->{i}{gc}{old_idx_menu} //= 0;
-    my $data_source_choice_idx = $sf->{o}{insert}{'data_source_' . $sf->{i}{stmt_types}[0]};
+    $sf->{d}{gc}{old_idx_menu} //= 0;
+    my $data_source_choice_idx = $sf->{o}{insert}{'data_source_' . $sf->{d}{stmt_types}[0]};
 
     MENU: while ( 1 ) {
         if ( ! $skip_to ) {
@@ -51,23 +51,23 @@ sub get_content {
                 # Choose
                 my $idx = $tc->choose(
                     $menu,
-                    { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $sf->{i}{gc}{old_idx_menu},
+                    { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $sf->{d}{gc}{old_idx_menu},
                       undef => '  <=' }
                 );
                 if ( ! defined $idx || ! defined $menu->[$idx] ) {
                     return;
                 }
                 if ( $sf->{o}{G}{menu_memory} ) {
-                    if ( $sf->{i}{gc}{old_idx_menu} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                        $sf->{i}{gc}{old_idx_menu} = 0;
+                    if ( $sf->{d}{gc}{old_idx_menu} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                        $sf->{d}{gc}{old_idx_menu} = 0;
                         next MENU;
                     }
-                    $sf->{i}{gc}{old_idx_menu} = $idx;
+                    $sf->{d}{gc}{old_idx_menu} = $idx;
                 }
-                $sf->{i}{gc}{source_type} = $choices[$idx-@pre][0];
+                $sf->{d}{gc}{source_type} = $choices[$idx-@pre][0];
             }
             else {
-                $sf->{i}{gc}{source_type} = $choices[$data_source_choice_idx][0];
+                $sf->{d}{gc}{source_type} = $choices[$data_source_choice_idx][0];
             }
         }
 
@@ -78,20 +78,20 @@ sub get_content {
                     $skip_to = '';
                 }
                 my $ok;
-                if ( $sf->{i}{gc}{source_type} eq 'plain' ) {
-                    ( $ok, $sf->{i}{gc}{file_fs} ) = $cr->from_col_by_col( $sql );
+                if ( $sf->{d}{gc}{source_type} eq 'plain' ) {
+                    ( $ok, $sf->{d}{gc}{file_fs} ) = $cr->from_col_by_col( $sql );
                 }
-                elsif ( $sf->{i}{gc}{source_type} eq 'file' ) {
-                    ( $ok, $sf->{i}{gc}{file_fs} ) = $cr->from_file( $sql );
+                elsif ( $sf->{d}{gc}{source_type} eq 'file' ) {
+                    ( $ok, $sf->{d}{gc}{file_fs} ) = $cr->from_file( $sql );
                 }
                 if ( ! $ok ) {
                     return if $data_source_choice_idx < 2;
                     next MENU;
                 }
             }
-            my $file_fs = $sf->{i}{gc}{file_fs};
-            if ( ! defined $sf->{i}{ss}{$file_fs}{book} ) {
-                delete $sf->{i}{ss};
+            my $file_fs = $sf->{d}{gc}{file_fs};
+            if ( ! defined $sf->{d}{ss}{$file_fs}{book} ) {
+                delete $sf->{d}{ss};
             }
 
             PARSE: while ( 1 ) {
@@ -100,11 +100,11 @@ sub get_content {
                         $skip_to = '';
                     }
                     my ( $parse_mode_idx, $open_mode );
-                    if ( $sf->{i}{gc}{source_type} eq 'plain' ) {
+                    if ( $sf->{d}{gc}{source_type} eq 'plain' ) {
                         $parse_mode_idx = -1;
                         $open_mode = '<';
                     }
-                    elsif ( $sf->{i}{gc}{source_type} eq 'file' ) {
+                    elsif ( $sf->{d}{gc}{source_type} eq 'file' ) {
                         $parse_mode_idx = $sf->{o}{insert}{parse_mode_input_file};
                         if ( length $sf->{o}{insert}{file_encoding} ) { ##
                             $open_mode = '<:encoding(' . $sf->{o}{insert}{file_encoding} . ')';
@@ -151,7 +151,7 @@ sub get_content {
                                 next GET_DATA;
                             }
                             if ( ! @{$sql->{insert_into_args}} ) { #
-                                next SHEET if $sf->{i}{ss}{$file_fs}{sheet_count} >= 2;
+                                next SHEET if $sf->{d}{ss}{$file_fs}{sheet_count} >= 2;
                                 next GET_DATA;
                             }
                             last SHEET;
@@ -168,9 +168,9 @@ sub get_content {
                 FILTER: while ( 1 ) {
                     my $ok = $cf->input_filter( $sql );
                     if ( ! $ok ) {
-                        if (    exists $sf->{i}{ss}{$file_fs}{sheet_count}
-                            && defined $sf->{i}{ss}{$file_fs}{sheet_count}
-                            && $sf->{i}{ss}{$file_fs}{sheet_count} >= 2 ) {
+                        if (    exists $sf->{d}{ss}{$file_fs}{sheet_count}
+                            && defined $sf->{d}{ss}{$file_fs}{sheet_count}
+                            && $sf->{d}{ss}{$file_fs}{sheet_count} >= 2 ) {
                             next PARSE;
                         }
                         next GET_DATA;

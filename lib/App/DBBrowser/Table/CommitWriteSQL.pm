@@ -13,11 +13,11 @@ use App::DBBrowser::Auxil;
 
 
 sub new {
-    my ( $class, $info, $options, $data ) = @_;
+    my ( $class, $info, $options, $d ) = @_;
     my $sf = {
         i => $info,
         o => $options,
-        d => $data,
+        d => $d
     };
     bless $sf, $class;
 }
@@ -25,14 +25,14 @@ sub new {
 
 sub commit_sql {
     my ( $sf, $sql ) = @_;
-    if ( exists $sf->{i}{fi} ) {
-        delete $sf->{i}{fi};
-    }
+    #if ( exists $sf->{d}{fi} ) { # ### 
+    #    delete $sf->{d}{fi};
+    #}
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $dbh = $sf->{d}{dbh};
     my $waiting = 'DB work ... ';
     my $occupied_term_height;
-    my $stmt_type = $sf->{i}{stmt_types}[-1];
+    my $stmt_type = $sf->{d}{stmt_types}[-1];
     my $rows_to_execute = [];
     my $count_affected;
     if ( $stmt_type eq 'Insert' ) {
@@ -41,13 +41,13 @@ sub commit_sql {
         }
         # cosmetics - when printing the $waiting string, the sql info string should not change and the $waiting-string
         # should be at the level of the previous prompt line:
-        if ( @{$sf->{i}{stmt_types}} == 2 ) {
+        if ( @{$sf->{d}{stmt_types}} == 2 ) {
             $occupied_term_height = 6;
         }
         else {
             $occupied_term_height = 4;
         }
-        $sf->{i}{occupied_term_height} = $occupied_term_height;
+        $sf->{d}{occupied_term_height} = $occupied_term_height;
         $ax->print_sql_info( $ax->get_sql_info( $sql ), $waiting );
         $rows_to_execute = $sql->{insert_into_args};
         $count_affected = @$rows_to_execute;
@@ -105,7 +105,7 @@ sub __transaction {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $dbh = $sf->{d}{dbh};
     if ( $occupied_term_height ) {
-        $sf->{i}{occupied_term_height} = $occupied_term_height;
+        $sf->{d}{occupied_term_height} = $occupied_term_height;
     }
     $ax->print_sql_info( $ax->get_sql_info( $sql ), $waiting );
     my $rolled_back;
@@ -117,14 +117,14 @@ sub __transaction {
         for my $values ( @$rows_to_execute ) {
             $sth->execute( @$values );
         }
-        if ( $stmt_type eq 'Insert' && $sf->{i}{stmt_types}[0] eq 'Create_table' ) {
+        if ( $stmt_type eq 'Insert' && $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
             # already asked for confirmation (create table + insert data) in Create_table
             $dbh->commit;
         }
         else {
             my $commit_ok = sprintf qq(  %s %s "%s"), 'COMMIT', insert_sep( $count_affected, $sf->{i}{info_thsd_sep} ), $stmt_type;
             my $menu = [ undef,  $commit_ok ];
-            $sf->{i}{occupied_term_height} = @$menu + 2; # prompt, trailing empty line
+            $sf->{d}{occupied_term_height} = @$menu + 2; # prompt, trailing empty line
             my $info = $ax->get_sql_info( $sql );
             # Choose
             my $choice = $tc->choose(
@@ -160,13 +160,13 @@ sub __auto_commit {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $dbh = $sf->{d}{dbh};
-    if ( $stmt_type eq 'Insert' && $sf->{i}{stmt_types}[0] eq 'Create_table' ) {
+    if ( $stmt_type eq 'Insert' && $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
         # already asked for confirmation (create table + insert data) in Create_table
     }
     else {
         my $commit_ok = sprintf qq(  %s %s "%s"), 'EXECUTE', insert_sep( $count_affected, $sf->{i}{info_thsd_sep} ), $stmt_type;
         my $menu = [ undef,  $commit_ok ];
-        $sf->{i}{occupied_term_height} = @$menu + 1;
+        $sf->{d}{occupied_term_height} = @$menu + 1;
         my $info = $ax->get_sql_info( $sql ); #
         # Choose
         my $choice = $tc->choose(

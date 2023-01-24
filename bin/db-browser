@@ -3,6 +3,8 @@ use warnings;
 use strict;
 use 5.014;
 
+$SIG{__WARN__} = sub { die @_ };
+
 our $VERSION = '2.313';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
@@ -219,8 +221,8 @@ Detach DB
 For I<Create Table>, I<Drop Table>, I<Create View> and I<Drop View> see L</WRITE ACCESS>. These entries are available if
 enabled in L</Extensions>.
 
-I<Attache DB> is available for C<SQLite> databases. I<Attach DB> can be used to attach databases to the
-current database. The menu entry I<Detach DB> is available if a C<SQLite> database has attached databases.
+I<Attache DB> is available for C<SQLite> databases. I<Attach DB> can be used to attach databases to the current
+database.
 
 By selecting the prompt line of this menu (the database name) one can change the I<Source type of input data> settings.
 
