@@ -39,7 +39,13 @@ sub join_tables {
     my ( $sf ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    my $tables;
+    if ( $sf->{o}{G}{metadata} ) {
+        $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    }
+    else {
+        $tables = [ @{$sf->{d}{user_table_keys}} ];
+    }
     ( $sf->{d}{col_names}, $sf->{d}{col_types} ) = $ax->tables_column_names_and_types( $tables );
     my $join = {};
 
@@ -357,7 +363,13 @@ sub __get_join_info {
     my ( $sf ) = @_;
     return if $sf->{d}{pk_info};
     my $td = $sf->{d}{tables_info};
-    my $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    my $tables;
+    if ( $sf->{o}{G}{metadata} ) {
+        $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    }
+    else {
+        $tables = [ @{$sf->{d}{user_table_keys}} ];
+    }
     my $pk = {};
     for my $table ( @$tables ) {
         my $sth = $sf->{d}{dbh}->primary_key_info( @{$td->{$table}}[0..2] );

@@ -67,15 +67,11 @@ sub search_and_replace {
         }
         my $prefixed_available = [ map { '- ' . $_ } @$available ];
         my $menu = [ @pre, @$prefixed_available ];
-        my $count_static_rows = @tmp_info;
-        my $count_menu_rows = scalar @$menu;
-        my ( $info, $keep ) = $cf->__get_filter_info( $sql, $count_static_rows, $count_menu_rows );
-        $info .= join( "\n", @tmp_info );
+        my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
         # Choose
         my $idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', default => 1, index => 1, undef => $sf->{i}{_back},
-              keep => $keep }
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', default => 1, index => 1, undef => $sf->{i}{_back} }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             if ( @bu ) {
@@ -114,15 +110,11 @@ sub search_and_replace {
                     my $menu = [ undef, $yes, $no ];
                     my @tmp_info_addition = ( 'Header: ' . join( ', ', @{$sql->{insert_into_args}[0]} ), ' ' );
                     push @tmp_info, @tmp_info_addition;
-                    my $count_static_rows = @tmp_info;
-                    my $count_menu_rows = scalar @$menu;
-                    my ( $info, $keep ) = $cf->__get_filter_info( $sql, $count_static_rows, $count_menu_rows );
-                    $info .= join( "\n", @tmp_info );
+                    my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
                     # Choose
                     my $idx = $tc->choose(
                         $menu,
-                        { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', default => 0, index => 1, undef => $sf->{s_back},
-                        keep => $keep }
+                        { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', default => 0, index => 1, undef => $sf->{s_back} }
                     );
                     if ( ! defined $idx || ! defined $menu->[$idx] ) {
                         my $pop_count = @tmp_info_addition;
@@ -150,17 +142,14 @@ sub search_and_replace {
                     [ $nr . ' Replacement', ],
                     [ $nr . ' Modifiers',   ];
             }
-            my $count_static_rows = @tmp_info + 1; # tmp_info, prompt
-            my $count_menu_rows = 2 + @$fields; # back, confirm
             my $back = $sf->{i}{back} . '   ';
 
             SUBSTITUTION: while ( 1 ) {
-                my ( $info, $keep ) = $cf->__get_filter_info( $sql, $count_static_rows, $count_menu_rows );
-                $info .= join( "\n", @tmp_info );
+                my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
-                    { info => $info, prompt => $prompt, auto_up => 2, confirm => $sf->{i}{confirm}, keep => $keep,
+                    { info => $info, prompt => $prompt, auto_up => 2, confirm => $sf->{i}{confirm},
                       back => $back, skip_items => $skip_regex }
                 );
                 if ( ! defined $form ) {
@@ -207,21 +196,11 @@ sub __apply_to_cols {
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $aoa = $sql->{insert_into_args};
-    my $count_static_rows = @$tmp_info + 1; # info_count and cs_label
-    my $count_menu_rows = $cf->__row_count_horinzontal_menu( [ $sf->{s_back}, $sf->{i}{ok}, @$header ] );
-    #my $key_1 = 'search&replace';       # ### 
-    #my $key_2;
-    #for my $sr_group ( @$all_sr_groups ) {
-    #    for my $sr ( @$sr_group ) {
-    #        $key_2 .= join( '', @$sr );
-    #    }
-    #}
-    my ( $info, $keep ) = $cf->__get_filter_info( $sql, $count_static_rows, $count_menu_rows );
-    $info .= join( "\n", @$tmp_info );
+    my $info = $cf->__get_filter_info( $sql, join( "\n", @$tmp_info ) );
     # Choose
     my $col_idxs = $tu->choose_a_subset(
         $header,
-        { cs_label => 'Apply to: ', info => $info, layout => 0, all_by_default => 1, index => 1, keep => $keep,
+        { cs_label => 'Apply to: ', info => $info, layout => 0, all_by_default => 1, index => 1,
         confirm => $sf->{i}{ok}, back => $sf->{s_back} }
     );
     $cf->__print_busy_string();

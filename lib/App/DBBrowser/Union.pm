@@ -27,7 +27,13 @@ sub union_tables {
     $sf->{d}{stmt_types} = [ 'Union' ];
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    my $tables;
+    if ( $sf->{o}{G}{metadata} ) {
+        $tables = [ @{$sf->{d}{user_table_keys}}, @{$sf->{d}{sys_table_keys}} ];
+    }
+    else {
+        $tables = [ @{$sf->{d}{user_table_keys}} ];
+    }
     ( $sf->{d}{col_names}, $sf->{d}{col_types} ) = $ax->tables_column_names_and_types( $tables );
     my $union = {
         used_tables    => [],

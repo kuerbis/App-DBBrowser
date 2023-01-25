@@ -270,10 +270,6 @@ sub __get_table_name {
                 $default =~ s/ /_/g;
             }
         }
-        $sf->{d}{occupied_term_height} = 2; # readline, trailing empty line
-        if ( $file_info ) {
-            $sf->{d}{occupied_term_height} += 1;
-        }
         if ( $count_table_name_loop > 1 ) { # to avoid infinite loop when going back with `ENTER`
             $default = '';
         }
@@ -291,7 +287,6 @@ sub __get_table_name {
         if ( none { $sql->{table} eq $ax->quote_table( $sf->{d}{tables_info}{$_} ) } keys %{$sf->{d}{tables_info}} ) {
             return $table_name;
         }
-        $sf->{d}{occupied_term_height} = 4; # prompt, $menu, trailing empty line
         my $prompt = "Table $sql->{table} already exists.";
         my $menu = [ undef, '  New name' ];
         $info = $ax->get_sql_info( $sql );
@@ -316,7 +311,6 @@ sub __get_column_names {
     my @pre = ( undef );
     my $menu = [ @pre, $first_row, $user_input ];
     my $header_row;
-    $sf->{d}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
     my $info = $ax->get_sql_info( $sql );
     # Choose
     my $chosen = $tc->choose(
@@ -351,7 +345,6 @@ sub __autoincrement_column {
     if ( $sf->{col_auto} ) {
         my ( $no, $yes ) = ( '- NO ', '- YES' );
         my $menu = [ undef, $yes, $no  ];
-        $sf->{d}{occupied_term_height} = @$menu + 2; # + 2 for prompt and empty line
         my $info = $ax->get_sql_info( $sql );
         # Choose
         my $chosen = $tc->choose(
@@ -423,7 +416,6 @@ sub __edit_column_names {
     else {
         $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @{$sql->{create_table_cols}} ];
     }
-    $sf->{d}{occupied_term_height} = 3 + @{$sql->{create_table_cols}};
     my $info = $ax->get_sql_info( $sql );
     # Fill_form
     my $form = $tf->fill_form(
@@ -455,7 +447,6 @@ sub __edit_column_types {
     }
     my $fields;
     if ( ! %$data_types && $sf->{o}{create}{data_type_guessing} ) {
-        $sf->{d}{occupied_term_height} = 4 + @{$sql->{insert_into_cols}}; # busy string at the height of the prompt
         $ax->print_sql_info( $ax->get_sql_info( $sql ), 'Column data types: guessing ... ' );
         require SQL::Type::Guess;
         my $g = SQL::Type::Guess->new();
@@ -482,7 +473,6 @@ sub __edit_column_types {
         unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_auto} ] ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
-    $sf->{d}{occupied_term_height} = 3 + @$fields; # prompt, back, confirm and fiels # 4 with trailing empty line
     my $info = $ax->get_sql_info( $sql );
     # Fill_form
     my $col_name_and_type = $tf->fill_form(
@@ -509,14 +499,12 @@ sub __create {
     my ( $no, $yes ) = ( '- NO', '- YES' );
     my $menu = [ undef, $yes, $no ];
     my $prompt = "Create $type $sql->{table}";
-    $sf->{d}{occupied_term_height} = @$menu + 2;  # + 2 for prompt and empty line
     if ( @{$sql->{insert_into_args}} ) {
         my $row_count = @{$sql->{insert_into_args}};
         $prompt .= "\nInsert " . insert_sep( $row_count, $sf->{i}{info_thsd_sep} ) . " row";
         if ( @{$sql->{insert_into_args}} > 1 ) {
             $prompt .= "s";
         }
-        $sf->{d}{occupied_term_height} += 1; # second prompt line
     }
     my $info = $ax->get_sql_info( $sql );
     # Choose

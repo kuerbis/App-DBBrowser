@@ -7,7 +7,7 @@ use 5.014;
 
 use Scalar::Util qw( looks_like_number );
 
-use JSON::MaybeXS qw( decode_json );
+use JSON::MaybeXS   qw( decode_json );
 
 use Term::Choose            qw();
 use Term::Choose::Constants qw( WIDTH_CURSOR );
@@ -70,7 +70,6 @@ sub get_stmt {
     elsif ( $stmt_type eq 'Create_table' ) {
         my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
         @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
-        $sf->{d}{occupied_term_height} += @tmp;
 
     }
     elsif ( $stmt_type eq 'Create_view' ) {
@@ -79,7 +78,7 @@ sub get_stmt {
     }
     elsif ( $stmt_type eq 'Select' ) {
         @tmp = ( $sf->__stmt_fold( "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $term_w, $indent0 ) );
-        push @tmp, $sf->__stmt_fold( "FROM " . $qt_table,      $term_w, $indent1 );
+        push @tmp, $sf->__stmt_fold( "FROM " . $qt_table, $term_w, $indent1 );
         push @tmp, $sf->__stmt_fold( $sql->{where_stmt},    $term_w, $indent2, $sql->{where_args}  ) if $sql->{where_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{group_by_stmt}, $term_w, $indent2                      ) if $sql->{group_by_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{having_stmt},   $term_w, $indent2, $sql->{having_args} ) if $sql->{having_stmt};
@@ -110,8 +109,6 @@ sub get_stmt {
         }
         else {
             push @tmp, $sf->__stmt_fold( "VALUES(", $term_w, $indent1 );
-            $sf->{d}{occupied_term_height} += @tmp;
-            $sf->{d}{occupied_term_height} += 2; # ")" and empty row
             my $arg_rows = $sf->info_format_insert_args( $sql, $indent2->{init_tab} );
             push @tmp, @$arg_rows;
             push @tmp, $sf->__stmt_fold( ")", $term_w, $indent1 );
@@ -156,8 +153,13 @@ sub info_format_insert_args {
         $term_w += WIDTH_CURSOR;
     }
     my $row_count = @{$sql->{insert_into_args}};
-    my $avail_h = $term_h - $sf->{d}{occupied_term_height}; # <= where $sf->{d}{occupied_term_height} is used
-    $avail_h -= 1; # 1 for the footer line
+    if ( $row_count == 0 ) {
+        return [];
+    }
+    my $avail_h = $term_h - ( @{$sql->{insert_into_args}[0]} + 12 );
+    if ( $avail_h < $term_h / 3.5 ) {
+        $avail_h = int $term_h / 3.5;
+    }
     if ( $avail_h < 5) {
         $avail_h = 5;
     }
@@ -246,7 +248,7 @@ sub get_sql_info {
     my ( $sf, $sql ) = @_;
     my $stmt = '';
     for my $stmt_type ( @{$sf->{d}{stmt_types}} ) {
-         $stmt .= $sf->get_stmt( $sql, $stmt_type, 'print' );   # occupied_term_height could be changed
+         $stmt .= $sf->get_stmt( $sql, $stmt_type, 'print' );
     }
     return $stmt;
 }

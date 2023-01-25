@@ -38,10 +38,10 @@ BEGIN {
 sub new {
     my ( $class ) = @_;
     my $info = {
-        tc_default    => { hide_cursor => 0, clear_screen => 1, page => 2, undef => '<<', prompt => 'Your choice:' },
-        tf_default    => { hide_cursor => 2, clear_screen => 1, page => 2 },
+        tc_default    => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => '<<', prompt => 'Your choice:' },
+        tf_default    => { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6 },
         tr_default    => { hide_cursor => 2, clear_screen => 1, page => 2 },
-        tcu_default   => { hide_cursor => 0, clear_screen => 1, page => 2 }, ##
+        tcu_default   => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6 }, ##
         lyt_h         => { order => 0, alignment => 2 },
         lyt_v         => { undef => '  BACK', layout => 2 },
         dots          => '...',
@@ -374,10 +374,11 @@ sub run {
                     }
                 }
                 $db_string = 'DB ' . basename( $db ) . ( @schemas > 1 ? '.' . $schema : '' ) . '';
-                $sf->{d}{schema}       = $schema;
+                $sf->{d}{schema} = $schema;
+                $sf->{d}{is_system_schema} = $is_system_schema;
                 $sf->{d}{user_schemas} = $user_schemas;
-                $sf->{d}{sys_schemas}  = $sys_schemas;
-                $sf->{d}{db_string}    = $db_string;
+                $sf->{d}{sys_schemas} = $sys_schemas;
+                $sf->{d}{db_string}  = $db_string;
 
                 # TABLES
 
@@ -395,7 +396,7 @@ sub run {
                 }
                 $sf->{d}{tables_info} = $tables_info;
                 $sf->{d}{user_table_keys} = $user_table_keys;
-                $sf->{d}{sys_table_keys} = $sf->{o}{G}{metadata} ? $sys_table_keys : [];
+                $sf->{d}{sys_table_keys} = $sys_table_keys;
                 my $old_idx_tbl = 1;
 
                 TABLE: while ( 1 ) {
@@ -469,18 +470,11 @@ sub run {
                     if ( $table eq $hidden ) {
                         require App::DBBrowser::CreateDropAttach;
                         my $cda = App::DBBrowser::CreateDropAttach->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                        my $changed = $cda->create_drop_or_attach();
-                        if ( $changed ) {
-                            # Loop to SCHEMA to update the list of tables and then automatically go back to the
-                            # create_drop_or_attach menu.
-                            $sf->{redo_schema} = $sf->{d}{schema};
-                            $sf->{redo_table}  = $table;
-                            next SCHEMA;
-                        }
-                        else {
-                            # leave without reentering to the create_drop_or_attach-menu
-                            next TABLE
-                        }
+                        $cda->create_drop_or_attach();
+                        $tables_info = $sf->{d}{tables_info};
+                        $user_table_keys = $sf->{d}{user_table_keys};
+                        $sys_table_keys = $sf->{d}{sys_table_keys};
+                        next TABLE
                     }
                     my ( $qt_table, $qt_columns );
                     if ( $table eq $join ) {
