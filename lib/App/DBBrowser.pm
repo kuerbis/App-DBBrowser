@@ -85,11 +85,6 @@ sub __init {
     $sf->{i}{f_dir_history}        = catfile $app_dir, 'dir_history.json';
     $sf->{i}{f_subqueries}         = catfile $app_dir, 'subqueries.json';
     $sf->{i}{f_search_and_replace} = catfile $app_dir, 'search_and_replace.json';
-    $sf->{i}{f_plain}              = catfile $app_dir, 'tmp_file_plain.csv';
-    END {
-        no warnings qw( closure );
-        unlink $sf->{i}{f_plain} if -e $sf->{i}{f_plain};
-    }
 }
 
 
@@ -134,12 +129,6 @@ sub __options {
 sub run {
     my ( $sf ) = @_;
     local $| = 1;
-    local $SIG{INT} = local $SIG{TERM} = local $SIG{HUP} = sub {
-        if ( defined $sf->{i}{f_plain} && -e $sf->{i}{f_plain} ) {
-            unlink $sf->{i}{f_plain};
-        }
-        exit;
-    };
     $sf->__init();
     $sf->__options();
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );

@@ -55,8 +55,6 @@ sub create_drop_or_attach {
             { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_cda, undef => '  <=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
-            delete $sf->{d}{ss} if exists $sf->{d}{ss};  # delete saved Spreadsheet::Read books
-            delete $sf->{d}{gc} if exists $sf->{d}{gc};  # delete datasource-file menu memory
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {

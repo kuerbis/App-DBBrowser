@@ -31,31 +31,28 @@ sub new {
 sub __session_history {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $subquery_history = [];
+    my $tmp_subquery_history = [];
     for my $subquery ( @{$sf->{d}{subquery_history}} ) {
-        if ( any { $_->{stmt} eq $subquery->{stmt} } @$subquery_history ) {
+        if ( any { $_->{stmt} eq $subquery->{stmt} } @$tmp_subquery_history ) {
             next;
         }
-        push @$subquery_history, $subquery;
-        if ( @$subquery_history == 10 ) {
+        push @$tmp_subquery_history, $subquery;
+        if ( @$tmp_subquery_history == 10 ) {
             last;
         }
     }
-    $sf->{d}{subquery_history} = $subquery_history;
-    my $table_print_history = [];
+    $sf->{d}{subquery_history} = $tmp_subquery_history;
+    my $tmp_table_print_history = [];
     my $session_history = [];
     for my $stmt_and_args ( @{$sf->{d}{table_print_history}} ) {
         my $filled_stmt = $ax->stmt_placeholder_to_value( @$stmt_and_args, 1 );
-#        if ( $filled_stmt =~ /^[^(]+FROM\s*\(\s*([^)(]+)\s*\) AS [^)]+\z/ ) { # ###
-#            $filled_stmt = $1;
-#        }
         if ( any { $_->{stmt} eq $filled_stmt } @{$sf->{d}{subquery_history}}, @$session_history ) {
             next;
         }
-        push @$table_print_history, $stmt_and_args;
+        push @$tmp_table_print_history, $stmt_and_args;
         push @$session_history, { stmt => $filled_stmt, name => $filled_stmt };
-        if ( @$table_print_history == 7 ) {
-            $sf->{d}{table_print_history} = $table_print_history;
+        if ( @$tmp_table_print_history == 7 ) {
+            $sf->{d}{table_print_history} = $tmp_table_print_history;
             last;
         }
     }
@@ -158,10 +155,7 @@ sub choose_subquery {
             next SUBQUERY;
         }
         unshift @{$sf->{d}{subquery_history}}, { stmt => $stmt, name => $stmt };
-        if ( $stmt !~ /^\s*\([^)(]+\)\s*\z/ ) {
-            $stmt = "(" . $stmt . ")";
-        }
-        return $stmt;
+        return "(" . $stmt . ")";
     }
 }
 
@@ -289,9 +283,6 @@ sub __add_subqueries {
             $ax->print_sql_info( $info );
             if ( ! defined $stmt || ! length $stmt ) {
                     next;
-            }
-            if ( $stmt =~ /^\s*\(([^)(]+)\)\s*\z/ ) {
-                $stmt = $1;
             }
             my $folded_stmt = "\n" . line_fold(
                 'Stmt: ' . $stmt, get_term_width(),

@@ -3,7 +3,7 @@ Revision history for App-DBBrowser
 
 2.314    2023-00-00
         - New data-structure for subquery file.
-        - Update Subqueries.pm, Filter.pm,
+        - Refactoring Subqueries, Filter, GetContent
         - Simplified formatation info-output.
 
 2.313    2023-01-13

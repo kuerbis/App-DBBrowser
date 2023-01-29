@@ -80,8 +80,6 @@ sub table_write_access {
             if ( $ok ) {
                 $ok = $cs->commit_sql( $sql );
             }
-            delete $sf->{d}{ss} if exists $sf->{d}{ss};
-            delete $sf->{d}{gc} if exists $sf->{d}{gc};
             next STMT_TYPE;
         }
         my $sub_stmts = {
@@ -146,13 +144,14 @@ sub __build_insert_stmt {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $gc = App::DBBrowser::GetContent->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $ax->reset_sql( $sql );
+    my $source = {};
 
     REQUIRED_COLS: while ( 1 ) {
         my $cols_ok = $sf->__insert_into_stmt_columns( $sql );
         if ( ! $cols_ok ) {
             return;
         }
-        my $ok = $gc->get_content( $sql, 0 );
+        my $ok = $gc->get_content( $sql, $scource, 0 );
         if ( ! $ok ) {
             next REQUIRED_COLS;
         }

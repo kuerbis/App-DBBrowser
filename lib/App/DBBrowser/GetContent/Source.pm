@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::GetContent::Read;
+App::DBBrowser::GetContent::Source;
 
 use warnings;
 use strict;
@@ -10,9 +10,8 @@ use Encode                qw( encode decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 
-use List::MoreUtils qw( all uniq );
+use List::MoreUtils qw( uniq );
 use Encode::Locale  qw();
-#use Text::CSV_XS qw();              # required
 
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( line_fold );
@@ -22,7 +21,6 @@ use Term::Form             qw();
 use App::DBBrowser::Auxil;
 #use App::DBBrowser::Opt::Set;      # required
 
-use open ':encoding(locale)';
 
 
 sub new {
@@ -134,10 +132,10 @@ sub from_col_by_col {
                 if ( ! @$aoa ) {
                     return;
                 }
-                my $file_fs = $sf->{i}{f_plain};
-                require Text::CSV_XS;
-                Text::CSV_XS::csv( in => $aoa, out => $file_fs ) or die Text::CSV_XS->error_diag;
-                return 1, $file_fs;
+                else {
+                    $sql->{insert_into_args} = $aoa;
+                    return 1;
+                }
             }
             elsif ( $choice eq $add ) {
                 last WHAT_NEXT;
@@ -147,69 +145,11 @@ sub from_col_by_col {
 }
 
 
-sub from_file {
-    my ( $sf, $sql ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-
-    DIR: while ( 1 ) {
-        if ( ! @{$sf->{d}{gc}{files_in_chosen_dir}//[]} ) {
-            my $dir = $sf->__directory( $sql );
-            if ( ! defined $dir ) {
-                return;
-            }
-            $sf->{d}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
-        }
-        $sf->{d}{gc}{old_idx_file} //= 1;
-
-        FILE: while ( 1 ) {
-            my $hidden = 'Choose File:';
-            my @pre = ( $hidden, undef );
-            my $change_dir = '  Change dir';
-            if ( $sf->{o}{insert}{history_dirs} == 1 ) {
-                push @pre, $change_dir;
-            }
-            my $menu = [ @pre, map { '  ' . basename $_ } @{$sf->{d}{gc}{files_in_chosen_dir}} ]; #
-            # Choose
-            my $idx = $tc->choose(
-                $menu,
-                { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $sf->{d}{gc}{old_idx_file},
-                  undef => '  <=' }
-            );
-            if ( ! defined $idx || ! defined $menu->[$idx] ) {
-                delete $sf->{d}{gc}{files_in_chosen_dir};
-                if ( $sf->{o}{insert}{history_dirs} == 1 ) {
-                    return;
-                }
-                next DIR;
-            }
-            if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $sf->{d}{gc}{old_idx_file} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                    $sf->{d}{gc}{old_idx_file} = 1;
-                    next FILE;
-                }
-                $sf->{d}{gc}{old_idx_file} = $idx;
-            }
-            if ( $menu->[$idx] eq $hidden ) {
-                require App::DBBrowser::Opt::Set;
-                my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-                $opt_set->set_options( 'import' );
-                next DIR;
-            }
-            elsif ( $menu->[$idx] eq $change_dir ) {
-                my $dir = $sf->__new_search_dir();
-                $sf->{d}{gc}{files_in_chosen_dir} = $sf->__files_in_dir( $dir );
-                next FILE;
-            }
-            my $file_fs = encode( 'locale_fs', $sf->{d}{gc}{files_in_chosen_dir}[$idx-@pre] );
-            return 1, $file_fs;
-        }
-    }
-}
-
-
 sub __files_in_dir {
     my ( $sf, $dir ) = @_;
+    if ( ! defined $dir ) {
+        return [];
+    }
     my $dir_fs = realpath encode( 'locale_fs', $dir );
     my @tmp_files_fs;
     if ( length $sf->{o}{insert}{file_filter} ) {
@@ -230,58 +170,17 @@ sub __files_in_dir {
 }
 
 
-sub __directory {
-    my ( $sf, $sql ) = @_;
+sub __avail_directories {
+    my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    if ( ! $sf->{o}{insert}{history_dirs} ) {
-        my $dir = $sf->__new_search_dir();
-        return $dir;
+    my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
+    my @dirs = @{$h_ref->{dirs}//[]};
+    if ( @dirs > $sf->{o}{insert}{history_dirs} ) {
+        $#dirs = $sf->{o}{insert}{history_dirs} - 1;
+        $h_ref->{dirs} = \@dirs;
+        $ax->write_json( $sf->{i}{f_dir_history}, $h_ref );
     }
-    if ( $sf->{o}{insert}{history_dirs} == 1 ) {
-        my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
-        if ( @{$h_ref->{dirs}//[]} ) {
-            return $h_ref->{dirs}[0];
-        }
-    }
-    $sf->{d}{gc}{old_idx_dir} //= 0;
-
-    DIR: while ( 1 ) {
-        my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
-        my @dirs = sort @{$h_ref->{dirs}//[]};
-        my $prompt = 'Choose a dir:';
-        my $new_search = '  NEW search';
-        my @pre = ( undef, $new_search );
-        my $menu = [ @pre, map( '- ' . $_, @dirs ) ];
-        # Choose
-        my $idx = $tc->choose( ##
-            $menu,
-            { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $sf->{d}{gc}{old_idx_dir},
-              undef => '  <=' }
-        );
-        if ( ! defined $idx || ! defined $menu->[$idx] ) {
-            return;
-        }
-        if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $sf->{d}{gc}{old_idx_dir} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $sf->{d}{gc}{old_idx_dir} = 0;
-                next DIR;
-            }
-            $sf->{d}{gc}{old_idx_dir} = $idx;
-        }
-        my $dir;
-        if ( $menu->[$idx] eq $new_search ) {
-            $dir = $sf->__new_search_dir();
-            if ( ! defined $dir || ! length $dir ) {
-                next DIR;
-            }
-        }
-        else {
-            $dir = $dirs[$idx-@pre];
-        }
-        $sf->__add_to_history( $dir );
-        return $dir;
-    }
+    return [ sort @dirs ];
 }
 
 
@@ -289,13 +188,13 @@ sub __add_to_history {
     my ( $sf, $dir ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
-    my $dirs = $h_ref->{dirs};
-    unshift @$dirs, $dir;
-    @$dirs = uniq @$dirs;
-    if ( @$dirs > $sf->{o}{insert}{history_dirs} ) {
-        $#{$dirs} = $sf->{o}{insert}{history_dirs} - 1;
+    my @dirs = @{$h_ref->{dirs}//[]};
+    unshift @dirs, $dir;
+    @dirs = uniq @dirs;
+    if ( @dirs > $sf->{o}{insert}{history_dirs} ) {
+        $#dirs = $sf->{o}{insert}{history_dirs} - 1;
     }
-    $h_ref->{dirs} = $dirs;
+    $h_ref->{dirs} = \@dirs;
     $ax->write_json( $sf->{i}{f_dir_history}, $h_ref );
 }
 

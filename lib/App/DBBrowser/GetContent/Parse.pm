@@ -39,17 +39,6 @@ sub __print_waiting_str {
 }
 
 
-sub parse_plain {
-    my ( $sf, $sql, $fh ) = @_;
-    my $rows_of_cols = [];
-    my $file_fs = $sf->{i}{f_plain};
-    require Text::CSV_XS;
-    $rows_of_cols = Text::CSV_XS::csv( in => $file_fs ) or die Text::CSV_XS->error_diag;
-    $sql->{insert_into_args} = $rows_of_cols;
-    return 1;
-}
-
-
 sub parse_with_Text_CSV {
     my ( $sf, $sql, $fh ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -284,15 +273,13 @@ sub parse_with_template {
 
 
 sub parse_with_Spreadsheet_Read {
-    my ( $sf, $sql, $file_fs ) = @_;
+    my ( $sf, $sql, $source, $file_fs ) = @_;
     my $tc = Term::Choose->new( { %{$sf->{i}{tc_default}}, clear_screen => 1 } );
     $sf->__print_waiting_str;
     require Spreadsheet::Read;
-    my $book = $sf->{d}{ss}{$file_fs}{book};
+    my $book = delete $source->{saved_book};
     if ( ! defined $book ) {
-        delete $sf->{d}{ss};
         $book = Spreadsheet::Read::ReadData( $file_fs, cells => 0, attr => 0, rc => 1, strip => 0 );
-        $sf->{d}{ss}{$file_fs}{book} = $book;
         if ( ! defined $book ) {
             $tc->choose(
                 [ 'Press ENTER' ],
@@ -301,8 +288,7 @@ sub parse_with_Spreadsheet_Read {
             return;
         }
     }
-    $sf->{d}{ss}{$file_fs}{sheet_count} = @$book - 1; # first sheet in $book contains meta info
-    my $sheet_count = $sf->{d}{ss}{$file_fs}{sheet_count};
+    my $sheet_count = @$book - 1; # first sheet in $book contains meta info
     if ( $sheet_count == 0 ) {
         $tc->choose(
             [ 'Press ENTER' ],
@@ -315,27 +301,28 @@ sub parse_with_Spreadsheet_Read {
         $sheet_idx = 1;
     }
     else {
+        $source->{saved_book} = $book; # save book if more than one sheet
         my @sheets = map { '- ' . ( length $book->[$_]{label} ? $book->[$_]{label} : 'sheet_' . $_ ) } 1 .. $#$book;
         my @pre = ( undef );
         my $menu = [ @pre, @sheets ];
-        $sf->{d}{ss}{$file_fs}{old_idx_sheet} //= 0;
+        $source->{old_idx_sheet} //= 0;
 
         SHEET: while ( 1 ) {
             # Choose
             my $idx = $tc->choose(
                 $menu,
-                { %{$sf->{i}{lyt_v}}, prompt => 'Choose a sheet', index => 1, default => $sf->{d}{ss}{$file_fs}{old_idx_sheet},
+                { %{$sf->{i}{lyt_v}}, prompt => 'Choose a sheet', index => 1, default => $source->{old_idx_sheet},
                 undef => '  <=' }
             );
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 return;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $sf->{d}{ss}{$file_fs}{old_idx_sheet} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                    $sf->{d}{ss}{$file_fs}{old_idx_sheet} = 0;
+                if ( $source->{old_idx_sheet} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                    $source->{old_idx_sheet} = 0;
                     next SHEET;
                 }
-                $sf->{d}{ss}{$file_fs}{old_idx_sheet} = $idx;
+                $source->{old_idx_sheet} = $idx;
             }
             $sheet_idx = $idx - @pre + 1;
             last SHEET;
@@ -351,10 +338,11 @@ sub parse_with_Spreadsheet_Read {
     }
     $sql->{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
     if ( ! -T $file_fs && length $book->[$sheet_idx]{label} ) {
-        $sf->{d}{ss}{$file_fs}{sheet_name} = $book->[$sheet_idx]{label};
+        $source->{sheet_name} = $book->[$sheet_idx]{label};
     }
     return 1;
 }
+
 
 
 

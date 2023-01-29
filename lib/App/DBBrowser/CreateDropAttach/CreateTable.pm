@@ -51,12 +51,7 @@ sub create_view {
         if ( ! defined $select_statment ) {
             return;
         }
-        if ( $select_statment =~ s/^([\s(]+)(?=SELECT\s)//i ) {
-            my $count = $1 =~ tr/(//;
-            while ( $count-- ) {
-                $select_statment =~ s/\s*\)\s*\z//;
-            }
-        }
+        $select_statment =~ s/^\(// and $select_statment =~ s/\)\z//; #
         $sql->{view_select_stmt} = $select_statment;
 
         VIEW_NAME: while ( 1 ) { ##
@@ -107,38 +102,24 @@ sub create_table {
     my $sql = {};
     $sql->{table} = '';
     $ax->reset_sql( $sql );
-    my $skip_to = '';
     my $count_table_name_loop = 0;
+    my $goto_filter = 0;
+    my $source = {};
 
     GET_CONTENT: while ( 1 ) {
         $sf->{d}{stmt_types} = [ 'Create_table', 'Insert' ];
         # first use of {stmt_types} in get_content/from_col_by_col
-        my $ok = $gc->get_content( $sql, $skip_to );
+        my $ok = $gc->get_content( $sql, $source, $goto_filter );
         if ( ! $ok ) {
             return;
-        }
-        $skip_to = '';
-
-        my $sheet_count = 1;
-        my $file_fs = $sf->{d}{gc}{file_fs};
-        if ( exists $sf->{d}{ss}{$file_fs}{sheet_count} ) {
-            $sheet_count = $sf->{d}{ss}{$file_fs}{sheet_count};
         }
         my $table_name_default = ''; # table_name memory # n
 
         GET_TABLE_NAME: while ( 1 ) {
-            $table_name_default = $sf->__get_table_name( $sql, $table_name_default, $count_table_name_loop ); # first time print_sql
+            $table_name_default = $sf->__get_table_name( $sql, $source, $table_name_default, $count_table_name_loop ); # first time print_sql
             if ( ! $table_name_default ) {
-                if ( $sf->{o}{insert}{enable_input_filter} ) {
-                    $skip_to = 'FILTER';
-                }
-                elsif ( $sheet_count > 1 ) {
-                    $skip_to = 'PARSE';
-                }
-                else {
-                    $skip_to = 'GET_DATA';
-                }
                 $count_table_name_loop = 0;
+                $goto_filter = 1;
                 next GET_CONTENT;
             }
             my $bu_first_row = [ @{$sql->{insert_into_args}[0]} ];
@@ -220,17 +201,11 @@ sub create_table {
                                 # INSERT_DATA
                                 my $ok_insert = $sf->__insert_data( $sql );
                                 if ( ! $ok_insert ) {
-                                    ##
                                     return;
                                 }
                             }
-                            if ( $sheet_count > 1 ) {
-                                $skip_to = 'PARSE';
-                            }
-                            else {
-                                $skip_to = 'GET_DATA';
-                            }
-                            next GET_CONTENT;
+                            return 1;
+
                         }
                     }
                 }
@@ -241,7 +216,7 @@ sub create_table {
 
 
 sub __get_table_name {
-    my ( $sf, $sql, $default, $count_table_name_loop ) = @_;
+    my ( $sf, $sql, $source, $default, $count_table_name_loop ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
@@ -249,20 +224,14 @@ sub __get_table_name {
 
     while ( 1 ) {
         my $file_info;
-        if ( $sf->{d}{gc}{source_type} eq 'file' ) {
-            my $file_fs = $sf->{d}{gc}{file_fs};
+        if ( $source->{source_type} eq 'file' ) {
+            my $file_fs = $source->{file_fs};
             my $file_name = basename decode( 'locale_fs', $file_fs );
             $file_info = sprintf "File: '%s'", $file_name;
             if ( ! length $default ) {
-                my $sheet_name = $sf->{d}{ss}{$file_fs}{sheet_name};
-                if ( defined $sheet_name && length $sheet_name ) {
-                    if ( $sf->{d}{ss}{$file_fs}{sheet_count} > 1 ) {
-                        $default = $sheet_name;
-                    }
-                    else {
-                        $file_name =~ s/\.[^.]{1,4}\z//;
-                        $default = $file_name . '_' . $sheet_name;
-                    }
+                if ( length $source->{sheet_name} ) {
+                    $file_name =~ s/\.[^.]{1,4}\z//;
+                    $default = $file_name . '_' . $source->{sheet_name};
                 }
                 else {
                     $default = $file_name =~ s/\.[^.]{1,4}\z//r;
