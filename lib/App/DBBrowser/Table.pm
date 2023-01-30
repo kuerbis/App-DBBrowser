@@ -206,7 +206,7 @@ sub __on_table {
                 print 'Working ...' . "\r" if $sf->{o}{table}{progress_bar};
                 my $all_arrayref = $sf->__selected_statement_result( $sql );
                 my $open_mode;
-                if ( length $sf->{o}{export}{file_encoding} ) { ##
+                if ( length $sf->{o}{export}{file_encoding} ) {
                     $open_mode = '>:encoding(' . $sf->{o}{export}{file_encoding} . ')';
                 }
                 else {

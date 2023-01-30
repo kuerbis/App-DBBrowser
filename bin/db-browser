@@ -424,7 +424,7 @@ Delete records. The affected records are shown before the user confirms the dele
 
 =head2 Data Input
 
-=head3 Type of data source
+=head3 Source type
 
 =over
 
@@ -432,28 +432,26 @@ Delete records. The affected records are shown before the user confirms the dele
 
 Insert the data cell by cell.
 
-=item File
+=item From File
 
 The data is read from a chosen file.
 
-Supported file formats: text files and file formats supported by L<Spreadsheet::Read>.
+Supported file formats: text files and file formats supported by L<Spreadsheet::Read>. C<Spreadsheet::Read> uses
+different parser modules for the different file formats - see L<Spreadsheet::Read/DESCRIPTION>. The parser modules are
+not installed automatically. It is up to the user to install the required parser modules.
 
-Selecting I<From File> opens the I<Source file directory> sub-menu where one can choose the directory which should be
+Selecting I<From File> opens the I<Source directory> sub-menu where one can choose the directory which should be
 searched for files.
 
-If L<Directory history> is set to C<1> and a directory has been saved, this menu is skipped and the directory is chosen
+If the L<Directory history> is set to C<1>, the I<Source directory> sub-menu is skipped and the directory is chosen
 automatically.
 
 After a directory has been chosen a sub-menu is opened where one can choose the source file.
 
-Selecting the prompt line of the source file sub-menu allows one to set the parse settings described in L</Import>.
-If the previous sub-menu I<Source file directory> is not shown due to the settings described before, additionally to the
-parse settings it is also possible the change the source file directory in this sub-menu by selecting I<NEW search>.
+If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible the
+change the source directory in this sub-menu by selecting I<NEW search>.
 
 =back
-
-See also the input filter L</Reparse> in I<Input filters>, which allows one to change the parse-settings and then
-re-read the data.
 
 =head3 Input filters
 

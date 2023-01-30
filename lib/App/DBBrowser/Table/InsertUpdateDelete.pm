@@ -151,7 +151,7 @@ sub __build_insert_stmt {
         if ( ! $cols_ok ) {
             return;
         }
-        my $ok = $gc->get_content( $sql, $scource, 0 );
+        my $ok = $gc->get_content( $sql, $source, 0 );
         if ( ! $ok ) {
             next REQUIRED_COLS;
         }

@@ -53,7 +53,7 @@ sub get_content {
             $source->{source_type} = $choices[$data_source_choice_idx][0];
         }
         else {
-            my $prompt = 'Type of data source:';
+            my $prompt = 'Source type:';
             my @pre = ( undef );
             my $menu = [ @pre, map( $_->[1], @choices ) ];
             # Choose
@@ -146,15 +146,15 @@ sub get_content {
             if ( $goto_filter && ! $sf->{o}{insert}{enable_input_filter} && ! $source->{saved_book} ) {
                 $goto_filter = 0;
             }
-            $source->{old_idx_file} //= 1;
+            $source->{old_idx_file} //= 0;
 
             FILE: while ( 1 ) {
                 if ( $goto_filter ) {
                     # current source file is used
                 }
                 else {
-                    my $hidden = 'Choose a File:';
-                    my @pre = ( $hidden, undef );
+                    my $prompt = 'Choose a File:';
+                    my @pre = ( undef );
                     my $change_dir = '  Change dir';
                     if ( $sf->{o}{insert}{history_dirs} == 1 ) {
                         push @pre, $change_dir;
@@ -163,7 +163,7 @@ sub get_content {
                     # Choose
                     my $idx = $tc->choose(
                         $menu,
-                        { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $source->{old_idx_file},
+                        { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $source->{old_idx_file},
                         undef => '  <=' }
                     );
                     if ( ! defined $idx || ! defined $menu->[$idx] ) {
@@ -175,29 +175,25 @@ sub get_content {
                     }
                     if ( $sf->{o}{G}{menu_memory} ) {
                         if ( $source->{old_idx_file} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                            $source->{old_idx_file} = 1;
+                            $source->{old_idx_file} = 0;
                             next FILE;
                         }
                         $source->{old_idx_file} = $idx;
                     }
-                    if ( $menu->[$idx] eq $hidden ) {
-                        require App::DBBrowser::Opt::Set;
-                        my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-                        $opt_set->set_options( 'import' );
-                        next DIR;
-                    }
-                    elsif ( $menu->[$idx] eq $change_dir ) {
+                    if ( $menu->[$idx] eq $change_dir ) {
                         $source->{dir} = $cs->__new_search_dir();
                         if ( length $source->{dir} ) {
                             $files_in_chosen_dir = $cs->__files_in_dir( $source->{dir} );
                         }
                         next FILE;
                     }
-                    my $old_file_fs = $source->{file_fs};
-                    $source->{file_fs} = encode( 'locale_fs', $files_in_chosen_dir->[$idx-@pre] );
-                    if ( ! defined $old_file_fs || $old_file_fs ne $source->{file_fs} ) {
-                        delete $source->{saved_book};
-                        delete $source->{sheet_name};
+                    else {
+                        my $old_file_fs = $source->{file_fs};
+                        $source->{file_fs} = encode( 'locale_fs', $files_in_chosen_dir->[$idx-@pre] );
+                        if ( ! defined $old_file_fs || $old_file_fs ne $source->{file_fs} ) {
+                            delete $source->{saved_book};
+                            delete $source->{sheet_name};
+                        }
                     }
                 }
                 my $parse_mode_idx = $sf->{o}{insert}{parse_mode_input_file};
