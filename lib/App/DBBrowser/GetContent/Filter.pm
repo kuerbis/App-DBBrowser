@@ -186,11 +186,11 @@ sub __choose_columns {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $aoa = $sql->{insert_into_args};
-    my $empty_cells_of_col_count = $sf->__count_empty_cells_of_cols( $aoa );
+    my $empty_cells_of_col_count = $sf->__count_empty_cells_of_cols( $aoa ); ## name
     my $header = $sf->__prepare_header( $aoa, $empty_cells_of_col_count );
     my $row_count = @$aoa;
     my $col_count = @{$aoa->[0]};
-    my $mark = []; # 
+    my $mark = []; ## name
     for my $col_idx ( 0 .. $col_count - 1 ) {
         if ( $empty_cells_of_col_count->[$col_idx] < $row_count ) {
             push @$mark, $col_idx;

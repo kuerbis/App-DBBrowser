@@ -51,94 +51,97 @@ sub from_col_by_col {
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $aoa = [];
-    my $col_names;
-    if ( $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
-        my $col_count;
-        my $info = 'CREATE TABLE';
+    my $back = 'Back';
+    my $confirm = 'Confirm';
 
-        COL_COUNT: while ( 1 ) {
-            # Choose a number
-            $col_count = $tu->choose_a_number( 2,
-                { info => $info, cs_label => 'Number of columns: ', small_first => 1, confirm => 'Confirm',
-                  default_number => $col_count, back => 'Back', prompt => '' }
-            );
-            if ( ! $col_count ) {
-                return;
-            }
-            $col_names = [ map { 'c' . $_ } 1 .. $col_count ];
-            my $col_number = 0;
-            my $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @$col_names ];
-            # Fill_form
-            my $form = $tf->fill_form(
-                $fields,
-                { info => $info, prompt => 'Column names:', auto_up => 2, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} . '   ' }
-            );
-            if ( ! $form ) {
-                next COL_COUNT;
-            }
-            $col_names = [ map { $_->[1] } @$form ]; # not quoted
-            unshift @$aoa, $col_names;
-            last COL_COUNT;
-        }
-    }
-    else {
-        $col_names = $sql->{insert_into_cols};
-    }
-    my $default;
+    COL_BY_COL: while( 1 ) {
+        my $aoa = [];
+        my $col_names;
+        if ( $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
+            my $col_count;
+            my $info = 'CREATE TABLE';
 
-    ADD_DATA: while ( 1 ) {
-        my $info = $sf->__get_read_info( $aoa );
-        my $fields = [ map { [ $_, ] } @$col_names ];
-        # Fill_form
-        my $data = $tf->fill_form(
-            $fields,
-            { info => $info, auto_up => 1, confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $data ) {
-            if ( ! @$aoa ) {
-                return;
+            COL_COUNT: while ( 1 ) {
+                # Choose a number
+                $col_count = $tu->choose_a_number( 2,
+                    { info => $info, cs_label => 'Number of columns: ', small_first => 1, confirm => $confirm,
+                    default_number => $col_count, back => $back, prompt => '' }
+                );
+                if ( ! $col_count ) {
+                    return;
+                }
+                $col_names = [ map { 'col_' . $_ } 1 .. $col_count ];
+                my $col_number = 0;
+                my $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @$col_names ];
+                # Fill_form
+                my $form = $tf->fill_form(
+                    $fields,
+                    { info => $info, prompt => 'Column names:', auto_up => 2, confirm => $confirm, back => $back . '   ' }
+                );
+                if ( ! $form ) {
+                    next COL_COUNT;
+                }
+                $col_names = [ map { $_->[1] } @$form ]; # not quoted
+                unshift @$aoa, $col_names;
+                last COL_COUNT;
             }
-            $default = 0;
         }
         else {
-            push @{$aoa}, [ map { $_->[1] } @$data ];
-            $default = 2;
+            $col_names = $sql->{insert_into_cols};
         }
+        my $default;
 
-        WHAT_NEXT: while ( 1 ) {
-            my $add = 'Add Data';
-            my @pre = ( undef, $sf->{i}{ok} );
-            my $menu = [ @pre, $add ];
+        ADD_DATA: while ( 1 ) {
             my $info = $sf->__get_read_info( $aoa );
-            # Choose
-            my $choice = $tc->choose(
-                $menu,
-                { %{$sf->{i}{lyt_h}}, info => $info, prompt => '', default => $default }
+            my $fields = [ map { [ $_, ] } @$col_names ];
+            # Fill_form
+            my $data = $tf->fill_form(
+                $fields,
+                { info => $info, auto_up => 1, confirm => $confirm, back => $back . '   ', prompt => 'Enter Data:' }
             );
             $ax->print_sql_info( $info );
-            if ( ! defined $choice ) {
-                if ( @$aoa ) {
+            if ( ! defined $data ) {
+                if ( @$aoa < 2 ) {
+                    next COL_BY_COL;
+                }
+                $default = 0;
+            }
+            else {
+                push @{$aoa}, [ map { $_->[1] } @$data ];
+                $default = 2;
+            }
+
+            WHAT_NEXT: while ( 1 ) {
+                my $add = 'Add Data';
+                my @pre = ( undef, $sf->{i}{ok} );
+                my $menu = [ @pre, $add ];
+                my $info = $sf->__get_read_info( $aoa );
+                # Choose
+                my $choice = $tc->choose(
+                    $menu,
+                    { %{$sf->{i}{lyt_h}}, info => $info, prompt => '', default => $default }
+                );
+                $ax->print_sql_info( $info );
+                if ( ! defined $choice ) {
+                    if ( @$aoa < 2 ) {
+                        next COL_BY_COL;
+                    }
                     $default = 0;
                     $#$aoa--;
                     next WHAT_NEXT;
                 }
-                else {
-                    return;
+                elsif ( $choice eq $sf->{i}{ok} ) {
+                    if ( ! @$aoa ) {
+                        next COL_BY_COL;
+                    }
+                    else {
+                        $sql->{insert_into_args} = $aoa;
+                        return 1;
+                    }
                 }
-            }
-            elsif ( $choice eq $sf->{i}{ok} ) {
-                if ( ! @$aoa ) {
-                    return;
+                elsif ( $choice eq $add ) {
+                    last WHAT_NEXT;
                 }
-                else {
-                    $sql->{insert_into_args} = $aoa;
-                    return 1;
-                }
-            }
-            elsif ( $choice eq $add ) {
-                last WHAT_NEXT;
             }
         }
     }
@@ -180,7 +183,7 @@ sub __avail_directories {
         $h_ref->{dirs} = \@dirs;
         $ax->write_json( $sf->{i}{f_dir_history}, $h_ref );
     }
-    return [ sort @dirs ];
+    return [ sort @dirs ]; ##
 }
 
 
@@ -202,13 +205,13 @@ sub __add_to_history {
 sub __new_search_dir {
     my ( $sf ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $default_dir = $sf->{i}{tmp_files_dir} // $sf->{i}{home_dir};
+    my $default_dir = $sf->{d}{default_search_dir} // $sf->{i}{home_dir};
     # Choose
     my $dir = $tu->choose_a_directory(
         { init_dir => $default_dir, decoded => 1, clear_screen => 1 }
     );
     if ( $dir ) {
-        $sf->{i}{tmp_files_dir} = $dir;
+        $sf->{d}{default_search_dir} = $dir;
     }
     return $dir;
 }

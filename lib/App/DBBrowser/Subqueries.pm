@@ -64,8 +64,8 @@ sub __get_history {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} ) // {};
-    
-################################################################################################# 2.314 ###
+
+################################################################################################# 2.314  03.02.2023
     my $new_h_ref;
     CONVERT: for my $driver ( keys %$h_ref ) {
         for my $db ( keys %{$h_ref->{$driver}} ) {
@@ -83,7 +83,7 @@ sub __get_history {
         $h_ref = $new_h_ref;
     }
 ##################################################################################################
-    
+
     my $saved_subqueries = $h_ref->{ $sf->{i}{driver} }{ $sf->{d}{db} } // [];
     my $session_history = $sf->__session_history() // [];
     return $saved_subqueries, $session_history;

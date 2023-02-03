@@ -47,7 +47,7 @@ sub get_content {
 
     MENU: while ( 1 ) {
         if ( $goto_filter ) {
-            # current source type is used
+            # keep current source type
         }
         elsif ( $data_source_choice_idx =~ /^(?:0|1)\z/ ) {
             $source->{source_type} = $choices[$data_source_choice_idx][0];
@@ -87,7 +87,7 @@ sub get_content {
 
         DIR: while ( 1 ) {
             if ( $goto_filter ) {
-                # current source dir is used
+                # keep current source dir
             }
             elsif ( ! $sf->{o}{insert}{history_dirs} ) {
                 $source->{dir} = $cs->__new_search_dir();
@@ -132,7 +132,7 @@ sub get_content {
                     $source->{old_idx_dir} = $idx;
                 }
                 if ( $menu->[$idx] eq $new_search ) {
-                    $source->{dir} = $sf->__new_search_dir();
+                    $source->{dir} = $cs->__new_search_dir();
                     if ( ! length $source->{dir} ) {
                         next DIR;
                     }
@@ -150,7 +150,7 @@ sub get_content {
 
             FILE: while ( 1 ) {
                 if ( $goto_filter ) {
-                    # current source file is used
+                    # keep current source file
                 }
                 else {
                     my $prompt = 'Choose a File:';
@@ -203,7 +203,7 @@ sub get_content {
 
                 PARSE: while ( 1 ) {
                     if ( $goto_filter ) {
-                        # current insert_into_args are used
+                        # keep current insert_into_args
                     }
                     else {
                         $sql->{insert_into_args} = [];
@@ -269,13 +269,6 @@ sub get_content {
                             next FILE;
                         }
                         elsif ( $ok == -1 ) { # -1 -> REPARSE
-                            #if ( ! -T $source->{file_fs} ) {
-                            #    $tc->choose(
-                            #        [ 'Press ENTER' ],
-                            #        { prompt => 'Not a text file: "Spreadsheet::Read" is used automatically' }
-                            #    );
-                            #    next FILTER;
-                            #}
                             require App::DBBrowser::Opt::Set;
                             my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
                             $opt_set->set_options( 'import' );

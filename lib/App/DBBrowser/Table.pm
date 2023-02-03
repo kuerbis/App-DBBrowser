@@ -216,12 +216,11 @@ sub __on_table {
                 require String::Unescape;
                 my $options = {
                     map { $_ => String::Unescape::unescape( $sf->{o}{csv_out}{$_} ) }
-                    # grep length: keep the default value if the option is set to ''
-                    grep { length $sf->{o}{csv_out}{$_} }
+                    grep { length $sf->{o}{csv_out}{$_} } # keep the default value if the option is set to ''
                     keys %{$sf->{o}{csv_out}}
                 };
                 if ( ! length $options->{eol} ) {
-                    $options->{eol} = $/; # use $/ as default value for eol
+                    $options->{eol} = $/; # for `eol` use `$/` as the default value
                 }
                 require Text::CSV_XS;
                 my $csv = Text::CSV_XS->new( $options ) or die Text::CSV_XS->error_diag();

@@ -76,7 +76,7 @@ sub create_drop_or_attach {
             my $ct = App::DBBrowser::CreateDropAttach::CreateTable->new( $sf->{i}, $sf->{o}, $sf->{d} );
             if ( $choice eq $create_table ) {
                 if ( ! eval { $ct->create_table(); 1 } ) {
-                    $ax->print_error_message( $@ ); ##
+                    $ax->print_error_message( $@ );
                 }
             }
             elsif ( $choice eq $create_view ) {
@@ -102,7 +102,7 @@ sub create_drop_or_attach {
         elsif ( $choice =~ /^-\ (?:Attach|Detach)/ ) {
             require App::DBBrowser::CreateDropAttach::AttachDB;
             my $att = App::DBBrowser::CreateDropAttach::AttachDB->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $changed; ## 
+            my $changed; ##
             if ( $choice eq $attach_databases ) {
                 if ( ! eval { $changed = $att->attach_db(); 1 } ) {
                     $ax->print_error_message( $@ );

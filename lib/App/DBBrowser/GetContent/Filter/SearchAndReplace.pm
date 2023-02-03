@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-use List::MoreUtils qw( any none );
+use List::MoreUtils qw( any );
 
 use Term::Choose       qw();
 use Term::Choose::Util qw();
@@ -39,9 +39,9 @@ sub search_and_replace {
     my $all_sr_groups = [];
     my $used_names = [];
     $sf->{s_back} = $back;
-
     my @bu;
     my ( $hidden, $add ) = ( 'Your choice:', '  ADD search & replace' );
+    my $available = [ sort { $a cmp $b } keys %$saved  ];
 
     ADD_SEARCH_AND_REPLACE: while ( 1 ) {
         my @tmp_info = ( '', $filter_str );
@@ -50,22 +50,17 @@ sub search_and_replace {
                 push @tmp_info, '  s/' . join( '/', @$sr_single ) . ';';
             }
         }
-        #for my $i ( 0 .. $#$all_sr_groups ) {
-        #    push @tmp_info, '  ' . $used_names->[$i];
-        #    my $sr_group = $all_sr_groups->[$i];
-        #    for my $sr_single ( @$sr_group ) {
-        #        push @tmp_info, '    s/' . join( '/', @$sr_single ) . ';';
-        #    }
-        #}
         push @tmp_info, '';
         my @pre = ( $hidden, undef, $sf->{i}{_confirm}, $add );
-        my $available = [];
-        for my $name ( sort { $a cmp $b } keys %$saved ) {
-            if ( none { $name eq $_ } @$used_names ) {
-                push @$available, $name;
+        my $prefixed_available = [];
+        for my $name ( @$available ) {
+            if ( any { $_ eq $name } @$used_names ) {
+                push @$prefixed_available, '- ' . $name . ' (used)';
+            }
+            else {
+                push @$prefixed_available, '- ' . $name;
             }
         }
-        my $prefixed_available = [ map { '- ' . $_ } @$available ];
         my $menu = [ @pre, @$prefixed_available ];
         my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
         # Choose
@@ -85,6 +80,7 @@ sub search_and_replace {
         if ( $choice eq $hidden ) {
             $sf->__history( $sql );
             $saved = $ax->read_json( $sf->{i}{f_search_and_replace} ) // {};
+            $available = [ sort { $a cmp $b } keys %$saved  ];
             next ADD_SEARCH_AND_REPLACE;
         }
         elsif ( $choice eq $sf->{i}{_confirm} ) {
@@ -265,6 +261,8 @@ sub __history {
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $separator_key = ' ';
+    my $skip_regex = qr/^\Q${separator_key}\E\z/;
     my $old_idx_history = 0;
 
     HISTORY: while ( 1 ) {
@@ -290,10 +288,12 @@ sub __history {
         }
         my $choice = $menu->[$idx];
         if ( $choice eq $add ) {
+            my $separator_key = ' ';
+            my $skip_regex = qr/^\Q${separator_key}\E\z/;
             my $fields = [];
             for my $nr ( 1 .. 9 ) {
                 push @$fields,
-                    [ ' ',                  ],
+                    [ $separator_key,       ],
                     [ $nr . ' Pattern',     ],
                     [ $nr . ' Replacement', ],
                     [ $nr . ' Modifiers',   ];
@@ -304,7 +304,7 @@ sub __history {
                 my $form = $tf->fill_form(
                     $fields,
                     { prompt => 'Add s_&_r:', auto_up => 2, clear_screen => 1, info => $top,
-                      section_separators => [ grep { ! ( $_ % 4 ) } 0 .. $#$fields ],
+                      skip_items => $skip_regex,
                       confirm => '  ' . $sf->{i}{confirm}, back => '  ' . $sf->{i}{back} . '   ' }
                 );
                 if ( ! defined $form ) {
@@ -362,7 +362,7 @@ sub __history {
 
                 EDIT_ENTRY: while ( 1 ) {
                     my $fields = [
-                        [ ' ' ],
+                        [ $separator_key   ],
                         [ '  Pattern',     ],
                         [ '  Replacement', ],
                         [ '  Modifiers',   ]
@@ -372,11 +372,11 @@ sub __history {
                         my ( $pattern, $replacement, $modifiers ) = @$sr_single;
                         $c++;
                         push @$fields,
-                            [ ' ' ],
+                            [ $separator_key ],
                             [ $c . ' Pattern',     $pattern     ],
                             [ $c . ' Replacement', $replacement ],
                             [ $c . ' Modifiers',   $modifiers   ],
-                            [ ' ' ],
+                            [ $separator_key ],
                             [ '  Pattern',     ],
                             [ '  Replacement', ],
                             [ '  Modifiers',   ];
@@ -389,7 +389,7 @@ sub __history {
                     my $form = $tf->fill_form(
                         $fields,
                         { prompt => "Edit \"$name\":", auto_up => 2, clear_screen => 1, info => $info,
-                          section_separators => [ grep { ! ( $_ % 4 ) } 0 .. $#$fields ],
+                          skip_items => $skip_regex,
                           confirm => '  ' . $sf->{i}{confirm}, back => '  ' . $sf->{i}{back} . '   ' }
                     );
                     if ( ! defined $form ) {
@@ -510,6 +510,7 @@ sub __get_entry_name {
             if ( $count > 1 ) {
                 $new_name = undef;
             }
+            $name_default = $new_name;
             $count++;
             next NAME;
         }

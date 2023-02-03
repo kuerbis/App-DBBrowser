@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.313';
+our $VERSION = '2.314';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -77,7 +77,7 @@ sub __init {
     }
     my $app_dir = catdir( $config_home // $home, 'db_browser' );
     mkdir $app_dir or die $! if ! -d $app_dir;
-    $sf->{i}{home_dir} = $home; ##
+    $sf->{i}{home_dir} = $home;
     $sf->{i}{app_dir}  = $app_dir;
     $sf->{i}{f_settings}           = catfile $app_dir, 'general_settings.json';
     $sf->{i}{conf_file_fmt}        = catfile $app_dir, 'config_%s.json';
@@ -186,7 +186,7 @@ sub run {
 
         my @databases;
         my $prefix;
-        my ( $user_dbs, $sys_dbs ) = ( [], [] ); #
+        my ( $user_dbs, $sys_dbs ) = ( [], [] );
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
             $prefix = $driver eq 'SQLite' ? '' : '- ';
@@ -266,8 +266,9 @@ sub run {
             $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
-                $sf->{d}{quote_char} = $dbh->get_info(29)  // '"', # SQL_IDENTIFIER_QUOTE_CHAR
-                $sf->{d}{sep_char}   = $dbh->get_info(41)  // '.'; # SQL_CATALOG_NAME_SEPARATOR # name
+                $sf->{d}{identifier_quote_char} = $dbh->get_info(29) // '"', # SQL_IDENTIFIER_QUOTE_CHAR
+                #$sf->{d}{catalog_name_sep} = $dbh->get_info(41) // '.';  # SQL_CATALOG_NAME_SEPARATOR
+                #$sf->{d}{catalog_location} = $dbh->get_info(114) || 1;   # SQL_CATALOG_LOCATION
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -502,7 +503,7 @@ sub run {
                             my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                             $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
                             $sf->{d}{cols} = $ax->column_names( $qt_table );
-                            $qt_columns = $ax->quote_simple_many( $sf->{d}{cols} );
+                            $qt_columns = $ax->quote_cols( $sf->{d}{cols} );
                             1 }
                         ) {
                             $ax->print_error_message( $@ );
@@ -512,7 +513,7 @@ sub run {
                     my $table_footer;
                     if ( $sf->{d}{special_table} ) {
                         $table_footer = ucfirst $sf->{d}{special_table};
-                        my $qc = quotemeta $sf->{d}{quote_char};
+                        my $qc = quotemeta $sf->{d}{identifier_quote_char};
                         if ( $qt_table =~ /\sAS\s$qc([^$qc]+)$qc\z/ ) {
                             $table_footer .= ': ' . $1;
                         }
@@ -549,7 +550,7 @@ sub __derived_table {
     $qt_table .= " AS " . $ax->quote_col_qualified( [ $alias ] );
     $tmp->{table} = $qt_table;
     my $columns = $ax->column_names( $qt_table );
-    my $qt_columns = $ax->quote_simple_many( $columns );
+    my $qt_columns = $ax->quote_cols( $columns );
     return $qt_table, $qt_columns;
 }
 
@@ -574,7 +575,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.313
+Version 2.314
 
 =head1 DESCRIPTION
 

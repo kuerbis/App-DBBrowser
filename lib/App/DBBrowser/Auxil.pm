@@ -59,7 +59,7 @@ sub get_stmt {
         $indent1 = { init_tab => $in x 1, subseq_tab => $in x 2 };
         $indent2 = { init_tab => $in x 2, subseq_tab => $in x 3 };
     }
-    my $qt_table = $sql->{table}; # q
+    my $qt_table = $sql->{table};
     my @tmp;
     if ( $stmt_type eq 'Drop_table' ) {
         @tmp = ( $sf->__stmt_fold( "DROP TABLE $qt_table", $term_w, $indent0 ) );
@@ -157,7 +157,7 @@ sub info_format_insert_args {
         return [];
     }
     my $avail_h = $term_h - ( @{$sql->{insert_into_args}[0]} + 12 );
-    if ( $avail_h < $term_h / 3.5 ) {
+    if ( $avail_h < $term_h / 3.5 ) { ##
         $avail_h = int $term_h / 3.5;
     }
     if ( $avail_h < 5) {
@@ -314,21 +314,29 @@ sub alias {
 
 
 sub quote_table {
-    my ( $sf, $table_identifier_parts ) = @_; # n
+    my ( $sf, $table_info ) = @_;
     my @idx;
+    # 0 = catalog
+    # 1 = schema
+    # 2 = table_name
+    # 3 = table_type
     if ( $sf->{o}{G}{qualified_table_name} || $sf->{d}{db_attached} ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
         # name.
-        @idx = ( 0 .. 2 );
+        @idx = ( 1, 2 );
+        #@idx = ( 0, 1, 2 ); with catalog
     }
     else {
         @idx = ( 2 );
     }
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $sf->{d}{dbh}->quote_identifier( @{$table_identifier_parts}[@idx] );
+        return $sf->{d}{dbh}->quote_identifier( @{$table_info}[@idx] );
     }
-    return join( $sf->{d}{sep_char}, grep { length } @{$table_identifier_parts}[@idx] );
+    else {
+        # if @idx with catalog (0,1,2): write code which handles catalog (see `quote_identifier`).
+        return join( '.', grep { length } @{$table_info}[@idx] );
+    }
 }
 
 
@@ -337,16 +345,20 @@ sub quote_col_qualified {
     if ( $sf->{o}{G}{quote_identifiers} ) {
         return $sf->{d}{dbh}->quote_identifier( @$col_identifier_parts );
     }
-    return join( $sf->{d}{sep_char}, grep { length } @$col_identifier_parts );
+    else {
+        return join( '.', grep { length } @$col_identifier_parts );
+    }
 }
 
 
-sub quote_simple_many {
+sub quote_cols {
     my ( $sf, $list ) = @_;
     if ( $sf->{o}{G}{quote_identifiers} ) {
         return [ map { $sf->{d}{dbh}->quote_identifier( $_ ) } @$list ];
     }
-    return [ @$list ];
+    else {
+        return [ @$list ];
+    }
 }
 
 
@@ -402,13 +414,17 @@ sub print_error_message {
     );
 }
 
+
 sub sql_limit {
     my ( $sf, $rows ) = @_;
-    if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
-        return " FETCH NEXT $rows ROWS ONLY" # 0
+    if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg)\z/ ) {
+        return " LIMIT $rows";
+    }
+    elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+        return " FETCH NEXT $rows ROWS ONLY"
     }
     else {
-        return " LIMIT $rows";
+        return "";
     }
 }
 
