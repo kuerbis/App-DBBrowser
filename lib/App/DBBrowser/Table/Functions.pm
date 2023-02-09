@@ -132,6 +132,9 @@ sub col_function {
         'LTrim',
         'RTrim'
     );
+    if ( $sf->{i}{driver} eq 'Informix' ) {
+        push @simple_functions, 'Length', 'Initcap';
+    }
     my $Cast              = 'Cast';
     my $Concat            = 'Concat';
     my $Epoch_to_Date     = 'Epoch_to_Date';
@@ -139,7 +142,13 @@ sub col_function {
     my $Replace           = 'Replace';
     my $Round             = 'Round';
     my $Truncate          = 'Truncate';
-    my @functions = ( @simple_functions, $Cast, $Concat, $Epoch_to_Date, $Epoch_to_DateTime, $Replace, $Round, $Truncate );
+    my @functions;
+    if ( $sf->{i}{driver} =~ /^(?:Informix|Sybase)\z/ ) {
+        @functions = ( @simple_functions, $Cast, $Concat, $Replace, $Round, $Truncate );
+    }
+    else {
+        @functions = ( @simple_functions, $Cast, $Concat, $Epoch_to_Date, $Epoch_to_DateTime, $Replace, $Round, $Truncate );
+    }
     my $joined_simple_functions = join( '|', @simple_functions );
     my $prefix = '  ';
     my @pre = ( undef );

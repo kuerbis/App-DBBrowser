@@ -317,6 +317,20 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             elsif ( $opt eq '_e_write_access' ) {
+                my ( $user, $all ) = ( 'User', 'All' );
+                my $prompt = 'Write access: ';
+                my $sub_menu = [
+                    [ 'insert_into',  "- Insert Records", [ $no, $user, $all ] ],
+                    [ 'update',       "- Update Records", [ $no, $user, $all ] ],
+                    [ 'delete',       "- Delete Records", [ $no, $user, $all ] ],
+                    [ 'create_table', "- Create Table",   [ $no, $user, $all ] ],
+                    [ 'drop_table',   "- Drop   Table",   [ $no, $user, $all ] ],
+                    [ 'create_view',  "- Create View",    [ $no, $user, $all ] ],
+                    [ 'drop_view',    "- Drop   View",    [ $no, $user, $all ] ],
+                ];
+                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
+            }
+            elsif ( $opt eq '_e_write_access' ) {
                 my $prompt = 'Write access: ';
                 my $sub_menu = [
                     [ 'insert_into',  "- Insert Records", [ $no, $yes ] ],

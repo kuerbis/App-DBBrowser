@@ -764,6 +764,10 @@ sub limit_offset {
             }
         }
         if ( $choice eq $offset ) {
+            if ( $sf->{i}{driver} eq 'Informix' ) {
+                $tc->choose( [ 'BACK' ], { prompt => 'Informix: OFFSET not supported.' } );
+                next LIMIT;
+            }
             if ( ! $sql->{limit_stmt} ) {
                 # SQLite/mysql/MariaDB: no offset without limit
                 $sql->{limit_stmt} = "LIMIT " . '9223372036854775807'  if $sf->{i}{driver} eq 'SQLite';   # 2 ** 63 - 1

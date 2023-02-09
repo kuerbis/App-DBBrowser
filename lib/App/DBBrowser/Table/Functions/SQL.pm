@@ -20,12 +20,16 @@ sub function_with_col {
     my ( $sf, $func, $col ) = @_;
     $func = uc( $func );
     if ( $func eq 'LTRIM' ) {
-        return "TRIM(LEADING FROM $col)"  if $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/;
+        return "TRIM(LEADING FROM $col)"  if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix)\z/;
         return "LTRIM($col)";
     }
     elsif ( $func eq 'RTRIM' ) {
-        return "TRIM(TRAILING FROM $col)" if $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/;
+        return "TRIM(TRAILING FROM $col)" if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix)\z/;
         return "RTRIM($col)";
+    }
+    elsif ( $func eq 'BIT_LENGTH' ) {
+        return "OCTET_LENGTH($col)" if $sf->{i}{driver} eq 'Informix';
+        return "BIT_LENGTH($col)";
     }
     else {
         return "$func($col)";
@@ -47,7 +51,7 @@ sub function_with_col_and_arg {
         #    my $prec_num = '1' . '0' x $arg;
         #    return "cast( ( $col * $prec_num ) as int ) / $prec_num.0";
         #}
-        return "TRUNC($col,$arg)"     if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Oracle)\z/;
+        return "TRUNC($col,$arg)"     if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/;
         return "TRUNCATE($col,$arg)";
     }
 }
@@ -84,12 +88,54 @@ sub epoch_to_date {
 
 sub epoch_to_datetime {
     my ( $sf, $col, $interval ) = @_;
-    return "DATETIME($col/$interval,'unixepoch','localtime')"                                  if $sf->{i}{driver} eq 'SQLite';
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s')"                                 if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;        # mysql: FROM_UNIXTIME doesn't work with negative timestamps
-    return "TO_TIMESTAMP(${col}::bigint/$interval)::timestamp"                                 if $sf->{i}{driver} eq 'Pg';
-    return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO TIMESTAMP '1970-01-01 00:00:00')" if $sf->{i}{driver} eq 'Firebird';
-    return "TIMESTAMP('1970-01-01 00:00:00') + ($col/$interval) SECONDS"                       if $sf->{i}{driver} eq 'DB2';
-    return "TO_TIMESTAMP('1970-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL($col/$interval,'SECOND')"  if $sf->{i}{driver} eq 'Oracle';
+    if ( $sf->{i}{driver} eq 'SQLite' ) {
+        if ( $interval == 1 ) {
+            return "DATETIME($col,'unixepoch','localtime')";
+        }
+        else {
+            return "STRFTIME( '%Y-%m-%d %H:%M:%f', $col/$interval.0, 'unixepoch', 'localtime' )";
+        }
+    }
+    elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+        # mysql: FROM_UNIXTIME doesn't work with negative timestamps
+        if ( $interval == 1 ) {
+            return "FROM_UNIXTIME($col,'%Y-%m-%d %H:%i:%s')";
+        }
+        else {
+            return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s.%f')";
+        }
+    }
+    elsif ( $sf->{i}{driver} eq 'Pg' ) {
+        if ( $interval == 1 ) {
+            return "TO_TIMESTAMP(${col}::bigint)::timestamp"
+        }
+        elsif ( $interval == 1_000 ) {
+            return "to_char(to_timestamp(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff3')";
+        }
+        else {
+            return "to_char(to_timestamp(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff6')";
+        }
+    }
+    elsif ( $sf->{i}{driver} eq 'Firebird' ) {
+        if ( $interval == 1 ) {
+            return "CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(32))";
+        }
+        else {
+            $interval /= 1_000;
+            return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(32))";
+        }
+    }
+    elsif ( $sf->{i}{driver} eq 'DB2' ) {
+        return "TIMESTAMP('1970-01-01 00:00:00') + ($col/$interval) SECONDS";
+    }
+    elsif ( $sf->{i}{driver} eq 'Oracle' ) {
+        if ( $interval == 1 ) {
+            return "TO_TIMESTAMP('1970-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL($col,'SECOND')"
+        }
+        else {
+            return "TO_TIMESTAMP('1970-01-01 00:00:00.0','YYYY-MM-DD HH24:MI:SS.FF') + NUMTODSINTERVAL($col/$interval,'SECOND')";
+        }
+    }
 }
 
 

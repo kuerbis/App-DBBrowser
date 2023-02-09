@@ -7,7 +7,7 @@ use 5.014;
 
 use Scalar::Util qw( looks_like_number );
 
-use JSON::MaybeXS   qw( decode_json );
+use JSON::MaybeXS qw( decode_json );
 
 use Term::Choose            qw();
 use Term::Choose::Constants qw( WIDTH_CURSOR );
@@ -70,7 +70,6 @@ sub get_stmt {
     elsif ( $stmt_type eq 'Create_table' ) {
         my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
         @tmp = ( $sf->__stmt_fold( $stmt, $term_w, $indent0 ) );
-
     }
     elsif ( $stmt_type eq 'Create_view' ) {
         @tmp = ( $sf->__stmt_fold( "CREATE VIEW $qt_table", $term_w, $indent0 ) );
@@ -84,12 +83,12 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $sql->{having_stmt},   $term_w, $indent2, $sql->{having_args} ) if $sql->{having_stmt};
         push @tmp, $sf->__stmt_fold( $sql->{order_by_stmt}, $term_w, $indent2                      ) if $sql->{order_by_stmt};
         if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
-            push @tmp, $sf->__stmt_fold( $sql->{offset_stmt},   $term_w, $indent2 ) if $sql->{offset_stmt};
-            push @tmp, $sf->__stmt_fold( $sql->{limit_stmt},    $term_w, $indent2 ) if $sql->{limit_stmt};
+            push @tmp, $sf->__stmt_fold( $sql->{offset_stmt}, $term_w, $indent2 ) if $sql->{offset_stmt};
+            push @tmp, $sf->__stmt_fold( $sql->{limit_stmt},  $term_w, $indent2 ) if $sql->{limit_stmt};
         }
         else {
-            push @tmp, $sf->__stmt_fold( $sql->{limit_stmt},    $term_w, $indent2 ) if $sql->{limit_stmt};
-            push @tmp, $sf->__stmt_fold( $sql->{offset_stmt},   $term_w, $indent2 ) if $sql->{offset_stmt};
+            push @tmp, $sf->__stmt_fold( $sql->{limit_stmt},  $term_w, $indent2 ) if $sql->{limit_stmt};
+            push @tmp, $sf->__stmt_fold( $sql->{offset_stmt}, $term_w, $indent2 ) if $sql->{offset_stmt};
         }
     }
     elsif ( $stmt_type eq 'Delete' ) {
@@ -352,12 +351,12 @@ sub quote_col_qualified {
 
 
 sub quote_cols {
-    my ( $sf, $list ) = @_;
+    my ( $sf, $cols ) = @_;
     if ( $sf->{o}{G}{quote_identifiers} ) {
-        return [ map { $sf->{d}{dbh}->quote_identifier( $_ ) } @$list ];
+        return [ map { $sf->{d}{dbh}->quote_identifier( $_ ) } @$cols ];
     }
     else {
-        return [ @$list ];
+        return [ @$cols ];
     }
 }
 

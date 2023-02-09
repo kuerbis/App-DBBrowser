@@ -1,6 +1,13 @@
 Revision history for App-DBBrowser
 
 
+2.315    2023-02-00
+        - Added Informix-plugin.
+        - Bugfix 'is_system_schema'.
+        - Update documentation.
+        - Update from_col_by_col.
+        - Epoch_to_datetime with fractions of seconds.
+
 2.314    2023-02-03
         - New data-structure for subquery file.
         - Refactoring/update Subqueries, Filter, GetContent

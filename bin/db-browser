@@ -3,7 +3,9 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.314';
+$SIG{__WARN__} = sub { die @_ };
+
+our $VERSION = '2.315';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -43,15 +45,15 @@ __END__
 
 =head1 NAME
 
-C<db-browser> - Browse C<SQLite>/C<MySQL>/C<PostgreSQL>/C<Firebird>/C<DB2> databases and their tables interactively.
+C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.314
+Version 2.315
 
 =head1 SYNOPSIS
 
-=head2 SQLite/MySQL/PostgreSQL/Firebird/DB2
+=head2 SQLite/MySQL/MariaDB/PostgreSQL/Firebird/DB2/Informix
 
     db-browser -h|--help
 
@@ -78,8 +80,9 @@ Before using C<db-browser>, make sure you backed up your databases.
 
 Search and read in SQL databases: one can browse databases and their tables interactively.
 
-The database plugins bundled with C<App::DBBrowser> provide support for the DBI drivers C<DBD::SQLite>, C<DBD::mysql>,
-C<DBD::MariaDB>, C<DBD::Pg> and C<DBD::Firebird>. See L<App::DBBrowser::DB> how to write a database plugin.
+C<App::DBBrowser> provides and supports plugins for the DBI drivers C<DBD::SQLite>, C<DBD::mysql>, C<DBD::MariaDB>,
+C<DBD::Pg>, C<DBD::Firebird>, C<DBD::DB2> and C<DBD::Informix>. See L<App::DBBrowser::DB> how to write a database
+plugin.
 
 =head1 NAVIGATION
 
@@ -435,7 +438,7 @@ Insert the data cell by cell.
 The data is read from a chosen file.
 
 Supported file formats: text files and file formats supported by L<Spreadsheet::Read>. C<Spreadsheet::Read> uses
-different parser modules for the different file formats - see L<Spreadsheet::Read/DESCRIPTION>. The parser modules are
+different parser modules for the different file formats - see L<Spreadsheet::Read/SEE-ALSO>. The parser modules are
 not installed automatically. It is up to the user to install the required parser modules.
 
 Selecting I<From File> opens the I<Source directory> sub-menu where one can choose the directory which should be
@@ -447,7 +450,7 @@ automatically.
 After a directory has been chosen a sub-menu is opened where one can choose the source file.
 
 If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible the
-change the source directory in this sub-menu by selecting I<NEW search>.
+change the source directory in this sub-menu by selecting I<Change dir>.
 
 =back
 
@@ -887,6 +890,8 @@ If set to C<YES>, qualified table names are used in SQL statements.
 =item Quote identifiers
 
 If set to C<YES>, SQL identifiers are quoted.
+
+C<Informix>: set the C<DELIMIDENT> environmet variable to allow quoted identifier.
 
 =back
 

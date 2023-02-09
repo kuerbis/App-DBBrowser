@@ -403,7 +403,7 @@ sub __edit_column_names {
 }
 
 
-sub __edit_column_types {
+sub __edit_column_types { ##
     my ( $sf, $sql, $data_types ) = @_;
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );

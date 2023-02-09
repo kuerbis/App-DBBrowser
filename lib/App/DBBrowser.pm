@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.314';
+our $VERSION = '2.315';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -190,11 +190,21 @@ sub run {
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
             $prefix = $driver eq 'SQLite' ? '' : '- ';
-            if ( $prefix ) {
-                @databases = ( map( $prefix . $_, @$user_dbs ), $sf->{o}{G}{metadata} ? map( '  ' . $_, @$sys_dbs ) : () );
+            if ( $sf->{o}{G}{metadata} ) {
+                if ( $prefix ) {
+                    @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
+                }
+                else {
+                    @databases = ( @$user_dbs, @$sys_dbs );
+                }
             }
             else {
-                @databases = ( @$user_dbs, $sf->{o}{G}{metadata} ? @$sys_dbs : () );
+                if ( $prefix ) {
+                    @databases = ( map( $prefix . $_, @$user_dbs ) );
+                }
+                else {
+                    @databases = @$user_dbs;
+                }
             }
             $sf->{i}{search} = 0 if $sf->{i}{search};
             1 }
@@ -209,17 +219,22 @@ sub run {
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last PLUGIN;
         }
-        my $db;
         my $old_idx_db = 0;
 
         DATABASE: while ( 1 ) {
 
+            my $db;
+            my $is_system_db = 0;
             if ( $sf->{redo_db} ) {
                 $db = delete $sf->{redo_db};
+                $is_system_db = delete $sf->{redo_is_system_db};
                 $db = $prefix . $db if $prefix;
             }
             elsif ( @databases == 1 ) {
                 $db = $databases[0];
+                if ( ! @$user_dbs ) {
+                    $is_system_db = 1;
+                }
                 $auto_one++ if $auto_one == 1;
             }
             else {
@@ -252,8 +267,12 @@ sub run {
                     }
                     $old_idx_db = $idx_db;
                 }
+                if ( $idx_db - 1 > $#$user_dbs ) {
+                    $is_system_db = 1;
+                }
             }
             $db =~ s/^[-\ ]\s// if $prefix;
+
 
             # DB-HANDLE
 
@@ -297,8 +316,13 @@ sub run {
             my @schemas;
             my ( $user_schemas, $sys_schemas ) = ( [], [] );
             if ( ! eval {
-                ( $user_schemas, $sys_schemas ) = $plui->get_schemas( $dbh, $db );
-                @schemas = ( map( "- $_", @$user_schemas ), $sf->{o}{G}{metadata} ? map( "  $_", @$sys_schemas ) : () );
+                ( $user_schemas, $sys_schemas ) = $plui->get_schemas( $dbh, $db, $is_system_db );
+                if ( $sf->{o}{G}{metadata} ) {
+                    @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$sys_schemas ) );
+                }
+                else {
+                    @schemas = ( map( "- $_", @$user_schemas ) );
+                }
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -307,15 +331,16 @@ sub run {
                 next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
                 last PLUGIN;
             }
+            my $db_string = 'DB ' . basename( $db ) . '';
             my $old_idx_sch = 0;
-            my $is_system_schema;
 
             SCHEMA: while ( 1 ) {
 
-                my $db_string = 'DB ' . basename( $db ) . '';
                 my $schema;
+                my $is_system_schema = 0;
                 if ( $sf->{redo_schema} ) {
                     $schema = delete $sf->{redo_schema};
+                    $is_system_schema = delete $sf->{redo_is_system_schema};
                 }
                 elsif ( ! @schemas ) {
                     if ( $driver eq 'Pg' ) {
@@ -393,50 +418,42 @@ sub run {
 
                     my ( $join, $union, $from_subquery, $db_setting ) = ( '  Join', '  Union', '  Derived', '  DB settings' );
                     my $hidden = $db_string;
-                    my $table;
-                    if ( $sf->{redo_table} ) {
-                        $table = delete $sf->{redo_table};
+                    my @pre = ( $hidden, undef );
+                    my $menu_table;
+                    if ( $sf->{o}{G}{metadata} ) {
+                        my $sys_prefix = $is_system_schema ? '- ' : '  ';
+                        $menu_table = [ @pre, map( "- $_", @$user_table_keys ), map( $sys_prefix . $_, @$sys_table_keys ) ];
                     }
                     else {
-                        my $menu_table;
-                        if ( $sf->{o}{G}{metadata} ) {
-                            if ( $is_system_schema ) {
-                                $menu_table = [ $hidden, undef, map( "- $_", @$sys_table_keys ) ];
-                            }
-                            else {
-                                $menu_table = [ $hidden, undef, map( "- $_", @$user_table_keys ), map( "  $_", @$sys_table_keys ) ];
-                            }
+                        $menu_table = [ @pre, map( "- $_", @$user_table_keys ) ];
+                    }
+                    push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
+                    push @$menu_table, $join          if $sf->{o}{enable}{join};
+                    push @$menu_table, $union         if $sf->{o}{enable}{union};
+                    push @$menu_table, $db_setting    if $sf->{o}{enable}{db_settings};
+                    my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
+                    # Choose
+                    my $idx_tbl = $tc->choose(
+                        $menu_table,
+                        { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
+                    );
+                    my $table;
+                    if ( defined $idx_tbl ) {
+                        $table = $menu_table->[$idx_tbl];
+                    }
+                    if ( ! defined $table ) {
+                        next SCHEMA         if @schemas                > 1;
+                        $dbh->disconnect();
+                        next DATABASE       if @databases              > 1;
+                        next PLUGIN         if @{$sf->{o}{G}{plugins}} > 1;
+                        last PLUGIN;
+                    }
+                    if ( $sf->{o}{G}{menu_memory} ) {
+                        if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                            $old_idx_tbl = 1;
+                            next TABLE;
                         }
-                        else {
-                            $menu_table = [ $hidden, undef, map( "- $_", @$user_table_keys ) ];
-                        }
-                        push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
-                        push @$menu_table, $join          if $sf->{o}{enable}{join};
-                        push @$menu_table, $union         if $sf->{o}{enable}{union};
-                        push @$menu_table, $db_setting    if $sf->{o}{enable}{db_settings};
-                        my $back = $auto_one == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
-                        # Choose
-                        my $idx_tbl = $tc->choose(
-                            $menu_table,
-                            { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
-                        );
-                        if ( defined $idx_tbl ) {
-                            $table = $menu_table->[$idx_tbl];
-                        }
-                        if ( ! defined $table ) {
-                            next SCHEMA         if @schemas                > 1;
-                            $dbh->disconnect();
-                            next DATABASE       if @databases              > 1;
-                            next PLUGIN         if @{$sf->{o}{G}{plugins}} > 1;
-                            last PLUGIN;
-                        }
-                        if ( $sf->{o}{G}{menu_memory} ) {
-                            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
-                                $old_idx_tbl = 1;
-                                next TABLE;
-                            }
-                            $old_idx_tbl = $idx_tbl;
-                        }
+                        $old_idx_tbl = $idx_tbl;
                     }
                     if ( $table eq $db_setting ) {
                         my $changed;
@@ -451,7 +468,9 @@ sub run {
                         }
                         if ( $changed ) {
                             $sf->{redo_db} = $db;
+                            $sf->{redo_is_system_db} = $is_system_db;
                             $sf->{redo_schema} = $schema;
+                            $sf->{redo_is_system_schema} = $is_system_schema;
                             $dbh->disconnect(); # reconnects
                             next DATABASE;
                         }
@@ -575,7 +594,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.314
+Version 2.315
 
 =head1 DESCRIPTION
 

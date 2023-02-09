@@ -147,7 +147,7 @@ sub __print_template_info {
 }
 
 
-sub parse_with_template {
+sub parse_with_template { ##
     my ( $sf, $sql, $fh ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
@@ -279,7 +279,12 @@ sub parse_with_Spreadsheet_Read {
     require Spreadsheet::Read;
     my $book = delete $source->{saved_book};
     if ( ! defined $book ) {
-        $book = Spreadsheet::Read::ReadData( $file_fs, cells => 0, attr => 0, rc => 1, strip => 0 );
+        if ( ! eval {
+            $book = Spreadsheet::Read::ReadData( $file_fs, cells => 0, attr => 0, rc => 1, strip => 0 );
+            1 }
+        ) {
+            die "Read::Spreadsheet: $@";
+        }
         if ( ! defined $book ) {
             $tc->choose(
                 [ 'Press ENTER' ],
