@@ -31,15 +31,13 @@ sub get_db_driver {
 
 sub env_variables {
     my ( $sf ) = @_;
-    return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
+    return [ qw( DBI_DSN DBI_USER DBI_PASS ) ];
 }
 
 
 sub read_login_data {
     my ( $sf ) = @_;
     return [
-        { name => 'host', secret => 0 },
-        { name => 'port', secret => 0 },
         { name => 'user', secret => 0 },
         { name => 'pass', secret => 1 },
     ];
@@ -69,16 +67,6 @@ sub get_db_handle {
     my $show_sofar = 'DB '. basename( $db );
     if ( ! $env_var_yes->{DBI_DSN} || ! exists $ENV{DBI_DSN} ) {
         $dsn = "dbi:$sf->{i}{driver}:$db";
-        my $host = $cred->get_login( 'host', $show_sofar, $settings );
-        if ( defined $host ) {
-            $show_sofar .= "\n" . 'Host: ' . $host;
-            $dsn .= ";host=$host" if length $host;
-        }
-        my $port = $cred->get_login( 'port', $show_sofar, $settings );
-        if ( defined $port ) {
-            $show_sofar .= "\n" . 'Port: ' . $port;
-            $dsn .= ";port=$port" if length $port;
-        }
     }
     my $user   = $cred->get_login( 'user', $show_sofar, $settings );
     $show_sofar .= "\n" . 'User: ' . $user if defined $user;
@@ -99,12 +87,19 @@ sub get_databases {
     return \@ARGV if @ARGV;
     my $driver = $sf->get_db_driver();
     my @databases = DBI->data_sources( $driver );
+    my ( @user_dbs, @sys_dbs );
     for ( @databases ) {
         s/^dbi:$driver://;
-        ##
         s/\s+\z//;
+        #if ( /\b(?:sysadmin|sysmaster|sysuser|sysutils)\b/i ) { ##
+        if ( m[(?:^|/)(?:sysadmin|sysmaster|sysuser|sysutils)\b]i ) {
+            push @sys_dbs, $_;
+        }
+        else {
+            push @user_dbs, $_;
+        }
     }
-    return [ @databases ];
+    return [ sort @user_dbs ], [ sort @sys_dbs ];
 }
 
 

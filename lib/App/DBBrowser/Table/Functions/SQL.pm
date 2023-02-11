@@ -98,11 +98,16 @@ sub epoch_to_datetime {
     }
     elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
         # mysql: FROM_UNIXTIME doesn't work with negative timestamps
+        # https://stackoverflow.com/questions/26299149/timestamp-with-a-millisecond-precision-how-to-save-them-in-mysql
         if ( $interval == 1 ) {
-            return "FROM_UNIXTIME($col,'%Y-%m-%d %H:%i:%s')";
+            return "FROM_UNIXTIME($col)";
+        }
+        elsif ( $interval == 1_000 ) {
+            return "FROM_UNIXTIME($col * 0.001)";
         }
         else {
-            return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s.%f')";
+            return "FROM_UNIXTIME($col * 0.000001)";
+            #return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d %H:%i:%s.%f')";
         }
     }
     elsif ( $sf->{i}{driver} eq 'Pg' ) {
@@ -110,23 +115,35 @@ sub epoch_to_datetime {
             return "TO_TIMESTAMP(${col}::bigint)::timestamp"
         }
         elsif ( $interval == 1_000 ) {
-            return "to_char(to_timestamp(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff3')";
+            return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff3')";
         }
         else {
-            return "to_char(to_timestamp(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff6')";
+            return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC', 'yyyy-mm-dd hh24:mi:ss.ff6')";
         }
     }
     elsif ( $sf->{i}{driver} eq 'Firebird' ) {
         if ( $interval == 1 ) {
-            return "CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(32))";
+            return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 19)";
+        }
+        elsif ( $interval == 1_000 ) {
+            $interval /= 1_000;
+            return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 23)";
         }
         else {
             $interval /= 1_000;
-            return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(32))";
+            return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24))";
         }
     }
     elsif ( $sf->{i}{driver} eq 'DB2' ) {
-        return "TIMESTAMP('1970-01-01 00:00:00') + ($col/$interval) SECONDS";
+        if ( $interval == 1 ) {
+            return "TIMESTAMP('1970-01-01 00:00:00', 0) + $col SECONDS";
+        }
+        elsif ( $interval == 1_000 ) {
+            return "TIMESTAMP('1970-01-01 00:00:00', 3) + ($col/$interval) SECONDS";
+        }
+        else {
+            return "TIMESTAMP('1970-01-01 00:00:00', 6) + ($col/$interval) SECONDS";
+        }
     }
     elsif ( $sf->{i}{driver} eq 'Oracle' ) {
         if ( $interval == 1 ) {

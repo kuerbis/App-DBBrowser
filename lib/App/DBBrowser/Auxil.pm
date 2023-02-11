@@ -414,7 +414,7 @@ sub print_error_message {
 }
 
 
-sub sql_limit {
+sub sql_limit { ##
     my ( $sf, $rows ) = @_;
     if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg)\z/ ) {
         return " LIMIT $rows";
