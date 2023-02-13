@@ -278,35 +278,28 @@ sub stmt_placeholder_to_value {
 
 sub alias {
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
-    my $term_w = get_term_width();
-    my $tmp_info;
-    if ( $identifier eq '' ) { # Union
-        $identifier .= 'UNION Alias: ';
+    if ( defined $default ) { # && ! $sf->{o}{G}{quote_identifiers} ) {
+        if ( $sf->{i}{driver} eq 'Pg' ) {
+            $default = lc $default;
+        }
+        elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2)\z/ ) {
+            $default = uc $default;
+        }
     }
-    elsif ( print_columns( $identifier . ' AS ' ) > $term_w / 3 ) {
-        $tmp_info = 'Alias: ' . "\n" . $identifier;
-        $identifier = 'AS ';
-    }
-    else {
-        $tmp_info = 'Alias: ';
-        $identifier .= ' AS ';
-    }
+    my $prompt = 'AS ';
     my $alias;
     if ( $sf->{o}{alias}{$type} ) {
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-        my $info = $sf->get_sql_info( $sql ) . "\n" . $tmp_info;
+        my $info = $sf->get_sql_info( $sql ) . "\n" . $identifier;
         # Readline
         $alias = $tr->readline(
-            $identifier,
+            $prompt,
             { info => $info }
         );
         $sf->print_sql_info( $info );
     }
     if ( ! length $alias ) {
         $alias = $default;
-    }
-    if ( $sf->{i}{driver} eq 'Pg' && ! $sf->{o}{G}{quote_identifiers} ) {
-        return lc $alias;
     }
     return $alias;
 }
@@ -358,6 +351,14 @@ sub quote_cols {
     else {
         return [ @$cols ];
     }
+}
+
+
+sub unquote_identifier {
+    my ( $sf, $identifier ) = @_;
+    my $qc = quotemeta( $sf->{d}{identifier_quote_char} );
+    $identifier =~ s/$qc(?=(?:$qc$qc)*(?:[^$qc]|\z))//g;
+    return $identifier;
 }
 
 
@@ -414,7 +415,7 @@ sub print_error_message {
 }
 
 
-sub sql_limit { ##
+sub sql_limit {
     my ( $sf, $rows ) = @_;
     if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg)\z/ ) {
         return " LIMIT $rows";
@@ -428,9 +429,10 @@ sub sql_limit { ##
 }
 
 
-sub tables_column_names_and_types { # db
+sub tables_column_names_and_types {
     my ( $sf, $table_keys ) = @_;
     my ( $col_names, $col_types );
+    # without `LIMIT` 0 slower with big tables: mysql, MariaDB and Pg
     for my $table_k ( @$table_keys ) {
         if ( ! eval {
             my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sf->quote_table( $sf->{d}{tables_info}{$table_k} ) . $sf->sql_limit( 0 ) );
@@ -448,6 +450,8 @@ sub tables_column_names_and_types { # db
 
 sub column_names {
     my ( $sf, $qt_table ) = @_;
+    # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
+    # no difference with SQLite, Firebird, DB2 and Informix
     my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 ) );
     $sth->execute() if $sf->{i}{driver} ne 'SQLite';
     return [ @{$sth->{NAME}} ];

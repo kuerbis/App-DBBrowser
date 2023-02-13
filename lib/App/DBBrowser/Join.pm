@@ -76,6 +76,7 @@ sub join_tables {
             next MASTER;
         }
         my $qt_master;
+        my $master_from_subquery;
         if ( $master eq $from_subquery ) {
             require App::DBBrowser::Subqueries;
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -84,6 +85,7 @@ sub join_tables {
                 next MASTER;
             }
             $qt_master = $master;
+            $master_from_subquery = 1;
         }
         else {
             $master =~ s/^-\s//;
@@ -96,8 +98,8 @@ sub join_tables {
         push @{$join->{aliases}}, [ $master, $master_alias ];
         $join->{stmt} .= " " . $qt_master;
         $join->{stmt} .= " AS " . $ax->quote_col_qualified( [ $master_alias ] );
-        if ( $master eq $qt_master ) {
-            $sf->{d}{col_names}{$master} = $ax->column_names( $qt_master . " AS " . $master_alias );
+        if ( $master_from_subquery ) {
+            $sf->{d}{col_names}{$master} = $ax->column_names( $qt_master . " AS " . $ax->quote_col_qualified( [ $master_alias ] ) );
         }
         my @bu;
 
@@ -139,15 +141,26 @@ sub join_tables {
     for my $ref ( @{$join->{aliases}} ) {
         push @{$aliases_by_tables->{$ref->[0]}}, $ref->[1];
     }
+    my %dublicates;
+    for my $table ( @{$join->{used_tables}} ) {
+        for my $col ( @{$sf->{d}{col_names}{$table}} ) {
+            ++$dublicates{$col};
+        }
+    }
     my $qt_columns = [];
     for my $table ( @{$join->{used_tables}} ) {
         for my $alias ( @{$aliases_by_tables->{$table}} ) {
             for my $col ( @{$sf->{d}{col_names}{$table}} ) {
-                my $col_qt = $ax->quote_col_qualified( [ undef, $alias, $col ] );
+                my $col_qt = $ax->quote_col_qualified( [ $alias, $col ] );
                 if ( any { $_ eq $col_qt } @$qt_columns ) {
                     next;
                 }
-                push @$qt_columns, $col_qt;
+                if ( $dublicates{$col} > 1 ) {
+                    push @$qt_columns, $col_qt . ' AS ' . $ax->quote_col_qualified( [ $alias . '_' . $col ] );
+                }
+                else {
+                    push @$qt_columns, $col_qt;
+                }
             }
         }
     }
@@ -197,6 +210,7 @@ sub __add_slave_with_join_condition {
             next SLAVE;
         }
         my $qt_slave;
+        my $slave_from_subquery;
         if ( $slave eq $from_subquery ) {
             require App::DBBrowser::Subqueries;
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -205,6 +219,7 @@ sub __add_slave_with_join_condition {
                 next SLAVE;
             }
             $qt_slave = $slave;
+            $slave_from_subquery = 1;
         }
         else {
             $slave =~ s/^-\s//;
@@ -218,8 +233,8 @@ sub __add_slave_with_join_condition {
         $join->{stmt} .= " " . $qt_slave;
         $join->{stmt} .= " AS " . $ax->quote_col_qualified( [ $slave_alias ] );
         push @{$join->{aliases}}, [ $slave, $slave_alias ];
-        if ( $slave eq $qt_slave ) {
-            $sf->{d}{col_names}{$slave} = $ax->column_names( $qt_slave . " AS " . $slave_alias );
+        if ( $slave_from_subquery ) {
+            $sf->{d}{col_names}{$slave} = $ax->column_names( $qt_slave . " AS " . $ax->quote_col_qualified( [ $slave_alias ] ) );
         }
         if ( $join_type ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $join, $tables, $slave, $slave_alias );
@@ -228,7 +243,6 @@ sub __add_slave_with_join_condition {
                 next SLAVE;
             }
         }
-        push @{$join->{used_tables}}, $slave;
         $ax->print_sql_info( $ax->get_sql_info( $join ) );
         return 1;
     }
@@ -246,15 +260,17 @@ sub __add_join_condition {
     my %avail_pk_cols;
     for my $used_table ( @{$join->{used_tables}} ) {
         for my $alias ( @{$aliases_by_tables->{$used_table}} ) {
-            next if $used_table eq $slave && $alias eq $slave_alias;
+            if ( $used_table eq $slave && $alias eq $slave_alias ) {
+                next;
+            }
             for my $col ( @{$sf->{d}{col_names}{$used_table}} ) {
-                $avail_pk_cols{ $alias . '.' . $col } = $ax->quote_col_qualified( [ undef, $alias, $col ] );
+                $avail_pk_cols{ $alias . '.' . $col } = $ax->quote_col_qualified( [ $alias, $col ] );
             }
         }
     }
     my %avail_fk_cols;
     for my $col ( @{$sf->{d}{col_names}{$slave}} ) {
-        $avail_fk_cols{ $slave_alias . '.' . $col } = $ax->quote_col_qualified( [ undef, $slave_alias, $col ] );
+        $avail_fk_cols{ $slave_alias . '.' . $col } = $ax->quote_col_qualified( [ $slave_alias, $col ] );
     }
     $join->{stmt} .= " ON";
     my $bu_stmt = $join->{stmt};

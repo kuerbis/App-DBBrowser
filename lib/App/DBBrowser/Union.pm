@@ -118,8 +118,9 @@ sub union_tables {
         }
     }
     my $qt_table = $ax->get_stmt( $union, 'Union', 'prepare' );
+    my $dummy_identifier = 'UNION_ALL_' . join( '_', @{$union->{used_tables}} ); ##
     # alias: required if mysql, Pg, ...
-    my $alias = $ax->alias( $union, 'union', '', "TABLES_UNION" );
+    my $alias = $ax->alias( $union, 'union', $dummy_identifier, $dummy_identifier );
     $qt_table .= " AS " . $ax->quote_col_qualified( [ $alias ] );
     # column names in the result-set of a UNION are taken from the first query.
     my $qt_columns = $union->{subselect_data}[0][1];

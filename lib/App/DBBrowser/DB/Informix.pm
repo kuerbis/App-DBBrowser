@@ -91,7 +91,6 @@ sub get_databases {
     for ( @databases ) {
         s/^dbi:$driver://;
         s/\s+\z//;
-        #if ( /\b(?:sysadmin|sysmaster|sysuser|sysutils)\b/i ) { ##
         if ( m[(?:^|/)(?:sysadmin|sysmaster|sysuser|sysutils)\b]i ) {
             push @sys_dbs, $_;
         }

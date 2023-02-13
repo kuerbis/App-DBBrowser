@@ -130,7 +130,7 @@ sub epoch_to_datetime {
             return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 23)";
         }
         else {
-            $interval /= 1_000;
+            $interval /= 1_000;                     # works with: $interval.0
             return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24))";
         }
     }

@@ -3,8 +3,6 @@ use warnings;
 use strict;
 use 5.014;
 
-$SIG{__WARN__} = sub { die @_ };
-
 our $VERSION = '2.315';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
@@ -852,8 +850,8 @@ With C<Firebird>, C<SIMILAR TO> is used instead of C<REGEXP>.
 
 =head3 Aliases
 
-If enabled, it is asked for an alias. If entered nothing, no alias is added except for joined tables, union tables,
-derived tables and aggregate functons which get then a default alias.
+If enabled, it is asked for an alias. If entered nothing, the default alias is used except for Subqueries in SELECT
+which don't have a default alias.
 
 =over
 

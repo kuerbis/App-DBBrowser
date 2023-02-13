@@ -89,7 +89,7 @@ sub select {
             }
             else {
                 for my $complex_col ( @$complex_columns ) {
-                    my $alias = $ax->alias( $sql, 'select', $complex_col );
+                    my $alias = $ax->alias( $sql, 'select', $complex_col, $sf->{d}{default_alias}{$complex_col} );
                     if ( defined $alias && length $alias ) {
                         $sql->{alias}{$complex_col} = $ax->quote_col_qualified( [ $alias ] );
                     }
@@ -190,7 +190,7 @@ sub __add_aggregate_substmt {
     my $default_alias;
     if ( $aggr eq 'COUNT(*)' ) {
         $sql->{aggr_cols}[$i] = $aggr;
-        $default_alias = 'COUNT *';
+        $default_alias = 'COUNT';
     }
     else {
         $aggr =~ s/\(\X\)\z//;
@@ -210,7 +210,7 @@ sub __add_aggregate_substmt {
             }
             if ( $all_or_distinct eq $sf->{distinct} ) {
                 $sql->{aggr_cols}[$i] .= $sf->{distinct} . " ";
-                $default_alias .= ' ' .  $sf->{distinct};
+                $default_alias .= '_' .  $sf->{distinct};
                 $is_distinct = 1;
             }
         }
@@ -225,7 +225,7 @@ sub __add_aggregate_substmt {
             return;
         }
         my $qc = quotemeta $sf->{d}{identifier_quote_char};
-        $default_alias .= ' ' . $qt_col =~ s/^$qc(.+)$qc\z/$1/r;
+        $default_alias .= '_' . $qt_col =~ s/^$qc(.+)$qc\z/$1/r;
         if ( $aggr =~ /^$GROUP_CONCAT\z/ ) {
             if ( $sf->{i}{driver} eq 'Pg' ) {
                 # Pg, STRING_AGG: separator mandatory

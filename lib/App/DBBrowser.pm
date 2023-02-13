@@ -16,7 +16,6 @@ use File::Which    qw( which );
 
 use Term::Choose         qw();
 use Term::Choose::Screen qw( clear_screen );
-use Term::TablePrint     qw();
 
 use App::DBBrowser::Auxil;
 #use App::DBBrowser::CreateDropAttach; # required
@@ -565,7 +564,7 @@ sub __derived_table {
     if ( ! defined $qt_table ) {
         return;
     }
-    my $alias = $ax->alias( $tmp, 'derived_table', $qt_table, 'From_SQ' );
+    my $alias = $ax->alias( $tmp, 'derived_table', $qt_table, 'Derived_Table' );
     $qt_table .= " AS " . $ax->quote_col_qualified( [ $alias ] );
     $tmp->{table} = $qt_table;
     my $columns = $ax->column_names( $qt_table );

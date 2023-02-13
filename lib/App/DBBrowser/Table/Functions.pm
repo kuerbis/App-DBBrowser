@@ -15,6 +15,7 @@ use Term::Choose::Util     qw( unicode_sprintf get_term_height get_term_width );
 use Term::Form             qw();
 use Term::Form::ReadLine   qw();
 
+use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::Functions::SQL;
 
 
@@ -64,7 +65,7 @@ sub __choose_columns {
 
 
 sub __get_info_rows {
-    my ( $sf, $chosen_cols, $func, $col_with_func, $incomplete ) = @_;
+    my ( $sf, $chosen_cols, $func, $function_stmts, $incomplete ) = @_;
     my @tmp = ( $sf->__func_info( $func ) );
     my ( $prompt, $subseq_tab );
     if ( @$chosen_cols > 1 ) {
@@ -77,8 +78,8 @@ sub __get_info_rows {
     }
     push @tmp, line_fold( $prompt . join( ', ', @$chosen_cols ), get_term_width, { subseq_tab => $subseq_tab, join => 0 } );
     push @tmp, '';
-    if ( defined $col_with_func ) {
-        push @tmp, @$col_with_func;
+    if ( defined $function_stmts ) {
+        push @tmp, @$function_stmts;
     }
     if ( defined $incomplete ) {
         push @tmp, $incomplete;
@@ -178,70 +179,73 @@ sub col_function {
         ) {
             $multi_col = 1;
         }
-        my $col_with_func = [];
+        my $function_stmts = [];
         if ( $func =~ /^(?:$joined_simple_functions)\z/ ) {
-            $col_with_func = $sf->__func_with_col( $sql, $cols, $func, $multi_col );
+            $function_stmts = $sf->__func_with_col( $sql, $cols, $func, $multi_col );
         }
         elsif ( $func eq $Cast ) {
-            $col_with_func = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Data type: ', [] );
+            $function_stmts = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Data type: ', [] );
         }
         elsif ( $func =~ /^(?:$Round|$Truncate)\z/ ) {
-            $col_with_func = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Decimal places: ', [ 0 .. 9 ] );
+            $function_stmts = $sf->__func_with_col_and_arg( $sql, $cols, $func, $multi_col, 'Decimal places: ', [ 0 .. 9 ] );
         }
         elsif ( $func eq $Concat ) {
-            $col_with_func = $sf->__func_Concat( $sql, $cols, $func, $multi_col );
+            $function_stmts = $sf->__func_Concat( $sql, $cols, $func, $multi_col );
         }
         elsif ( $func eq $Replace ) {
-            $col_with_func = $sf->__func_Replace( $sql, $cols, $func, $multi_col );
+            $function_stmts = $sf->__func_Replace( $sql, $cols, $func, $multi_col );
         }
 
         elsif ( $func eq $Epoch_to_Date || $func eq $Epoch_to_DateTime ) {
-            $col_with_func = $sf->__func_Date_Time( $sql, $cols, $func, $multi_col );
+            $function_stmts = $sf->__func_Date_Time( $sql, $cols, $func, $multi_col );
         }
-        if ( ! $col_with_func ) {
+        if ( ! $function_stmts ) {
             next CHOOSE_FUNCTION;
         }
-        return $col_with_func;
+        return $function_stmts;
     }
 }
 
 
 sub __func_with_col {
     my ( $sf, $sql, $cols, $func, $multi_col ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
     my $chosen_cols = $sf->__choose_columns( $func, $cols, $multi_col );
     if ( ! defined $chosen_cols ) {
         return;
     }
-    my $col_with_func = [];
+    my $function_stmts = [];
     for my $qt_col ( @$chosen_cols ) {
-        push @$col_with_func, $fsql->function_with_col( $func, $qt_col );
+        push @$function_stmts, $fsql->function_with_col( $func, $qt_col );
+        $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . '_' . $ax->unquote_identifier( $qt_col );
     }
-    return $col_with_func;
+    return $function_stmts;
 }
 
 
 sub __func_with_col_and_arg {
     my ( $sf, $sql, $cols, $func, $multi_col, $prompt, $history ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $chosen_cols = $sf->__choose_columns( $func, $cols, $multi_col );
     if ( ! defined $chosen_cols ) {
         return;
     }
-    my @local_history;
-    my $col_with_func = [];
+    my @tmp_history;
+    my $function_stmts = [];
     my $value;
     my $i = 0;
 
     COLUMN: while ( 1 ) {
         my $qt_col = $chosen_cols->[$i];
         my $incomplete = $func . '(' . $qt_col . ',?)';
-        my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $col_with_func, $incomplete );
+        my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $function_stmts, $incomplete );
         my $info = join "\n", @tmp_info;
         my $readline = $tr->readline(
             $prompt,
-            { info => $info, history => [ @local_history, @{$history//[]} ] }
+            { info => $info, history => [ @tmp_history, @{$history//[]} ] }
         );
         if ( ! length $readline ) {
             if ( $i == 0 ) {
@@ -249,27 +253,28 @@ sub __func_with_col_and_arg {
             }
             else {
                 $i--;
-                pop @$col_with_func;
+                pop @$function_stmts;
                 next COLUMN;
             }
         }
         else {
             $value = $readline;
-            @local_history = ( uniq $value, @local_history );
-            push @$col_with_func, $fsql->function_with_col_and_arg( $func, $qt_col, $value );
+            @tmp_history = ( uniq $value, @tmp_history );
+            push @$function_stmts, $fsql->function_with_col_and_arg( $func, $qt_col, $value );
+            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . '_' . $ax->unquote_identifier( $qt_col );
             $i++;
             if ( $i > $#$chosen_cols ) {
-                my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $col_with_func );
+                my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $function_stmts );
                 my $info = join "\n", @tmp_info;
                 my $ok = $sf->__confirm_all( $chosen_cols, $info );
                 if ( ! $ok ) {
                     $value = undef;
-                    $col_with_func = [];
+                    $function_stmts = [];
                     $i = 0;
                     next COLUMN;
                 }
                 else {
-                    return $col_with_func;
+                    return $function_stmts;
                 }
             }
         }
@@ -279,6 +284,7 @@ sub __func_with_col_and_arg {
 
 sub __func_Concat {
     my ( $sf, $sql, $cols, $func, $multi_col ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $subset = $sf->__choose_columns( $func, $cols, $multi_col );
@@ -295,13 +301,16 @@ sub __func_Concat {
     if ( ! defined $sep ) {
         return;
     }
-    my $col_with_func = [ $fsql->concatenate( $subset, $sep ) ];
-    return $col_with_func;
+    my $function_stmts = [ $fsql->concatenate( $subset, $sep ) ];
+    my $unquoted_subset = [ map { $ax->unquote_identifier( $_ ) } @$subset ];
+    $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . '_' . join( '_', @$unquoted_subset );
+    return $function_stmts;
 }
 
 
 sub __func_Replace {
     my ( $sf, $sql, $cols, $func, $multi_col ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $fields = [
@@ -312,13 +321,13 @@ sub __func_Replace {
     if ( ! defined $chosen_cols ) {
         return;
     }
-    my $col_with_func = [];
+    my $function_stmts = [];
     my $i = 0;
 
     COLUMN: while ( 1 ) {
         my $qt_col = $chosen_cols->[$i];
         my $incomplete = $func . '(' . $qt_col . ',?,?)';
-        my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $col_with_func, $incomplete );
+        my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $function_stmts, $incomplete );
         my $info = join "\n", @tmp_info;
         my $form = $tf->fill_form(
             $fields,
@@ -331,18 +340,20 @@ sub __func_Replace {
             }
             else {
                 $i--;
-                pop @$col_with_func;
+                pop @$function_stmts;
                 next COLUMN;
             }
         }
         else {
             my $string_to_replace =  $sf->{d}{dbh}->quote( $form->[0][1] );
             my $replacement_string = $sf->{d}{dbh}->quote( $form->[1][1] );
-            push @$col_with_func, $fsql->replace( $qt_col, $string_to_replace, $replacement_string );
+            push @$function_stmts, $fsql->replace( $qt_col, $string_to_replace, $replacement_string );
+            my $func_tail = sprintf "_%s_%s_%s", $string_to_replace, $replacement_string, $ax->unquote_identifier( $qt_col );
+            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . $func_tail;
             $fields = $form;
             $i++;
             if ( $i > $#$chosen_cols ) {
-                my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $col_with_func );
+                my @tmp_info = $sf->__get_info_rows( $chosen_cols, $func, $function_stmts );
                 my $info = join "\n", @tmp_info;
                 my $ok = $sf->__confirm_all( $chosen_cols, $info );
                 if ( ! $ok ) {
@@ -350,12 +361,12 @@ sub __func_Replace {
                         [ 'from str', ],
                         [ 'to   str', ],
                     ];
-                    $col_with_func = [];
+                    $function_stmts = [];
                     $i = 0;
                     next COLUMN;
                 }
                 else {
-                    return $col_with_func;
+                    return $function_stmts;
                 }
             }
         }
@@ -376,44 +387,35 @@ sub __func_Date_Time {
     my $maxrows = 30;
 
     for my $qt_col ( @$chosen_cols ) {
-        my $stmt = $sf->__select_where_not_null_stmt( $sql, $qt_col, $qt_col );
+        my $stmt = $sf->__select_epochs_stmt( $sql, $qt_col, $qt_col );
         my $epochs = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => 100 }, @{$sql->{where_args}//[]} );
         $epochs_all_cols->{$qt_col} = $epochs;
         $key_length = ( minmax $key_length, print_columns( $qt_col ) )[1];
     }
     $key_length = ( minmax 30, $key_length )[0];
-    my ( $col_with_func, $all_first_dates ) = $sf->__get_auto_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
+    my ( $function_stmts, $all_first_dates ) = $sf->__get_auto_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
     my $manual = 0;
 
     while ( 1 ) {
-        if ( ! defined $col_with_func ) {
-            ( $col_with_func, $all_first_dates ) = $sf->__get_manual_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
-            if ( ! defined $col_with_func ) {
+        if ( ! defined $function_stmts ) {
+            ( $function_stmts, $all_first_dates ) = $sf->__get_manual_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
+            if ( ! defined $function_stmts ) {
                 return;
             }
             $manual = 1;
         }
-        my $filtered_chosen_cols = [ @$chosen_cols ];
-
-        for my $i ( reverse( 0 .. $#$chosen_cols ) ) {
-            if ( ! defined $col_with_func->[$i] ) {
-                splice( @$col_with_func,        $i, 1 );
-                splice( @$all_first_dates,      $i, 1 );
-                splice( @$filtered_chosen_cols, $i, 1 );
-            }
-        }
-        if ( ! @$col_with_func ) {
+        if ( ! @$function_stmts ) {
             return;
         }
         elsif ( @$chosen_cols == 1 && $manual ) {
-            return $col_with_func;
+            return $function_stmts;
         }
         else {
             my @tmp_info = @top;
             my $max_info = 20;
 
-            for my $i ( 0 .. $#$filtered_chosen_cols ) {
-                my $qt_col = $filtered_chosen_cols->[$i];
+            for my $i ( 0 .. $#$chosen_cols ) {
+                my $qt_col = $chosen_cols->[$i];
                 my $first_dates = $all_first_dates->[$i];
                 my $info_row = unicode_sprintf( $qt_col, $key_length, { right_justify => 0 } ) . ': ';
                 if ( @$first_dates > $max_info ) {
@@ -431,19 +433,19 @@ sub __func_Date_Time {
                 { %{$sf->{i}{lyt_v}}, info => $info, layout => 2, keep => 3 }
             );
             if ( ! defined $choice ) {
-                $col_with_func = undef;
+                $function_stmts = undef;
                 $all_first_dates = undef;
                 next;
             }
             else {
-                return $col_with_func;
+                return $function_stmts;
             }
         }
     }
 }
 
 
-sub __select_where_not_null_stmt {
+sub __select_epochs_stmt {
     my ( $sf, $sql, $select_col, $where_col ) = @_;
     my $stmt;
     if ( length $sql->{where_stmt} ) {
@@ -465,16 +467,19 @@ sub __select_where_not_null_stmt {
 
 
 sub __interval_to_converted_epoch { #
-    my ( $sf, $sql, $func, $maxrows, $qt_col, $div ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
+    my ( $sf, $sql, $func, $maxrows, $qt_col, $interval ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $converted_epoch;
     if ( $func eq 'Epoch_to_DateTime' ) {
-        $converted_epoch = $fsql->epoch_to_datetime( $qt_col, $div );
+        $converted_epoch = $fsql->epoch_to_datetime( $qt_col, $interval );
+        $sf->{d}{default_alias}{$converted_epoch} = 'to_datetime_' . $ax->unquote_identifier( $qt_col );
     }
     else {
-        $converted_epoch = $fsql->epoch_to_date( $qt_col, $div );
+        $converted_epoch = $fsql->epoch_to_date( $qt_col, $interval );
+        $sf->{d}{default_alias}{$converted_epoch} = 'to_date_' . $ax->unquote_identifier( $qt_col );
     }
-    my $stmt = $sf->__select_where_not_null_stmt( $sql, $converted_epoch, $qt_col );
+    my $stmt = $sf->__select_epochs_stmt( $sql, $converted_epoch, $qt_col );
     my $first_dates = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => $maxrows }, @{$sql->{where_args}//[]} );
     return $converted_epoch, $first_dates;
 }
@@ -482,7 +487,7 @@ sub __interval_to_converted_epoch { #
 
 sub __get_auto_interval {
     my ( $sf, $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows ) = @_;
-    my $col_with_func = [];
+    my $function_stmts = [];
     my $all_first_dates = [];
     if ( ! eval {
         for my $qt_col ( @$chosen_cols ) {
@@ -498,19 +503,19 @@ sub __get_auto_interval {
             if ( keys %count != 1 ) {
                 return;
             }
-            my $interval = ( keys %count )[0];
-            my $div;
-            if ( $interval <= 10 ) {
-                $div = 1;
+            my $epoch_w = ( keys %count )[0];
+            my $interval;
+            if ( $epoch_w <= 10 ) {
+                $interval = 1;
             }
-            elsif ( $interval <= 13 ) {
-                $div = 1_000;
+            elsif ( $epoch_w <= 13 ) {
+                $interval = 1_000;
             }
             else {
-                $div = 1_000_000;
+                $interval = 1_000_000;
             }
-            my ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $div );
-            push @$col_with_func, $converted_epoch;
+            my ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
+            push @$function_stmts, $converted_epoch;
             push @$all_first_dates, $first_dates;
         }
         1 }
@@ -518,7 +523,7 @@ sub __get_auto_interval {
         return;
     }
     else {
-        return $col_with_func, $all_first_dates;
+        return $function_stmts, $all_first_dates;
     }
 }
 
@@ -527,7 +532,7 @@ sub __get_manual_interval {
     my ( $sf, $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows  ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @top = ( $sf->__get_info_rows( $chosen_cols, $func ) );
-    my $col_with_func = [];
+    my $function_stmts = [];
     my $all_first_dates = [];
     my $i = 0;
 
@@ -558,26 +563,29 @@ sub __get_manual_interval {
             );
             if ( ! $idx ) {
                 if ( $i == 0 ) {
+                    delete @{$sf->{d}{default_alias}}{@$function_stmts};
                     return;
                 }
                 else {
                     $i--;
-                    pop @$col_with_func;
+                    pop @$function_stmts;
                     pop @$all_first_dates;
                     next COLUMN;
                 }
             }
-            my $div = $epoch_formats->[$idx-@pre][1];
+            my $interval = $epoch_formats->[$idx-@pre][1];
             my ( $converted_epoch, $first_dates );
             @tmp_info = ( @top, $qt_col . ':' );
             if ( ! eval {
-                ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $div );
+                ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
                 if ( ! $converted_epoch || ! $first_dates ) {
                     die "No results!";
                 }
                 1 }
             ) {
-                push @tmp_info, $@;
+                my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+                $ax->print_error_message( $@ );
+                next CHOOSE_INTERVAL;
             }
             else {
                 push @tmp_info, map { defined ? $_ : 'undef' } @{$first_dates}[0 .. $info_rows_count - 1];
@@ -592,10 +600,10 @@ sub __get_manual_interval {
                 next CHOOSE_INTERVAL;
             }
             elsif ( $choice eq $sf->{i}{_confirm} ) {
-                push @$col_with_func, $converted_epoch;
+                push @$function_stmts, $converted_epoch;
                 push @$all_first_dates, $first_dates;
                 if ( $i == $#$chosen_cols ) {
-                    return $col_with_func, $all_first_dates;
+                    return $function_stmts, $all_first_dates;
                 }
                 else {
                     $i++;
