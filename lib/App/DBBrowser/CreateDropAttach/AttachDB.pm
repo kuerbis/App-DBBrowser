@@ -104,7 +104,7 @@ sub attach_db {
                 }
                 $sf->{d}{db_attached} = 1;
                 my $h_ref = $ax->read_json( $sf->{i}{f_attached_db} ) // {};
-                $h_ref->{$sf->{d}{db}} = [ sort( @$attached_db ) ]; # format ##
+                $h_ref->{$sf->{d}{db}} = [ sort( @$attached_db ) ]; ## format
                 $ax->write_json( $sf->{i}{f_attached_db}, $h_ref );
                 return 1;
             }

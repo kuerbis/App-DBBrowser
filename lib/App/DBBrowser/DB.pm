@@ -71,11 +71,11 @@ sub get_db_handle {
 sub get_schemas {
     my ( $sf, $dbh, $db, $is_system_db ) = @_;
     my ( $user_schemas, $sys_schemas );
+    my $driver = $dbh->{Driver}{Name}; #
     if ( $sf->{Plugin}->can( 'get_schemas' ) ) {
-        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db ); ##
+        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db );
     }
     else {
-        my $driver = $dbh->{Driver}{Name}; #
         if ( $driver eq 'SQLite' ) {
             $user_schemas = [ 'main' ]; # [ undef ];
         }
@@ -85,14 +85,20 @@ sub get_schemas {
             # You can substitute the keyword SCHEMA instead of DATABASE in MySQL SQL syntax,
             $user_schemas = [ $db ];
         }
-        elsif ( $driver eq 'Informix' ) {
-            ( $user_schemas, $sys_schemas ) = $sf->__informix_schemas( $dbh );
+        elsif ( $driver eq 'Firebird' ) {
+            $user_schemas = [];
         }
+#        elsif ( $driver eq 'Informix' ) { ##
+#            ( $user_schemas, $sys_schemas ) = $sf->__informix_schemas( $dbh );
+#        }
         else {
             my $table_schem;
             if ( $driver eq 'Pg' ) {
                 # 'pg_schema' holds the unquoted name of the schema
                 $table_schem = 'pg_schema';
+            }
+            elsif ( $driver eq 'Informix' ) {
+                $table_schem = 'table_owner';
             }
             elsif ( $driver eq 'Sybase' ) {
                 # table_info
@@ -108,6 +114,9 @@ sub get_schemas {
             elsif ( $driver eq 'DB2' ) {
                 $regex_sys = qr/^(?:SYS|SQLJ$|NULLID$)/;
             }
+            elsif ( $driver eq 'Informix' ) {
+                $regex_sys = qr/^informix\z/i;
+            }
             my $sth = $dbh->table_info( undef, '%', '', '' );
             my $info = $sth->fetchall_hashref( $table_schem );
             for my $schema ( sort keys %$info ) {
@@ -122,6 +131,12 @@ sub get_schemas {
     }
     $user_schemas //= [];
     $sys_schemas //= [];
+    if ( $driver eq 'Pg' && ! @$user_schemas ) {
+        # 5.9.2. The Public Schema
+        # In the previous sections we created tables without specifying any schema names. By default such tables
+        # (and other objects) are automatically put into a schema named “public”. Every new database contains such a schema.
+        $user_schemas = [ 'public' ];
+    }
     if ( $is_system_db ) {
         return [], [ @$user_schemas, @$sys_schemas ];
     }
@@ -177,10 +192,10 @@ sub get_databases {
 sub tables_info { # not public
     my ( $sf, $dbh, $schema, $is_system_schema, $has_attached_db ) = @_;
     my $driver = $sf->get_db_driver();
-    if ( $driver eq 'Informix' ) {
-        return $sf->__informix_tables_info( $dbh, $schema, $is_system_schema );
-    }
-    my ( $table_cat, $table_schem, $table_name );
+#    if ( $driver eq 'Informix' ) { ##
+#        return $sf->__informix_tables_info( $dbh, $schema, $is_system_schema );
+#    }
+    my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {
         $table_cat   = 'TABLE_CAT';
         $table_schem = 'pg_schema';
@@ -192,22 +207,25 @@ sub tables_info { # not public
         # pg_table: the unquoted name of the table
         # ...
     }
+    elsif ( $driver eq 'Informix' ) {
+        $table_cat   = 'table_qualifier';
+        $table_schem = 'table_owner';
+        $table_name  = 'table_name';
+        $table_type  = 'table_type';
+    }
     elsif ( $driver eq 'Sybase' ) {
-        # table_info
         $table_cat   = 'TABLE_QUALIFIER';
         $table_schem = 'TABLE_OWNER';
         $table_name  = 'TABLE_NAME';
+        $table_type  = 'TABLE_TYPE';
     }
     else {
         $table_cat   = 'TABLE_CAT';
         $table_schem = 'TABLE_SCHEM';
         $table_name  = 'TABLE_NAME';
+        $table_type  = 'TABLE_TYPE';
     }
-    # TABLE_CAT:
-    # DBD::Pg: The name of the database that the table or view is in (always the current database).
-    # DBD::Sybase: TABLE_CAT = TABLE_QUALIFIER (database name)
-    # The others: nothing
-    my @keys = ( $table_cat, $table_schem, $table_name, 'TABLE_TYPE' );
+    my @keys = ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'SQLite' && $has_attached_db ) {
         # If a SQLite database has databases attached, set $schema to `undef`.
         # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
@@ -219,14 +237,18 @@ sub tables_info { # not public
     my ( @user_table_keys, @sys_table_keys );
     my $tables_info = {};
     for my $info_table ( @$info_tables ) {
-        if ( $info_table->{TABLE_TYPE} eq 'INDEX' ) {
+        if ( $driver eq 'Informix' && $schema ne $info_table->{$table_schem} ) {
+            # Informix: `table_info` returns always everything.
+            next;
+        }
+        if ( $info_table->{$table_type} eq 'INDEX' ) {
             next;
         }
         # The table name in $table_key is used in the tables-menu but not in SQL code.
         # To get the table names for SQL code it is used the 'quote_table' routine in Auxil.pm.
         my $table_key;
         if ( $driver eq 'SQLite' && ! defined $schema ) {
-            # The $schema is `undef` if a SQLite database has attached databases.
+            # attached databases
             next if $info_table->{$table_name} eq 'sqlite_temp_master'; # 'create temp table' not supported
             if ( $info_table->{$table_schem} =~ /^main\z/i ) {
                 $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
@@ -243,7 +265,7 @@ sub tables_info { # not public
             push @sys_table_keys, $table_key;
         }
         else {
-            if ( $info_table->{TABLE_TYPE} =~ /^SYSTEM/ || ( $driver eq 'SQLite' && $info_table->{TABLE_NAME} =~ /^sqlite_/ ) ) {
+            if ( $info_table->{$table_type} =~ /^SYSTEM/ || ( $driver eq 'SQLite' && $info_table->{$table_name} =~ /^sqlite_/ ) ) {
                 push @sys_table_keys, $table_key;
             }
             else {
@@ -256,53 +278,62 @@ sub tables_info { # not public
 }
 
 
-sub __informix_schemas {
-    my ( $sf, $dbh ) = @_;
-    my $stmt = qq{SELECT owner FROM informix.systables GROUP BY owner};
-    my $owners = $dbh->selectcol_arrayref( $stmt, {} );
-    my @user_schemas;
-    my @sys_schemas;
-    for ( @$owners ) {
-        if ( ! /^(?:\p{L}|_)/ ) {
-            next;
-        }
-        elsif ( /^informix/i ) {
-            push @sys_schemas, $_;
-        }
-        else {
-            push @user_schemas, $_;
-        }
-    }
-    return [ sort @user_schemas ], [ sort @sys_schemas ];
-}
+#sub __informix_schemas { ##
+#    my ( $sf, $dbh ) = @_;
+#    my $stmt = qq{SELECT owner FROM informix.systables GROUP BY owner};
+#    my $owners = $dbh->selectcol_arrayref( $stmt, {} );
+#    my @user_schemas;
+#    my @sys_schemas;
+#    for ( @$owners ) {
+#        if ( ! /^(?:\p{L}|_)/ ) {
+#            next;
+#        }
+#        elsif ( /^informix/i ) {
+#            push @sys_schemas, $_;
+#        }
+#        else {
+#            push @user_schemas, $_;
+#        }
+#    }
+#    return [ sort @user_schemas ], [ sort @sys_schemas ];
+#}
 
 
-sub __informix_tables_info {
-    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
-    my $stmt = qq{SELECT owner, tabname, tabtype FROM informix.systables WHERE owner = ? ORDER BY tabname};
-    my $raw_info = $dbh->selectall_arrayref( $stmt, { Slice => {} }, ( $schema ) );
-    my %map_table_type = (
-        T => 'TABLE',       E => 'EXTERNAL TABLE',      V => 'VIEW',
-        Q => 'SEQUENCE',    P => 'PRIVATE SYNONYM',     S => 'PUBLIC SYNONYM',
-    );
-    my $tables_info = {};
-    my $user_table_keys = [];
-    my $sys_table_keys = [];
-    for ( @$raw_info ) {
-        #next if $_->{tabtype} eq 'Q';
-        $tables_info->{$_->{tabname}} = [ undef, $_->{owner}, $_->{tabname}, $map_table_type{$_->{tabtype}} ];
-        if ( $is_system_schema ) {
-            push @$sys_table_keys, $_->{tabname};
-        }
-        else {
-            push @$user_table_keys, $_->{tabname};
-        }
-    }
-    return $tables_info, $user_table_keys, $sys_table_keys;
-}
+#sub __informix_tables_info { ##
+#    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
+#    my $stmt = qq{SELECT owner, tabname, tabtype FROM informix.systables WHERE owner = ? ORDER BY tabname};
+#    my $raw_info = $dbh->selectall_arrayref( $stmt, { Slice => {} }, ( $schema ) );
+#    my %map_table_type = (
+#        T => 'TABLE',       E => 'EXTERNAL TABLE',      V => 'VIEW',
+#        Q => 'SEQUENCE',    P => 'PRIVATE SYNONYM',     S => 'PUBLIC SYNONYM',
+#    );
+#    my $tables_info = {};
+#    my $user_table_keys = [];
+#    my $sys_table_keys = [];
+#    for ( @$raw_info ) {
+#        #next if $_->{tabtype} eq 'Q';
+#        $tables_info->{$_->{tabname}} = [ undef, $_->{owner}, $_->{tabname}, $map_table_type{$_->{tabtype}} ];
+#        if ( $is_system_schema ) {
+#            push @$sys_table_keys, $_->{tabname};
+#        }
+#        else {
+#            push @$user_table_keys, $_->{tabname};
+#        }
+#    }
+#    return $tables_info, $user_table_keys, $sys_table_keys;
+#}
 
 
 
+
+# TABLE_CAT:
+# DBD::Pg: The name of the database that the table or view is in (always the current database).
+# DBD::Sybase: TABLE_CAT = TABLE_QUALIFIER (database name)
+# DBD::mysql and DBD::MariaDB: Empty, because MySQL doesn't support catalogs (yet) ''
+# DBD::Firebird: Note that Firebird implementations do not presently support the DBI concepts of 'catalog'
+#                and 'schema', so these parameters are effectively ignored.
+# DBD::SQLite: Always NULL, as SQLite does not have the concept of catalogs.
+# DBD::DB2: catalog ignored in `table_info`
 
 
 # Oracle and Sybase untested

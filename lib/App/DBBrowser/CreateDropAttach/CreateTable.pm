@@ -436,9 +436,9 @@ sub __edit_column_types { ##
     else {
         $fields = [ map { [ $_, '' ] } @{$sql->{insert_into_cols}} ];
     }
-    my $read_only = [];
+    my $read_only = []; ##
     if ( length $sf->{col_auto} ) {
-        unshift @$fields, [ $ax->quote_col_qualified( [ $sf->{col_auto} ] ), $sf->{constraint_auto} ];
+        unshift @$fields, [ $ax->prepare_identifier( $sf->{col_auto} ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
     my $info = $ax->get_sql_info( $sql );
@@ -453,7 +453,7 @@ sub __edit_column_types { ##
         return;
     }
     else {
-        no warnings 'uninitialized';
+        no warnings 'uninitialized'; ##
         $sql->{create_table_cols} = [ map { join ' ', @$_ }  @$col_name_and_type ];
     }
     return $data_types;

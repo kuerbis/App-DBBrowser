@@ -305,6 +305,34 @@ sub alias {
 }
 
 
+sub prepare_identifier {
+    my ( $sf, @id ) = @_;
+    if ( $sf->{o}{G}{quote_identifiers} ) {
+        my $quote = $sf->{d}{identifier_quote_char};
+        for ( @id ) {
+            if ( ! defined ) {
+                next;
+            }
+            s/$quote/$quote$quote/g;
+            $_ = qq{$quote$_$quote};
+        }
+    }
+#    my $catalog = ( @id >= 3 ) ? shift @id : undef;        # catalog not used (if used, uncomment also catalog_location and catalog_name_sep)
+    my $quoted_id = join '.', grep { defined } @id;
+#    if ( $catalog ) {
+#        if ( $quoted_id ) {
+#            $quoted_id = ( $sf->{d}{catalog_location} == 2 )
+#                ? $quoted_id . $sf->{d}{catalog_name_sep} . $catalog
+#                : $catalog   . $sf->{d}{catalog_name_sep} . $quoted_id;
+#        } else {
+#            $quoted_id = $catalog;
+#        }
+#    }
+    return $quoted_id;
+    # quote_identifier  DBI.pm
+}
+
+
 sub quote_table {
     my ( $sf, $table_info ) = @_;
     my @idx;
@@ -322,35 +350,13 @@ sub quote_table {
     else {
         @idx = ( 2 );
     }
-    if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $sf->{d}{dbh}->quote_identifier( @{$table_info}[@idx] );
-    }
-    else {
-        # if @idx with catalog (0,1,2): write code which handles catalog (see `quote_identifier`).
-        return join( '.', grep { length } @{$table_info}[@idx] );
-    }
-}
-
-
-sub quote_col_qualified {
-    my ( $sf, $col_identifier_parts ) = @_;
-    if ( $sf->{o}{G}{quote_identifiers} ) {
-        return $sf->{d}{dbh}->quote_identifier( @$col_identifier_parts );
-    }
-    else {
-        return join( '.', grep { length } @$col_identifier_parts );
-    }
+    return $sf->prepare_identifier( @{$table_info}[@idx] );
 }
 
 
 sub quote_cols {
     my ( $sf, $cols ) = @_;
-    if ( $sf->{o}{G}{quote_identifiers} ) {
-        return [ map { $sf->{d}{dbh}->quote_identifier( $_ ) } @$cols ];
-    }
-    else {
-        return [ @$cols ];
-    }
+    return [ map { $sf->prepare_identifier( $_ ) } @$cols ];
 }
 
 
@@ -432,7 +438,7 @@ sub sql_limit {
 sub tables_column_names_and_types {
     my ( $sf, $table_keys ) = @_;
     my ( $col_names, $col_types );
-    # without `LIMIT` 0 slower with big tables: mysql, MariaDB and Pg
+    # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     for my $table_k ( @$table_keys ) {
         if ( ! eval {
             my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $sf->quote_table( $sf->{d}{tables_info}{$table_k} ) . $sf->sql_limit( 0 ) );

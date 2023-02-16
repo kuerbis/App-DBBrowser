@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+2.316    2023-02-00
+        - Update parse-mode 'Template'.
+        - Update plugins 'mysql', 'MariaDB' and 'Pg'.
+        - Informix: use 'table_info'.
+        - New method 'prepare_identifier'.
+
 2.315    2023-02-13
         - Added Informix-plugin.
         - Bugfix 'is_system_schema'.

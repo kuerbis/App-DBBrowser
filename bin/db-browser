@@ -3,6 +3,8 @@ use warnings;
 use strict;
 use 5.014;
 
+$SIG{__WARN__} = sub { die @_ };
+
 our $VERSION = '2.315';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
@@ -223,7 +225,7 @@ enabled in L</Extensions>.
 I<Attache DB> is available for C<SQLite> databases. I<Attach DB> can be used to attach databases to the current
 database.
 
-By selecting the prompt line of this menu (the database name) one can change the I<Source type of input data> settings.
+By selecting the prompt line of this menu (the database name) one can change the I<Source type> settings.
 
 =head3 Tables Entries
 
@@ -281,7 +283,7 @@ Delete
 
 See L</WRITE ACCESS>. These entries are available if enabled in L</Extensions>.
 
-By selecting the prompt line of this menu (I<Choose SQL type:>) one can change the I<Source type of input data> settings.
+By selecting the prompt line of this menu (I<Choose SQL type:>) one can change the I<Source type> settings.
 
 =head3 Print TABLE
 
@@ -338,11 +340,11 @@ L</Import>.
 
 =head3 Create Table
 
-If the option I<Source type of input data> is set to I<menu>, selecting I<Create Table> opens a sub-menu where one can
-choose the type of the data source. If I<Source type of input data> is set to I<plain> or I<file>, the set data source
+If the option I<Source type> is set to I<menu>, selecting I<Create Table> opens a sub-menu where one can
+choose the type of the data source. If I<Source type> is set to I<plain> or I<file>, the set data source
 type is used automatically without showing a menu.
 
-For the meaning of the different data source types see L<Source type of input data>.
+For the meaning of the different data source types see L<Source type>.
 
 If the data has been read from a file, the user can apply different input filters (See L<Input filters>).
 
@@ -400,11 +402,11 @@ L</Import>.
 
 =head3 Insert Into
 
-If the option I<Source type of input data> is set to I<menu>, selecting I<Insert Into> opens a sub-menu where one can
-choose the type of the data source. If I<Source type of input data> is set to I<plain> or I<file>, the set data source
+If the option I<Source type> is set to I<menu>, selecting I<Insert Into> opens a sub-menu where one can
+choose the type of the data source. If I<Source type> is set to I<plain> or I<file>, the set data source
 type is used without showing a menu.
 
-For the meaning of the different data source types see L<Source type of input data>.
+For the meaning of the different data source types see L<Source type>.
 
 After the data has been read the user can apply different input filters (See L<Input filters>).
 
@@ -423,7 +425,7 @@ Delete records. The affected records are shown before the user confirms the dele
 
 =head2 Data Input
 
-=head3 Source type
+=head3 Data source
 
 =over
 
@@ -447,7 +449,7 @@ automatically.
 
 After a directory has been chosen a sub-menu is opened where one can choose the source file.
 
-If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible the
+If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible to
 change the source directory in this sub-menu by selecting I<Change dir>.
 
 =back
@@ -1024,8 +1026,10 @@ Template
 
 Uses C<unpack> with the C<A> character to break up input lines.
 
-C<unpack> used with C<A> strips trailing whitespace. For leading whitespace to user has the option to remove it or not.
-Any remaining column separators can be removed with the I<Search & Replace> filter.
+C<unpack> used with C<A> strips trailing whitespace automatically. For leading whitespace to user has the option to
+remove it or not.
+
+A column width is calculated without including the column separator width.
 
 If the row length is greater than the screen width, make notes of the number of columns and the length of each column
 before using I<Template>.
@@ -1036,7 +1040,7 @@ Advantages:
 
 =item
 
-Good for input with fixed-columns-length.
+Good for fixed column length inputs containing only single width characters.
 
 =back
 

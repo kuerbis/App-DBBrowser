@@ -91,7 +91,7 @@ sub select {
                 for my $complex_col ( @$complex_columns ) {
                     my $alias = $ax->alias( $sql, 'select', $complex_col, $sf->{d}{default_alias}{$complex_col} );
                     if ( defined $alias && length $alias ) {
-                        $sql->{alias}{$complex_col} = $ax->quote_col_qualified( [ $alias ] );
+                        $sql->{alias}{$complex_col} = $ax->prepare_identifier( $alias );
                     }
                     push @{$sql->{selected_cols}}, $complex_col;
                 }
@@ -286,7 +286,7 @@ sub __add_aggregate_substmt {
     }
     my $alias = $ax->alias( $sql, 'aggregate', $sql->{aggr_cols}[$i], $default_alias );
     if ( length $alias ) {
-        $sql->{alias}{$sql->{aggr_cols}[$i]} = $ax->quote_col_qualified( [ $alias ] );
+        $sql->{alias}{$sql->{aggr_cols}[$i]} = $ax->prepare_identifier( $alias );
     }
     return 1;
 }

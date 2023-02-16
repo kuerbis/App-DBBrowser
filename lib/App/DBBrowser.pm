@@ -188,24 +188,6 @@ sub run {
         my ( $user_dbs, $sys_dbs ) = ( [], [] );
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
-            $prefix = $driver eq 'SQLite' ? '' : '- ';
-            if ( $sf->{o}{G}{metadata} ) {
-                if ( $prefix ) {
-                    @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
-                }
-                else {
-                    @databases = ( @$user_dbs, @$sys_dbs );
-                }
-            }
-            else {
-                if ( $prefix ) {
-                    @databases = ( map( $prefix . $_, @$user_dbs ) );
-                }
-                else {
-                    @databases = @$user_dbs;
-                }
-            }
-            $sf->{i}{search} = 0 if $sf->{i}{search};
             1 }
         ) {
             $ax->print_error_message( $@ );
@@ -213,6 +195,24 @@ sub run {
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last PLUGIN;
         }
+        $prefix = $driver eq 'SQLite' ? '' : '- ';
+        if ( $sf->{o}{G}{metadata} ) {
+            if ( $prefix ) {
+                @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
+            }
+            else {
+                @databases = ( @$user_dbs, @$sys_dbs );
+            }
+        }
+        else {
+            if ( $prefix ) {
+                @databases = ( map( $prefix . $_, @$user_dbs ) );
+            }
+            else {
+                @databases = @$user_dbs;
+            }
+        }
+        $sf->{i}{search} = 0 if $sf->{i}{search};
         if ( ! @databases ) {
             $ax->print_error_message( "$plugin: no databases found\n" );
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
@@ -316,12 +316,6 @@ sub run {
             my ( $user_schemas, $sys_schemas ) = ( [], [] );
             if ( ! eval {
                 ( $user_schemas, $sys_schemas ) = $plui->get_schemas( $dbh, $db, $is_system_db );
-                if ( $sf->{o}{G}{metadata} ) {
-                    @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$sys_schemas ) );
-                }
-                else {
-                    @schemas = ( map( "- $_", @$user_schemas ) );
-                }
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -330,11 +324,17 @@ sub run {
                 next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
                 last PLUGIN;
             }
-            my $db_string = 'DB ' . basename( $db ) . '';
+            if ( $sf->{o}{G}{metadata} ) {
+                @schemas = ( map( "- $_", @$user_schemas ), map( "  $_", @$sys_schemas ) ); ##
+            }
+            else {
+                @schemas = ( map( "- $_", @$user_schemas ) );
+            }
             my $old_idx_sch = 0;
 
             SCHEMA: while ( 1 ) {
 
+                my $db_string = 'DB ' . basename( $db ) . '';
                 my $schema;
                 my $is_system_schema = 0;
                 if ( $sf->{redo_schema} ) {
@@ -342,12 +342,7 @@ sub run {
                     $is_system_schema = delete $sf->{redo_is_system_schema};
                 }
                 elsif ( ! @schemas ) {
-                    if ( $driver eq 'Pg' ) {
-                        # no @schemas if 'metadata' is disabled with no user-schemas
-                        # with an undefined schema 'information_schema' would be used
-                        @schemas = ( 'public' );
-                        $schema = $schemas[0];
-                    }
+                    # `$schema` remains undefined
                 }
                 elsif ( @schemas == 1 ) {
                     $schema = $schemas[0];
@@ -565,7 +560,7 @@ sub __derived_table {
         return;
     }
     my $alias = $ax->alias( $tmp, 'derived_table', $qt_table, 'Derived_Table' );
-    $qt_table .= " AS " . $ax->quote_col_qualified( [ $alias ] );
+    $qt_table .= " AS " . $ax->prepare_identifier( $alias );
     $tmp->{table} = $qt_table;
     my $columns = $ax->column_names( $qt_table );
     my $qt_columns = $ax->quote_cols( $columns );

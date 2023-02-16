@@ -113,6 +113,7 @@ sub __confirm_all {
 sub col_function {
     my ( $sf, $sql, $clause ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $driver = $sf->{i}{driver};
     my $changed = 0;
     my $cols;
     if ( $clause eq 'select' && ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) ) {
@@ -133,7 +134,7 @@ sub col_function {
         'LTrim',
         'RTrim'
     );
-    if ( $sf->{i}{driver} eq 'Informix' ) {
+    if ( $driver eq 'Informix' ) {
         push @simple_functions, 'Length', 'Initcap';
     }
     my $Cast              = 'Cast';
@@ -144,7 +145,7 @@ sub col_function {
     my $Round             = 'Round';
     my $Truncate          = 'Truncate';
     my @functions;
-    if ( $sf->{i}{driver} =~ /^(?:Informix|Sybase)\z/ ) {
+    if ( $driver =~ /^(?:Informix|Sybase)\z/ ) {
         @functions = ( @simple_functions, $Cast, $Concat, $Replace, $Round, $Truncate );
     }
     else {
@@ -287,13 +288,13 @@ sub __func_Concat {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $subset = $sf->__choose_columns( $func, $cols, $multi_col );
-    if ( ! defined $subset ) {
+    my $chosen_cols = $sf->__choose_columns( $func, $cols, $multi_col );
+    if ( ! defined $chosen_cols ) {
         return;
     }
     my @tmp_info = ( $sf->__func_info( $func ) );
     push @tmp_info, '';
-    push @tmp_info, 'Concat(' . join( ',', @$subset ) . ')';
+    push @tmp_info, 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $sep = $tr->readline(
         'Separator: ',
         { info => join( "\n", @tmp_info ) }
@@ -301,9 +302,9 @@ sub __func_Concat {
     if ( ! defined $sep ) {
         return;
     }
-    my $function_stmts = [ $fsql->concatenate( $subset, $sep ) ];
-    my $unquoted_subset = [ map { $ax->unquote_identifier( $_ ) } @$subset ];
-    $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . '_' . join( '_', @$unquoted_subset );
+    my $function_stmts = [ $fsql->concatenate( $chosen_cols, $sep ) ];
+    my $unquoted_chosen_cols = [ map { $ax->unquote_identifier( $_ ) } @$chosen_cols ];
+    $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . '_' . join( '_', @$unquoted_chosen_cols );
     return $function_stmts;
 }
 
@@ -348,8 +349,8 @@ sub __func_Replace {
             my $string_to_replace =  $sf->{d}{dbh}->quote( $form->[0][1] );
             my $replacement_string = $sf->{d}{dbh}->quote( $form->[1][1] );
             push @$function_stmts, $fsql->replace( $qt_col, $string_to_replace, $replacement_string );
-            my $func_tail = sprintf "_%s_%s_%s", $string_to_replace, $replacement_string, $ax->unquote_identifier( $qt_col );
-            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . $func_tail;
+            my $alias_tail = sprintf "_%s_%s_%s", $string_to_replace, $replacement_string, $ax->unquote_identifier( $qt_col );
+            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func ) . $alias_tail;
             $fields = $form;
             $i++;
             if ( $i > $#$chosen_cols ) {
@@ -387,18 +388,18 @@ sub __func_Date_Time {
     my $maxrows = 30;
 
     for my $qt_col ( @$chosen_cols ) {
-        my $stmt = $sf->__select_epochs_stmt( $sql, $qt_col, $qt_col );
+        my $stmt = $sf->__select_stmt( $sql, $qt_col, $qt_col );
         my $epochs = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => 100 }, @{$sql->{where_args}//[]} );
         $epochs_all_cols->{$qt_col} = $epochs;
         $key_length = ( minmax $key_length, print_columns( $qt_col ) )[1];
     }
     $key_length = ( minmax 30, $key_length )[0];
-    my ( $function_stmts, $all_first_dates ) = $sf->__get_auto_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
+    my ( $function_stmts, $all_example_results ) = $sf->__guess_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
     my $manual = 0;
 
     while ( 1 ) {
         if ( ! defined $function_stmts ) {
-            ( $function_stmts, $all_first_dates ) = $sf->__get_manual_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
+            ( $function_stmts, $all_example_results ) = $sf->__choose_interval( $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows );
             if ( ! defined $function_stmts ) {
                 return;
             }
@@ -416,13 +417,13 @@ sub __func_Date_Time {
 
             for my $i ( 0 .. $#$chosen_cols ) {
                 my $qt_col = $chosen_cols->[$i];
-                my $first_dates = $all_first_dates->[$i];
+                my $example_results = $all_example_results->[$i];
                 my $info_row = unicode_sprintf( $qt_col, $key_length, { right_justify => 0 } ) . ': ';
-                if ( @$first_dates > $max_info ) {
-                    $info_row .= join( ', ', @{$first_dates}[0 .. $max_info - 1] ) . ', ...';
+                if ( @$example_results > $max_info ) {
+                    $info_row .= join( ', ', @{$example_results}[0 .. $max_info - 1] ) . ', ...';
                 }
                 else {
-                    $info_row .= join( ', ', @$first_dates );
+                    $info_row .= join( ', ', @$example_results );
                 }
                 push @tmp_info, line_fold( $info_row, get_term_width, { subseq_tab => ' ' x ( $key_length + 2 ) } );
             }
@@ -434,7 +435,7 @@ sub __func_Date_Time {
             );
             if ( ! defined $choice ) {
                 $function_stmts = undef;
-                $all_first_dates = undef;
+                $all_example_results = undef;
                 next;
             }
             else {
@@ -445,7 +446,7 @@ sub __func_Date_Time {
 }
 
 
-sub __select_epochs_stmt {
+sub __select_stmt {
     my ( $sf, $sql, $select_col, $where_col ) = @_;
     my $stmt;
     if ( length $sql->{where_stmt} ) {
@@ -470,25 +471,25 @@ sub __interval_to_converted_epoch { #
     my ( $sf, $sql, $func, $maxrows, $qt_col, $interval ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $converted_epoch;
+    my $stmt_convert_epoch;
     if ( $func eq 'Epoch_to_DateTime' ) {
-        $converted_epoch = $fsql->epoch_to_datetime( $qt_col, $interval );
-        $sf->{d}{default_alias}{$converted_epoch} = 'to_datetime_' . $ax->unquote_identifier( $qt_col );
+        $stmt_convert_epoch = $fsql->epoch_to_datetime( $qt_col, $interval );
+        $sf->{d}{default_alias}{$stmt_convert_epoch} = 'to_datetime_' . $ax->unquote_identifier( $qt_col );
     }
     else {
-        $converted_epoch = $fsql->epoch_to_date( $qt_col, $interval );
-        $sf->{d}{default_alias}{$converted_epoch} = 'to_date_' . $ax->unquote_identifier( $qt_col );
+        $stmt_convert_epoch = $fsql->epoch_to_date( $qt_col, $interval );
+        $sf->{d}{default_alias}{$stmt_convert_epoch} = 'to_date_' . $ax->unquote_identifier( $qt_col );
     }
-    my $stmt = $sf->__select_epochs_stmt( $sql, $converted_epoch, $qt_col );
-    my $first_dates = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => $maxrows }, @{$sql->{where_args}//[]} );
-    return $converted_epoch, $first_dates;
+    my $stmt = $sf->__select_stmt( $sql, $stmt_convert_epoch, $qt_col );
+    my $example_results = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => $maxrows }, @{$sql->{where_args}//[]} );
+    return $stmt_convert_epoch, $example_results;
 }
 
 
-sub __get_auto_interval {
+sub __guess_interval {
     my ( $sf, $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows ) = @_;
     my $function_stmts = [];
-    my $all_first_dates = [];
+    my $all_example_results = [];
     if ( ! eval {
         for my $qt_col ( @$chosen_cols ) {
             my $epochs = $epochs_all_cols->{$qt_col};
@@ -514,26 +515,26 @@ sub __get_auto_interval {
             else {
                 $interval = 1_000_000;
             }
-            my ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
-            push @$function_stmts, $converted_epoch;
-            push @$all_first_dates, $first_dates;
+            my ( $stmt_convert_epoch, $example_results ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
+            push @$function_stmts, $stmt_convert_epoch;
+            push @$all_example_results, $example_results;
         }
         1 }
     ) {
         return;
     }
     else {
-        return $function_stmts, $all_first_dates;
+        return $function_stmts, $all_example_results;
     }
 }
 
 
-sub __get_manual_interval {
+sub __choose_interval {
     my ( $sf, $sql, $func, $chosen_cols, $epochs_all_cols, $maxrows  ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @top = ( $sf->__get_info_rows( $chosen_cols, $func ) );
     my $function_stmts = [];
-    my $all_first_dates = [];
+    my $all_example_results = [];
     my $i = 0;
 
     COLUMN: while ( 1 ) {
@@ -569,16 +570,16 @@ sub __get_manual_interval {
                 else {
                     $i--;
                     pop @$function_stmts;
-                    pop @$all_first_dates;
+                    pop @$all_example_results;
                     next COLUMN;
                 }
             }
             my $interval = $epoch_formats->[$idx-@pre][1];
-            my ( $converted_epoch, $first_dates );
+            my ( $stmt_convert_epoch, $example_results );
             @tmp_info = ( @top, $qt_col . ':' );
             if ( ! eval {
-                ( $converted_epoch, $first_dates ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
-                if ( ! $converted_epoch || ! $first_dates ) {
+                ( $stmt_convert_epoch, $example_results ) = $sf->__interval_to_converted_epoch( $sql, $func, $maxrows, $qt_col, $interval );
+                if ( ! $stmt_convert_epoch || ! $example_results ) {
                     die "No results!";
                 }
                 1 }
@@ -588,7 +589,7 @@ sub __get_manual_interval {
                 next CHOOSE_INTERVAL;
             }
             else {
-                push @tmp_info, map { defined ? $_ : 'undef' } @{$first_dates}[0 .. $info_rows_count - 1];
+                push @tmp_info, map { defined ? $_ : 'undef' } @{$example_results}[0 .. $info_rows_count - 1];
                 push @tmp_info, '...';
             }
             # Choose
@@ -600,10 +601,10 @@ sub __get_manual_interval {
                 next CHOOSE_INTERVAL;
             }
             elsif ( $choice eq $sf->{i}{_confirm} ) {
-                push @$function_stmts, $converted_epoch;
-                push @$all_first_dates, $first_dates;
+                push @$function_stmts, $stmt_convert_epoch;
+                push @$all_example_results, $example_results;
                 if ( $i == $#$chosen_cols ) {
-                    return $function_stmts, $all_first_dates;
+                    return $function_stmts, $all_example_results;
                 }
                 else {
                     $i++;
