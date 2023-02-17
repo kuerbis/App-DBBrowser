@@ -200,6 +200,7 @@ sub tables_info { # not public
         $table_cat   = 'TABLE_CAT';
         $table_schem = 'pg_schema';
         $table_name  = 'pg_table';
+        $table_type  = 'TABLE_TYPE';
         # DBD::Pg  3.16.0:
         # The TABLE_SCHEM and TABLE_NAME will be quoted via quote_ident().
         # Four additional fields specific to DBD::Pg are returned:
