@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.315';
+our $VERSION = '2.316';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -77,7 +77,7 @@ sub get_schemas {
     }
     else {
         if ( $driver eq 'SQLite' ) {
-            $user_schemas = [ 'main' ]; # [ undef ];
+            $user_schemas = [ 'main' ];
         }
         elsif( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
             # MySQL 8.0 Reference Manual / MySQL Glossary / Schema:
@@ -88,9 +88,6 @@ sub get_schemas {
         elsif ( $driver eq 'Firebird' ) {
             $user_schemas = [];
         }
-#        elsif ( $driver eq 'Informix' ) { ##
-#            ( $user_schemas, $sys_schemas ) = $sf->__informix_schemas( $dbh );
-#        }
         else {
             my $table_schem;
             if ( $driver eq 'Pg' ) {
@@ -101,7 +98,6 @@ sub get_schemas {
                 $table_schem = 'table_owner';
             }
             elsif ( $driver eq 'Sybase' ) {
-                # table_info
                 $table_schem = 'TABLE_OWNER';
             }
             else {
@@ -189,12 +185,18 @@ sub get_databases {
 }
 
 
-sub tables_info { # not public
+sub tables_info { # not documented
     my ( $sf, $dbh, $schema, $is_system_schema, $has_attached_db ) = @_;
     my $driver = $sf->get_db_driver();
-#    if ( $driver eq 'Informix' ) { ##
-#        return $sf->__informix_tables_info( $dbh, $schema, $is_system_schema );
-#    }
+    if ( $sf->{Plugin}->can( 'tables_info' ) ) {
+        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema, $has_attached_db );
+    }
+    if ( $driver eq 'SQLite' && $has_attached_db ) {
+        # If a SQLite database has databases attached, set $schema to `undef`.
+        # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
+        # aliases of attached databases - with its tables.
+        $schema = undef;
+    }
     my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {
         $table_cat   = 'TABLE_CAT';
@@ -227,19 +229,13 @@ sub tables_info { # not public
         $table_type  = 'TABLE_TYPE';
     }
     my @keys = ( $table_cat, $table_schem, $table_name, $table_type );
-    if ( $driver eq 'SQLite' && $has_attached_db ) {
-        # If a SQLite database has databases attached, set $schema to `undef`.
-        # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
-        # aliases of attached databases - with its tables.
-        $schema = undef;
-    }
     my $sth = $dbh->table_info( undef, $schema, '%', '' );
     my $info_tables = $sth->fetchall_arrayref( { map { $_ => 1 } @keys } );
     my ( @user_table_keys, @sys_table_keys );
     my $tables_info = {};
     for my $info_table ( @$info_tables ) {
         if ( $driver eq 'Informix' && $schema ne $info_table->{$table_schem} ) {
-            # Informix: `table_info` returns always everything.
+            # Informix: `table_info` returns everything.
             next;
         }
         if ( $info_table->{$table_type} eq 'INDEX' ) {
@@ -249,8 +245,10 @@ sub tables_info { # not public
         # To get the table names for SQL code it is used the 'quote_table' routine in Auxil.pm.
         my $table_key;
         if ( $driver eq 'SQLite' && ! defined $schema ) {
-            # attached databases
-            next if $info_table->{$table_name} eq 'sqlite_temp_master'; # 'create temp table' not supported
+            # attached databases, schema is undef
+            if ( $info_table->{$table_name} eq 'sqlite_temp_master' ) {
+                next; # no temp tables
+            }
             if ( $info_table->{$table_schem} =~ /^main\z/i ) {
                 $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
                 # \x{001f} keeps the main tables on top of the tables menu.
@@ -279,52 +277,6 @@ sub tables_info { # not public
 }
 
 
-#sub __informix_schemas { ##
-#    my ( $sf, $dbh ) = @_;
-#    my $stmt = qq{SELECT owner FROM informix.systables GROUP BY owner};
-#    my $owners = $dbh->selectcol_arrayref( $stmt, {} );
-#    my @user_schemas;
-#    my @sys_schemas;
-#    for ( @$owners ) {
-#        if ( ! /^(?:\p{L}|_)/ ) {
-#            next;
-#        }
-#        elsif ( /^informix/i ) {
-#            push @sys_schemas, $_;
-#        }
-#        else {
-#            push @user_schemas, $_;
-#        }
-#    }
-#    return [ sort @user_schemas ], [ sort @sys_schemas ];
-#}
-
-
-#sub __informix_tables_info { ##
-#    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
-#    my $stmt = qq{SELECT owner, tabname, tabtype FROM informix.systables WHERE owner = ? ORDER BY tabname};
-#    my $raw_info = $dbh->selectall_arrayref( $stmt, { Slice => {} }, ( $schema ) );
-#    my %map_table_type = (
-#        T => 'TABLE',       E => 'EXTERNAL TABLE',      V => 'VIEW',
-#        Q => 'SEQUENCE',    P => 'PRIVATE SYNONYM',     S => 'PUBLIC SYNONYM',
-#    );
-#    my $tables_info = {};
-#    my $user_table_keys = [];
-#    my $sys_table_keys = [];
-#    for ( @$raw_info ) {
-#        #next if $_->{tabtype} eq 'Q';
-#        $tables_info->{$_->{tabname}} = [ undef, $_->{owner}, $_->{tabname}, $map_table_type{$_->{tabtype}} ];
-#        if ( $is_system_schema ) {
-#            push @$sys_table_keys, $_->{tabname};
-#        }
-#        else {
-#            push @$user_table_keys, $_->{tabname};
-#        }
-#    }
-#    return $tables_info, $user_table_keys, $sys_table_keys;
-#}
-
-
 
 
 # TABLE_CAT:
@@ -334,7 +286,6 @@ sub tables_info { # not public
 # DBD::Firebird: Note that Firebird implementations do not presently support the DBI concepts of 'catalog'
 #                and 'schema', so these parameters are effectively ignored.
 # DBD::SQLite: Always NULL, as SQLite does not have the concept of catalogs.
-# DBD::DB2: catalog ignored in `table_info`
 
 
 # Oracle and Sybase untested
@@ -360,7 +311,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.315
+Version 2.316
 
 =head1 DESCRIPTION
 

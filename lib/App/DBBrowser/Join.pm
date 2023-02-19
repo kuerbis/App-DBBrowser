@@ -156,6 +156,8 @@ sub join_tables {
                     next;
                 }
                 if ( $col_names{$col} > 1 ) {
+                    #$col_names{$col}--; ##
+                    #next;
                     push @$qt_columns, $col_qt . ' AS ' . $ax->prepare_identifier( $alias . '_' . $col );
                 }
                 else {

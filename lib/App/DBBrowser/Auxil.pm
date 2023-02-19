@@ -279,7 +279,7 @@ sub stmt_placeholder_to_value {
 sub alias {
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
     if ( defined $default ) { # && ! $sf->{o}{G}{quote_identifiers} ) {
-        if ( $sf->{i}{driver} eq 'Pg' ) {
+        if ( $sf->{i}{driver} =~ /^(?:Pg|Informix)\z/ ) {
             $default = lc $default;
         }
         elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2)\z/ ) {

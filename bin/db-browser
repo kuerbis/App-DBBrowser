@@ -3,9 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-$SIG{__WARN__} = sub { die @_ };
-
-our $VERSION = '2.315';
+our $VERSION = '2.316';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -49,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.315
+Version 2.316
 
 =head1 SYNOPSIS
 
@@ -1026,13 +1024,32 @@ Template
 
 Uses C<unpack> with the C<A> character to break up input lines.
 
-C<unpack> used with C<A> strips trailing whitespace automatically. For leading whitespace to user has the option to
-remove it or not.
+=over
 
-A column width is calculated without including the column separator width.
+=item
 
 If the row length is greater than the screen width, make notes of the number of columns and the length of each column
 before using I<Template>.
+
+=item
+
+Choose the input record separator.
+
+=item
+
+Set the number of columns (I<Col count>) and the width of the column separator (I<Sep width>). I<Col count> expects an
+integer of 1 or greater; I<Sep width> expects an integer of 0 or greater.
+
+=item
+
+Set the widths of the columns (1 or greater). For the last column one can also enter an asterisk (C<*>). The last
+column with an asterisk means: Use the remaining part of the row for the last column.
+
+=item
+
+Decide whether leading spaces should be removed. Trailing whitespaces are removed automatically.
+
+=back
 
 Advantages:
 
