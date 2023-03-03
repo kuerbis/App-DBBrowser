@@ -342,13 +342,14 @@ sub set_options {
                 $sf->__choose_a_subset_wrap( $section, $opt, $sf->{avail_operators}, $prompt );
             }
             elsif ( $opt eq '_alias' ) {
-                my $prompt = 'Enable Alias for:';
+                my $prompt = 'Ask alias for:';
                 my $sub_menu = [
                     [ 'select',        "- Functions/Subqueries in SELECT",  [ $no, $yes ] ],
                     [ 'aggregate',     "- AGGREGATE functions",             [ $no, $yes ] ],
                     [ 'derived_table', "- Derived table",                   [ $no, $yes ] ],
                     [ 'join',          "- JOIN",                            [ $no, $yes ] ],
                     [ 'union',         "- UNION",                           [ $no, $yes ] ],
+                    [ 'use_defaults',  "- Alias defaults",                  [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

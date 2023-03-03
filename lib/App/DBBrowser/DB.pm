@@ -53,14 +53,10 @@ sub get_db_handle {
                 return $number;
             }
         );
-        $dbh->sqlite_create_function( 'bit_length', 1, sub {
+        $dbh->sqlite_create_function( 'octet_length', 1, sub {
                 require bytes;
                 return if ! defined $_[0];
-                return 8 * bytes::length $_[0];
-            }
-        );
-        $dbh->sqlite_create_function( 'char_length', 1, sub {
-                return length $_[0];
+                return bytes::length $_[0];
             }
         );
     }
@@ -69,15 +65,23 @@ sub get_db_handle {
 
 
 sub get_schemas {
-    my ( $sf, $dbh, $db, $is_system_db ) = @_;
+    my ( $sf, $dbh, $db, $is_system_db, $has_attached_db ) = @_; # documentation ## 
     my ( $user_schemas, $sys_schemas );
     my $driver = $dbh->{Driver}{Name}; #
     if ( $sf->{Plugin}->can( 'get_schemas' ) ) {
-        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db );
+        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db, $has_attached_db );
     }
     else {
         if ( $driver eq 'SQLite' ) {
-            $user_schemas = [ 'main' ];
+            if ( $has_attached_db ) {
+                # If a SQLite database has databases attached, set $schema to `undef`.
+                # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
+                # aliases of attached databases with its tables.
+                $user_schemas = [ undef ];
+            }
+            else {
+                $user_schemas = [ 'main' ];
+            }
         }
         elsif( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
             # MySQL 8.0 Reference Manual / MySQL Glossary / Schema:
@@ -127,16 +131,19 @@ sub get_schemas {
     }
     $user_schemas //= [];
     $sys_schemas //= [];
-    if ( $driver eq 'Pg' && ! @$user_schemas ) {
-        # 5.9.2. The Public Schema
-        # In the previous sections we created tables without specifying any schema names. By default such tables
-        # (and other objects) are automatically put into a schema named “public”. Every new database contains such a schema.
-        $user_schemas = [ 'public' ];
-    }
     if ( $is_system_db ) {
         return [], [ @$user_schemas, @$sys_schemas ];
     }
-    return $user_schemas, $sys_schemas;
+    else {
+        if ( $driver eq 'Pg' && ! @$user_schemas ) {
+            # 5.9.2. The Public Schema
+            # In the previous sections we created tables without specifying any schema names. By default such tables
+            # (and other objects) are automatically put into a schema named “public”. Every new database contains such a schema.
+            $user_schemas = [ 'public' ];
+            # add 'public' only if db is user-db
+        }
+        return $user_schemas, $sys_schemas;
+    }
 }
 
 
@@ -186,16 +193,10 @@ sub get_databases {
 
 
 sub tables_info { # not documented
-    my ( $sf, $dbh, $schema, $is_system_schema, $has_attached_db ) = @_;
+    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
     my $driver = $sf->get_db_driver();
     if ( $sf->{Plugin}->can( 'tables_info' ) ) {
-        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema, $has_attached_db );
-    }
-    if ( $driver eq 'SQLite' && $has_attached_db ) {
-        # If a SQLite database has databases attached, set $schema to `undef`.
-        # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
-        # aliases of attached databases - with its tables.
-        $schema = undef;
+        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
     }
     my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {

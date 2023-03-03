@@ -47,8 +47,8 @@ sub read_login_data {
 sub set_attributes {
     my ( $sf ) = @_;
     return [
-        { name => 'ChopBlanks', default => 0, values => [ 0, 1 ] },
-        # The DBI I<LongReadLen> and I<LongTruncOk> attributes are not implemented.
+        { name => 'db_decode_utf8', default => 0, values => [ 0, 1 ] }, # documentation ##
+        { name => 'ChopBlanks',     default => 0, values => [ 0, 1 ] },
     ];
 }
 

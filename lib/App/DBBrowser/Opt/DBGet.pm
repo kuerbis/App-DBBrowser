@@ -40,14 +40,21 @@ sub get_set_attributes {
     # attributes added by hand to the config file:
     # added attribues are only used if they have entries in the set_attributes method
     my $set_attributes = $plui->set_attributes();
+    #delete $sf->{i}{set_attribute_db_decode_utf8}; ##
 
     for my $set_attribute ( @$set_attributes )  {
         my $name = $set_attribute->{name};
         my $idx = $db_opt->{$db//''}{$name} // $db_opt->{$plugin}{$name} // $set_attribute->{default};
+        if ( $name eq 'db_decode_utf8' ) {
+            # DB2, Informix
+            $sf->{i}{set_attribute_db_decode_utf8} = $set_attribute->{values}[$idx];
+            next;
+        }
         $prepared_set_attrs->{$name} = $set_attribute->{values}[$idx];
         if ( $prepared_set_attrs->{$name} =~ /^(\d+)\s/ ) { # e.g.: '5 DBD_SQLITE_STRING_MODE_UNICODE_FALLBACK'
             $prepared_set_attrs->{$name} = $1;
         }
+
     }
     return $prepared_set_attrs;
 }

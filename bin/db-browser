@@ -3,6 +3,8 @@ use warnings;
 use strict;
 use 5.014;
 
+$SIG{__WARN__} = sub { die @_ };
+
 our $VERSION = '2.316';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );

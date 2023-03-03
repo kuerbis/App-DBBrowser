@@ -28,6 +28,8 @@ sub create_drop_or_attach {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $create_drop;
+    my $attach_detach;
     my $old_idx_cda = 1;
 
     CREATE_DROP_ATTACH: while ( 1 ) {
@@ -55,6 +57,8 @@ sub create_drop_or_attach {
             { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_cda, undef => '  <=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
+            return 2 if $attach_detach;
+            return 1 if $create_drop;
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
@@ -84,6 +88,7 @@ sub create_drop_or_attach {
                     $ax->print_error_message( $@ );
                 }
             }
+            $create_drop++; ## 
         }
         elsif ( $choice =~ /^-\ Drop/i ) {
             require App::DBBrowser::CreateDropAttach::DropTable;
@@ -98,11 +103,12 @@ sub create_drop_or_attach {
                     $ax->print_error_message( $@ );
                 }
             }
+            $create_drop++; ## 
         }
         elsif ( $choice =~ /^-\ (?:Attach|Detach)/ ) {
             require App::DBBrowser::CreateDropAttach::AttachDB;
             my $att = App::DBBrowser::CreateDropAttach::AttachDB->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $changed; ##
+            my $changed;
             if ( $choice eq $attach_databases ) {
                 if ( ! eval { $changed = $att->attach_db(); 1 } ) {
                     $ax->print_error_message( $@ );
@@ -113,16 +119,9 @@ sub create_drop_or_attach {
                     $ax->print_error_message( $@ );
                 }
             }
-        }
-        if ( ! eval {
-            my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
-            ( $sf->{d}{tables_info},
-              $sf->{d}{user_table_keys},
-              $sf->{d}{sys_table_keys} ) = $plui->tables_info( $sf->{d}{dbh}, $sf->{d}{schema},
-                                                               $sf->{d}{is_system_schema}, $sf->{d}{db_attached} );
-            1 }
-         ) {
-            $ax->print_error_message( $@ );
+            if ( $changed ) {
+                $attach_detach++;
+            }
         }
     }
 }

@@ -36,6 +36,7 @@ sub defaults {
             derived_table => 0,
             join          => 0,
             union         => 0,
+            use_defaults  => 1, # documentation ##
         },
         enable => {
             create_table => 0,

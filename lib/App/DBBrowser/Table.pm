@@ -258,6 +258,13 @@ sub __selected_statement_result {
     my $col_names = $sth->{NAME}; # not quoted
     my $all_arrayref = $sth->fetchall_arrayref;
     unshift @$all_arrayref, $col_names;
+    if ( $sf->{i}{set_attribute_db_decode_utf8} ) {
+        print 'Decoding: ...' . "\r" if @$all_arrayref > 100_000; ##
+        require Encode;
+        for my $row ( @$all_arrayref ) {
+            $_ = Encode::decode_utf8( $_ ) for @$row;
+        }
+    }
     return $all_arrayref;
 }
 
