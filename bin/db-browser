@@ -5,7 +5,7 @@ use 5.014;
 
 $SIG{__WARN__} = sub { die @_ };
 
-our $VERSION = '2.316';
+our $VERSION = '2.317';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -49,7 +49,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.316
+Version 2.317
 
 =head1 SYNOPSIS
 
@@ -852,14 +852,15 @@ With C<Firebird>, C<SIMILAR TO> is used instead of C<REGEXP>.
 
 =head3 Aliases
 
-If enabled, it is asked for an alias. If entered nothing, the default alias is used except for Subqueries in SELECT
-which don't have a default alias.
+First five items: enable/disable user-defined aliases.
+
+Last item: enable alias defaults where aliases are optional.
 
 =over
 
 =item
 
-Functions/Subqueries in SELECT
+Functions/Subqueries as columns
 
 =item
 
@@ -876,6 +877,10 @@ JOIN
 =item
 
 UNION
+
+=item
+
+Optional alias defaults
 
 =back
 
@@ -1259,6 +1264,12 @@ Set the search behavior (C<Ctrl-F>).
 =head3 Mouse mode
 
 Set the I<Mouse mode> (see L<Term::Choose/mouse>).
+
+=head3 DB2 encoding
+
+C<DB2> databases only: set the application code set.
+
+Data comming from a DB2 database is decoded with this encoding.
 
 =head1 CONFIGURATION FILES
 

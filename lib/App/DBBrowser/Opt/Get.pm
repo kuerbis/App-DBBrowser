@@ -29,6 +29,7 @@ sub defaults {
             plugins              => [ 'SQLite', 'mysql', 'Pg', 'Firebird' ],
             qualified_table_name => 0,
             quote_identifiers    => 1,
+            db2_encoding         => 'utf8',
         },
         alias => {
             select        => 0,
@@ -36,7 +37,7 @@ sub defaults {
             derived_table => 0,
             join          => 0,
             union         => 0,
-            use_defaults  => 1, # documentation ##
+            use_defaults  => 1,
         },
         enable => {
             create_table => 0,

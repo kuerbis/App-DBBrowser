@@ -28,8 +28,6 @@ sub create_drop_or_attach {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $create_drop;
-    my $attach_detach;
     my $old_idx_cda = 1;
 
     CREATE_DROP_ATTACH: while ( 1 ) {
@@ -57,8 +55,6 @@ sub create_drop_or_attach {
             { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_cda, undef => '  <=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
-            return 2 if $attach_detach;
-            return 1 if $create_drop;
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
@@ -78,32 +74,38 @@ sub create_drop_or_attach {
         elsif ( $choice =~ /^-\ Create/i ) {
             require App::DBBrowser::CreateDropAttach::CreateTable;
             my $ct = App::DBBrowser::CreateDropAttach::CreateTable->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $changed;
             if ( $choice eq $create_table ) {
-                if ( ! eval { $ct->create_table(); 1 } ) {
+                if ( ! eval { $changed = $ct->create_table(); 1 } ) {
                     $ax->print_error_message( $@ );
                 }
             }
             elsif ( $choice eq $create_view ) {
-                if ( ! eval { $ct->create_view(); 1 } ) {
+                if ( ! eval { $changed = $ct->create_view(); 1 } ) {
                     $ax->print_error_message( $@ );
                 }
             }
-            $create_drop++; ## 
+            if ( $changed ) {
+                return 1;
+            }
         }
         elsif ( $choice =~ /^-\ Drop/i ) {
             require App::DBBrowser::CreateDropAttach::DropTable;
             my $dt = App::DBBrowser::CreateDropAttach::DropTable->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $changed;
             if ( $choice eq $drop_table ) {
-                if ( ! eval { $dt->drop_table(); 1 } ) {
+                if ( ! eval { $changed = $dt->drop_table(); 1 } ) {
                     $ax->print_error_message( $@ );
                 }
             }
             elsif ( $choice eq $drop_view ) {
-                if ( ! eval { $dt->drop_view(); 1 } ) {
+                if ( ! eval { $changed = $dt->drop_view(); 1 } ) {
                     $ax->print_error_message( $@ );
                 }
             }
-            $create_drop++; ## 
+            if ( $changed ) {
+                return 1;
+            }
         }
         elsif ( $choice =~ /^-\ (?:Attach|Detach)/ ) {
             require App::DBBrowser::CreateDropAttach::AttachDB;
@@ -120,7 +122,7 @@ sub create_drop_or_attach {
                 }
             }
             if ( $changed ) {
-                $attach_detach++;
+                return 2;
             }
         }
     }

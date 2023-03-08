@@ -294,13 +294,10 @@ sub alias {
     if ( ! $sf->{o}{alias}{use_defaults} && $type !~ /^(?:join|union|derived_table)\z/ ) {
         $default = undef;
     }
-    if ( defined $default ) { # && ! $sf->{o}{G}{quote_identifiers} ) {
-        #if ( $sf->{i}{driver} =~ /^(?:Pg|Informix)\z/ ) { ##
-        #    $default = lc $default;
-        #}
-        #elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2)\z/ ) {
-        #    $default = uc $default;
-        #}
+    if ( defined $default ) {
+        if ( $sf->{i}{driver} eq 'Pg' ) {
+            $default = lc $default; ##
+        }
         $default =~ s/\W/_/g;
         $default =~ s/_\z//;
     }
@@ -362,7 +359,7 @@ sub quote_table {
     # 1 = schema
     # 2 = table_name
     # 3 = table_type
-    if ( $sf->{o}{G}{qualified_table_name} || $sf->{d}{db_attached} ) {
+    if ( $sf->{o}{G}{qualified_table_name} || ( $sf->{d}{db_attached} && ! defined $sf->{d}{schema} ) ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
         # name.

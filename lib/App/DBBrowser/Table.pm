@@ -258,11 +258,12 @@ sub __selected_statement_result {
     my $col_names = $sth->{NAME}; # not quoted
     my $all_arrayref = $sth->fetchall_arrayref;
     unshift @$all_arrayref, $col_names;
-    if ( $sf->{i}{set_attribute_db_decode_utf8} ) {
-        print 'Decoding: ...' . "\r" if @$all_arrayref > 100_000; ##
+
+    if ( $sf->{i}{driver} eq 'DB2' && length $sf->{o}{G}{db2_encoding} ) {
+        print 'Decoding: ...' . "\r"  if $sf->{o}{table}{progress_bar};
         require Encode;
         for my $row ( @$all_arrayref ) {
-            $_ = Encode::decode_utf8( $_ ) for @$row;
+            $_ = Encode::decode( $sf->{o}{G}{db2_encoding}, $_ ) for @$row;
         }
     }
     return $all_arrayref;

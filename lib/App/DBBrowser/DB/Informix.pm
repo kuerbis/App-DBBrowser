@@ -47,8 +47,8 @@ sub read_login_data {
 sub set_attributes {
     my ( $sf ) = @_;
     return [
-        { name => 'db_decode_utf8', default => 0, values => [ 0, 1 ] }, # documentation ##
-        { name => 'ChopBlanks',     default => 0, values => [ 0, 1 ] },
+        { name => 'ix_EnableUTF8', default => 1, values => [ 0, 1 ] },
+        { name => 'ChopBlanks',    default => 0, values => [ 0, 1 ] },
     ];
 }
 

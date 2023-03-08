@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.316';
+our $VERSION = '2.317';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -270,16 +270,15 @@ sub run {
                     $is_system_db = 1;
                 }
             }
-
-            # DB-HANDLE
-
             $sf->{d} = {
                 db => $db,
                 user_dbs => $user_dbs,
                 sys_dbs => $sys_dbs,
             };
+
+            # DB-HANDLE
+
             $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            delete $sf->{i}{set_attribute_db_decode_utf8}; ##
             my $dbh;
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
@@ -365,7 +364,7 @@ sub run {
                     $skipped_menus++ if $skipped_menus == 2
                 }
                 else {
-                    my $back   = $skipped_menus == 2 ? $sf->{i}{_quit} : $sf->{i}{_back};
+                    my $back = $skipped_menus == 2 ? $sf->{i}{_quit} : $sf->{i}{_back};
                     my $prompt = $db_string . ':';
                     my $menu_schema = [ undef, @schemas ];
                     # Choose
@@ -493,11 +492,13 @@ sub run {
                             $sf->{redo_schema} = $schema;
                             $sf->{redo_is_system_schema} = $is_system_schema;
                             next SCHEMA;
+                            # 
                         }
                         elsif ( $ret == 2 ) {
                             $sf->{redo_db} = $db;
                             $sf->{redo_is_system_db} = $is_system_db;
                             next DATABASE;
+                            # 
                         }
                     }
                     my ( $qt_table, $qt_columns );
@@ -611,7 +612,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.316
+Version 2.317
 
 =head1 DESCRIPTION
 

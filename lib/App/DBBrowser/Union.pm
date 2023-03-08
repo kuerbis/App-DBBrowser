@@ -121,7 +121,7 @@ sub union_tables {
     }
     my $qt_table = $ax->get_stmt( $union, 'Union', 'prepare' );
     my $dummy_identifier;
-    if ( $sf->{o}{alias}{use_defaults} ) { ##
+    if ( $sf->{o}{alias}{use_defaults} ) {
         $dummy_identifier = 'UNION_ALL_' . join( '_', @{$union->{used_tables}} );
     }
     else {

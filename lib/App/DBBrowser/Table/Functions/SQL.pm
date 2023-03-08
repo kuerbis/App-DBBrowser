@@ -31,7 +31,7 @@ sub function_with_col {
     elsif ( $func eq 'OCTET_LENGTH' ) {
         return "OCTET_LENGTH($col)";
     }
-    elsif ( $func =~ /^CHAR_LENGTH/ ) { ##
+    elsif ( $func =~ /^CHAR_LENGTH/ ) {
         if ( $driver eq 'SQLite' ) {
             return "LENGTH($col)";
         }
@@ -83,12 +83,11 @@ sub function_with_col_and_2args {
     elsif ( $func eq 'SUBSTR' ) {
         my $startpos = $arg1;
         my $length = $arg2;
-        if ( $driver eq 'SQLite' ) {
+        if ( $driver =~ /^(?:SQLite|mysql|MariaDB)\z/ ) {
             return "SUBSTR($col,$startpos,$length)" if length $length;
             return "SUBSTR($col,$startpos)";
-
         }
-        elsif ( $driver =~ /^(?:mysql|MariaDB|Pg|Firebird|DB2|Informix)\z/ ) {
+        else {
             return "SUBSTRING($col FROM $startpos FOR $length)" if length $length;
             return "SUBSTRING($col FROM $startpos)";
         }

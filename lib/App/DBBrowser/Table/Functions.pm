@@ -89,7 +89,7 @@ sub __confirm_all {
         # Choose
         my $choice = $tc->choose(
             [ undef, $confirm ],
-            { %{$sf->{i}{lyt_v}}, info => $info, layout => 2, keep => 3, undef => $back, prompt => '' } ## 
+            { %{$sf->{i}{lyt_v}}, info => $info, layout => 2, keep => 3, undef => $back, prompt => '' }
         );
         if ( ! $choice ) {
             return;
@@ -144,12 +144,12 @@ sub col_function {
     my $prefix = '- ';
     my @pre = ( undef, $sf->{i}{confirm} );
     my $menu = [ @pre, map( $prefix . lc $_, @functions ) ];
-    my @chosen_func;
 
-    SCALAR_FUNCTIONS: while( 1 ) {
+    SCALAR_FUNCTION: while( 1 ) {
         my $func_info = '';
+        my @chosen_func;
 
-        CHOOSE_FUNCTION: while ( 1 ) {
+        CHOOSE_FUNCTIONS: while ( 1 ) {
             my $func_str = '';
             for my $func ( @chosen_func ) {
                 $func_str = lc( $func ) . '(' . $func_str . ')';
@@ -162,14 +162,14 @@ sub col_function {
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 if ( @chosen_func ) {
                     pop @chosen_func;
-                    next CHOOSE_FUNCTION
+                    next CHOOSE_FUNCTIONS
                 }
                 else {
                     return;
                 }
             }
             if ( $menu->[$idx] eq $sf->{i}{confirm} ) {
-                last CHOOSE_FUNCTION; ##
+                last CHOOSE_FUNCTIONS;
             }
             push @chosen_func, $functions[$idx-@pre];
         }
@@ -189,7 +189,7 @@ sub col_function {
                     }
                     $chosen_cols = $sf->__choose_columns( $func, $cols, $func_info, $multi_col );
                     if ( ! defined $chosen_cols ) {
-                        next SCALAR_FUNCTIONS;
+                        next SCALAR_FUNCTION;
                     }
                 }
                 else {
@@ -312,13 +312,14 @@ sub __func_with_col_and_2args {
 
     COLUMN: while ( 1 ) {
         my $qt_col = $chosen_cols->[$i];
-        my $incomplete = $func . '(' . $qt_col . ',?,?)'; ## 
+        my $incomplete = $func . '(' . $qt_col . ',?,?)';
         my @tmp_info = $sf->__get_info_rows( $chosen_cols, $function_stmts, $incomplete );
         my $info = join "\n", @tmp_info;
+        my $pad = ' ' x ( length( $fields->[0][0] ) - 1 );
         my $form = $tf->fill_form(
             $fields,
             { info => $info, prompt => '', auto_up => 2,
-            confirm => 'OK       ', back => '<<       ' } ## 
+            confirm => 'OK' . $pad, back => '<<' . $pad }
         );
         if ( ! $form ) { # if ( ! defined $form->[0][1] ) {
             if ( $i == 0 ) {

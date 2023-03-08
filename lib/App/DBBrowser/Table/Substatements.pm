@@ -31,7 +31,7 @@ sub new {
     elsif ( $info->{driver} eq 'Pg' )                          { push @{$sf->{aggregate}}, "STRING_AGG(X)"; }
     elsif ( $info->{driver} eq 'Firebird' )                    { push @{$sf->{aggregate}}, "LIST(X)"; }
     elsif ( $info->{driver} =~ /^(?:DB2|Oracle)\z/ )           { push @{$sf->{aggregate}}, "LISTAGG(X)"; }
-    $sf->{i}{menu_addition} = '%%'; ##
+    $sf->{i}{menu_addition} = '%%';
     bless $sf, $class;
 }
 
