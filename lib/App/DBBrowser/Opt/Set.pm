@@ -95,7 +95,7 @@ sub _options {
             { name => '_squash_spaces',      text => "- Squash spaces",       section => 'table' },
             { name => '_base_indent',        text => "- Indentation",         section => 'G'     },
             { name => '_set_string',         text => "- Undef string",        section => 'table' },
-            { name => '_file_find_warnings', text => "- Warnings",            section => 'G'     },
+            { name => '_warningss',          text => "- Warnings",            section => 'G'     },
         ],
         group_import => [
             { name => '_parse_file',        text => "- Parse tool",         section => 'insert' },
@@ -414,9 +414,9 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             elsif ( $opt eq '_binary_filter' ) {
-                my $prompt = 'Print "BNRY" instead of binary data';
+                my $prompt = 'How to print arbitrary binray data';
                 my $sub_menu = [
-                    [ 'binary_filter', "- Binary filter", [ $no, $yes ] ]
+                    [ 'binary_filter', "- Binary filter", [ $no, 'BNRY', 'Hexadecimal' ] ]
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -441,10 +441,11 @@ sub set_options {
                 my $prompt = 'Undef string';
                 $sf->__group_readline( $section, $items, $prompt );
             }
-            elsif ( $opt eq '_file_find_warnings' ) {
-                my $prompt = '"SQLite database search"';
+            elsif ( $opt eq '_warningss' ) {
+                my $prompt = '"Disable/Enable warnings"';
                 my $sub_menu = [
-                    [ 'file_find_warnings', "- Enable \"File::Find\"-warnings", [ $no, $yes ] ]
+                    [ 'file_find_warnings',   "- Warnings \"File::Find\" (SQLite)", [ $no, $yes ] ],
+                    [ 'warnings_table_print', "- Warnings table-print",             [ $no, $yes ] ]
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -615,9 +616,9 @@ sub set_options {
             }
             elsif ( $opt eq '_db2_encoding' ) {
                 my $items = [
-                    { name => 'db2_encoding', prompt => "DB2 application code page" },
+                    { name => 'db2_encoding', prompt => "DB2 application code set" },
                 ];
-                my $prompt = 'Set the DB2 application code page';
+                my $prompt = 'Set the DB2 application code set';
                 $sf->__group_readline( $section, $items, $prompt );
             }
             else {

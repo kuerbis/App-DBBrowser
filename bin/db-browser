@@ -946,11 +946,19 @@ Set the number of spaces between columns.
 Enables the support for color and text formatting escape sequences (SGR) if set to C<Enable>. Before the output it is
 added a reset (C<\e[0m>) at the end of each row.
 
-=head3 Binary binary
+=head3 Binary filter
 
-Setting the I<binary_filter> to C<1> means: print "BNRY" instead of arbitrary binary data. If data matches the repexp
-C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data. Printing arbitrary binary data could break
-the output.
+Set I<Binary filter> to C<NO>, C<BNRY> or C<Hexadecimal>.
+
+C<NO> - print the binary data as it is
+
+C<BNRY> - "BNRY" is printed instead of the binary data
+
+C<Hexadecimal> - the binary data is printed in hexadecimal format
+
+If the data matches the repexp C</[\x00-\x08\x0B-\x0C\x0E-\x1F]/>, it is considered arbitrary binary data.
+
+Printing unfiltered arbitrary binary data could break the output.
 
 =head3 Squash spaces
 
@@ -970,7 +978,19 @@ the entry was created with this options menu.
 
 =head3 Warnings
 
-Enable/disable C<File::Find> warnings when searching for C<SQLite> databases.
+Enable/disable
+
+=over
+
+=item
+
+C<File::Find> warnings when searching for C<SQLite> databases.
+
+=item
+
+warnings - e.g. utf8 warnings - when printing a table.
+
+=back
 
 =head2 Import
 

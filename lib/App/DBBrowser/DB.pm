@@ -65,7 +65,7 @@ sub get_db_handle {
 
 
 sub get_schemas {
-    my ( $sf, $dbh, $db, $is_system_db, $has_attached_db ) = @_; # documentation ## 
+    my ( $sf, $dbh, $db, $is_system_db, $has_attached_db ) = @_;
     my ( $user_schemas, $sys_schemas );
     my $driver = $dbh->{Driver}{Name}; #
     if ( $sf->{Plugin}->can( 'get_schemas' ) ) {
@@ -373,6 +373,9 @@ C<db-browser> expects a C<DBI> database handle with the attribute I<RaiseError> 
 
 C<$dbh> is the database handle returned by the method C<db_hanlde>.
 
+If the driver is C<SQLite>, a third argument is passed to C<get_schemas>; if the database has attached databases, the
+third argument is true otherwise it is false.
+
 Returns the user-schemas as an array-reference and the system-schemas as an array-reference (if any).
 
 If the option I<metadata> is true, user-schemas and system-schemas are used else only the user-schemas are used.
@@ -381,7 +384,7 @@ If the option I<metadata> is true, user-schemas and system-schemas are used else
 
 =head3 DB configuration methods
 
-If the following methods are available, the C<db-brower> user can configure the different database settings in the
+If the following methods are available, the C<db-browser> user can configure the different database settings in the
 options menu.
 
 If the database driver is C<SQLite>, only C<set_attributes> is used.

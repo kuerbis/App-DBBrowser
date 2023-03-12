@@ -96,10 +96,13 @@ sub __drop {
         unshift @$all_arrayref, $col_names;
         my $prompt_pt = sprintf "DROP %s %s     (on last look at the %s)\n", uc $type, $sql->{table}, $type;
         my $tp = Term::TablePrint->new( $sf->{o}{table} );
-        $tp->print_table(
-            $all_arrayref,
-            { prompt => $prompt_pt, footer => "     '" . $table . "'     " }
-        );
+        if ( ! $sf->{o}{G}{warnings_table_print} ) {
+            local $SIG{__WARN__} = sub {};
+            $tp->print_table( $all_arrayref, { prompt => $prompt_pt, footer => "     '" . $table . "'     " } );
+        }
+        else {
+            $tp->print_table( $all_arrayref, { prompt => $prompt_pt, footer => "     '" . $table . "'     " } );
+        }
         1; }
     ) {
         $ax->print_error_message( $@ );

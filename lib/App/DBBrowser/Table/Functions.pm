@@ -31,6 +31,7 @@ sub new {
 
 sub __choose_columns {
     my ( $sf, $func, $cols, $func_info, $multi_col ) = @_;
+    $func_info .= "\n";
     if ( $multi_col ) {
         my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
         # Choose
@@ -62,11 +63,13 @@ sub __choose_columns {
 sub __get_info_rows {
     my ( $sf, $chosen_cols, $function_stmts, $incomplete ) = @_;
     my @tmp;
-    if ( @$chosen_cols > 1 ) {
+#    if ( @$chosen_cols > 1 ) {
         $function_stmts //= [];
         @tmp = ( @$function_stmts );
-        push @tmp, @{$chosen_cols}[@$function_stmts .. $#$chosen_cols];
-    }
+        if ( @$chosen_cols > 1 ) {
+            push @tmp, @{$chosen_cols}[@$function_stmts .. $#$chosen_cols];
+        }
+#    }
     if ( defined $incomplete ) {
         if ( @tmp ) {
             push @tmp, '';
@@ -80,10 +83,10 @@ sub __get_info_rows {
 sub __confirm_all {
     my ( $sf, $chosen_cols, $info ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    if ( @$chosen_cols == 1 ) {
-        return 1;
-    }
-    else {
+#    if ( @$chosen_cols == 1 ) {
+#        return 1;
+#    }
+#    else {
         my $confirm = ucfirst( lc $sf->{i}{confirm} );
         my $back = ucfirst( lc $sf->{i}{back} );
         # Choose
@@ -97,7 +100,7 @@ sub __confirm_all {
         elsif ( $choice eq $confirm ) {
             return 1;
         }
-    }
+#    }
 }
 
 
@@ -155,6 +158,7 @@ sub col_function {
                 $func_str = lc( $func ) . '(' . $func_str . ')';
             }
             $func_info = 'Function: ' . $func_str;
+            # Choose
             my $idx = $tc->choose(
                 $menu,
                 { %{$sf->{i}{lyt_v}}, info => $func_info, prompt => '', index => 1, undef => $sf->{i}{back} }
@@ -162,7 +166,7 @@ sub col_function {
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 if ( @chosen_func ) {
                     pop @chosen_func;
-                    next CHOOSE_FUNCTIONS
+                    next CHOOSE_FUNCTIONS;
                 }
                 else {
                     return;

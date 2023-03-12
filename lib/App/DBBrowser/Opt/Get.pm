@@ -23,6 +23,7 @@ sub defaults {
         G => {
             base_indent          => 1,
             file_find_warnings   => 0,
+            warnings_table_print => 1,
             menu_memory          => 1,
             metadata             => 0,
             operators            => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
@@ -165,15 +166,6 @@ sub read_config_files {
     my $file_fs = $sf->{i}{f_settings};
     if ( -f $file_fs && -s $file_fs ) {
         my $tmp = $ax->read_json( $file_fs ) // {};
-
-        #################################################### # 2.307    01.01.2023
-        if ( exists $tmp->{'csv'} ) {
-            for my $opt ( keys %{$tmp->{'csv'}} ) {
-                $tmp->{'csv_in'}{$opt} = $tmp->{'csv'}{$opt};
-            }
-            delete $tmp->{'csv'};
-        }
-        ####################################################
 
         for my $section ( keys %$tmp ) {
             for my $opt ( keys %{$tmp->{$section}} ) {

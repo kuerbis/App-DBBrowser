@@ -58,10 +58,13 @@ sub browse_the_table {
         }
 
         my $tp = Term::TablePrint->new( $sf->{o}{table} );
-        $tp->print_table(
-            $all_arrayref,
-            { footer => $sf->{d}{table_footer} }
-        );
+        if ( ! $sf->{o}{G}{warnings_table_print} ) {
+            local $SIG{__WARN__} = sub {};
+            $tp->print_table( $all_arrayref, { footer => $sf->{d}{table_footer} } );
+        }
+        else {
+            $tp->print_table( $all_arrayref, { footer => $sf->{d}{table_footer} } );
+        }
     }
 }
 

@@ -298,7 +298,12 @@ sub alias {
         if ( $sf->{i}{driver} eq 'Pg' ) {
             $default = lc $default; ##
         }
-        $default =~ s/\W/_/g;
+        if ( $sf->{o}{G}{quote_identifiers} ) {
+            $default =~ s/[()]/_/g;
+        }
+        else {
+            $default =~ s/\W/_/g;
+        }
         $default =~ s/_\z//;
     }
     my $prompt = 'AS ';
@@ -513,8 +518,8 @@ sub read_json {
     ) {
         die "In '$file_fs':\n$@";
     }
-    
-############################################################# # ### 
+
+############################################################## 2.317  12.03.2023
     if ( $file_fs eq ( $sf->{i}{f_attached_db} // '' ) ) {
         my @keys = keys %$ref;
         if ( ref( $ref->{$keys[0]} ) eq 'ARRAY' ) {
@@ -556,6 +561,18 @@ sub read_json {
         #}
     }
 ##################################################################################################
+
+############################################################### 2.307  01.01.2023
+    if ( $file_fs eq ( $sf->{i}{f_settings} // '' ) ) {
+        if ( exists $ref->{'csv'} ) {
+            for my $opt ( keys %{$ref->{'csv'}} ) {
+                $ref->{'csv_in'}{$opt} = $ref->{'csv'}{$opt};
+            }
+            delete $ref->{'csv'};
+            $sf->write_json( $sf->{i}{f_settings}, $ref );
+        }
+    }
+###############################################################
 
     return $ref;
 }

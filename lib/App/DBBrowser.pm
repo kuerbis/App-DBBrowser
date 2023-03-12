@@ -423,42 +423,47 @@ sub run {
 
                     my ( $join, $union, $from_subquery, $db_setting ) = ( '  Join', '  Union', '  Derived', '  DB settings' );
                     my $hidden = $db_string;
-                    my @pre = ( $hidden, undef );
-                    my $menu_table;
-                    if ( $sf->{o}{G}{metadata} ) {
-                        my $sys_prefix = $is_system_schema ? '- ' : '  ';
-                        $menu_table = [ @pre, map( "- $_", @$user_table_keys ), map( $sys_prefix . $_, @$sys_table_keys ) ];
+                    my $table;
+                    if ( $sf->{redo_table} ) {
+                        $table = delete $sf->{redo_table};
                     }
                     else {
-                        $menu_table = [ @pre, map( "- $_", @$user_table_keys ) ];
-                    }
-                    push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
-                    push @$menu_table, $join          if $sf->{o}{enable}{join};
-                    push @$menu_table, $union         if $sf->{o}{enable}{union};
-                    push @$menu_table, $db_setting    if $sf->{o}{enable}{db_settings};
-                    my $back = $skipped_menus == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
-                    # Choose
-                    my $idx_tbl = $tc->choose(
-                        $menu_table,
-                        { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
-                    );
-                    my $table;
-                    if ( defined $idx_tbl ) {
-                        $table = $menu_table->[$idx_tbl];
-                    }
-                    if ( ! defined $table ) {
-                        next SCHEMA         if @schemas                > 1;
-                        $dbh->disconnect();
-                        next DATABASE       if @databases              > 1;
-                        next PLUGIN         if @{$sf->{o}{G}{plugins}} > 1;
-                        last PLUGIN;
-                    }
-                    if ( $sf->{o}{G}{menu_memory} ) {
-                        if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
-                            $old_idx_tbl = 1;
-                            next TABLE;
+                        my @pre = ( $hidden, undef );
+                        my $menu_table;
+                        if ( $sf->{o}{G}{metadata} ) {
+                            my $sys_prefix = $is_system_schema ? '- ' : '  ';
+                            $menu_table = [ @pre, map( "- $_", @$user_table_keys ), map( $sys_prefix . $_, @$sys_table_keys ) ];
                         }
-                        $old_idx_tbl = $idx_tbl;
+                        else {
+                            $menu_table = [ @pre, map( "- $_", @$user_table_keys ) ];
+                        }
+                        push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
+                        push @$menu_table, $join          if $sf->{o}{enable}{join};
+                        push @$menu_table, $union         if $sf->{o}{enable}{union};
+                        push @$menu_table, $db_setting    if $sf->{o}{enable}{db_settings};
+                        my $back = $skipped_menus == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
+                        # Choose
+                        my $idx_tbl = $tc->choose(
+                            $menu_table,
+                            { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx_tbl, undef => $back }
+                        );
+                        if ( defined $idx_tbl ) {
+                            $table = $menu_table->[$idx_tbl];
+                        }
+                        if ( ! defined $table ) {
+                            next SCHEMA         if @schemas                > 1;
+                            $dbh->disconnect();
+                            next DATABASE       if @databases              > 1;
+                            next PLUGIN         if @{$sf->{o}{G}{plugins}} > 1;
+                            last PLUGIN;
+                        }
+                        if ( $sf->{o}{G}{menu_memory} ) {
+                            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                                $old_idx_tbl = 1;
+                                next TABLE;
+                            }
+                            $old_idx_tbl = $idx_tbl;
+                        }
                     }
                     if ( $table eq $db_setting ) {
                         my $changed;
@@ -489,16 +494,19 @@ sub run {
                             next TABLE;
                         }
                         elsif ( $ret == 1 ) {
+                            # update available tables and reenter $hidden submenu
                             $sf->{redo_schema} = $schema;
                             $sf->{redo_is_system_schema} = $is_system_schema;
+                            $sf->{redo_table}  = $table;
                             next SCHEMA;
-                            # 
                         }
                         elsif ( $ret == 2 ) {
+                            # update attached databases and therefore also update
+                            # schemas and reenter $hidden submenu
                             $sf->{redo_db} = $db;
                             $sf->{redo_is_system_db} = $is_system_db;
+                            $sf->{redo_table}  = $table;
                             next DATABASE;
-                            # 
                         }
                     }
                     my ( $qt_table, $qt_columns );

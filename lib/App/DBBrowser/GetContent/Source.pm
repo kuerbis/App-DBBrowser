@@ -122,7 +122,7 @@ sub from_col_by_col {
                     if ( $stmt_type eq 'Create_table' ) {
                         next COL_BY_COL;
                     }
-                    elsif ( $stmt_type eq 'Insert' && @$aoa == 0 ) {
+                    elsif ( $stmt_type eq 'Insert' ) {
                         return;
                     }
                 }

@@ -28,7 +28,7 @@ sub create_drop_or_attach {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $old_idx_cda = 1;
+    state $old_idx_cda = 1;
 
     CREATE_DROP_ATTACH: while ( 1 ) {
         my $hidden = $sf->{d}{db_string};
