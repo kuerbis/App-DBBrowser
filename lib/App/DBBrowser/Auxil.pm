@@ -299,12 +299,13 @@ sub alias {
             $default = lc $default; ##
         }
         if ( $sf->{o}{G}{quote_identifiers} ) {
-            $default =~ s/[()]/_/g;
+            $default =~ s/[()]/ /g;
         }
         else {
             $default =~ s/\W/_/g;
+            $default =~ s/\ /_/g;
         }
-        $default =~ s/_\z//;
+        $default =~ s/[\ _]+\z//;
     }
     my $prompt = 'AS ';
     my $alias;

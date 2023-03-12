@@ -494,15 +494,15 @@ sub run {
                             next TABLE;
                         }
                         elsif ( $ret == 1 ) {
-                            # update available tables and reenter $hidden submenu
+                            # update the list of available tables and reenter the $hidden submenu
                             $sf->{redo_schema} = $schema;
                             $sf->{redo_is_system_schema} = $is_system_schema;
                             $sf->{redo_table}  = $table;
                             next SCHEMA;
                         }
                         elsif ( $ret == 2 ) {
-                            # update attached databases and therefore also update
-                            # schemas and reenter $hidden submenu
+                            # reattach databases and therefore recall `get_scheams`
+                            # and reenter the $hidden submenu
                             $sf->{redo_db} = $db;
                             $sf->{redo_is_system_db} = $is_system_db;
                             $sf->{redo_table}  = $table;
