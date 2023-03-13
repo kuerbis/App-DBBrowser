@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.318';
+our $VERSION = '2.319';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -312,7 +312,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.318
+Version 2.319
 
 =head1 DESCRIPTION
 
