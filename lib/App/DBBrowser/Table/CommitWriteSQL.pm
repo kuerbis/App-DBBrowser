@@ -63,7 +63,7 @@ sub commit_sql {
                 $tp->print_table( $all_arrayref, { info => $info, prompt => $prompt, footer => $sf->{d}{table_footer} } );
             }
             else {
-                $tp->print_table( $all_arrayref, { footer => $sf->{d}{table_footer} } );
+                $tp->print_table( $all_arrayref, { info => $info, prompt => $prompt, footer => $sf->{d}{table_footer} } );
             }
         }
         $ax->print_sql_info( $info, $waiting );

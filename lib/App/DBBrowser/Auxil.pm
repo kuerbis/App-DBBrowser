@@ -313,10 +313,6 @@ sub alias {
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
         my $info = $sf->get_sql_info( $sql ) . "\n" . $identifier;
         # Readline
-        #$alias = $tr->readline(
-        #    $prompt,
-        #    { info => $info }
-        #);
         $alias = $tr->readline(
             $prompt,
             { info => $info, default => $default }

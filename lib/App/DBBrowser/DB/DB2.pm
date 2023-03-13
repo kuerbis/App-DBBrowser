@@ -56,8 +56,8 @@ sub read_attributes {
 sub set_attributes {
     my ( $sf ) = @_;
     return [
-        { name => 'LongTruncOk',  default => 0, values => [ 0, 1 ] },
-        { name => 'ChopBlanks',   default => 0, values => [ 0, 1 ] },
+        { name => 'LongTruncOk', default => 0, values => [ 0, 1 ] },
+        { name => 'ChopBlanks',  default => 0, values => [ 0, 1 ] },
     ];
 }
 
