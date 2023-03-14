@@ -187,15 +187,12 @@ sub __add_aggregate_substmt {
     elsif ( $aggr eq $sf->{i}{ok} ) {
         return $aggr;
     }
-    my $default_alias;
     if ( $aggr eq 'COUNT(*)' ) {
         $sql->{aggr_cols}[$i] = $aggr;
-        $default_alias = 'COUNT';
     }
     else {
         $aggr =~ s/\(\X\)\z//;
         $sql->{aggr_cols}[$i] = $aggr . "(";
-        $default_alias = $aggr;
         my $is_distinct;
         if ( $aggr =~ /^(?:COUNT|$GROUP_CONCAT)\z/ ) {
             my $info = $ax->get_sql_info( $sql );
@@ -210,7 +207,6 @@ sub __add_aggregate_substmt {
             }
             if ( $all_or_distinct eq $sf->{distinct} ) {
                 $sql->{aggr_cols}[$i] .= $sf->{distinct} . " ";
-                $default_alias .= '_' .  $sf->{distinct};
                 $is_distinct = 1;
             }
         }
@@ -224,8 +220,6 @@ sub __add_aggregate_substmt {
         if ( ! defined $qt_col ) {
             return;
         }
-        my $qc = quotemeta $sf->{d}{identifier_quote_char};
-        $default_alias .= '_' . $qt_col =~ s/^$qc(.+)$qc\z/$1/r;
         if ( $aggr =~ /^$GROUP_CONCAT\z/ ) {
             if ( $sf->{i}{driver} eq 'Pg' ) {
                 # Pg, STRING_AGG: separator mandatory
@@ -284,7 +278,7 @@ sub __add_aggregate_substmt {
             $sql->{aggr_cols}[$i] .= "$qt_col)";
         }
     }
-    my $alias = $ax->alias( $sql, 'aggregate', $sql->{aggr_cols}[$i], $default_alias );
+    my $alias = $ax->alias( $sql, 'aggregate', $sql->{aggr_cols}[$i], $sql->{aggr_cols}[$i] );
     if ( length $alias ) {
         $sql->{alias}{$sql->{aggr_cols}[$i]} = $ax->prepare_identifier( $alias );
     }

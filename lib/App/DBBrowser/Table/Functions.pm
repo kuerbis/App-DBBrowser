@@ -241,7 +241,7 @@ sub __func_with_col {
     my $function_stmts = [];
     for my $qt_col ( @$chosen_cols ) {
         push @$function_stmts, $fsql->function_with_col( $func, $qt_col );
-        $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func . ' ' . $ax->unquote_identifier( $qt_col ) );
+        $sf->{d}{default_alias}{$function_stmts->[-1]} = $function_stmts->[-1];
     }
     return $function_stmts;
 }
@@ -280,8 +280,7 @@ sub __func_with_col_and_arg {
             $value = $readline;
             @tmp_history = ( uniq $value, @tmp_history );
             push @$function_stmts, $fsql->function_with_col_and_arg( $func, $qt_col, $value );
-            my $alias_tail = sprintf " %s %s", $value, $ax->unquote_identifier( $qt_col );
-            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func . $alias_tail );
+            $sf->{d}{default_alias}{$function_stmts->[-1]} = $function_stmts->[-1];
             $i++;
             if ( $i > $#$chosen_cols ) {
                 my @tmp_info = $sf->__get_info_rows( $chosen_cols, $function_stmts );
@@ -339,8 +338,7 @@ sub __func_with_col_and_2args {
             my $arg1 = $form->[0][1];
             my $arg2 = $form->[1][1];
             push @$function_stmts, $fsql->function_with_col_and_2args( $func, $qt_col, $arg1, $arg2 );
-            my $alias_tail = sprintf " %s %s %s", $arg1, $arg2, $ax->unquote_identifier( $qt_col );
-            $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func . $alias_tail );
+            $sf->{d}{default_alias}{$function_stmts->[-1]} = $function_stmts->[-1];
             $fields = $form;
             $i++;
             if ( $i > $#$chosen_cols ) {
@@ -380,7 +378,7 @@ sub __func_Concat {
     }
     my $function_stmts = [ $fsql->concatenate( $chosen_cols, $sep ) ];
     my $unquoted_chosen_cols = [ map { $ax->unquote_identifier( $_ ) } @$chosen_cols ];
-    $sf->{d}{default_alias}{$function_stmts->[-1]} = lc( $func . ' ' . join( ' ', @$unquoted_chosen_cols ) );
+    $sf->{d}{default_alias}{$function_stmts->[-1]} = $function_stmts->[-1];
     return $function_stmts;
 }
 
@@ -479,12 +477,11 @@ sub __interval_to_converted_epoch { #
     my $stmt_convert_epoch;
     if ( $func eq 'EPOCH_TO_DATETIME' ) {
         $stmt_convert_epoch = $fsql->epoch_to_datetime( $qt_col, $interval );
-        $sf->{d}{default_alias}{$stmt_convert_epoch} = lc( 'to_datetime ' . $ax->unquote_identifier( $qt_col ) );
     }
     else {
         $stmt_convert_epoch = $fsql->epoch_to_date( $qt_col, $interval );
-        $sf->{d}{default_alias}{$stmt_convert_epoch} = lc( 'to_date ' . $ax->unquote_identifier( $qt_col ) );
     }
+    $sf->{d}{default_alias}{$stmt_convert_epoch} = $stmt_convert_epoch;
     my $stmt = $sf->__select_stmt( $sql, $stmt_convert_epoch, $qt_col );
     my $example_results = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => $maxrows }, @{$sql->{where_args}//[]} );
     return $stmt_convert_epoch, $example_results;

@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.320    2023-03-14
+        - Update default aliases.
+
 2.319    2023-03-13
         - Create tables: update list of tables even if insert failed.
 

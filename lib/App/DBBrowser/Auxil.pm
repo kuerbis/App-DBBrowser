@@ -298,14 +298,11 @@ sub alias {
         if ( $sf->{i}{driver} eq 'Pg' ) {
             $default = lc $default; ##
         }
-        if ( $sf->{o}{G}{quote_identifiers} ) {
-            $default =~ s/[()]/ /g;
-        }
-        else {
+        if ( ! $sf->{o}{G}{quote_identifiers} ) {
             $default =~ s/\W/_/g;
             $default =~ s/\ /_/g;
+            $default =~ s/_+\z//;
         }
-        $default =~ s/[\ _]+\z//;
     }
     my $prompt = 'AS ';
     my $alias;
