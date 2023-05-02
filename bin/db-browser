@@ -1213,7 +1213,7 @@ Set the folder where the data to be exported will be saved as a CSV file.
 
 =over
 
-=item File name extension
+=item File extension csv
 
 If this option is enabled, the file extension C<csv> is added automatically to the file name.
 
