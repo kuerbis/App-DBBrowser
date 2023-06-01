@@ -119,15 +119,7 @@ sub col_function {
     else {
         $cols = [ @{$sql->{cols}} ];
     }
-    my @simple_functions = ( 'TRIM', 'LTRIM', 'RTRIM', 'UPPER', 'LOWER' );
-    my @length;
-    if ( $driver eq 'DB2' ) {
-        @length = ( 'OCTET_LENGTH', 'CHAR_LENGTH_16', 'CHAR_LENGTH_32' );
-    }
-    else {
-        @length = ( 'OCTET_LENGTH', 'CHAR_LENGTH' );
-    }
-    push @simple_functions, @length;
+    my @simple_functions = ( 'TRIM', 'LTRIM', 'RTRIM', 'UPPER', 'LOWER', 'OCTET_LENGTH', 'CHAR_LENGTH' );
     my $Cast              = 'CAST';
     my $Concat            = 'CONCAT';
     my $Epoch_to_Date     = 'EPOCH_TO_DATE';

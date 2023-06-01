@@ -29,19 +29,12 @@ sub function_with_col {
         return "RTRIM($col)";
     }
     elsif ( $func eq 'OCTET_LENGTH' ) {
+        return "LENGTHB($col)"            if $driver eq 'Oracle';
         return "OCTET_LENGTH($col)";
     }
     elsif ( $func =~ /^CHAR_LENGTH/ ) {
-        if ( $driver eq 'SQLite' ) {
-            return "LENGTH($col)";
-        }
-        elsif ( $driver eq 'DB2' ) {
-            return "CHARACTER_LENGTH($col,CODEUNITS16)" if $func eq 'CHAR_LENGTH_16';
-            return "CHARACTER_LENGTH($col,CODEUNITS32)" if $func eq 'CHAR_LENGTH_32';
-        }
-        else {
-            return "CHAR_LENGTH($col)";
-        }
+        return "LENGTH($col)"             if $driver =~ /^(?:SQLite|Oracle)\z/;
+        return "CHAR_LENGTH($col)";
     }
     else {
         return "$func($col)";
@@ -83,7 +76,7 @@ sub function_with_col_and_2args {
     elsif ( $func eq 'SUBSTR' ) {
         my $startpos = $arg1;
         my $length = $arg2;
-        if ( $driver =~ /^(?:SQLite|mysql|MariaDB)\z/ ) {
+        if ( $driver =~ /^(?:SQLite|mysql|MariaDB|Oracle)\z/ ) {
             return "SUBSTR($col,$startpos,$length)" if length $length;
             return "SUBSTR($col,$startpos)";
         }
@@ -191,10 +184,13 @@ sub epoch_to_datetime {
     }
     elsif ( $driver eq 'Oracle' ) {
         if ( $interval == 1 ) {
-            return "TO_TIMESTAMP('1970-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL($col,'SECOND')"
+            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col,'SECOND'),'YYYY-MM-DD HH24:MI:SS')";
+        }
+        elsif ( $interval == 1_000 ) {
+            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF3')";
         }
         else {
-            return "TO_TIMESTAMP('1970-01-01 00:00:00.0','YYYY-MM-DD HH24:MI:SS.FF') + NUMTODSINTERVAL($col/$interval,'SECOND')";
+            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF6')";
         }
     }
 }

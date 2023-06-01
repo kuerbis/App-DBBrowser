@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.324';
+our $VERSION = '2.325';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.324
+Version 2.325
 
 =head1 SYNOPSIS
 
@@ -79,8 +79,8 @@ Before using C<db-browser>, make sure you backed up your databases.
 Search and read in SQL databases: one can browse databases and their tables interactively.
 
 C<App::DBBrowser> provides and supports plugins for the DBI drivers C<DBD::SQLite>, C<DBD::mysql>, C<DBD::MariaDB>,
-C<DBD::Pg>, C<DBD::Firebird>, C<DBD::DB2> and C<DBD::Informix>. See L<App::DBBrowser::DB> how to write a database
-plugin.
+C<DBD::Pg>, C<DBD::Firebird>, C<DBD::DB2>, C<DBD::Informix> and C<DBD::Oracle>. See L<App::DBBrowser::DB> how to write
+a database plugin.
 
 =head1 NAVIGATION
 
@@ -770,7 +770,7 @@ Cast
 
 =item
 
-Date and time funcions
+Date and time functions
 
 Epoch_to_Date, Epoch_to_DateTime
 
@@ -884,7 +884,7 @@ If set to C<YES>, qualified table names are used in SQL statements.
 
 If set to C<YES>, SQL identifiers are quoted.
 
-C<Informix>: set the C<DELIMIDENT> environmet variable to allow quoted identifier.
+C<Informix>: set the C<DELIMIDENT> environment variable to allow quoted identifier.
 
 =back
 
@@ -1288,7 +1288,7 @@ Set the I<Mouse mode> (see L<Term::Choose/mouse>).
 
 C<DB2> databases only: set the application code set.
 
-Data comming from a DB2 database is decoded with this encoding.
+Data coming from a DB2 database is decoded with this encoding.
 
 =head1 CONFIGURATION FILES
 

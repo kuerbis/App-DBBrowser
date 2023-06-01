@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.325    2023-06-01
+        - Added support for Oracle plugins.
+        - Code refactoring.
+
 2.324    2023-05-02
         - Update documentation.
 

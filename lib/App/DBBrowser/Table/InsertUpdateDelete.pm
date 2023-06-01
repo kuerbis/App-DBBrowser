@@ -186,12 +186,13 @@ sub __insert_into_stmt_columns {
 }
 
 
-sub __first_column_is_autoincrement {
+sub __first_column_is_autoincrement { ##
     my ( $sf, $sql ) = @_;
     my $dbh = $sf->{d}{dbh};
     my $schema = $sf->{d}{schema};
     my $table = $sf->{d}{tables_info}{$sf->{d}{table_key}}[2];
-    if ( $sf->{i}{driver} eq 'SQLite' ) {
+    my $driver = $sf->{i}{driver};
+    if ( $driver eq 'SQLite' ) {
         my $stmt = "SELECT sql FROM sqlite_master WHERE name = ?";
         my ( $row ) = $sf->{d}{dbh}->selectrow_array( $stmt, {}, $table );
         my $qt_table = $sql->{table};
@@ -202,7 +203,7 @@ sub __first_column_is_autoincrement {
             return 1;
         }
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         my $stmt = "SELECT COUNT(*) FROM information_schema.columns WHERE
                     TABLE_SCHEMA = ?
                 AND TABLE_NAME = ?
@@ -214,7 +215,7 @@ sub __first_column_is_autoincrement {
         my ( $first_col_is_autoincrement ) = $dbh->selectrow_array( $stmt, {}, $schema, $table );
         return $first_col_is_autoincrement;
     }
-    elsif ( $sf->{i}{driver} eq 'Pg' ) {
+    elsif ( $driver eq 'Pg' ) {
         my $stmt = "SELECT COUNT(*) FROM information_schema.columns WHERE
                     TABLE_SCHEMA = ?
                 AND TABLE_NAME = ?
@@ -228,7 +229,7 @@ sub __first_column_is_autoincrement {
         my ( $first_col_is_autoincrement ) = $dbh->selectrow_array( $stmt, {}, $schema, $table );
         return $first_col_is_autoincrement;
     }
-    elsif ( $sf->{i}{driver} eq 'Firebird' ) {
+    elsif ( $driver eq 'Firebird' ) {
         my $stmt = "SELECT COUNT(*) FROM RDB\$RELATION_FIELDS WHERE
                 RDB\$RELATION_NAME = ?
             AND RDB\$FIELD_POSITION = 0
@@ -239,7 +240,7 @@ sub __first_column_is_autoincrement {
         my ( $first_col_is_autoincrement ) = $dbh->selectrow_array( $stmt, {}, $table );
         return $first_col_is_autoincrement;
     }
-    elsif ( $sf->{i}{driver} eq 'DB2' ) {
+    elsif ( $driver eq 'DB2' ) {
         my $stmt = "SELECT COUNT(*) FROM SYSCAT.COLUMNS WHERE
                 TABSCHEMA = ?
             AND TABNAME = ?
@@ -249,6 +250,17 @@ sub __first_column_is_autoincrement {
             AND KEYSEQ = 1
             AND GENERATED = 'A'
             AND IDENTITY = 'Y'";
+        my ( $first_col_is_autoincrement ) = $dbh->selectrow_array( $stmt, {}, $schema, $table );
+        return $first_col_is_autoincrement;
+    }
+    elsif ( $driver eq 'Oracle' ) {
+        my $stmt = "SELECT COUNT(*) FROM SYS.ALL_TAB_COLUMNS WHERE
+                OWNER = ?
+            AND TABLE_NAME = ?
+            AND DATA_TYPE = 'NUMBER'
+            AND NULLABLE = 'N'
+            AND COLUMN_ID = 1
+            AND IDENTITY_COLUMN = 'YES'";
         my ( $first_col_is_autoincrement ) = $dbh->selectrow_array( $stmt, {}, $schema, $table );
         return $first_col_is_autoincrement;
     }

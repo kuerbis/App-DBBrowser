@@ -97,9 +97,9 @@ sub join_tables {
         my $master_alias = $ax->alias( $join, 'join', $qt_master, $join->{default_alias} );
         push @{$join->{aliases}}, [ $master, $master_alias ];
         $join->{stmt} .= " " . $qt_master;
-        $join->{stmt} .= " AS " . $ax->prepare_identifier( $master_alias );
+        $join->{stmt} .= $sf->{i}{" AS "} . $ax->prepare_identifier( $master_alias );
         if ( $master_from_subquery ) {
-            $sf->{d}{col_names}{$master} = $ax->column_names( $qt_master . " AS " . $ax->prepare_identifier( $master_alias ) );
+            $sf->{d}{col_names}{$master} = $ax->column_names( $qt_master . $sf->{i}{" AS "} . $ax->prepare_identifier( $master_alias ) );
         }
         my @bu;
 
@@ -158,7 +158,7 @@ sub join_tables {
                 if ( $col_names{$col} > 1 ) {
                     #$col_names{$col}--; ##
                     #next;
-                    push @$qt_columns, $col_qt . ' AS ' . $ax->prepare_identifier( $alias . '_' . $col );
+                    push @$qt_columns, $col_qt . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias . '_' . $col );
                 }
                 else {
                     push @$qt_columns, $col_qt;
@@ -233,10 +233,10 @@ sub __add_slave_with_join_condition {
         # Alias
         my $slave_alias = $ax->alias( $join, 'join', $qt_slave, ++$join->{default_alias} );
         $join->{stmt} .= " " . $qt_slave;
-        $join->{stmt} .= " AS " . $ax->prepare_identifier( $slave_alias );
+        $join->{stmt} .= $sf->{i}{" AS "} . $ax->prepare_identifier( $slave_alias );
         push @{$join->{aliases}}, [ $slave, $slave_alias ];
         if ( $slave_from_subquery ) {
-            $sf->{d}{col_names}{$slave} = $ax->column_names( $qt_slave . " AS " . $ax->prepare_identifier( $slave_alias ) );
+            $sf->{d}{col_names}{$slave} = $ax->column_names( $qt_slave . $sf->{i}{" AS "} . $ax->prepare_identifier( $slave_alias ) );
         }
         if ( $join_type ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $join, $tables, $slave, $slave_alias );

@@ -5,7 +5,11 @@ use Test::More;
 
 use Test::Spelling;
 
-set_spell_cmd('aspell list -l en -p /dev/null');
+#set_spell_cmd('aspell list -l en -p /dev/null');
+
+
+set_spell_cmd('hunspell -l -d en_US');
+
 
 add_stopwords( <DATA> );
 
@@ -18,35 +22,44 @@ AVG
 BNRY
 Cols
 Colwidth
-csv
+Concat
 Ctrl
-de
+DB2
 Dir
 ENV
-eol
 IFS
 Kiem
-mappable
-Matthäus
+LTrim
 MERCHANTIBILITY
+MSWin32
+Matthäus
 Multirow
 Pg
-preselected
-preselection
 PrintTable
 ProgressBar
+RTrim
 RaiseError
-repexp
-schemas
-Schemas
 SGR
 SQ
+Schemas
+Subqueries
+Substatements
+Tabwidth
+Trunc
+csv
+de
+dir
+eol
+fract
+mappable
+preselected
+preselection
+repexp
+schemas
 sql
 stackoverflow
 subqueries
-Subqueries
 subquery
 substatement
 substatements
-Substatements
-Tabwidth
+utf8

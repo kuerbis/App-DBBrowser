@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.324';
+our $VERSION = '2.325';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -180,6 +180,8 @@ sub run {
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last PLUGIN;
         }
+        # Oracle: aliases with "AS" not supported in Union, Join and Derived tables
+        $sf->{i}{" AS "} = $driver eq 'Oracle' ? " " : " AS ";
 
         # DATABASES
 
@@ -540,9 +542,9 @@ sub run {
                     }
                     else {
                         $sf->{d}{special_table} = '';
+                        $table =~ s/^[-\ ]\s//;
+                        $sf->{d}{table_key} = $table;
                         if ( ! eval {
-                            $table =~ s/^[-\ ]\s//;
-                            $sf->{d}{table_key} = $table;
                             my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                             $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
                             $sf->{d}{cols} = $ax->column_names( $qt_table );
@@ -591,7 +593,7 @@ sub __derived_table {
     }
     my $alias = $ax->alias( $tmp, 'derived_table', $qt_table, 'Derived_Table' );
     if ( length $alias ) {
-        $qt_table .= " AS " . $ax->prepare_identifier( $alias );
+        $qt_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
     }
     $tmp->{table} = $qt_table;
     my $columns = $ax->column_names( $qt_table );
@@ -620,7 +622,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.324
+Version 2.325
 
 =head1 DESCRIPTION
 
