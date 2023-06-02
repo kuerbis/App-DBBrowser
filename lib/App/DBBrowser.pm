@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.325';
+our $VERSION = '2.326';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -180,7 +180,7 @@ sub run {
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last PLUGIN;
         }
-        # Oracle: aliases with "AS" not supported in Union, Join and Derived tables
+        # Oracle: key word "AS" not supported in Table aliases (Union, Join, Derived tables)
         $sf->{i}{" AS "} = $driver eq 'Oracle' ? " " : " AS ";
 
         # DATABASES
@@ -622,7 +622,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.325
+Version 2.326
 
 =head1 DESCRIPTION
 

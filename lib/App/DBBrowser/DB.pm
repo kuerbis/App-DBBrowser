@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.325';
+our $VERSION = '2.326';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -301,16 +301,6 @@ sub tables_info { # not documented
 
 
 
-
-# TABLE_CAT:
-# DBD::Pg: The name of the database that the table or view is in (always the current database).
-# DBD::Sybase: TABLE_CAT = TABLE_QUALIFIER (database name)
-# DBD::mysql and DBD::MariaDB: Empty, because MySQL doesn't support catalogs (yet) ''
-# DBD::Firebird: Note that Firebird implementations do not presently support the DBI concepts of 'catalog'
-#                and 'schema', so these parameters are effectively ignored.
-# DBD::SQLite: Always NULL, as SQLite does not have the concept of catalogs.
-
-
 # Sybase untested
 
 # Sysbase:
@@ -334,7 +324,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.325
+Version 2.326
 
 =head1 DESCRIPTION
 

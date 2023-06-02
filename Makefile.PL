@@ -18,10 +18,10 @@ WriteMakefile(
     LICENSE          => 'perl',
     META_MERGE => {
         'meta-spec' => { version => 2 },
-        bugtracker => {
-            web => "https://github.com/kuerbis/App-DBBrowser/issues",
-        },
         resources   => {
+            bugtracker => {
+                web => "https://github.com/kuerbis/App-DBBrowser/issues",
+            },
             repository => {
               type => 'git',
               web  => 'https://github.com/kuerbis/App-DBBrowser',

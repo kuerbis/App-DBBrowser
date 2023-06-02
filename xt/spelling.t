@@ -6,8 +6,6 @@ use Test::More;
 use Test::Spelling;
 
 #set_spell_cmd('aspell list -l en -p /dev/null');
-
-
 set_spell_cmd('hunspell -l -d en_US');
 
 

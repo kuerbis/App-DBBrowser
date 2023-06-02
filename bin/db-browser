@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.325';
+our $VERSION = '2.326';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.325
+Version 2.326
 
 =head1 SYNOPSIS
 
@@ -1004,6 +1004,10 @@ Advantages:
 =item
 
 Allows to set different csv-related options.
+
+=item
+
+Speed
 
 =back
 

@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.326    2023-06-02
+        - Fixed bugtracker entry in Makefile.PL.
+
 2.325    2023-06-01
         - Added support for Oracle plugins.
         - Code refactoring.
