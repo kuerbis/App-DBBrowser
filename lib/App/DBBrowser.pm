@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.326';
+our $VERSION = '2.327';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -284,7 +284,7 @@ sub run {
             my $dbh;
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
-                $sf->{d}{identifier_quote_char} = $dbh->get_info(29) // '"', # SQL_IDENTIFIER_QUOTE_CHAR
+                $sf->{d}{identifier_quote_char} = $dbh->get_info(29) // '"'; # SQL_IDENTIFIER_QUOTE_CHAR
                 #$sf->{d}{catalog_name_sep} = $dbh->get_info(41) // '.';  # SQL_CATALOG_NAME_SEPARATOR
                 #$sf->{d}{catalog_location} = $dbh->get_info(114) || 1;   # SQL_CATALOG_LOCATION
                 1 }
@@ -622,7 +622,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.326
+Version 2.327
 
 =head1 DESCRIPTION
 
