@@ -201,8 +201,7 @@ sub parse_with_template {
             # Fill_form
             my $form_set = $tf->fill_form(
                 $fields_set,
-                { info => $info, prompt => 'Settings:', auto_up => 2,
-                confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
+                { info => $info, prompt => 'Settings:', confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
             );
             $ax->print_sql_info( $info );
             if ( ! $form_set ) {
@@ -243,8 +242,7 @@ sub parse_with_template {
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
-                    { info => $info, prompt => $prompt, auto_up => 2,
-                    confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} . '   ' }
+                    { info => $info, prompt => $prompt, confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} . '   ' }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! $form ) {

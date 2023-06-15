@@ -126,7 +126,7 @@ sub get_stmt {
             my $stmt = "SELECT " . join( ', ', @{$ref->[1]} );
             $stmt .= " FROM " . $ref->[0];
             if ( $count < @{$sql->{subselect_data}} ) {
-                $stmt .= " UNION ALL";
+                $stmt .= " " . $sql->{union_type};
             }
             push @tmp, $sf->__stmt_fold( $stmt, $term_w, $indent1 );
         }
@@ -202,15 +202,21 @@ sub __prepare_table_row {
 
 sub __select_cols {
     my ( $sf, $sql ) = @_;
-    my @cols = @{$sql->{selected_cols}} ? @{$sql->{selected_cols}} : ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
+    my @cols;
+    if ( @{$sql->{selected_cols}} ) {
+        @cols = @{$sql->{selected_cols}};
+    }
+    elsif ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
+        @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
+    }
+    elsif ( $sf->{d}{special_table} eq 'join' ) {
+        @cols = @{$sql->{cols}};
+        # join: use qualified column names and not * because:
+        #- different tables could have columns with the same name
+        #- columns could have aliases
+    }
     if ( ! @cols ) {
-        if ( $sf->{d}{special_table} eq 'join' ) {
-            # join: use qualified col names in the prepare stmt (different cols could have the same name)
-            return ' ' . join ', ', @{$sql->{cols}};
-        }
-        else {
-            return " *";
-        }
+        return " *";
     }
     elsif ( ! keys %{$sql->{alias}} ) {
         return ' ' . join ', ', @cols;
@@ -280,16 +286,12 @@ sub alias {
     # Aliases:
     #   JOIN: mandatory
     #
-    #   UNION: mandatory: mysql, MariaDB, Pg
-    #           optional: SQLite, Firebird, DB2, Informix
+    #   Subqueries in FROM (Derived Table, UNION):
+    #                       mandatory: mysql, MariaDB, Pg
+    #                       optional: SQLite, Firebird, DB2, Informix, Oracle
     #
-    #   Derived Table: mandatory: mysql, MariaDB, Pg
-    #                   optional: SQLite, Firebird, DB2, Informix
-    #
-    #   Subquery column: optional
-    #
-    #   Function column: optional
-    #
+    #   Columns: optional (SQ, functions)
+
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
     my $prompt = 'AS ';
     my $alias;
@@ -542,50 +544,6 @@ sub read_json {
         #}
     }
 ##################################################################################################
-
-############################################################### 2.307  01.01.2023
-    if ( $file_fs eq ( $sf->{i}{f_settings} // '' ) ) {
-        if ( exists $ref->{'csv'} ) {
-            for my $opt ( keys %{$ref->{'csv'}} ) {
-                $ref->{'csv_in'}{$opt} = $ref->{'csv'}{$opt};
-            }
-            delete $ref->{'csv'};
-            $sf->write_json( $sf->{i}{f_settings}, $ref );
-        }
-    }
-###############################################################
-
-
-############################################################### 2.321  21.03.2023
-    if ( $file_fs eq ( $sf->{i}{f_settings} // '' ) ) {
-        my $changed;
-        if ( exists $ref->{alias}{'select'} ) {
-            if ( ! defined $ref->{alias}{'select_func_sq'} ) {
-                $ref->{alias}{'select_func_sq'} = $ref->{alias}{'select'};
-            }
-            delete $ref->{alias}{'select'};
-            $changed++;
-        }
-        if ( exists $ref->{alias}{'aggregate'} ) {
-            if ( ! defined $ref->{alias}{'select_func_sq'} ) {
-                $ref->{alias}{'select_func_sq'} = $ref->{alias}{'aggregate'};
-            }
-            delete $ref->{alias}{'aggregate'};
-            $changed++;
-        }
-        if ( exists $ref->{alias}{'use_defaults'} ) {
-            delete $ref->{alias}{'use_defaults'};
-            $changed++;
-        }
-        if ( $changed ) {
-            $sf->write_json( $sf->{i}{f_settings}, $ref );
-        }
-    }
-###############################################################
-
-
-
-
 
     return $ref;
 }

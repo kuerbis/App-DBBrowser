@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-
-our $VERSION = '2.327';
+#$SIG{__WARN__} = sub { die @_ };
+our $VERSION = '2.328';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.327
+Version 2.328
 
 =head1 SYNOPSIS
 
@@ -215,15 +215,20 @@ Attach DB
 
 Detach DB
 
+=item
+
+DB Settings
+
 =back
 
-For I<Create Table>, I<Drop Table>, I<Create View> and I<Drop View> see L</WRITE ACCESS>. These entries are available if
-enabled in L</Extensions>.
+For I<Create Table>, I<Drop Table>, I<Create View> and I<Drop View> see L</WRITE ACCESS>.
+
+These entries are available if enabled in L</Extensions>.
 
 I<Attache DB> is available for C<SQLite> databases. I<Attach DB> can be used to attach databases to the current
 database.
 
-By selecting the prompt line of this menu (the database name) one can change the I<Source type> settings.
+For DB Settings see L</DB Settings>.
 
 =head3 Tables Entries
 
@@ -247,12 +252,6 @@ Combine the result from multiple SELECT statements.
 
 This entry is available if enabled in L</Extensions>.
 
-=head3 Settings
-
-See L</DB Settings>.
-
-This entry is available if enabled in L</Extensions>.
-
 =head2 SQL Menu
 
 In this menu it can be formed the SQL query.
@@ -267,7 +266,7 @@ Selecting this prompt line (I<Customize:>) opens a menu with these entries:
 
 =item
 
-Insert Into
+Insert
 
 =item
 
@@ -280,8 +279,6 @@ Delete
 =back
 
 See L</WRITE ACCESS>. These entries are available if enabled in L</Extensions>.
-
-By selecting the prompt line of this menu (I<Choose SQL type:>) one can change the I<Source type> settings.
 
 =head3 Print TABLE
 
@@ -388,19 +385,16 @@ Before creating a view: print the required select-statement to make it available
 
 Drop a view. The whole view is shown before the user confirms to drop the view.
 
-=head2 Insert Into/Update/Delete
+=head2 Insert/Update/Delete
 
-I<Insert Into>, I<Update> and I<Delete> can be reached by selecting the prompt-line in the L</SQL Menu> if the
-respective option is activated.
+I<Insert>, I<Update> and I<Delete> can be reached by selecting the prompt-line in the L</SQL Menu> if the respective
+option is activated.
 
-I<Delete>, I<Update> or I<Insert Into>  may not be available with C<JOIN> and C<UNION> statements.
+I<Delete>, I<Update> or I<Insert>  may not be available with C<JOIN> and C<UNION> statements.
 
-Selecting the prompt line of the I<Insert Into/Update/Delete> sub-menu allows one to set the parse settings described in
-L</Import data>.
+=head3 Insert
 
-=head3 Insert Into
-
-If the option I<Source type> is set to I<menu>, selecting I<Insert Into> opens a sub-menu where one can
+If the option I<Source type> is set to I<menu>, selecting I<Insert> opens a sub-menu where one can
 choose the type of the data source. If I<Source type> is set to I<plain> or I<file>, the set data source
 type is used without showing a menu.
 
@@ -449,6 +443,9 @@ After a directory has been chosen a sub-menu is opened where one can choose the 
 
 If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible to
 change the source directory in this sub-menu by selecting I<Change dir>.
+
+Selecting the prompt line of the I<Files> sub-menu (Choose a File:) allows one to set the parse settings described in
+L</Import data>.
 
 =back
 
@@ -587,7 +584,7 @@ The default values for this filter can be set with the option L<Empty to Null>.
 
 =item Reset
 
-Reset the filters to the default values.
+Reset the filters.
 
 =item Reparse
 
@@ -615,8 +612,9 @@ Choose the required database plugins.
 
 These driver specific I<DB Settings> are used as the default database settings.
 
-There is also in each L</Tables Menu> the entry I<DB Settings> (if enabled in L</Extensions>) to make database specific
-settings. If no database specific settings are set, these global (to the database plugin) I<DB Settings> are used.
+There is also in the prompt line of each L</Tables Menu> the entry I<DB Settings> (if enabled in L</Extensions>) to make
+database specific settings. If no database specific settings are set, these global (to the database plugin)
+I<DB Settings> are used.
 
 User defined database plugins: it depends on the plugin which items are offered to be set in each option and whether the
 selections made by the user are considered.
@@ -697,45 +695,35 @@ Union All
 
 =back
 
-=head3 Substatements
+=head3 Column menus
 
-Enable substatement additions for:
+=head4 Column-menu additions
 
-=over
-
-=item
-
-SELECT
-
-=item
-
-WHERE
-
-=item
-
-GROUP BY
-
-=item
-
-ORDER BY
-
-=item
-
-SET
-
-=back
-
-If enabled, C<%%> is shown as additionally menu entry. Selecting C<%%> lets one choose between the available extensions:
+If enabled, C<%%> is shown as additionally menu entry in the column menus. Selecting C<%%> lets one choose between the
+available extensions:
 
 =over
 
 =item Functions
 
-Selecting C<f()> opens the L</Functions> menu.
+Selecting C<f()> opens the functions menu, where the user can choose from a list of scalar functions.
 
 =item Subqueries
 
-Selecting C<SQ> opens the L</Subqueries> menu.
+Selecting C<SQ> opens the subqueries menu.
+
+By selecting the I<Read-Line> menu entry one can enter a subquery or an expression.
+
+The subqueries/expressions are automatically enclosed in parentheses.
+
+If stored subqueries are available, it is also possible to select one of those subqueries instead of entering a
+subquery.
+
+The last subqueries entered in the subquery menu and the last statements printed with I<Print TABLE> are stored
+temporarily.
+
+A subquery can be saved permanently in the sub-menu which opens by selecting the prompt line of a subquery menu
+(I<Choose SQ:>).
 
 =item Set column to C<NULL>
 
@@ -743,58 +731,12 @@ Available after the C<SET> in an C<UPDATE> statement. Selecting C<=N> sets the c
 
 =back
 
-If these menu entries are prefixed with C<=>, it is required to select the wanted operator I<after> the extended menu
-entry has been chosen.
+If C<%%> is prefixed with C<'='> (C<=%%>), it is required to select the wanted operator I<after> the extended menu entry
+has been chosen.
 
-=head4 Functions
+=head4 Parentheses
 
-=over
-
-=item
-
-String functions
-
-Bit_Length, Char_Length, Concat, Lower, LTrim, Replace, RTrim, Trim, Upper
-
-=item
-
-Mathematical functions
-
-Round, Truncate
-
-=item
-
-Type casting functions
-
-Cast
-
-=item
-
-Date and time functions
-
-Epoch_to_Date, Epoch_to_DateTime
-
-=back
-
-=head4 Subqueries
-
-Selecting a subquery menu entry (or a I<Derived> menu entry) opens a subquery sub-menu which allows one the enter a
-subquery (I<Read-Line>).
-
-If stored or temporarily stored subqueries are available, it is also possible to select one of those subqueries instead
-of entering a subquery.
-
-The subqueries are automatically enclosed in parentheses.
-
-A subquery can be saved or removed in the sub-menu which opens by selecting the prompt line of a subquery menu
-(I<Choose SQ:>).
-
-The last subqueries entered in the subquery menu and the last statements printed with I<Print TABLE> are stored
-temporarily.
-
-=head3 Parentheses
-
-Enable parentheses in C<WHERE> and/or C<HAVING> clauses.
+Enable parentheses in C<WHERE> and C<HAVING> clauses.
 
 =head3 Write access
 
@@ -850,7 +792,7 @@ With C<Firebird>, C<SIMILAR TO> is used instead of C<REGEXP>.
 
 =head3 Aliases
 
-Enable user defined alias for
+Alias settings for
 
 =over
 
@@ -860,17 +802,15 @@ Functions/Subqueries in SELECT
 
 =item
 
-Derived tables
+Join
 
 =item
 
-JOIN
-
-=item
-
-UNION
+Tables
 
 =back
+
+C<mysql>, C<MariaDB> and C<Pg>: if the table is a derived table an alias is always added.
 
 =head3 Identifiers
 
@@ -880,19 +820,17 @@ UNION
 
 If set to C<YES>, qualified table names are used in SQL statements.
 
+C<SQLite>: if the current database has attached databases, the use of qualified table names is enabled automatically.
+
 =item Quote identifiers
 
 If set to C<YES>, SQL identifiers are quoted.
 
 C<Informix>: set the C<DELIMIDENT> environment variable to allow quoted identifier.
 
+C<SQLite>: database names in SQL statements (C<ATTACH DATABASE>) are always quoted.
+
 =back
-
-C<SQLite>:
-
-- database names in SQL statements (C<ATTACH DATABASE>) are always quoted.
-
-- if the current database has attached databases, the use of qualified table names is enabled automatically.
 
 =head3 View prefix
 
@@ -1276,11 +1214,17 @@ Set the search behavior (C<Ctrl-F>).
 
 =over
 
-=item C<disabled>
+=item
 
-=item C<case-insensitive search>
+C<disabled>
 
-=item C<case-sensitive search>
+=item
+
+C<case-insensitive search>
+
+=item
+
+C<case-sensitive search>
 
 =back
 

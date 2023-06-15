@@ -40,7 +40,7 @@ sub search_and_replace {
     my $used_names = [];
     $sf->{s_back} = $back;
     my @bu;
-    my ( $hidden, $add ) = ( 'Your choice:', '  ADD search & replace' );
+    my ( $hidden, $add ) = ( 'Your choice:', '  NEW' );
     my $available = [ sort { $a cmp $b } keys %$saved  ];
 
     ADD_SEARCH_AND_REPLACE: while ( 1 ) {
@@ -145,7 +145,7 @@ sub search_and_replace {
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
-                    { info => $info, prompt => $prompt, auto_up => 2, confirm => $sf->{i}{confirm},
+                    { info => $info, prompt => $prompt, confirm => $sf->{i}{confirm},
                       back => $back, skip_items => $skip_regex }
                 );
                 if ( ! defined $form ) {
@@ -303,7 +303,7 @@ sub __history {
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
-                    { prompt => 'Add s_&_r:', auto_up => 2, clear_screen => 1, info => $top,
+                    { prompt => 'Add s_&_r:', clear_screen => 1, info => $top,
                       skip_items => $skip_regex,
                       confirm => '  ' . $sf->{i}{confirm}, back => '  ' . $sf->{i}{back} . '   ' }
                 );
@@ -388,8 +388,7 @@ sub __history {
                     # Fill_form
                     my $form = $tf->fill_form(
                         $fields,
-                        { prompt => "Edit \"$name\":", auto_up => 2, clear_screen => 1, info => $info,
-                          skip_items => $skip_regex,
+                        { prompt => "Edit \"$name\":", clear_screen => 1, info => $info, skip_items => $skip_regex,
                           confirm => '  ' . $sf->{i}{confirm}, back => '  ' . $sf->{i}{back} . '   ' }
                     );
                     if ( ! defined $form ) {

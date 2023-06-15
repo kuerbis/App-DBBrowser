@@ -34,9 +34,8 @@ sub defaults {
         },
         alias => {
             select_func_sq => 0,
-            derived_table  => 0,
             join           => 0,
-            union          => 0,
+            table          => 0,
         },
         enable => {
             create_table => 0,
@@ -48,14 +47,8 @@ sub defaults {
             update      => 0,
             delete      => 0,
 
-            expand_select   => 0,
-            expand_where    => 0,
-            expand_group_by => 0,
-            expand_having   => 0,
-            expand_order_by => 0,
-            expand_set      => 0,
-
-            parentheses => 0,
+            col_menu_addition => 0,
+            parentheses       => 0,
 
             m_derived   => 0,
             join        => 0,

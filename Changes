@@ -1,8 +1,17 @@
 Revision history for App-DBBrowser
 
 
+2.328    2023-06-15
+        - Some changes require to reconfigure some options.
+        - Some menu items have been moved to other menus.
+        - fill_form menus: option 'auto_up' set to 1.
+        - Added scalar functions 'coalesce' and 'now'.
+        - Modified options 'alias' and 'extensions'.
+        - Bugfix: having clause with subqueries.
+        - Bugfix: filter reparse.
+
 2.327    2023-06-02
-        - Bugfix: replace comma with semikolon.
+        - Bugfix: replace comma with semi-colon.
 
 2.326    2023-06-02
         - Fixed bugtracker entry in Makefile.PL.

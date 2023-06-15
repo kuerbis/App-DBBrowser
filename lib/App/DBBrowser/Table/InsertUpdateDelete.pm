@@ -11,7 +11,6 @@ use Term::Choose::Util qw();
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::CommitWriteSQL;
 #use App::DBBrowser::GetContent; # required
-#use App::DBBrowser::Opt::Set;   # required
 use App::DBBrowser::Table::Substatements;
 
 
@@ -44,34 +43,28 @@ sub table_write_access {
     if ( ! @stmt_types ) {
         return;
     }
-    my $old_idx = 1;
+    my $old_idx = 0;
 
     STMT_TYPE: while ( 1 ) {
-        my $hidden = 'Choose SQL type:';
-        my @pre = ( $hidden, undef );
+        my $prompt = 'Choose SQL type:';
+        my @pre = ( undef );
         my $menu = [ @pre, map( "- $_", @stmt_types ) ];
         # Choose
         my $idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, prompt => '', index => 1, default => $old_idx }
+            { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $old_idx }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
             if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $old_idx = 1;
+                $old_idx = 0;
                 next STMT_TYPE;
             }
             $old_idx = $idx;
         }
         my $stmt_type = $menu->[$idx];
-        if ( $stmt_type eq $hidden ) {
-            require App::DBBrowser::Opt::Set;
-            my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-            $opt_set->set_options( 'import' );
-            next STMT_TYPE;
-        }
         $stmt_type =~ s/^-\ //;
         $sf->{d}{stmt_types} = [ $stmt_type ];
         $ax->reset_sql( $sql );

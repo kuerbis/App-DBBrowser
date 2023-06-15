@@ -506,7 +506,7 @@ sub __split_column {
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => $prompt, auto_up => 2, confirm => $sf->{i}{confirm}, back => $back }
+        { info => $info, prompt => $prompt, confirm => $sf->{i}{confirm}, back => $back }
     );
     $sf->__print_busy_string();
     if ( ! $form ) {
@@ -643,7 +643,7 @@ sub __merge_rows {
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Edit cells of merged rows:', auto_up => 2, confirm => $sf->{i}{_confirm},
+        { info => $info, prompt => 'Edit cells of merged rows:', confirm => $sf->{i}{_confirm},
           back => $sf->{i}{_back} . '   ' }
     );
     $sf->__print_busy_string();
@@ -713,7 +713,7 @@ sub __join_columns {
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Edit cells of joined cols:', auto_up => 2, confirm => $sf->{i}{_confirm},
+        { info => $info, prompt => 'Edit cells of joined cols:', confirm => $sf->{i}{_confirm},
           back => $sf->{i}{_back} . '   ' }
     );
     $sf->__print_busy_string();

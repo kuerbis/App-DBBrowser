@@ -78,7 +78,7 @@ sub from_col_by_col {
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
-                    { info => $info, prompt => 'Column names:', auto_up => 2, confirm => $confirm, back => $back . '   ' }
+                    { info => $info, prompt => 'Column names:', confirm => $confirm, back => $back . '   ' }
                 );
                 if ( ! $form ) {
                     next COL_COUNT;
@@ -137,7 +137,7 @@ sub from_col_by_col {
                 # Fill_form
                 my $data = $tf->fill_form(
                     $fields,
-                    { info => $info, auto_up => 1, confirm => $confirm, back => $back . '   ', prompt => 'Enter Data:' }
+                    { info => $info, confirm => $confirm, back => $back . '   ', prompt => 'Enter Data:' }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $data ) {

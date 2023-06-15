@@ -34,12 +34,13 @@ sub new {
 
 
 sub browse_the_table {
-    my ( $sf, $qt_table, $qt_columns ) = @_;
+    my ( $sf, $qt_table, $qt_columns, $qt_aliases ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $sql = {};
     $ax->reset_sql( $sql );
     $sql->{table} = $qt_table;
     $sql->{cols} = $qt_columns;
+    $sql->{alias} = $qt_aliases // {};
     $sf->{d}{stmt_types} = [ 'Select' ];
     my $changed = {};
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );

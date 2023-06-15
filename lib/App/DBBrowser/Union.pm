@@ -8,6 +8,7 @@ use 5.014;
 use List::MoreUtils qw( any );
 
 use Term::Choose qw();
+#use Term::Choose::Util qw()     # required
 
 use App::DBBrowser::Auxil;
 #use App::DBBrowser::Subqueries; # required
@@ -39,18 +40,22 @@ sub union_tables {
         used_tables    => [],
         subselect_data => [],
         saved_cols     => [],
+        union_type     => '',
     };
-    my $unique_char = 'A';
+    my $count_derived = 1;
+    state $union_all = 1;
     my @bu;
 
     UNION_TABLE: while ( 1 ) {
         my $enough_tables = '  Enough TABLES';
         my $from_subquery = '  Derived';
         my $all_tables    = '  All Tables';
+        my $union_setting = '  Setting';
         my @pre  = ( undef, $enough_tables );
         my @post;
         push @post, $from_subquery if $sf->{o}{enable}{u_derived};
         push @post, $all_tables    if $sf->{o}{enable}{union_all};
+        push @post, $union_setting;
         my $used = ' (used)';
         my @tmp_tables;
         for my $table ( @$tables ) {
@@ -61,6 +66,7 @@ sub union_tables {
                 push @tmp_tables, '- ' . $table;
             }
         }
+        $union->{union_type} = $union_all ? "UNION ALL" : "UNION";
         my $prompt = 'Choose UNION table:';
         my $menu  = [ @pre, @tmp_tables, @post ];
         my $info = $ax->get_sql_info( $union );
@@ -85,6 +91,25 @@ sub union_tables {
             }
             last UNION_TABLE;
         }
+        elsif ( $union_table eq $union_setting ) {
+            my $sub_menu = [
+                [ 'union_all', "- Union all", [ 'NO', 'YES' ] ],
+            ];
+            my $config = {
+                union_all => $union_all,
+            };
+            require Term::Choose::Util; ##
+            my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
+            my $info = $ax->get_sql_info( $union );
+            # Choose
+            my $changed = $tu->settings_menu(
+                $sub_menu, $config,
+                { info => $info }
+            );
+            $ax->print_sql_info( $info );
+            $union_all = $config->{union_all};
+            next UNION_TABLE;
+        }
         elsif ( $union_table eq $all_tables ) {
             my $ok = $sf->__union_all_tables( $union );
             if ( ! $ok ) {
@@ -99,11 +124,8 @@ sub union_tables {
             if ( ! defined $union_table ) {
                 next UNION_TABLE;
             }
-            my $default_alias = 'U_TBL_' . $unique_char++;
-            my $alias = $ax->alias( $union, 'union', $union_table, $default_alias );
-            if ( length $alias ) {
-                $qt_union_table = $union_table . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
-            }
+            my $alias = 'x' . $count_derived++;
+            $qt_union_table = $union_table . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
             $sf->{d}{col_names}{$union_table} = $ax->column_names( $qt_union_table );
         }
         else {
@@ -120,10 +142,8 @@ sub union_tables {
         }
     }
     my $qt_table = $ax->get_stmt( $union, 'Union', 'prepare' );
-    my $dummy_identifier = 'UNION_ALL_' . join( '_', @{$union->{used_tables}} ); ##
-    my $alias = $ax->alias( $union, 'union', $dummy_identifier, $dummy_identifier );
-    if ( length $alias ) {
-        $qt_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
+    if ( $sf->{o}{alias}{table} || $sf->{i}{driver} =~ /^(?:mysql|MariaDB|Pg)\z/ ) {
+        $qt_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( 't1' );
     }
     # column names in the result-set of a UNION are taken from the first query.
     my $qt_columns = $union->{subselect_data}[0][1];
@@ -135,13 +155,13 @@ sub __union_table_columns {
     my ( $sf, $union, $union_table, $qt_union_table ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $privious_cols, $void ) = ( q['^'], q[' '] );
+    my $privious_cols =  "'^'";
     my $next_idx = @{$union->{subselect_data}};
     my $table_cols = [];
     my @bu_cols;
 
     while ( 1 ) {
-        my @pre = ( undef, $sf->{i}{ok}, @{$union->{saved_cols}} ? $privious_cols : $void );
+        my @pre = ( undef, $sf->{i}{ok}, @{$union->{saved_cols}} ? $privious_cols : () );
         my $info = $ax->get_sql_info( $union );
         # Choose
         my @chosen = $tc->choose(
@@ -153,16 +173,13 @@ sub __union_table_columns {
         if ( ! defined $chosen[0] ) {
             if ( @bu_cols ) {
                 $table_cols = pop @bu_cols;
-                $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
+                $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ), $union_table ];
                 next;
             }
             $#{$union->{subselect_data}} = $next_idx - 1;
             return;
         }
-        if ( $chosen[0] eq $void ) {
-            next;
-        }
-        elsif ( $chosen[0] eq $privious_cols ) {
+        if ( $chosen[0] eq $privious_cols ) {
             push @{$union->{subselect_data}}, [ $qt_union_table, $ax->quote_cols( $union->{saved_cols} ) ];
             return 1;
         }
@@ -177,9 +194,9 @@ sub __union_table_columns {
             return 1;
         }
         else {
-            push @bu_cols, $table_cols;
             push @$table_cols, @chosen;
             $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
+            push @bu_cols, [ @$table_cols ];
         }
     }
 }

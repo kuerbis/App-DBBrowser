@@ -69,12 +69,11 @@ sub _options {
             { name => '_db_defaults', text => '', section => ''  },
         ],
         group_extensions => [
-            { name => '_e_table',         text => "- Tables menu",   section => 'enable' },
-            { name => '_e_join',          text => "- Join menu",     section => 'enable' },
-            { name => '_e_union',         text => "- Union menu",    section => 'enable' },
-            { name => '_e_substatements', text => "- Substatements", section => 'enable' },
-            { name => '_e_parentheses',   text => "- Parentheses",   section => 'enable' },
-            { name => '_e_write_access',  text => "- Write access",  section => 'enable' },
+            { name => '_e_table',        text => "- Tables menu",  section => 'enable' },
+            { name => '_e_join',         text => "- Join menu",    section => 'enable' },
+            { name => '_e_union',        text => "- Union menu",   section => 'enable' },
+            { name => '_e_columns',      text => "- Column menus", section => 'enable' },
+            { name => '_e_write_access', text => "- Write access", section => 'enable' },
         ],
         group_sql_settings => [
             { name => '_meta',                   text => "- System DB/Tables", section => 'G'      },
@@ -298,22 +297,11 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq '_e_substatements' ) {
-                my $prompt = 'Enable Substatement Additions (functions, subqueries) for:';
+            elsif ( $opt eq '_e_columns' ) {
+                my $prompt = 'Column menus:';
                 my $sub_menu = [
-                    [ 'expand_select',   "- SELECT",   [ $no, $yes ] ],
-                    [ 'expand_where',    "- WHERE",    [ $no, $yes ] ],
-                    [ 'expand_group_by', "- GROUB BY", [ $no, $yes ] ],
-                    [ 'expand_having',   "- HAVING",   [ $no, $yes ] ],
-                    [ 'expand_order_by', "- ORDER BY", [ $no, $yes ] ],
-                    [ 'expand_set',      "- SET",      [ $no, $yes ] ],
-                ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
-            elsif ( $opt eq '_e_parentheses' ) {
-                my $prompt = 'Parentheses in WHERE/HAVING:';
-                my $sub_menu = [
-                    [ 'parentheses', "- Add Parentheses", [ $no, $yes ] ],
+                    [ 'col_menu_addition', "- Column menu additions", [ $no, $yes ] ],
+                    [ 'parentheses',       "- Add Parentheses",       [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -345,10 +333,9 @@ sub set_options {
             elsif ( $opt eq '_alias' ) {
                 my $prompt = 'Enable alias for:';
                 my $sub_menu = [
-                    [ 'select_func_sq', "- Functions/Subqueries in SELECT",  [ $no, $yes ] ],
-                    [ 'derived_table',  "- Derived table",                   [ $no, $yes ] ],
-                    [ 'join',           "- JOIN",                            [ $no, $yes ] ],
-                    [ 'union',          "- UNION",                           [ $no, $yes ] ],
+                    [ 'select_func_sq', "- Functions/Subqueries in SELECT",  [ $no, 'ASK' ] ],
+                    [ 'join',           "- JOIN",                            [ 'AUTO', 'ASK' ] ],
+                    [ 'table',          "- Table",                           [ $no, 'AUTO' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
@@ -716,7 +703,7 @@ sub __group_readline {
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $new_list = $tf->fill_form(
         $list,
-        { prompt => $prompt, auto_up => 2, confirm => $sf->{i}{confirm}, back => $sf->{i}{back} }
+        { prompt => $prompt, confirm => $sf->{i}{confirm}, back => $sf->{i}{back} }
     );
     if ( $new_list ) {
         for my $i ( 0 .. $#$items ) {

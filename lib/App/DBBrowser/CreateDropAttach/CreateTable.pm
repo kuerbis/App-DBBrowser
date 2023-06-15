@@ -395,8 +395,7 @@ sub __edit_column_names {
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Edit column names:', auto_up => 2,
-          confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
+        { info => $info, prompt => 'Edit column names:', confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
     );
     $ax->print_sql_info( $info );
     if ( ! defined $form ) {
@@ -452,7 +451,7 @@ sub __edit_column_types { ##
     # Fill_form
     my $col_name_and_type = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Column data types:', auto_up => 2, read_only => $read_only,
+        { info => $info, prompt => 'Column data types:', read_only => $read_only,
           confirm => $sf->{i}{confirm}, back => $sf->{i}{back} . '   ' }
     );
     $ax->print_sql_info( $info );
@@ -472,7 +471,7 @@ sub __create {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $no, $yes ) = ( '- NO', '- YES' );
-    my $menu = [ undef, $yes, $no ];
+    my $menu = [ undef, $yes, $no ]; ##
     my $prompt = "Create $type $sql->{table}";
     if ( @{$sql->{insert_into_args}} ) {
         my $row_count = @{$sql->{insert_into_args}};

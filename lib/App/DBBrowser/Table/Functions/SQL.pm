@@ -16,6 +16,23 @@ sub new {
 }
 
 
+sub function_with_no_col {
+    my ( $sf, $func ) = @_;
+    my $driver = $sf->{i}{driver};
+    $func = uc( $func );
+    if ( $func eq 'NOW' ) {
+        return "strftime('%Y-%m-%d %H-%M-%S','now')" if $driver eq 'SQLite';
+        return "timestamp 'NOW'"                     if $driver eq 'Firebird';
+        return "CURRENT"                             if $driver eq 'Informix'; # "CURRENT YEAR TO SECOND"
+        return "CURRENT_TIMESTAMP"                   if $driver =~ /^(?:DB2|Oracle)\z/; # "CURRENT_TIMESTAMP(9)"
+        return "NOW()";
+    }
+    else {
+        return "$func()"; # none
+    }
+}
+
+
 sub function_with_col {
     my ( $sf, $func, $col ) = @_;
     my $driver = $sf->{i}{driver};
@@ -92,20 +109,27 @@ sub function_with_col_and_2args {
 
 
 sub concatenate {
-    my ( $sf, $arguments, $sep ) = @_;
+    my ( $sf, $cols, $sep ) = @_;
     my $arg;
     if ( defined $sep && length $sep ) {
-        my $qt_sep = "'" . $sep . "'";
-        for ( @$arguments ) {
+        my $qt_sep = $sf->{d}{dbh}->quote( $sep );
+        for ( @$cols ) {
             push @$arg, $_, $qt_sep;
         }
         pop @$arg;
     }
     else {
-        $arg = $arguments
+        $arg = $cols
     }
     return "CONCAT(" . join( ',', @$arg ) . ")"  if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;
     return join( " || ", @$arg );
+}
+
+
+sub coalesce {
+    my ( $sf, $cols ) = @_;
+    return "COALESCE(" . join( ',', @$cols ) . ")"
+
 }
 
 

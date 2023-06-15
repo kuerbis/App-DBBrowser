@@ -28,7 +28,7 @@ sub complex_unit {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $function, $subquery, $set_to_null ) = ( 'f()', 'SQ', '=N' );
     my @types;
-    if ( $sf->{o}{enable}{'expand_' . $clause} ) {
+    if ( $sf->{o}{enable}{col_menu_addition} ) {
         if ( $clause eq 'set' ) {
             @types = ( $function, $subquery, $set_to_null );
         }

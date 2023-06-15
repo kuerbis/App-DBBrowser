@@ -27,42 +27,62 @@ sub new {
 
 
 sub build_having_col {
-    my ( $sf, $sql, $aggr ) = @_;
-    my $quote_aggr;
+    my ( $sf, $sql, $clause, $aggr ) = @_;
+    my $qt_aggr;
     if ( any { '@' . $_ eq $aggr } @{$sql->{aggr_cols}} ) {
-        $quote_aggr = $aggr =~ s/^\@//r;
-        $sql->{having_stmt} .= ' ' . $quote_aggr;
+        $qt_aggr = $aggr =~ s/^\@//r;
     }
     elsif ( $aggr eq 'COUNT(*)' ) {
-        $quote_aggr = $aggr;
-        $sql->{having_stmt} .= ' ' . $quote_aggr;
+        $qt_aggr = $aggr;
     }
-    else {
-        $aggr =~ s/\(\S\)\z//;
-        $sql->{having_stmt} .= ' ' . $aggr . "(";
-        $quote_aggr          =       $aggr . "(";
+    elsif ( any { $aggr eq $_ } @{$sf->{i}{avail_aggr}} ) {
         my $tc = Term::Choose->new( $sf->{i}{tc_default} );
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
         my @pre = ( undef );
-        my $info = $ax->get_sql_info( $sql );
-        # Choose
-        my $quote_col = $tc->choose(
-            [ @pre, @{$sql->{cols}} ],
-            { %{$sf->{i}{lyt_h}}, info => $info }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $quote_col ) {
-            return;
+        if ( $sf->{o}{enable}{col_menu_addition} ) {
+            push @pre, $sf->{i}{menu_addition};
         }
-        $sql->{having_stmt} .= $quote_col . ")";
-        $quote_aggr         .= $quote_col . ")";
+        $aggr =~ s/\(\S\)\z//;
+        my $bu_having_stmt = $sql->{having_stmt};
+        $sql->{having_stmt} .= ' ' . $aggr . "(";
+        $qt_aggr          =       $aggr . "(";
+        my $info = $ax->get_sql_info( $sql );
+        $sql->{having_stmt} = $bu_having_stmt;
+        my $qt_col;
+
+        COLUMN: while( 1 ) {
+            # Choose
+            my $qt_col = $tc->choose(
+                [ @pre, @{$sql->{cols}} ],
+                { %{$sf->{i}{lyt_h}}, info => $info }
+            );
+            $ax->print_sql_info( $info );
+            if ( ! defined $qt_col ) {
+                return;
+            }
+            elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
+                my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+                my $complex_columns = $ext->complex_unit( $sql, $clause, 1 );
+                if ( ! defined $complex_columns ) {
+                    next COLUMN;
+                }
+                else {
+                    $qt_col = $complex_columns->[0];
+                }
+            }
+            $qt_aggr .= $qt_col . ")";
+            last COLUMN;
+        }
     }
-    return $quote_aggr;
+    else { # SQ
+        $qt_aggr = $aggr;
+    }
+    return $qt_aggr;
 }
 
 
 sub choose_and_add_operator {
-    my ( $sf, $sql, $clause, $quote_col ) = @_;
+    my ( $sf, $sql, $clause, $qt_col ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $stmt = $clause . '_stmt';
@@ -81,9 +101,9 @@ sub choose_and_add_operator {
         if ( $sf->{i}{driver} =~ /(?:Firebird|Informix)\z/ ) {
             @operators_default = uniq map { s/(?<=REGEXP)_i\z//; $_ } @operators_default;
         }
-        @operators_limited = ( " = ", " != ", " < ", " > ", " >= ", " <= ", "IN", "NOT IN" );
+        @operators_limited = ( grep { ! /(?:\s%?col%?|REGEXP(?:_i)?|BETWEEN|NULL)\z/ } @operators_default );
     }
-    if ( $sf->{o}{enable}{'expand_' . $clause} ) {
+    if ( $sf->{o}{enable}{col_menu_addition} ) {
         unshift @operators_default, $menu_addition;
     }
 
@@ -116,7 +136,7 @@ sub choose_and_add_operator {
                 # Choose
                 $op = $tc->choose(
                     [ @pre, @operators_limited ],
-                    { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'First select the operator:' }
+                    { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Operator:' }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $op ) {
@@ -130,7 +150,7 @@ sub choose_and_add_operator {
         }
         $op =~ s/^\s+|\s+\z//g;
         my $bu_stmt = $sql->{$stmt};
-        my $ok = $sf->__add_operator( $sql, $clause, $quote_col, $op );
+        my $ok = $sf->__add_operator( $sql, $clause, $qt_col, $op );
         if ( ! $ok ) {
             $sql->{$stmt} = $bu_stmt;
             next OPERATOR;
@@ -141,7 +161,7 @@ sub choose_and_add_operator {
 
 
 sub __add_operator {
-    my ( $sf, $sql, $clause, $quote_col, $op ) = @_;
+    my ( $sf, $sql, $clause, $qt_col, $op ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $stmt = $clause . '_stmt';
@@ -152,10 +172,10 @@ sub __add_operator {
         $op = $1;
         my $arg = $2;
         $sql->{$stmt} .= ' ' . $op;
-        my $quote_col;
+        my $qt_col;
+        my @pre = ( undef );
         if ( $stmt eq 'having_stmt' ) {
-            my @pre = ( undef, $sf->{i}{ok} );
-            my @choices = ( @{$sf->{aggregate}}, map( '@' . $_,  @{$sql->{aggr_cols}} ) );
+            my @choices = ( @{$sf->{i}{avail_aggr}}, map( '@' . $_,  @{$sql->{aggr_cols}} ) );
             my $info = $ax->get_sql_info( $sql );
             # Choose
             my $aggr = $tc->choose(
@@ -166,26 +186,22 @@ sub __add_operator {
             if ( ! defined $aggr ) {
                 return;
             }
-            if ( $aggr eq $sf->{i}{ok} ) {
-            }
-            my $backup_tmp = $sql->{$stmt};
-            $quote_col =  $sf->build_having_col( $sql, $aggr );
-            $sql->{$stmt} = $backup_tmp;
+            $qt_col = $sf->build_having_col( $sql, $clause, $aggr );
         }
         else {
             my $info = $ax->get_sql_info( $sql );
             # Choose
-            $quote_col = $tc->choose(
-                $sql->{cols},
+            $qt_col = $tc->choose(
+                [ @pre, @{$sql->{cols}} ],
                 { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Col:' }
             );
             $ax->print_sql_info( $info );
         }
-        if ( ! defined $quote_col ) {
+        if ( ! defined $qt_col ) {
             return;
         }
         if ( $arg !~ /%/ ) {
-            $sql->{$stmt} .= ' ' . $quote_col;
+            $sql->{$stmt} .= ' ' . $qt_col;
         }
         else {
             if ( ! eval {
@@ -193,7 +209,7 @@ sub __add_operator {
                 my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
                 my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
                 my $qt_arg = $fsql->concatenate( \@el );
-                $qt_arg =~ s/'col'/$quote_col/;
+                $qt_arg =~ s/'col'/$qt_col/;
                 $sql->{$stmt} .= ' ' . $qt_arg;
                 1 }
             ) {
@@ -203,12 +219,12 @@ sub __add_operator {
         }
     }
     elsif ( $op =~ /REGEXP(_i)?\z/ ) {
-        $sql->{$stmt} =~ s/ (?: (?<=\() | \s ) \Q$quote_col\E \z //x;
+        $sql->{$stmt} =~ s/ (?: (?<=\() | \s ) \Q$qt_col\E \z //x;
         my $do_not_match_regexp = $op =~ /^NOT/ ? 1 : 0;
         my $case_sensitive      = $op =~ /REGEXP_i\z/ ? 0 : 1;
         my $regex_op;
         if ( ! eval {
-            $regex_op = $sf->_regexp( $quote_col, $do_not_match_regexp, $case_sensitive );
+            $regex_op = $sf->_regexp( $qt_col, $do_not_match_regexp, $case_sensitive );
             1 }
         ) {
             $ax->print_error_message( $@ );
@@ -243,9 +259,6 @@ sub read_and_add_value {
             }
             $sql->{$stmt} .= '(' . $complex_value . ')';
         }
-        #elsif ( $op =~ /REGEXP(_i)?\z/ ) {
-        #    $sql->{$stmt} =~ s/\?[^\?]*\z/$complex_value/;
-        #}
         else {
             $sql->{$stmt} .= ' ' . $complex_value;
         }

@@ -92,7 +92,7 @@ sub join_tables {
             $qt_master = $ax->quote_table( $sf->{d}{tables_info}{$master} );
         }
         push @{$join->{used_tables}}, $master;
-        $join->{default_alias} = 'A';
+        $join->{default_alias} = 'a';
         # Alias
         my $master_alias = $ax->alias( $join, 'join', $qt_master, $join->{default_alias} );
         push @{$join->{aliases}}, [ $master, $master_alias ];
@@ -148,6 +148,7 @@ sub join_tables {
         }
     }
     my $qt_columns = [];
+    my $qt_aliases = {};
     for my $table ( @{$join->{used_tables}} ) {
         for my $alias ( @{$aliases_by_tables->{$table}} ) {
             for my $col ( @{$sf->{d}{col_names}{$table}} ) {
@@ -158,16 +159,14 @@ sub join_tables {
                 if ( $col_names{$col} > 1 ) {
                     #$col_names{$col}--; ##
                     #next;
-                    push @$qt_columns, $col_qt . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias . '_' . $col );
+                    $qt_aliases->{$col_qt} = $ax->prepare_identifier( $alias . '_' . $col );
                 }
-                else {
-                    push @$qt_columns, $col_qt;
-                }
+                push @$qt_columns, $col_qt;
             }
         }
     }
     my ( $qt_table ) = $join->{stmt} =~ /^SELECT\s\*\sFROM\s(.*)\z/;
-    return $qt_table, $qt_columns;
+    return $qt_table, $qt_columns, $qt_aliases;
 }
 
 
@@ -310,7 +309,7 @@ sub __add_join_condition {
                 my $info = $ax->get_sql_info( $join );
                 my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
                 # Readline
-                $condition = $tr->readline(
+                $condition = $tr->readline( # conditions are boolean expressions
                     'Edit: ',
                     { info => $info, default => $condition, show_context => 1 }
                 );

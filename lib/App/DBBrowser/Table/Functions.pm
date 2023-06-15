@@ -29,19 +29,46 @@ sub new {
 }
 
 
-sub __choose_columns {
+sub __choose_columns { ##
     my ( $sf, $func, $cols, $func_info, $multi_col ) = @_;
     $func_info .= "\n";
     if ( $multi_col ) {
         my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
+        my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+        my $const = '[const]';
+        my $list;
+        if ( $multi_col == 2 ) {
+            $list = [ $const, @$cols ];
+        }
+        else {
+            $list = [ @$cols ];
+        }
         # Choose
         my $subset = $tu->choose_a_subset(
-            $cols,
+            $list,
             { info => $func_info, cs_label => 'Columns: ', prompt => '', layout => 1,
               cs_separator => ',', keep_chosen => 1, confirm => $sf->{i}{ok}, back => '<<' }
         );
         if ( ! @{$subset//[]} ) {
             return;
+        }
+        if ( $multi_col == 2 ) {
+            for ( @$subset ) {
+                if ( $_ eq $const ) {
+                    my $tmp_info = $func_info =~ s/\)\n\z/join( ',', @$subset ) . ")\n"/er;
+                    my $value = $tr->readline(
+                        '[const]: ',
+                        { info => $tmp_info }
+                    );
+                    if ( ! defined $value ) {
+                        return;
+                    }
+                    if ( ! looks_like_number $value ) {
+                        $value = $sf->{d}{dbh}->quote( $value );
+                    }
+                    $_ = $value; # in place
+                }
+            }
         }
         return $subset;
     }
@@ -119,9 +146,11 @@ sub col_function {
     else {
         $cols = [ @{$sql->{cols}} ];
     }
-    my @simple_functions = ( 'TRIM', 'LTRIM', 'RTRIM', 'UPPER', 'LOWER', 'OCTET_LENGTH', 'CHAR_LENGTH' );
+    my @one_col_functions = ( 'TRIM', 'LTRIM', 'RTRIM', 'UPPER', 'LOWER', 'OCTET_LENGTH', 'CHAR_LENGTH' );
+    my $Now               = 'NOW';
     my $Cast              = 'CAST';
     my $Concat            = 'CONCAT';
+    my $Coalesce          = 'COALESCE';
     my $Epoch_to_Date     = 'EPOCH_TO_DATE';
     my $Epoch_to_DateTime = 'EPOCH_TO_DATETIME';
     my $Replace           = 'REPLACE';
@@ -130,23 +159,23 @@ sub col_function {
     my $Truncate          = 'TRUNCATE';
     my @functions;
     if ( $driver eq 'Informix' ) {
-        @functions = ( @simple_functions, $Cast, $Concat,                 $Epoch_to_DateTime, $Replace, $Substr, $Round, $Truncate );
+        @functions = ( @one_col_functions, $Now, $Cast, $Concat, $Coalesce,                 $Epoch_to_DateTime, $Replace, $Substr, $Round, $Truncate );
     }
     else {
-        @functions = ( @simple_functions, $Cast, $Concat, $Epoch_to_Date, $Epoch_to_DateTime, $Replace, $Substr, $Round, $Truncate );
+        @functions = ( @one_col_functions, $Now, $Cast, $Concat, $Coalesce, $Epoch_to_Date, $Epoch_to_DateTime, $Replace, $Substr, $Round, $Truncate );
     }
-    my $joined_simple_functions = join( '|', @simple_functions );
+    my $joined_one_col_functions = join( '|', @one_col_functions );
     my $prefix = '- ';
     my @pre = ( undef, $sf->{i}{confirm} );
     my $menu = [ @pre, map( $prefix . lc $_, @functions ) ];
 
     SCALAR_FUNCTION: while( 1 ) {
         my $func_info = '';
-        my @chosen_func;
+        my @nested_func;
 
-        CHOOSE_FUNCTIONS: while ( 1 ) {
+        NESTED_FUNCTIONS: while ( 1 ) {
             my $func_str = '';
-            for my $func ( @chosen_func ) {
+            for my $func ( @nested_func ) {
                 $func_str = lc( $func ) . '(' . $func_str . ')';
             }
             $func_info = 'Function: ' . $func_str;
@@ -156,32 +185,35 @@ sub col_function {
                 { %{$sf->{i}{lyt_v}}, info => $func_info, prompt => '', index => 1, undef => $sf->{i}{back} }
             );
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
-                if ( @chosen_func ) {
-                    pop @chosen_func;
-                    next CHOOSE_FUNCTIONS;
+                if ( @nested_func ) {
+                    pop @nested_func;
+                    next NESTED_FUNCTIONS;
                 }
                 else {
                     return;
                 }
             }
             if ( $menu->[$idx] eq $sf->{i}{confirm} ) {
-                last CHOOSE_FUNCTIONS;
+                last NESTED_FUNCTIONS;
             }
-            push @chosen_func, $functions[$idx-@pre];
+            push @nested_func, $functions[$idx-@pre];
         }
         my $function_stmts = [];
 
         CHOOSE_COLUMNS: while ( 1 ) {
-            for my $i ( 0 .. $#chosen_func ) {
-                my $func = $chosen_func[$i];
+            for my $i ( 0 .. $#nested_func ) {
+                my $func = $nested_func[$i];
                 my $chosen_cols = [];
-                if ( $i == 0 ) {
-                    my $multi_col = 0;
-                    if (   $clause eq 'select'
-                        || $clause eq 'where' && $sql->{where_stmt} =~ /\s(?:NOT\s)?IN\s*\z/
-                        || $func eq $Concat
-                    ) {
+                if ( $i == 0 && $func ne $Now) {
+                    my $multi_col;
+                    if ( $func eq $Concat || $func eq $Coalesce ) {
+                        $multi_col = 2;
+                    }
+                    elsif ( $clause eq 'select' || $clause eq 'where' && $sql->{where_stmt} =~ /\s(?:NOT\s)?IN\s*\z/ ) {
                         $multi_col = 1;
+                    }
+                    else {
+                        $multi_col = 0;
                     }
                     $chosen_cols = $sf->__choose_columns( $func, $cols, $func_info, $multi_col );
                     if ( ! defined $chosen_cols ) {
@@ -191,8 +223,11 @@ sub col_function {
                 else {
                     $chosen_cols = $function_stmts;
                 }
-                if ( $func =~ /^(?:$joined_simple_functions)\z/ ) {
+                if ( $func =~ /^(?:$joined_one_col_functions)\z/ ) {
                     $function_stmts = $sf->__func_with_col( $sql, $chosen_cols, $func );
+                }
+                elsif ( $func eq $Now ) {
+                    $function_stmts =  $sf->__func_with_no_col( $func );
                 }
                 elsif ( $func eq $Cast ) {
                     my $prompt = 'Data type: ';
@@ -213,6 +248,9 @@ sub col_function {
                 elsif ( $func eq $Concat ) {
                     $function_stmts = $sf->__func_Concat( $sql, $chosen_cols, $func );
                 }
+                elsif ( $func eq $Coalesce ) {
+                    $function_stmts = $sf->__func_Coalesce( $sql, $chosen_cols, $func );
+                }
                 elsif ( $func =~ /^(?:$Epoch_to_Date|$Epoch_to_DateTime)\z/ ) {
                     $function_stmts = $sf->__func_Date_Time( $sql, $chosen_cols, $func );
                 }
@@ -223,6 +261,12 @@ sub col_function {
             return $function_stmts;
         }
     }
+}
+
+sub __func_with_no_col {
+    my ( $sf, $func ) = @_;
+    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    return [ $fsql->function_with_no_col( $func ) ];
 }
 
 
@@ -311,8 +355,7 @@ sub __func_with_col_and_2args {
         my $pad = ' ' x ( length( $fields->[0][0] ) - 1 );
         my $form = $tf->fill_form(
             $fields,
-            { info => $info, prompt => '', auto_up => 2,
-            confirm => 'OK' . $pad, back => '<<' . $pad }
+            { info => $info, prompt => '', confirm => 'OK' . $pad, back => '<<' . $pad }
         );
         if ( ! $form ) { # if ( ! defined $form->[0][1] ) {
             if ( $i == 0 ) {
@@ -354,7 +397,6 @@ sub __func_with_col_and_2args {
 
 sub __func_Concat {
     my ( $sf, $sql, $chosen_cols, $func ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $info = 'Concat(' . join( ',', @$chosen_cols ) . ')';
@@ -365,8 +407,15 @@ sub __func_Concat {
     if ( ! defined $sep ) {
         return;
     }
-    my $function_stmts = [ $fsql->concatenate( $chosen_cols, $sep ) ];
-    my $unquoted_chosen_cols = [ map { $ax->unquote_identifier( $_ ) } @$chosen_cols ];
+    my $function_stmts = [ $fsql->concatenate( $chosen_cols, $sep ) ]; # always one function_stmt
+    return $function_stmts;
+}
+
+
+sub __func_Coalesce {
+    my ( $sf, $sql, $chosen_cols, $func ) = @_;
+    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $function_stmts = [ $fsql->coalesce( $chosen_cols ) ]; # always one function_stmt
     return $function_stmts;
 }
 
