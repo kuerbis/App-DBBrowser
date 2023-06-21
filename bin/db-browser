@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 #$SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.328';
+our $VERSION = '2.329';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.328
+Version 2.329
 
 =head1 SYNOPSIS
 
@@ -444,7 +444,7 @@ After a directory has been chosen a sub-menu is opened where one can choose the 
 If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible to
 change the source directory in this sub-menu by selecting I<Change dir>.
 
-Selecting the prompt line of the I<Files> sub-menu (Choose a File:) allows one to set the parse settings described in
+Selecting the prompt line of the I<Files> sub-menu (I<Choose a File:>) allows one to set the parse settings described in
 L</Import data>.
 
 =back
@@ -612,8 +612,8 @@ Choose the required database plugins.
 
 These driver specific I<DB Settings> are used as the default database settings.
 
-There is also in the prompt line of each L</Tables Menu> the entry I<DB Settings> (if enabled in L</Extensions>) to make
-database specific settings. If no database specific settings are set, these global (to the database plugin)
+In the prompt line menu of the L</Tables Menu> the entry I<DB Settings> (if enabled in L</Extensions>) allows one to
+make database specific settings. If no database specific settings are set, these global (to the database plugin)
 I<DB Settings> are used.
 
 User defined database plugins: it depends on the plugin which items are offered to be set in each option and whether the

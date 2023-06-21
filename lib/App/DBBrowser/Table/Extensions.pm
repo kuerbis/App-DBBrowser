@@ -23,18 +23,19 @@ sub new {
 
 
 sub complex_unit {
-    my ( $sf, $sql, $clause, $want_array ) = @_;
+    my ( $sf, $sql, $clause ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $function, $subquery, $set_to_null ) = ( 'f()', 'SQ', '=N' );
     my @types;
-    if ( $sf->{o}{enable}{col_menu_addition} ) {
-        if ( $clause eq 'set' ) {
-            @types = ( $function, $subquery, $set_to_null );
-        }
-        else {
-            @types = ( $function, $subquery );
-        }
+    if ( $clause eq 'set' ) {
+        @types = ( $function, $subquery, $set_to_null );
+    }
+    elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\sIN\z/ ) {
+            @types = ( $subquery );
+    }
+    else {
+        @types = ( $function, $subquery );
     }
     my $info = $ax->get_sql_info( $sql );
     # Choose
@@ -57,12 +58,7 @@ sub complex_unit {
         if ( ! defined $subq ) {
             return;
         }
-        if ( $want_array ) {
-            return [ $subq ];
-        }
-        else {
-            return $subq;
-        }
+        return $subq;
     }
     elsif ( $type eq $function ) {
         require App::DBBrowser::Table::Functions;
@@ -71,13 +67,7 @@ sub complex_unit {
         if ( ! defined $col_with_func ) {
             return;
         }
-        if ( $want_array ) { # SELECT
-            return $col_with_func;
-        }
-        else {
-            return join( ', ', @$col_with_func );
-            # with 'WHERE' + ('IN' or 'NOT IN') possible @$func > 1
-        }
+        return $col_with_func;
     }
 }
 

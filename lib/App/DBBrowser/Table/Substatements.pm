@@ -84,18 +84,16 @@ sub select {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_columns = $ext->complex_unit( $sql, $clause, 1 );
-            if ( ! defined $complex_columns ) {
+            my $complex_col = $ext->complex_unit( $sql, $clause );
+            if ( ! defined $complex_col ) {
                 ( $sql->{selected_cols}, $sql->{alias} ) = @{pop @bu};
             }
             else {
-                for my $complex_col ( @$complex_columns ) {
-                    my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col );
-                    if ( length $alias ) {
-                        $sql->{alias}{$complex_col} = $ax->prepare_identifier( $alias );
-                    }
-                    push @{$sql->{selected_cols}}, $complex_col;
+                my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col );
+                if ( length $alias ) {
+                    $sql->{alias}{$complex_col} = $ax->prepare_identifier( $alias );
                 }
+                push @{$sql->{selected_cols}}, $complex_col;
             }
         }
         else {
@@ -233,12 +231,12 @@ sub __add_aggregate_substmt {
             }
             elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
                 my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                my $complex_columns = $ext->complex_unit( $sql, $clause, 1 );
-                if ( ! defined $complex_columns ) {
+                my $complex_column = $ext->complex_unit( $sql, $clause );
+                if ( ! defined $complex_column ) {
                     next COLUMN;
                 }
                 else {
-                    $qt_col = $complex_columns->[0];
+                    $qt_col = $complex_column;
                 }
             }
             last COLUMN;
@@ -429,7 +427,7 @@ sub group_by {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, 0 );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( defined $complex_column ) {
                 push @{$sql->{group_by_cols}}, $complex_column;
             }
@@ -496,7 +494,7 @@ sub order_by {
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, 0 );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( ! defined $complex_column ) {
                 if ( @bu ) {
                     ( $sql->{order_by_stmt}, $col_sep ) = @{pop @bu};
@@ -529,6 +527,7 @@ sub limit_offset {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
+    my $driver = $sf->{i}{driver};
     my @pre = ( undef, $sf->{i}{ok} );
     $sql->{limit_stmt}  = '';
     $sql->{offset_stmt} = '';
@@ -559,7 +558,7 @@ sub limit_offset {
         push @bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];
         my $digits = 7;
         if ( $choice eq $limit ) {
-            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
                 # https://www.ibm.com/docs/en/db2-for-zos/12?topic=subselect-fetch-clause
                 $sql->{limit_stmt} = "FETCH NEXT";
             }
@@ -577,19 +576,19 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{limit_stmt} .=  sprintf ' %d', $limit;
-            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
                 $sql->{limit_stmt} .= " ROWS ONLY";
             }
         }
         if ( $choice eq $offset ) {
-            if ( $sf->{i}{driver} eq 'Informix' ) {
+            if ( $driver eq 'Informix' ) {
                 $tc->choose( [ 'BACK' ], { prompt => 'Informix: OFFSET not supported.' } );
                 next LIMIT;
             }
             if ( ! $sql->{limit_stmt} ) {
                 # SQLite/mysql/MariaDB: no offset without limit
-                $sql->{limit_stmt} = "LIMIT " . '9223372036854775807'  if $sf->{i}{driver} eq 'SQLite';   # 2 ** 63 - 1
-                $sql->{limit_stmt} = "LIMIT " . '18446744073709551615' if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;    # 2 ** 64 - 1
+                $sql->{limit_stmt} = "LIMIT " . '9223372036854775807'  if $driver eq 'SQLite';   # 2 ** 63 - 1
+                $sql->{limit_stmt} = "LIMIT " . '18446744073709551615' if $driver =~ /^(?:mysql|MariaDB)\z/;    # 2 ** 64 - 1
                 # MySQL 8.0 Reference Manual - SQL Statements/Data Manipulation Statements/Select Statement/Limit clause:
                 #    SELECT * FROM tbl LIMIT 95,18446744073709551615;   -> all rows from the 95th to the last
             }
@@ -605,7 +604,7 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{offset_stmt} .= sprintf ' %d', $offset;
-            if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
                 $sql->{offset_stmt} .= " ROWS";
             }
         }
@@ -663,7 +662,7 @@ sub __add_condition {
         }
         if ( $qt_col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, 0 );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( ! defined $complex_column ) {
                 if ( @bu_col ) {
                     ( $sql->{where_stmt}, $sql->{where_args}, $AND_OR, $unclosed, $count ) = @{pop @bu_col};

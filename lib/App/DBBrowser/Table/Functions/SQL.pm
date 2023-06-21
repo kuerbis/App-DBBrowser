@@ -141,6 +141,7 @@ sub epoch_to_date {
     return "TO_TIMESTAMP(${col}::bigint/$interval)::date"                                  if $driver eq 'Pg';
     return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')"           if $driver eq 'Firebird';
     return "TIMESTAMP('1970-01-01') + ($col/$interval) SECONDS"                            if $driver eq 'DB2';
+    return "TO_CHAR(DBINFO('utc_to_datetime',$col/$interval),'%Y-%m-%d')"                  if $driver eq 'Informix';
     return "TO_DATE('1970-01-01','YYYY-MM-DD') + NUMTODSINTERVAL($col/$interval,'SECOND')" if $driver eq 'Oracle';
 }
 

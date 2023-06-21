@@ -209,7 +209,7 @@ sub __select_cols {
     elsif ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
         @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
     }
-    elsif ( $sf->{d}{special_table} eq 'join' ) {
+    elsif ( $sf->{d}{special_table} eq 'join' ) { # ### 
         @cols = @{$sql->{cols}};
         # join: use qualified column names and not * because:
         #- different tables could have columns with the same name

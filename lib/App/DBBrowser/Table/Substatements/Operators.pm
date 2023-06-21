@@ -62,12 +62,12 @@ sub build_having_col {
             }
             elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
                 my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                my $complex_columns = $ext->complex_unit( $sql, $clause, 1 );
-                if ( ! defined $complex_columns ) {
+                my $complex_column = $ext->complex_unit( $sql, $clause );
+                if ( ! defined $complex_column ) {
                     next COLUMN;
                 }
                 else {
-                    $qt_col = $complex_columns->[0];
+                    $qt_col = $complex_column;
                 }
             }
             $qt_aggr .= $qt_col . ")";
@@ -249,12 +249,13 @@ sub read_and_add_value {
     my $args = $clause . '_args';
     if ( $is_complex_value ) {
         my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my $complex_value = $ext->complex_unit( $sql, $clause, 0 );
+        my $complex_value = $ext->complex_unit( $sql, $clause );
         if ( ! defined $complex_value ) {
             return;
         }
         if ( $op =~ /^(?:NOT\s)?IN\z/ ) {
             while ( $complex_value =~ /^\s*\((.+)\)\s*\z/ ) {
+                # Removing the () is required here
                 $complex_value = $1;
             }
             $sql->{$stmt} .= '(' . $complex_value . ')';

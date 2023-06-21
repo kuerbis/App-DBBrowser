@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.329    2023-06-21
+        - Refactoring Functions.pm.
+        - Nested scalar functions: recursion instead of loop.
+
 2.328    2023-06-15
         - Some changes require to reconfigure some options.
         - Some menu items have been moved to other menus.
@@ -9,6 +13,7 @@ Revision history for App-DBBrowser
         - Modified options 'alias' and 'extensions'.
         - Bugfix: having clause with subqueries.
         - Bugfix: filter reparse.
+        - Union: option to set the union type.
 
 2.327    2023-06-02
         - Bugfix: replace comma with semi-colon.

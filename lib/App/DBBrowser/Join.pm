@@ -137,9 +137,9 @@ sub join_tables {
         last MASTER;
     }
 
-    my $aliases_by_tables = {};
+    my $aliases_hash = {};
     for my $ref ( @{$join->{aliases}} ) {
-        push @{$aliases_by_tables->{$ref->[0]}}, $ref->[1];
+        push @{$aliases_hash->{$ref->[0]}}, $ref->[1];
     }
     my %col_names;
     for my $table ( @{$join->{used_tables}} ) {
@@ -150,7 +150,7 @@ sub join_tables {
     my $qt_columns = [];
     my $qt_aliases = {};
     for my $table ( @{$join->{used_tables}} ) {
-        for my $alias ( @{$aliases_by_tables->{$table}} ) {
+        for my $alias ( @{$aliases_hash->{$table}} ) {
             for my $col ( @{$sf->{d}{col_names}{$table}} ) {
                 my $col_qt = $ax->prepare_identifier( $alias, $col );
                 if ( any { $_ eq $col_qt } @$qt_columns ) {
@@ -254,13 +254,13 @@ sub __add_join_condition {
     my ( $sf, $join, $tables, $slave, $slave_alias ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $aliases_by_tables = {};
+    my $aliases_hash = {};
     for my $ref ( @{$join->{aliases}} ) {
-        push @{$aliases_by_tables->{$ref->[0]}}, $ref->[1];
+        push @{$aliases_hash->{$ref->[0]}}, $ref->[1];
     }
     my %avail_pk_cols;
     for my $used_table ( @{$join->{used_tables}} ) {
-        for my $alias ( @{$aliases_by_tables->{$used_table}} ) {
+        for my $alias ( @{$aliases_hash->{$used_table}} ) {
             if ( $used_table eq $slave && $alias eq $slave_alias ) {
                 next;
             }

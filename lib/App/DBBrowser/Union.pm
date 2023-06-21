@@ -43,8 +43,9 @@ sub union_tables {
         union_type     => '',
     };
     my $count_derived = 1;
-    state $union_all = 1;
+    state $union_type = "UNION ALL";
     my @bu;
+    my $old_idx_tbl = 0;
 
     UNION_TABLE: while ( 1 ) {
         my $enough_tables = '  Enough TABLES';
@@ -66,14 +67,14 @@ sub union_tables {
                 push @tmp_tables, '- ' . $table;
             }
         }
-        $union->{union_type} = $union_all ? "UNION ALL" : "UNION";
-        my $prompt = 'Choose UNION table:';
+        $union->{union_type} = $union_type;
+        my $prompt = 'Choose ' . $union_type . ' table:';
         my $menu  = [ @pre, @tmp_tables, @post ];
         my $info = $ax->get_sql_info( $union );
         # Choose
         my $idx_tbl = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, index => 1 }
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, index => 1, default => $old_idx_tbl }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
@@ -82,6 +83,13 @@ sub union_tables {
                 next UNION_TABLE;
             }
             return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx_tbl = 0;
+                next UNION_TABLE;
+            }
+            $old_idx_tbl = $idx_tbl;
         }
         my $union_table = $menu->[$idx_tbl];
         my $qt_union_table;
@@ -92,11 +100,12 @@ sub union_tables {
             last UNION_TABLE;
         }
         elsif ( $union_table eq $union_setting ) {
+            my $types = [ 'UNION ALL', 'UNION', 'INTERSECT ALL', 'INTERSECT', 'EXCEPT ALL', 'EXCEPT' ];
             my $sub_menu = [
-                [ 'union_all', "- Union all", [ 'NO', 'YES' ] ],
+                [ 'union_type', "- Union type", $types ],
             ];
             my $config = {
-                union_all => $union_all,
+                union_type => List::MoreUtils::firstidx { $_ eq $union_type } @$types,
             };
             require Term::Choose::Util; ##
             my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
@@ -107,7 +116,7 @@ sub union_tables {
                 { info => $info }
             );
             $ax->print_sql_info( $info );
-            $union_all = $config->{union_all};
+            $union_type = $types->[$config->{union_type}];
             next UNION_TABLE;
         }
         elsif ( $union_table eq $all_tables ) {
@@ -173,7 +182,7 @@ sub __union_table_columns {
         if ( ! defined $chosen[0] ) {
             if ( @bu_cols ) {
                 $table_cols = pop @bu_cols;
-                $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ), $union_table ];
+                $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
                 next;
             }
             $#{$union->{subselect_data}} = $next_idx - 1;
@@ -221,7 +230,7 @@ sub __union_all_tables {
         # Choose
         my $idx_tbl = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'One UNION table for cols:', index => 1 }
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Table for column names:', index => 1 }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
@@ -240,7 +249,7 @@ sub __union_all_tables {
     for my $union_table ( @tables_union_auto ) {
         push @{$union->{subselect_data}}, [ $ax->quote_table( $sf->{d}{tables_info}{$union_table} ), $qt_used_cols ];
     }
-    return 1;
+    return 1; ##
 }
 
 
