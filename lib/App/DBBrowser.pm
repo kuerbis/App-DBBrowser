@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.329';
+our $VERSION = '2.330';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -52,6 +52,7 @@ sub new {
         _confirm      => '  CONFIRM',
         _reset        => '  RESET',
         ok            => '-OK-',
+        menu_addition => '%%',
         info_thsd_sep => ',',
     };
     return bless { i => $info }, $class;
@@ -497,7 +498,7 @@ sub run {
                             next DATABASE;
                         }
                     }
-                    my ( $qt_table, $qt_columns, $qt_aliases );
+                    my ( $qt_table, $qt_columns, $qt_aliases, $derived_table_args );
                     if ( $table eq $join ) {
                         require App::DBBrowser::Join;
                         my $new_j = App::DBBrowser::Join->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -512,7 +513,7 @@ sub run {
                         require App::DBBrowser::Union;
                         my $new_u = App::DBBrowser::Union->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         $sf->{d}{special_table} = 'union';
-                        if ( ! eval { ( $qt_table, $qt_columns ) = $new_u->union_tables(); 1 } ) {
+                        if ( ! eval { ( $qt_table, $qt_columns, $derived_table_args ) = $new_u->union_tables(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
                         }
@@ -554,7 +555,13 @@ sub run {
                     $sf->{d}{table_footer} = "     '$table_footer'     ";
                     require App::DBBrowser::Table;
                     my $tbl = App::DBBrowser::Table->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                    $tbl->browse_the_table( $qt_table, $qt_columns, $qt_aliases );
+                    my $sql = {}; # ### 
+                    $ax->reset_sql( $sql );
+                    $sql->{table} = $qt_table;
+                    $sql->{cols} = $qt_columns;
+                    $sql->{alias} = $qt_aliases // {};
+                    $sql->{derived_table_args} = $derived_table_args // [];
+                    $tbl->browse_the_table( $sql );
                 }
             }
         }
@@ -606,7 +613,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.329
+Version 2.330
 
 =head1 DESCRIPTION
 

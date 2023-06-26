@@ -1,5 +1,9 @@
 Revision history for App-DBBrowser
 
+2.330    2023-06-26
+        - Update Union.pm.
+        - Update Functions.pm.
+        - Update 'get_stmt'.
 
 2.329    2023-06-21
         - Refactoring Functions.pm.

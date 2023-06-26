@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-#$SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.329';
+$SIG{__WARN__} = sub { die @_ };
+our $VERSION = '2.330';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.329
+Version 2.330
 
 =head1 SYNOPSIS
 
@@ -246,9 +246,9 @@ Join tables.
 
 This entry is available if enabled in L</Extensions>.
 
-=head3 Union
+=head3 Union/Intersect/Except
 
-Combine the result from multiple SELECT statements.
+Combine the result from multiple SELECT statements with Union, Intersect and Except (C<Firebird>: Union).
 
 This entry is available if enabled in L</Extensions>.
 
@@ -691,7 +691,13 @@ Derived (table)
 
 =item
 
-Union All
+Where
+
+=item
+
+Parentheses
+
+Parentheses are not available in C<SQLite> and C<Firebird>.
 
 =back
 

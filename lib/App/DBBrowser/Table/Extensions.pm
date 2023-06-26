@@ -23,7 +23,7 @@ sub new {
 
 
 sub complex_unit {
-    my ( $sf, $sql, $clause ) = @_;
+    my ( $sf, $sql, $clause, $func_recurs_arg ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $function, $subquery, $set_to_null ) = ( 'f()', 'SQ', '=N' );
@@ -63,7 +63,7 @@ sub complex_unit {
     elsif ( $type eq $function ) {
         require App::DBBrowser::Table::Functions;
         my $new_func = App::DBBrowser::Table::Functions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my $col_with_func = $new_func->col_function( $sql, $clause );
+        my $col_with_func = $new_func->col_function( $sql, $clause, $func_recurs_arg );
         if ( ! defined $col_with_func ) {
             return;
         }

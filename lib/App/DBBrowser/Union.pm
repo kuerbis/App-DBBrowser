@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Union;
+App::DBBrowser::Union; # required in App::DBBrowser.pm
 
 use warnings;
 use strict;
@@ -8,10 +8,11 @@ use 5.014;
 use List::MoreUtils qw( any );
 
 use Term::Choose qw();
-#use Term::Choose::Util qw()     # required
 
 use App::DBBrowser::Auxil;
-#use App::DBBrowser::Subqueries; # required
+use App::DBBrowser::Subqueries;
+use App::DBBrowser::Table::Extensions;
+use App::DBBrowser::Table::Substatements;
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -35,42 +36,37 @@ sub union_tables {
     else {
         $tables = [ @{$sf->{d}{user_table_keys}} ];
     }
-    ( $sf->{d}{col_names}, $sf->{d}{col_types} ) = $ax->tables_column_names_and_types( $tables );
-    my $union = {
-        used_tables    => [],
-        subselect_data => [],
-        saved_cols     => [],
-        union_type     => '',
-    };
-    my $count_derived = 1;
-    state $union_type = "UNION ALL";
-    my @bu;
+    my $data = [];
+    my $used_tables = [];
     my $old_idx_tbl = 0;
 
-    UNION_TABLE: while ( 1 ) {
+    TABLE: while ( 1 ) {
         my $enough_tables = '  Enough TABLES';
         my $from_subquery = '  Derived';
-        my $all_tables    = '  All Tables';
-        my $union_setting = '  Setting';
+        my $where         = '  Where';
+        my $parentheses   = '  Parentheses';
         my @pre  = ( undef, $enough_tables );
         my @post;
         push @post, $from_subquery if $sf->{o}{enable}{u_derived};
-        push @post, $all_tables    if $sf->{o}{enable}{union_all};
-        push @post, $union_setting;
+        push @post, $where         if $sf->{o}{enable}{u_where};
+        push @post, $parentheses   if $sf->{o}{enable}{u_parentheses} && $sf->{i}{driver} !~ /^(?:SQLite|Firebird)\z/;
         my $used = ' (used)';
         my @tmp_tables;
         for my $table ( @$tables ) {
-            if ( any { $_ eq $table } @{$union->{used_tables}} ) {
+            if ( any { $_ eq $table } @$used_tables ) {
                 push @tmp_tables, '- ' . $table . $used;
             }
             else {
                 push @tmp_tables, '- ' . $table;
             }
         }
-        $union->{union_type} = $union_type;
-        my $prompt = 'Choose ' . $union_type . ' table:';
+        my $prompt = 'Choose a table:';
         my $menu  = [ @pre, @tmp_tables, @post ];
-        my $info = $ax->get_sql_info( $union );
+        my $sql = {
+            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+            derived_table_args => $sf->__get_where_args( $data ),
+        };
+        my $info = $ax->get_sql_info( $sql );
         # Choose
         my $idx_tbl = $tc->choose(
             $menu,
@@ -78,182 +74,396 @@ sub union_tables {
         );
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
-            if ( @bu ) {
-                ( $union->{used_tables}, $union->{subselect_data}, $union->{saved_cols} ) = @{pop @bu};
-                next UNION_TABLE;
+            if ( @$used_tables ) {
+                $old_idx_tbl = 0;
+                pop @$used_tables;
+                pop @$data;
+                next TABLE;
             }
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
             if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
                 $old_idx_tbl = 0;
-                next UNION_TABLE;
+                next TABLE;
             }
             $old_idx_tbl = $idx_tbl;
         }
-        my $union_table = $menu->[$idx_tbl];
-        my $qt_union_table;
-        if ( $union_table eq $enough_tables ) {
-            if ( ! @{$union->{subselect_data}} ) {
+        my $table = $menu->[$idx_tbl];
+        my $qt_table;
+        if ( $table eq $enough_tables ) {
+            if ( ! @$used_tables ) {
                 return;
             }
-            last UNION_TABLE;
+            last TABLE;
         }
-        elsif ( $union_table eq $union_setting ) {
-            my $types = [ 'UNION ALL', 'UNION', 'INTERSECT ALL', 'INTERSECT', 'EXCEPT ALL', 'EXCEPT' ];
-            my $sub_menu = [
-                [ 'union_type', "- Union type", $types ],
-            ];
-            my $config = {
-                union_type => List::MoreUtils::firstidx { $_ eq $union_type } @$types,
-            };
-            require Term::Choose::Util; ##
-            my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-            my $info = $ax->get_sql_info( $union );
-            # Choose
-            my $changed = $tu->settings_menu(
-                $sub_menu, $config,
-                { info => $info }
-            );
-            $ax->print_sql_info( $info );
-            $union_type = $types->[$config->{union_type}];
-            next UNION_TABLE;
+        elsif ( $table eq $where ) {
+            $sf->__add_where_condition( $data );
+            next TABLE;
         }
-        elsif ( $union_table eq $all_tables ) {
-            my $ok = $sf->__union_all_tables( $union );
-            if ( ! $ok ) {
-                next UNION_TABLE;
-            }
-            last UNION_TABLE;
+        elsif ( $table eq $parentheses ) {
+            $sf->__add_parentheses( $data );
+            next TABLE;
         }
-        elsif ( $union_table eq $from_subquery ) {
-            require App::DBBrowser::Subqueries;
+        elsif ( $table eq $from_subquery ) {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $union_table = $sq->choose_subquery( $union );
-            if ( ! defined $union_table ) {
-                next UNION_TABLE;
+            my $sql = {
+                subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+                derived_table_args => $sf->__get_where_args( $data ),
+            };
+            $table = $sq->choose_subquery( $sql );
+            if ( ! defined $table ) {
+                next TABLE;
             }
-            my $alias = 'x' . $count_derived++;
-            $qt_union_table = $union_table . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
-            $sf->{d}{col_names}{$union_table} = $ax->column_names( $qt_union_table );
+            my $alias = 'p' . ( @$used_tables + 1 );
+            $qt_table = $table . $sf->{i}{" AS "} . $ax->prepare_identifier( $alias );
         }
         else {
-            $union_table =~ s/^-\s//;
-            $union_table =~ s/\Q$used\E\z//;
-            $qt_union_table = $ax->quote_table( $sf->{d}{tables_info}{$union_table} );
+            $table =~ s/^-\s//;
+            $table =~ s/\Q$used\E\z//;
+            $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
         }
-        push @bu, [ [ @{$union->{used_tables}} ], [ @{$union->{subselect_data}} ], [ @{$union->{saved_cols}} ] ];
-        push @{$union->{used_tables}}, $union_table;
-        my $ok = $sf->__union_table_columns( $union, $union_table, $qt_union_table );
+        my $operator;
+        if ( @$data ) {
+            $operator = $sf->__set_operator( $sql, $table );
+            if ( ! $operator ) {
+                next TABLE;
+            }
+        }
+        my $ok = $sf->__choose_table_columns( $data, $table, $qt_table, $operator );
         if ( ! $ok ) {
-            ( $union->{used_tables}, $union->{subselect_data}, $union->{saved_cols} ) = @{pop @bu};
-            next UNION_TABLE;
+            next TABLE;
         }
+        push @$used_tables, $table;
     }
-    my $qt_table = $ax->get_stmt( $union, 'Union', 'prepare' );
+    my $union_derived_table_args = $sf->__get_where_args( $data );
+    my $sql = {
+        subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+        derived_table_args => $union_derived_table_args,
+    };
+    my $union_stmt = $ax->get_stmt( $sql, 'Union', 'prepare' );
+    my $union_derived_table = $union_stmt =~ s/^\s*SELECT\s\*\sFROM\s+//r;
+    $union_derived_table =~ s/\n\z//;
     if ( $sf->{o}{alias}{table} || $sf->{i}{driver} =~ /^(?:mysql|MariaDB|Pg)\z/ ) {
-        $qt_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( 't1' );
+        $union_derived_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( 't1' );
     }
     # column names in the result-set of a UNION are taken from the first query.
-    my $qt_columns = $union->{subselect_data}[0][1];
-    return $qt_table, $qt_columns;
+    my $columns = $ax->column_names( $union_derived_table, $union_derived_table_args );
+    my $qt_columns = $ax->quote_cols( $columns );
+    return $union_derived_table, $qt_columns, $union_derived_table_args;
 }
 
 
-sub __union_table_columns {
-    my ( $sf, $union, $union_table, $qt_union_table ) = @_;
+sub __set_operator {
+    my ( $sf, $sql, $table ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    # Precedence:
+    # INTERSECT has priority over UNION or EXCEPT.
+    # EXCEPT and UNION are evaluated Left to Right
+    my @set_operators;
+    if ( $sf->{i}{driver} eq 'Firebird' ) {
+        @set_operators = ( 'UNION', 'UNION ALL' );
+    }
+    elsif ( $sf->{i}{driver} =~ /^(?:SQLite|Informix)\z/ ) {
+        @set_operators = ( 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT' );
+    }
+    else {
+        @set_operators = ( 'UNION', 'UNION ALL', 'INTERSECT', 'INTERSECT ALL', 'EXCEPT', 'EXCEPT ALL' ); # DB2, mysql, MariaDB, Pg
+    }
+    my @pre = ( undef );
+    my $menu = [ @pre, map { '  ' . lc $_ } @set_operators ];
+    my $prompt = sprintf 'Join %s with:', $table;
+    my $info = $ax->get_sql_info( $sql );
+    # Choose
+    my $operator = $tc->choose(
+        $menu,
+        { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, undef => '  <=' }
+    );
+    $ax->print_sql_info( $info );
+    if ( ! defined $operator ) {
+        return;
+    }
+    return uc $operator =~ s/^\s\s//r;
+}
+
+
+sub __choose_table_columns {
+    my ( $sf, $data, $table, $qt_table, $operator ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $privious_cols =  "'^'";
-    my $next_idx = @{$union->{subselect_data}};
+    my $next_idx = @$data;
     my $table_cols = [];
     my @bu_cols;
+    $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table, $data->[$next_idx]{where_args} );
+    $data->[$next_idx] = { qt_table => $qt_table, table => $table };
+    if ( $operator ) {
+        $data->[$next_idx]{operator} = $operator;
+    }
 
-    while ( 1 ) {
-        my @pre = ( undef, $sf->{i}{ok}, @{$union->{saved_cols}} ? $privious_cols : () );
-        my $info = $ax->get_sql_info( $union );
+    COLUMNS: while ( 1 ) {
+        my @pre = ( undef, $sf->{i}{ok} );
+        push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{col_menu_addition};
+        push @pre, $privious_cols          if $next_idx; # ### 
+        if ( ! @{$data->[$next_idx]{qt_columns}//[]} ) {
+            $data->[$next_idx]{qt_columns} = [ '*' ];
+        }
+        my $sql = {
+            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+            derived_table_args => $sf->__get_where_args( $data ),
+        };
+        my $info = $ax->get_sql_info( $sql );
         # Choose
         my @chosen = $tc->choose(
-            [ @pre, @{$sf->{d}{col_names}{$union_table}} ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Choose Column:',
-              meta_items => [ 0 .. $#pre ], include_highlighted => 2 }
+            [ @pre, @{$sf->{d}{col_names}{$table}} ],
+            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Columns:', meta_items => [ 0 .. $#pre ],
+              include_highlighted => 2 }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $chosen[0] ) {
             if ( @bu_cols ) {
                 $table_cols = pop @bu_cols;
-                $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
-                next;
+                $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+                next COLUMNS;
             }
-            $#{$union->{subselect_data}} = $next_idx - 1;
+            $#$data = $next_idx - 1;
             return;
         }
         if ( $chosen[0] eq $privious_cols ) {
-            push @{$union->{subselect_data}}, [ $qt_union_table, $ax->quote_cols( $union->{saved_cols} ) ];
+            $data->[$next_idx]{qt_columns} = $data->[$next_idx-1]{qt_columns};
             return 1;
         }
         elsif ( $chosen[0] eq $sf->{i}{ok} ) {
             shift @chosen;
-            push @$table_cols, @chosen;
+            push @$table_cols, map { { name => $_ } } @chosen;
             if ( ! @$table_cols ) {
-                $table_cols = [ @{$sf->{d}{col_names}{$union_table}} ];
+                $table_cols = [ map { { name => $_ } } @{$sf->{d}{col_names}{$table}} ];
             }
-            $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
-            $union->{saved_cols} = $table_cols;
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
             return 1;
         }
-        else {
-            push @$table_cols, @chosen;
-            $union->{subselect_data}[$next_idx] = [ $qt_union_table, $ax->quote_cols( $table_cols ) ];
+        #                                          INT                 String
+        # SQLite, mysql, MariaDB, Pg, DB2 Oracle:  null                null
+        # Informix                              :  cast('' as int)     ''
+        # Firebird                              :  ''                  ''
+        elsif ( $chosen[0] eq $sf->{i}{menu_addition} ) {
+            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $sql->{cols} = $ax->quote_cols( $sf->{d}{col_names}{$table} );
+            my $complex_col = $ext->complex_unit( $sql, 'Union' );
+            if ( ! defined $complex_col ) {
+                next COLUMNS;
+            }
+            my $default = '_col' . ( @$table_cols + 1 );
+            my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col, $default );
+            if ( ! length $alias ) {
+                $alias = $default;
+            }
             push @bu_cols, [ @$table_cols ];
+            push @$table_cols, { name => $complex_col, alias => $alias };
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+        }
+        else {
+            push @bu_cols, [ @$table_cols ];
+            push @$table_cols, map { { name => $_ } } @chosen;
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
         }
     }
 }
 
 
-sub __union_all_tables {
-    my ( $sf, $union ) = @_;
+sub __quote_union_table_cols {
+    my ( $sf, $cols ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $count = 0;
+    my $qt_cols = [];
+    for my $col ( @$cols ) {
+        if ( length $col->{alias} ) {
+            push @$qt_cols, $col->{name} . ' AS ' . $ax->prepare_identifier( $col->{alias} );
+        }
+        else {
+            push @$qt_cols, $ax->prepare_identifier( $col->{name} );
+        }
+    }
+    return $qt_cols;
+}
+
+
+sub __get_sub_select_stmts {
+    my ( $sf, $data ) = @_;
+    my $stmts = [];
+    my $max_length = 0;
+    for my $sub ( @$data ) {
+        if ( length( $sub->{operator} // '' ) > $max_length ) {
+            $max_length = length $sub->{operator};
+        }
+    }
+    for my $d ( @$data ) {
+        if ( $d->{operator} ) {
+            push @$stmts, $d->{operator};
+        };
+        if ( $d->{parentheses_open} ) {
+            push @$stmts, "(";
+        }
+        my $select = "SELECT " . join( ', ', @{$d->{qt_columns}} ) . " FROM " . $d->{qt_table};
+        if ( length $d->{where_stmt} ) {
+            $select .= " " . $d->{where_stmt};
+        }
+        push @$stmts, $select;
+        if ( $d->{parentheses_close} ) {
+            push @$stmts, ")";
+        }
+    }
+    return $stmts;
+}
+
+
+sub __get_where_args {
+    my ( $sf, $data ) = @_;
+    my $where_args = [];
+    for my $d ( @$data ) {
+        if ( defined $d->{where_args} ) {
+            push @$where_args, @{$d->{where_args}};
+        }
+    }
+    return $where_args;
+}
+
+
+sub __add_where_condition {
+    my ( $sf, $data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my @tables_union_auto;
-    for my $table ( @{$sf->{d}{user_table_keys}} ) {
-        if ( $sf->{d}{tables_info}{$table}[3] ne 'TABLE' ) {
-            next;
-        }
-        push @tables_union_auto, $table;
-    }
-    my $menu = [ undef, map( "- $_", @tables_union_auto ) ];
+    my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my @idx_changed_tables;
+    my $old_idx_tbl = 0;
 
-    while ( 1 ) {
-        $union->{subselect_data} = [ map { [ $_, [ '?' ] ] } @tables_union_auto ];
-        my $info = $ax->get_sql_info( $union );
+    TABLE: while ( 1 ) {
+        my @pre = ( undef, $sf->{i}{confirm} );
+        my $menu = [ @pre, map { '- ' . $_->{table} } @$data ];
+        my $prompt = 'Where condition:';
+        my $sql = {
+            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+            derived_table_args => $sf->__get_where_args( $data ),
+        };
+        my $info = $ax->get_sql_info( $sql );
         # Choose
         my $idx_tbl = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Table for column names:', index => 1 }
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, index => 1, default => $old_idx_tbl,
+              undef => $sf->{i}{back} }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
-            $union->{subselect_data} = [];
+            if ( @idx_changed_tables ) {
+                $old_idx_tbl = 0;
+                my $idx = pop @idx_changed_tables;
+                delete $data->[$idx]{where_stmt};
+                delete $data->[$idx]{where_args};
+                next TABLE;
+            }
             return;
         }
-        my $union_table = $menu->[$idx_tbl] =~ s/^-\s//r;
-        my $qt_union_table = $ax->quote_table( $sf->{d}{tables_info}{$union_table} );
-        my $ok = $sf->__union_table_columns( $union, $union_table, $qt_union_table );
-        if ( $ok ) {
-            last;
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx_tbl = 0;
+                next TABLE;
+            }
+            $old_idx_tbl = $idx_tbl;
+        }
+        if ( $menu->[$idx_tbl] eq $sf->{i}{confirm} ) {
+            return 1;
+        }
+        $idx_tbl -= @pre;
+        my $bu_stmt_types = [ @{$sf->{d}{stmt_types}} ];
+        # begin stmt type select
+        $sf->{d}{stmt_types} = [ 'Select' ]; # to see what is happening
+        my $tmp_sql = {};
+        $ax->reset_sql( $tmp_sql );
+        $tmp_sql->{table} = $data->[$idx_tbl]{qt_table};
+        $tmp_sql->{cols} = $data->[$idx_tbl]{qt_columns};           # cols for where
+        $tmp_sql->{selected_cols} = $data->[$idx_tbl]{qt_columns};  # select_cols for select
+        my $ret = $sb->where( $tmp_sql );
+        # end stmt type select
+        $sf->{d}{stmt_types} = $bu_stmt_types;
+        if ( defined $ret ) {
+            $data->[$idx_tbl]{where_stmt} = delete $tmp_sql->{where_stmt};
+            $data->[$idx_tbl]{where_args} = delete $tmp_sql->{where_args};
+            push @idx_changed_tables, $idx_tbl;
         }
     }
-    my $qt_used_cols = $union->{subselect_data}[-1][1];
-    $union->{subselect_data} = [];
-    for my $union_table ( @tables_union_auto ) {
-        push @{$union->{subselect_data}}, [ $ax->quote_table( $sf->{d}{tables_info}{$union_table} ), $qt_used_cols ];
-    }
-    return 1; ##
 }
 
 
+sub __add_parentheses {
+    my ( $sf, $data ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my @idx_changed_tables;
+    my $old_idx_tbl = 0;
 
+    TABLE: while ( 1 ) {
+        my @pre = ( undef, $sf->{i}{confirm} );
+        my $menu = [ @pre, map { '- ' . $_->{table} } @$data ];
+        my $prompt = 'Parentheses:';
+        my $sql = {
+            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
+            derived_table_args => $sf->__get_where_args( $data ),
+        };
+        my $info = $ax->get_sql_info( $sql );
+        # Choose
+        my $idx_tbl = $tc->choose(
+            $menu,
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, index => 1, default => $old_idx_tbl,
+              undef => $sf->{i}{back} }
+        );
+        $ax->print_sql_info( $info );
+        if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
+            if ( @idx_changed_tables ) {
+                $old_idx_tbl = 0;
+                my $idx = pop @idx_changed_tables;
+                delete $data->[$idx]{parentheses_open};
+                delete $data->[$idx]{parentheses_close};
+                next TABLE;
+            }
+            return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx_tbl = 0;
+                next TABLE;
+            }
+            $old_idx_tbl = $idx_tbl;
+        }
+        if ( $menu->[$idx_tbl] eq $sf->{i}{confirm} ) {
+            return 1;
+        }
+        $idx_tbl -= @pre;
+        $prompt = $data->[$idx_tbl]{table} . "\n" . 'Parentheses:';
+        my ( $open, $close, $reset ) = ( '  ( .....', '  ..... )', '  Reset' );
+        # Choose
+        my $p_type = $tc->choose(
+            [ undef, $open, $close, $reset ],
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt,
+              undef => '  <=' }
+        );
+        if ( ! defined $p_type ) {
+            next TABLE;
+        }
+        if ( $p_type eq $open ) {
+            $data->[$idx_tbl]{parentheses_open} = 1; ##
+        }
+        elsif ( $p_type eq $close ) {
+            $data->[$idx_tbl]{parentheses_close} = 1; ##
+        }
+        if ( $p_type eq $reset ) {
+            delete $data->[$idx_tbl]{parentheses_open};
+            delete $data->[$idx_tbl]{parentheses_close};
+        }
+        push @idx_changed_tables, $idx_tbl;
+    }
+}
 
 
 

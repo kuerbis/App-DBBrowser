@@ -245,6 +245,7 @@ sub read_and_add_value {
     my ( $sf, $sql, $clause, $op, $is_complex_value ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+    my $history = [ 0 ..  1000 ];
     my $stmt = $clause . '_stmt';
     my $args = $clause . '_args';
     if ( $is_complex_value ) {
@@ -281,7 +282,7 @@ sub read_and_add_value {
                 # Readline
                 my $value = $tr->readline(
                     'Value: ',
-                    { info => $info }
+                    { info => $info, history => $history }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $value ) {
@@ -304,7 +305,7 @@ sub read_and_add_value {
             # Readline
             my $value_1 = $tr->readline(
                 'Value 1: ',
-                { info => $info }
+                { info => $info, history => $history }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $value_1 ) {
@@ -316,7 +317,7 @@ sub read_and_add_value {
             # Readline
             my $value_2 = $tr->readline(
                 'Value 2: ',
-                { info => $info }
+                { info => $info, history => $history }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $value_2 ) {
@@ -344,13 +345,21 @@ sub read_and_add_value {
             return 1;
         }
         else {
-            my $prompt = $op =~ /^(?:NOT\s)?LIKE\z/ ? 'Pattern: ' : 'Value: '; #
+            my $value;
             my $info = $ax->get_sql_info( $sql );
             # Readline
-            my $value = $tr->readline(
-                $prompt,
-                { info => $info }
-            );
+            if ( $op =~ /^(?:NOT\s)?LIKE\z/ ) {
+                $value = $tr->readline(
+                    'Pattern: ',
+                    { info => $info }
+                );
+            }
+            else {
+                $value = $tr->readline(
+                    'Value: ',
+                    { info => $info, history => $history }
+                );
+            }
             $ax->print_sql_info( $info );
             if ( ! defined $value ) {
                 return;

@@ -46,7 +46,6 @@ sub join_tables {
     else {
         $tables = [ @{$sf->{d}{user_table_keys}} ];
     }
-    ( $sf->{d}{col_names}, $sf->{d}{col_types} ) = $ax->tables_column_names_and_types( $tables );
     my $join = {};
 
     MASTER: while ( 1 ) {
@@ -98,9 +97,8 @@ sub join_tables {
         push @{$join->{aliases}}, [ $master, $master_alias ];
         $join->{stmt} .= " " . $qt_master;
         $join->{stmt} .= $sf->{i}{" AS "} . $ax->prepare_identifier( $master_alias );
-        if ( $master_from_subquery ) {
-            $sf->{d}{col_names}{$master} = $ax->column_names( $qt_master . $sf->{i}{" AS "} . $ax->prepare_identifier( $master_alias ) );
-        }
+        $sf->{d}{col_names}{$master} //= $ax->column_names( $qt_master . $sf->{i}{" AS "} . $ax->prepare_identifier( $master_alias ) ); ##
+
         my @bu;
 
         JOIN: while ( 1 ) {
@@ -165,7 +163,7 @@ sub join_tables {
             }
         }
     }
-    my ( $qt_table ) = $join->{stmt} =~ /^SELECT\s\*\sFROM\s(.*)\z/;
+    my $qt_table = $join->{stmt} =~ s/^SELECT\s\*\sFROM\s//r;
     return $qt_table, $qt_columns, $qt_aliases;
 }
 
@@ -234,9 +232,7 @@ sub __add_slave_with_join_condition {
         $join->{stmt} .= " " . $qt_slave;
         $join->{stmt} .= $sf->{i}{" AS "} . $ax->prepare_identifier( $slave_alias );
         push @{$join->{aliases}}, [ $slave, $slave_alias ];
-        if ( $slave_from_subquery ) {
-            $sf->{d}{col_names}{$slave} = $ax->column_names( $qt_slave . $sf->{i}{" AS "} . $ax->prepare_identifier( $slave_alias ) );
-        }
+        $sf->{d}{col_names}{$slave} //= $ax->column_names( $qt_slave . $sf->{i}{" AS "} . $ax->prepare_identifier( $slave_alias ) ); ##
         if ( $join_type ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $join, $tables, $slave, $slave_alias );
             if ( ! $ok ) {

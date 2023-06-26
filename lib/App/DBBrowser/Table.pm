@@ -34,13 +34,8 @@ sub new {
 
 
 sub browse_the_table {
-    my ( $sf, $qt_table, $qt_columns, $qt_aliases ) = @_;
+    my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $sql = {};
-    $ax->reset_sql( $sql );
-    $sql->{table} = $qt_table;
-    $sql->{cols} = $qt_columns;
-    $sql->{alias} = $qt_aliases // {};
     $sf->{d}{stmt_types} = [ 'Select' ];
     my $changed = {};
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );
@@ -252,7 +247,7 @@ sub __selected_statement_result {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $statement = $ax->get_stmt( $sql, 'Select', 'prepare' );
-    my @arguments = ( @{$sql->{where_args}}, @{$sql->{having_args}} );
+    my @arguments = ( @{$sql->{derived_table_args}}, @{$sql->{where_args}}, @{$sql->{having_args}} ); ##
     unshift @{$sf->{d}{table_print_history}}, [ $statement, \@arguments ];
     if ( $#{$sf->{d}{table_print_history}} > 50 ) {
         $#{$sf->{d}{table_print_history}} = 50;

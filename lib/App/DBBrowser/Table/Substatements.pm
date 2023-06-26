@@ -33,7 +33,6 @@ sub new {
     elsif ( $info->{driver} =~ /^(?:DB2|Oracle)\z/ ) {
         push @{$sf->{i}{avail_aggr}}, "LISTAGG(X)";
     }
-    $sf->{i}{menu_addition} = '%%';
     bless $sf, $class;
 }
 
@@ -78,7 +77,7 @@ sub select {
             shift @idx;
             push @{$sql->{selected_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{selected_cols}} ) {
-                return 0;
+                return 0; # 0 ... # ### 
             }
             return 1;
         }

@@ -16,7 +16,6 @@ use Term::Form             qw();
 use Term::Form::ReadLine   qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::Table::Extensions;
 use App::DBBrowser::Table::Functions::SQL;
 
 
@@ -34,8 +33,8 @@ sub __choose_columns {
     my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my ( $f, $const ) = ( 'f()', '[c]' );
-    my @pre = ( undef, $sf->{i}{ok}, $f, $const );
+    my $const = '[c]'; # ### 
+    my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const );
     my $menu = [ @pre, @$qt_cols ];
     my $subset = [];
     my @bu;
@@ -65,13 +64,14 @@ sub __choose_columns {
             }
             return $subset;
         }
-        elsif ( $menu->[$idx[0]] eq $f ) {
+        elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             # recursion
-            my $function_stmt = $sf->col_function( $sql, $clause, [ [ $sf->__nested_func_info( $nested_func, $fill_string ) ] ] );
-            if ( ! defined $function_stmt ) {
+            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $complex_col = $ext->complex_unit( $sql, $clause,  [ [ $sf->__nested_func_info( $nested_func, $fill_string ) ] ] );
+            if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
-            push @$subset, $function_stmt;
+            push @$subset, $complex_col;
         }
         elsif ( $menu->[$idx[0]] eq $const ) {
             my $rl_info = $tmp_info =~ s/\)\z/,?)/r;
@@ -94,13 +94,11 @@ sub __choose_columns {
 }
 
 
-
 sub __choose_a_column {
     my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     $info .= "\n" . $sf->__nested_func_info( $nested_func, '?' );
-    my $f = 'f()';
-    my @pre = ( undef, $f );
+    my @pre = ( undef, $sf->{i}{menu_addition} );
 
     while ( 1 ) {
         # Choose
@@ -111,17 +109,19 @@ sub __choose_a_column {
         if ( ! defined $choice ) {
             return;
         }
-        elsif ( $choice eq $f ) {
+        elsif ( $choice eq $sf->{i}{menu_addition} ) {
             # recursion
-            my $function_stmt = $sf->col_function( $sql, $clause, $nested_func );
-            if ( ! defined $function_stmt ) {
+            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $complex_col = $ext->complex_unit( $sql, $clause, $nested_func );
+            if ( ! defined $complex_col ) {
                 next;
             }
-            return $function_stmt;
+            return $complex_col;
         }
         return $choice;
     }
 }
+
 
 sub __nested_func_info {
     my ( $sf, $nested_func, $fill_string ) = @_;
@@ -222,7 +222,7 @@ sub col_function {
             }
             elsif ( $func eq $Cast ) {
                 my $prompt = 'Data type';
-                my $history = [ 'CHAR', 'VARCHAR', 'INT', 'NUMBER' ];
+                my $history = [ 'VARCHAR', 'INT', 'NUMBER' ];
                 $function_stmt = $sf->__func_with_col_and_arg( $sql, $chosen_col, $func, $info, $prompt, $history );
             }
             elsif ( $func =~ /^(?:$Round|$Truncate)\z/ ) {

@@ -292,8 +292,9 @@ sub set_options {
             elsif ( $opt eq '_e_union' ) {
                 my $prompt = 'Extend Union Menu:';
                 my $sub_menu = [
-                    [ 'u_derived', "- Add Derived",   [ $no, $yes ] ],
-                    [ 'union_all', "- Add Union All", [ $no, $yes ] ],
+                    [ 'u_derived',     "- Derived",     [ $no, $yes ] ],
+                    [ 'u_where',       "- Where",       [ $no, $yes ] ],
+                    [ 'u_parentheses', "- Parentheses", [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

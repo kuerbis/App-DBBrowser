@@ -57,8 +57,9 @@ sub defaults {
 
             j_derived  => 0,
 
-            u_derived => 0,
-            union_all => 0,
+            u_derived     => 0,
+            u_where       => 0,
+            u_parentheses => 0,
         },
         table => {
             codepage_mapping  => 0, # not an option, always 0
