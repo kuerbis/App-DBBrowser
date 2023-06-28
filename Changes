@@ -1,5 +1,10 @@
 Revision history for App-DBBrowser
 
+
+2.331    2023-06-28
+        - Added operators ALL and ANY.
+        - Different fixes.
+
 2.330    2023-06-26
         - Update Union.pm.
         - Update Functions.pm.

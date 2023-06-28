@@ -27,12 +27,15 @@ sub new {
         i => $info,
         o => $options,
         avail_operators => [
-            "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL",
-            "IN", "NOT IN", "BETWEEN", "NOT BETWEEN", " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
+            " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
+            "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
+            "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
+            " = ANY", " != ANY", " <> ANY", " > ANY", " < ANY", " >= ANY", " <= ANY", # documentation # ### 
+            " = ALL", " != ALL", " <> ALL", " > ALL", " < ALL", " >= ALL", " <= ALL",
             " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
-            "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col" ],
-            # "LIKE col", "NOT LIKE col"
-        }, $class;
+            "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col", 
+        ],
+    }, $class;
 }
 
 

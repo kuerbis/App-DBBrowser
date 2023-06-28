@@ -89,19 +89,19 @@ sub choose_and_add_operator {
     my $args = $clause . '_args';
     my $menu_addition;
     my @operators_default;
-    my @operators_limited;
+    my @operators_complex;
     if ( $clause eq 'set' ) {
         $menu_addition = $sf->{i}{menu_addition};
         @operators_default = ( " = " );
-        @operators_limited = ( " = " );
+        @operators_complex = ( " = " );
     }
     else {
         $menu_addition = '=' . $sf->{i}{menu_addition};
-        @operators_default = @{$sf->{o}{G}{operators}};
+        @operators_default = grep { ! /\s(?:ANY|ALL)\z/ } @{$sf->{o}{G}{operators}};
         if ( $sf->{i}{driver} =~ /(?:Firebird|Informix)\z/ ) {
             @operators_default = uniq map { s/(?<=REGEXP)_i\z//; $_ } @operators_default;
         }
-        @operators_limited = ( grep { ! /(?:\s%?col%?|REGEXP(?:_i)?|BETWEEN|NULL)\z/ } @operators_default );
+        @operators_complex = ( grep { ! /(?:\s%?col%?|REGEXP(?:_i)?|BETWEEN|NULL)\z/ } @{$sf->{o}{G}{operators}} );
     }
     if ( $sf->{o}{enable}{col_menu_addition} ) {
         unshift @operators_default, $menu_addition;
@@ -127,15 +127,15 @@ sub choose_and_add_operator {
             }
         }
         if ( $op eq $menu_addition ) {
-            if ( @operators_limited == 1 ) {
-                $op = $operators_limited[0];
+            if ( @operators_complex == 1 ) {
+                $op = $operators_complex[0];
             }
             else {
                 my @pre = ( undef );
                 my $info = $ax->get_sql_info( $sql );
                 # Choose
                 $op = $tc->choose(
-                    [ @pre, @operators_limited ],
+                    [ @pre, @operators_complex ],
                     { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Operator:' }
                 );
                 $ax->print_sql_info( $info );
@@ -254,16 +254,7 @@ sub read_and_add_value {
         if ( ! defined $complex_value ) {
             return;
         }
-        if ( $op =~ /^(?:NOT\s)?IN\z/ ) {
-            while ( $complex_value =~ /^\s*\((.+)\)\s*\z/ ) {
-                # Removing the () is required here
-                $complex_value = $1;
-            }
-            $sql->{$stmt} .= '(' . $complex_value . ')';
-        }
-        else {
-            $sql->{$stmt} .= ' ' . $complex_value;
-        }
+        $sql->{$stmt} .= ' ' . $complex_value;
         return 1;
     }
     else {
@@ -275,7 +266,7 @@ sub read_and_add_value {
         }
         elsif ( $op =~ /^(?:NOT\s)?IN\z/ ) {
             my $col_sep = '';
-            $sql->{$stmt} .= '(';
+            $sql->{$stmt} .= ' (';
 
             IN: while ( 1 ) {
                 my $info = $ax->get_sql_info( $sql );
@@ -374,7 +365,8 @@ sub read_and_add_value {
 
 sub _regexp {
     my ( $sf, $col, $do_not_match, $case_sensitive ) = @_;
-    if ( $sf->{i}{driver} eq 'SQLite' ) {
+    my $driver = $sf->{i}{driver};
+    if ( $driver eq 'SQLite' ) {
         if ( $do_not_match ) {
             return sprintf " NOT REGEXP(?,%s,%d)", $col, $case_sensitive;
         }
@@ -382,7 +374,7 @@ sub _regexp {
             return sprintf " REGEXP(?,%s,%d)", $col, $case_sensitive;
         }
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         if ( $do_not_match ) {
             return " $col NOT REGEXP ?"        if ! $case_sensitive;
             return " $col NOT REGEXP BINARY ?" if   $case_sensitive;
@@ -392,7 +384,7 @@ sub _regexp {
             return " $col REGEXP BINARY ?" if   $case_sensitive;
         }
     }
-    elsif ( $sf->{i}{driver} eq 'Pg' ) {
+    elsif ( $driver eq 'Pg' ) {
         if ( $do_not_match ) {
             return " ${col}::text !~* ?" if ! $case_sensitive;
             return " ${col}::text !~ ?"  if   $case_sensitive;
@@ -402,7 +394,7 @@ sub _regexp {
             return " ${col}::text ~ ?"  if   $case_sensitive;
         }
     }
-    elsif ( $sf->{i}{driver} eq 'Firebird' ) {
+    elsif ( $driver eq 'Firebird' ) {
         # SIMILAR TO
         # Unlike in some other languages, the pattern must match the entire
         # string in order to succeed — matching a substring is not enough.
@@ -414,7 +406,7 @@ sub _regexp {
             return " $col SIMILAR TO ? ESCAPE '#'";
         }
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:DB2|Oracle)\z/ ) {
+    elsif ( $driver =~ /^(?:DB2|Oracle)\z/ ) {
         if ( $do_not_match ) {
             return " NOT REGEXP_LIKE($col,?,'i')" if ! $case_sensitive;
             return " NOT REGEXP_LIKE($col,?,'c')" if   $case_sensitive;
@@ -424,7 +416,7 @@ sub _regexp {
             return " REGEXP_LIKE($col,?,'c')" if   $case_sensitive;
         }
     }
-    elsif ( $sf->{i}{driver} eq 'Informix' ) {
+    elsif ( $driver eq 'Informix' ) {
         if ( $do_not_match ) {
             return " $col NOT MATCHES ? ";
         }

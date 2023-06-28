@@ -169,7 +169,7 @@ sub __set_operator {
         @set_operators = ( 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT' );
     }
     else {
-        @set_operators = ( 'UNION', 'UNION ALL', 'INTERSECT', 'INTERSECT ALL', 'EXCEPT', 'EXCEPT ALL' ); # DB2, mysql, MariaDB, Pg
+        @set_operators = ( 'UNION', 'UNION ALL', 'INTERSECT', 'INTERSECT ALL', 'EXCEPT', 'EXCEPT ALL' );
     }
     my @pre = ( undef );
     my $menu = [ @pre, map { '  ' . lc $_ } @set_operators ];
@@ -194,9 +194,9 @@ sub __choose_table_columns {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $privious_cols =  "'^'";
     my $next_idx = @$data;
-    my $table_cols = [];
+    my $chosen_cols = [];
     my @bu_cols;
-    $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table, $data->[$next_idx]{where_args} );
+    $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table, $data->[$next_idx]{where_args} ); ##
     $data->[$next_idx] = { qt_table => $qt_table, table => $table };
     if ( $operator ) {
         $data->[$next_idx]{operator} = $operator;
@@ -215,58 +215,58 @@ sub __choose_table_columns {
         };
         my $info = $ax->get_sql_info( $sql );
         # Choose
-        my @chosen = $tc->choose(
+        my @choices = $tc->choose(
             [ @pre, @{$sf->{d}{col_names}{$table}} ],
             { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Columns:', meta_items => [ 0 .. $#pre ],
               include_highlighted => 2 }
         );
         $ax->print_sql_info( $info );
-        if ( ! defined $chosen[0] ) {
+        if ( ! defined $choices[0] ) {
             if ( @bu_cols ) {
-                $table_cols = pop @bu_cols;
-                $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+                $chosen_cols = pop @bu_cols;
+                $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
                 next COLUMNS;
             }
             $#$data = $next_idx - 1;
             return;
         }
-        if ( $chosen[0] eq $privious_cols ) {
+        if ( $choices[0] eq $privious_cols ) {
             $data->[$next_idx]{qt_columns} = $data->[$next_idx-1]{qt_columns};
             return 1;
         }
-        elsif ( $chosen[0] eq $sf->{i}{ok} ) {
-            shift @chosen;
-            push @$table_cols, map { { name => $_ } } @chosen;
-            if ( ! @$table_cols ) {
-                $table_cols = [ map { { name => $_ } } @{$sf->{d}{col_names}{$table}} ];
+        elsif ( $choices[0] eq $sf->{i}{ok} ) {
+            shift @choices;
+            push @$chosen_cols, map { { name => $_ } } @choices;
+            if ( ! @$chosen_cols ) {
+                $chosen_cols = [ map { { name => $_ } } @{$sf->{d}{col_names}{$table}} ];
             }
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
             return 1;
         }
         #                                          INT                 String
         # SQLite, mysql, MariaDB, Pg, DB2 Oracle:  null                null
         # Informix                              :  cast('' as int)     ''
         # Firebird                              :  ''                  ''
-        elsif ( $chosen[0] eq $sf->{i}{menu_addition} ) {
+        elsif ( $choices[0] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $sql->{cols} = $ax->quote_cols( $sf->{d}{col_names}{$table} );
             my $complex_col = $ext->complex_unit( $sql, 'Union' );
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
-            my $default = '_col' . ( @$table_cols + 1 );
+            my $default = '_col' . ( @$chosen_cols + 1 );
             my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col, $default );
             if ( ! length $alias ) {
                 $alias = $default;
             }
-            push @bu_cols, [ @$table_cols ];
-            push @$table_cols, { name => $complex_col, alias => $alias };
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+            push @bu_cols, [ @$chosen_cols ];
+            push @$chosen_cols, { name => $complex_col, alias => $alias };
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
         }
         else {
-            push @bu_cols, [ @$table_cols ];
-            push @$table_cols, map { { name => $_ } } @chosen;
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $table_cols );
+            push @bu_cols, [ @$chosen_cols ];
+            push @$chosen_cols, map { { name => $_ } } @choices;
+            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
         }
     }
 }
@@ -279,6 +279,7 @@ sub __quote_union_table_cols {
     my $qt_cols = [];
     for my $col ( @$cols ) {
         if ( length $col->{alias} ) {
+            # only scalar functions and subqueries have an alias
             push @$qt_cols, $col->{name} . ' AS ' . $ax->prepare_identifier( $col->{alias} );
         }
         else {
@@ -292,18 +293,12 @@ sub __quote_union_table_cols {
 sub __get_sub_select_stmts {
     my ( $sf, $data ) = @_;
     my $stmts = [];
-    my $max_length = 0;
-    for my $sub ( @$data ) {
-        if ( length( $sub->{operator} // '' ) > $max_length ) {
-            $max_length = length $sub->{operator};
-        }
-    }
     for my $d ( @$data ) {
         if ( $d->{operator} ) {
             push @$stmts, $d->{operator};
         };
         if ( $d->{parentheses_open} ) {
-            push @$stmts, "(";
+            push @$stmts, ( "(" ) x $d->{parentheses_open};
         }
         my $select = "SELECT " . join( ', ', @{$d->{qt_columns}} ) . " FROM " . $d->{qt_table};
         if ( length $d->{where_stmt} ) {
@@ -311,7 +306,7 @@ sub __get_sub_select_stmts {
         }
         push @$stmts, $select;
         if ( $d->{parentheses_close} ) {
-            push @$stmts, ")";
+            push @$stmts, ( ")" ) x $d->{parentheses_close};
         }
     }
     return $stmts;
@@ -356,10 +351,10 @@ sub __add_where_condition {
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
             if ( @idx_changed_tables ) {
-                $old_idx_tbl = 0;
                 my $idx = pop @idx_changed_tables;
                 delete $data->[$idx]{where_stmt};
                 delete $data->[$idx]{where_args};
+                $old_idx_tbl = 0;
                 next TABLE;
             }
             return;
@@ -382,7 +377,7 @@ sub __add_where_condition {
         $ax->reset_sql( $tmp_sql );
         $tmp_sql->{table} = $data->[$idx_tbl]{qt_table};
         $tmp_sql->{cols} = $data->[$idx_tbl]{qt_columns};           # cols for where
-        $tmp_sql->{selected_cols} = $data->[$idx_tbl]{qt_columns};  # select_cols for select
+        $tmp_sql->{selected_cols} = $data->[$idx_tbl]{qt_columns};  # selected_cols for select
         my $ret = $sb->where( $tmp_sql );
         # end stmt type select
         $sf->{d}{stmt_types} = $bu_stmt_types;
@@ -405,7 +400,8 @@ sub __add_parentheses {
 
     TABLE: while ( 1 ) {
         my @pre = ( undef, $sf->{i}{confirm} );
-        my $menu = [ @pre, map { '- ' . $_->{table} } @$data ];
+        my $reset_all = '  Reset all';
+        my $menu = [ @pre, map('- ' . $_->{table}, @$data ) , $reset_all ];
         my $prompt = 'Parentheses:';
         my $sql = {
             subselect_stmts => $sf->__get_sub_select_stmts( $data ),
@@ -421,10 +417,10 @@ sub __add_parentheses {
         $ax->print_sql_info( $info );
         if ( ! defined $idx_tbl || ! defined $menu->[$idx_tbl] ) {
             if ( @idx_changed_tables ) {
-                $old_idx_tbl = 0;
                 my $idx = pop @idx_changed_tables;
                 delete $data->[$idx]{parentheses_open};
                 delete $data->[$idx]{parentheses_close};
+                $old_idx_tbl = 0;
                 next TABLE;
             }
             return;
@@ -439,9 +435,20 @@ sub __add_parentheses {
         if ( $menu->[$idx_tbl] eq $sf->{i}{confirm} ) {
             return 1;
         }
+        elsif ( $menu->[$idx_tbl] eq $reset_all ) {
+            for my $d ( @$data ) {
+                delete $d->{parentheses_open};
+                delete $d->{parentheses_close};
+            }
+            $old_idx_tbl = 0;
+            next TABLE;
+        }
         $idx_tbl -= @pre;
-        $prompt = $data->[$idx_tbl]{table} . "\n" . 'Parentheses:';
-        my ( $open, $close, $reset ) = ( '  ( .....', '  ..... )', '  Reset' );
+        $prompt = 'Parentheses' . "\n" . ( '(' x ( $data->[$idx_tbl]{parentheses_open} // 0 ) );
+        $prompt .= $data->[$idx_tbl]{table} . ( ')' x ( $data->[$idx_tbl]{parentheses_close} // 0 ) ) . ':';
+        my $open = '  + (';
+        my $close = '  + )';
+        my $reset = '  Reset';
         # Choose
         my $p_type = $tc->choose(
             [ undef, $open, $close, $reset ],
@@ -451,11 +458,12 @@ sub __add_parentheses {
         if ( ! defined $p_type ) {
             next TABLE;
         }
-        if ( $p_type eq $open ) {
-            $data->[$idx_tbl]{parentheses_open} = 1; ##
+        my $max_depth = 3;
+        if ( $p_type eq $open && ( $data->[$idx_tbl]{parentheses_open} // 0 ) < $max_depth ) {
+            $data->[$idx_tbl]{parentheses_open} += 1;
         }
-        elsif ( $p_type eq $close ) {
-            $data->[$idx_tbl]{parentheses_close} = 1; ##
+        elsif ( $p_type eq $close && ( $data->[$idx_tbl]{parentheses_close} // 0 ) < $max_depth ) {
+            $data->[$idx_tbl]{parentheses_close} += 1;
         }
         if ( $p_type eq $reset ) {
             delete $data->[$idx_tbl]{parentheses_open};

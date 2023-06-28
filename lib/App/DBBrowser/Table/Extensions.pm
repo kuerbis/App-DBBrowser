@@ -31,7 +31,7 @@ sub complex_unit {
     if ( $clause eq 'set' ) {
         @types = ( $function, $subquery, $set_to_null );
     }
-    elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\sIN\z/ ) {
+    elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
             @types = ( $subquery );
     }
     else {

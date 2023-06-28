@@ -29,23 +29,28 @@ sub new {
 
 sub __stmt_fold {
     my ( $sf, $used_for, $stmt, $indent, $values ) = @_;
-    my $term_w = get_term_width();
-    if ( $^O ne 'MSWin32' && $^O ne 'cygwin' ) {
-        $term_w += WIDTH_CURSOR;
-    }
-    my $in = ' ' x $sf->{o}{G}{base_indent};
-    my $tabs = [
-        { init_tab => $in x 0, subseq_tab => $in x 1 },
-        { init_tab => $in x 1, subseq_tab => $in x 2 },
-        { init_tab => $in x 2, subseq_tab => $in x 3 },
-    ];
-    if ( $used_for eq 'print' && defined $values ) {
-        my $filled = $sf->stmt_placeholder_to_value( $stmt, $values, 0 );
-        if ( defined $filled ) {
-            $stmt = $filled;
+    if ( $used_for eq 'print' ) {
+        my $term_w = get_term_width();
+        if ( $^O ne 'MSWin32' && $^O ne 'cygwin' ) {
+            $term_w += WIDTH_CURSOR;
         }
+        my $in = ' ' x $sf->{o}{G}{base_indent};
+        my $tabs = [
+            { init_tab => $in x 0, subseq_tab => $in x 1 },
+            { init_tab => $in x 1, subseq_tab => $in x 2 },
+            { init_tab => $in x 2, subseq_tab => $in x 3 },
+        ];
+        if ( defined $values ) {
+            my $filled = $sf->stmt_placeholder_to_value( $stmt, $values, 0 );
+            if ( defined $filled ) {
+                $stmt = $filled;
+            }
+        }
+        return line_fold( $stmt, $term_w, { %{$tabs->[$indent]}, join => 0 } ); ##
     }
-    return line_fold( $stmt, $term_w, { %{$tabs->[$indent]}, join => 0 } ); ##
+    else {
+        return $stmt;
+    }
 }
 
 
@@ -127,7 +132,7 @@ sub get_stmt {
         }
         else {
             push @tmp, $sf->__stmt_fold( $used_for, "VALUES(", $indent1 );
-            my $arg_rows = $sf->info_format_insert_args( $sql, $indent2->{init_tab} );
+            my $arg_rows = $sf->info_format_insert_args( $sql, $in x 2 );
             push @tmp, @$arg_rows;
             push @tmp, $sf->__stmt_fold( $used_for, ")", $indent1 );
         }
@@ -153,8 +158,14 @@ sub get_stmt {
         }
         push @tmp, $sf->__stmt_fold( $used_for, ")", $indent0 );
     }
-    my $print_stmt = join( "\n", @tmp ) . "\n";
-    return $print_stmt;
+    if ( $used_for eq 'prepare' ) {
+        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp; # ### 
+        return $prepare_stmt;
+    }
+    else {
+        my $print_stmt = join( "\n", @tmp ) . "\n";
+        return $print_stmt;
+    }
 }
 
 

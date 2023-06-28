@@ -637,14 +637,15 @@ sub __merge_rows {
         }
         $merged->[$col] = join ' ', @tmp;
     }
+    $prompt = @$chosen_idxs == 1 ? 'Edit row cells:' : 'Edit cells of merged rows:';
     my $col_number = 0;
     my $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @$merged ];
     $info = $sf->__get_filter_info( $sql, $filter_str );
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Edit cells of merged rows:', confirm => $sf->{i}{_confirm},
-          back => $sf->{i}{_back} . '   ' }
+        { info => $info, prompt => $prompt, confirm => $sf->{i}{confirm},
+          back => $sf->{i}{back} . '   ' }
     );
     $sf->__print_busy_string();
     if ( ! $form ) {
@@ -680,21 +681,29 @@ sub __join_columns {
     if ( ! defined $chosen_idxs || ! @$chosen_idxs ) {
         return;
     }
-    my @tmp_info = ( $filter_str );
-    my $label = 'Cols: ';
-    push @tmp_info, line_fold(
-        $label . '"' . join( '", "', @{$header}[@$chosen_idxs] ) . '"', get_term_width(),
-        { subseq_tab => ' ' x length $label, join => 0 }
-    );
-    $info = $sf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
-    # Readline
-    my $join_char = $tr->readline(
-        'Join-string: ',
-        { info => $info }
-    );
-    $sf->__print_busy_string();
-    if ( ! defined $join_char ) {
-        return;
+    my $join_char = '';
+    my $prompt;
+    if ( @$chosen_idxs == 1 ) {
+        $prompt = 'Edit cells of ' . ( $aoa->[0][$chosen_idxs->[0]] ) . ':';
+    }
+    else {
+        $prompt = 'Edit cells of joined columns:';
+        my @tmp_info = ( $filter_str );
+        my $label = 'Cols: ';
+        push @tmp_info, line_fold(
+            $label . '"' . join( '", "', @{$header}[@$chosen_idxs] ) . '"', get_term_width(),
+            { subseq_tab => ' ' x length $label, join => 0 }
+        );
+        $info = $sf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+        # Readline
+        $join_char = $tr->readline(
+            'Join-string: ',
+            { info => $info }
+        );
+        $sf->__print_busy_string();
+        if ( ! defined $join_char ) {
+            return;
+        }
     }
     my $merged = [];
     for my $row ( 0 .. $#{$aoa} ) {
@@ -713,8 +722,8 @@ sub __join_columns {
     # Fill_form
     my $form = $tf->fill_form(
         $fields,
-        { info => $info, prompt => 'Edit cells of joined cols:', confirm => $sf->{i}{_confirm},
-          back => $sf->{i}{_back} . '   ' }
+        { info => $info, prompt => $prompt, confirm => $sf->{i}{confirm},
+          back => $sf->{i}{back} . '   ' }
     );
     $sf->__print_busy_string();
     if ( ! $form ) {

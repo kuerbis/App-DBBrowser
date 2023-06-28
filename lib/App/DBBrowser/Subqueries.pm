@@ -103,7 +103,7 @@ sub choose_subquery {
             }
             $old_idx = $idx;
         }
-        my ( $prompt, $chosen_stmt );
+        my ( $prompt, $history, $chosen_stmt );
         if ( $menu->[$idx] eq $edit_sq_history_file ) {
             if ( $sf->__edit_sq_history_file() ) {
                 ( $saved_subqueries, $session_history ) = $sf->__get_history();
@@ -117,6 +117,7 @@ sub choose_subquery {
         }
         elsif ( $menu->[$idx] eq $readline ) {
             $prompt = 'Enter SQ: ';
+            $history = [ @{$sql->{cols}} ];
         }
         else {
             $prompt = 'Edit SQ: ';
@@ -128,11 +129,14 @@ sub choose_subquery {
         # Readline
         my $stmt = $tr->readline(
             $prompt,
-            { default => $chosen_stmt, show_context => 1, info => $info }
+            { default => $chosen_stmt, show_context => 1, info => $info, history => $history }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $stmt || ! length $stmt ) {
             next SUBQUERY;
+        }
+        while ( $stmt =~ /^\s*\((.+)\)\s*\z/ ) {
+            $stmt = $1;
         }
         unshift @{$sf->{d}{subquery_history}}, { stmt => $stmt, name => $stmt };
         return "(" . $stmt . ")";
