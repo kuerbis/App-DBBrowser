@@ -1,6 +1,25 @@
 Revision history for App-DBBrowser
 
 
+2.333    2023-07-02
+        Bugfixes:
+        - Single user schema with metadata disabled.
+        - Having clause with subqueries.
+        - Filter: scope of reparse.
+
+        New:
+        - Window functions.
+        - Scalar functions 'coalesce' and 'now'.
+        - Allow nested scalar functions
+        - Operators ALL and ANY.
+        - Choose set operator
+
+        Changes:
+        - fill_form menus: option 'auto_up' set to 1.
+        - Modified options 'alias' and 'extensions'.
+        - Some menu items have been moved to other menus.
+        - Some changes require to reconfigure some options.
+
 2.332    2023-07-02
         - Bugfix Postgress: single schema with metadata disabled.
         - Added window functions.

@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.332';
+our $VERSION = '2.333';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -549,7 +549,7 @@ sub run {
                     $sf->{d}{table_footer} = "     '$table_footer'     ";
                     require App::DBBrowser::Table;
                     my $tbl = App::DBBrowser::Table->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                    my $sql = {}; # ### 
+                    my $sql = {};
                     $ax->reset_sql( $sql );
                     $sql->{table} = $qt_table;
                     $sql->{cols} = $qt_columns;
@@ -607,7 +607,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.332
+Version 2.333
 
 =head1 DESCRIPTION
 

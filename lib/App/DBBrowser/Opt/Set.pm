@@ -30,7 +30,7 @@ sub new {
             " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
             "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
             "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
-            " = ANY", " != ANY", " <> ANY", " > ANY", " < ANY", " >= ANY", " <= ANY", # documentation # ### 
+            " = ANY", " != ANY", " <> ANY", " > ANY", " < ANY", " >= ANY", " <= ANY",
             " = ALL", " != ALL", " <> ALL", " > ALL", " < ALL", " >= ALL", " <= ALL",
             " = col", " != col", " <> col", " < col", " > col", " >= col", " <= col",
             "LIKE %col%", "NOT LIKE %col%",  "LIKE col%", "NOT LIKE col%", "LIKE %col", "NOT LIKE %col",

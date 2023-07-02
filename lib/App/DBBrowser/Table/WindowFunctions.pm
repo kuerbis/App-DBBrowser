@@ -86,7 +86,7 @@ sub __choose_a_column {
 #            }
 #            return $subset;
 #        }
-#        elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) { 
+#        elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
 #            # recursion
 #            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
 #            # clause 'window_function': to avoid window function in window function

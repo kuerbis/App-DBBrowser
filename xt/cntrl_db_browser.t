@@ -32,7 +32,9 @@ for my $file (
     'lib/App/DBBrowser/Subqueries.pm',
     'lib/App/DBBrowser/Table.pm',
     'lib/App/DBBrowser/Table/CommitWriteSQL.pm',
-    'lib/App/DBBrowser/Table/Functions.pm',
+    'lib/App/DBBrowser/Table/ScalarFunctions.pm',
+    'lib/App/DBBrowser/Table/ScalarFunctions/SQL.pm',
+    'lib/App/DBBrowser/Table/WindowFunctions.pm',
     'lib/App/DBBrowser/Table/InsertUpdateDelete.pm',
     'lib/App/DBBrowser/Table/Substatements.pm',
     'lib/App/DBBrowser/Union.pm' ) {

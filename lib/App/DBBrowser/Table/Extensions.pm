@@ -26,12 +26,12 @@ sub complex_unit {
     my ( $sf, $sql, $clause, $func_recurs_arg ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $function, $subquery, $set_to_null, $window_function ) = ( 'f()', 'SQ', '=N', 'w()' );  # w() documentation # ### 
+    my ( $function, $subquery, $set_to_null, $window_function ) = ( 'f()', 'SQ', '=N', 'w()' );
     my @types;
     if ( $clause eq 'set' ) {
         @types = ( $function, $subquery, $set_to_null );
     }
-    elsif ( $clause =~ /^(?:select|order_by)\z/i ) { ##
+    elsif ( $clause =~ /^(?:select|order_by)\z/i ) {
         @types = ( $function, $subquery, $window_function );
     }
     elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
@@ -66,20 +66,20 @@ sub complex_unit {
     elsif ( $type eq $function ) {
         require App::DBBrowser::Table::ScalarFunctions;
         my $new_func = App::DBBrowser::Table::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my $col_with_func = $new_func->col_function( $sql, $clause, $func_recurs_arg );
-        if ( ! defined $col_with_func ) { # name
+        my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $func_recurs_arg );
+        if ( ! defined $scalar_func_stmt ) {
             return;
         }
-        return $col_with_func;
+        return $scalar_func_stmt;
     }
     elsif ( $type eq $window_function ) {
         require App::DBBrowser::Table::WindowFunctions;
         my $wf = App::DBBrowser::Table::WindowFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my $win_func = $wf->window_function( $sql, $clause );
-        if ( ! defined $win_func ) {
+        my $win_func_stmt = $wf->window_function( $sql, $clause );
+        if ( ! defined $win_func_stmt ) {
             return;
         }
-        return $win_func;
+        return $win_func_stmt;
     }
 }
 
