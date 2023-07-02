@@ -43,7 +43,7 @@ sub get_content {
         [ 'file',  '- From File' ],
     );
     my $data_source_choice_idx = $sf->{o}{insert}{'data_source_' . $sf->{d}{stmt_types}[0]};
-    $source->{old_idx_menu} //= 0;
+    state $old_idx_menu = 0;
 
     MENU: while ( 1 ) {
         if ( $goto_filter ) {
@@ -59,18 +59,18 @@ sub get_content {
             # Choose
             my $idx = $tc->choose(
                 $menu,
-                { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $source->{old_idx_menu},
+                { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $old_idx_menu,
                     undef => '  <=' }
             );
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 return;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
-                if ( $source->{old_idx_menu} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                    $source->{old_idx_menu} = 0;
+                if ( $old_idx_menu == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                    $old_idx_menu = 0;
                     next MENU;
                 }
-                $source->{old_idx_menu} = $idx;
+                $old_idx_menu = $idx;
             }
             $source->{source_type} = $choices[$idx-@pre][0];
         }
@@ -83,7 +83,7 @@ sub get_content {
             }
             return 1;
         }
-        $source->{old_idx_dir} //= 0;
+        state $old_idx_dir = 0;
 
         DIR: while ( 1 ) {
             if ( $goto_filter ) {
@@ -118,18 +118,18 @@ sub get_content {
                 # Choose
                 my $idx = $tc->choose(
                     $menu,
-                    { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $source->{old_idx_dir}, undef => '  <=' }
+                    { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $old_idx_dir, undef => '  <=' }
                 );
                 if ( ! defined $idx || ! defined $menu->[$idx] ) {
                     return if $data_source_choice_idx =~ /^(?:0|1)\z/;
                     next MENU;
                 }
                 if ( $sf->{o}{G}{menu_memory} ) {
-                    if ( $source->{old_idx_dir} == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                        $source->{old_idx_dir} = 0;
+                    if ( $old_idx_dir == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                        $old_idx_dir = 0;
                         next DIR;
                     }
-                    $source->{old_idx_dir} = $idx;
+                    $old_idx_dir = $idx;
                 }
                 if ( $menu->[$idx] eq $new_search ) {
                     $source->{dir} = $cs->__new_search_dir();

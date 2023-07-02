@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.331';
+our $VERSION = '2.332';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -356,14 +356,8 @@ sub run {
                     # `$schema` remains undefined
                 }
                 elsif ( @schemas == 1 ) {
-                    if ( @$sys_schemas ) {
-                        $schema = $sys_schemas->[0];
-                        $is_system_schema = 1;
-                    }
-                    else {
-                        $schema = $user_schemas->[0];
-                    }
-                    $skipped_menus++ if $skipped_menus == 2
+                    $schema = ( @$user_schemas, @$sys_schemas )[0]; # to preserve unstringified `undef`
+                    $skipped_menus++ if $skipped_menus == 2;
                 }
                 else {
                     my $back = $skipped_menus == 2 ? $sf->{i}{_quit} : $sf->{i}{_back};
@@ -613,7 +607,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.331
+Version 2.332
 
 =head1 DESCRIPTION
 

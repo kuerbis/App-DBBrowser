@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::Functions;
+App::DBBrowser::Table::ScalarFunctions;
 
 use warnings;
 use strict;
@@ -12,11 +12,11 @@ use List::MoreUtils qw( all minmax uniq );
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( line_fold );
 use Term::Choose::Util     qw( unicode_sprintf get_term_height get_term_width );
-use Term::Form             qw();
+use Term::Form             qw(); # ###
 use Term::Form::ReadLine   qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::Table::Functions::SQL;
+use App::DBBrowser::Table::ScalarFunctions::SQL;
 
 
 sub new {
@@ -33,8 +33,9 @@ sub __choose_columns {
     my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $const = '[c]'; # ### 
-    my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const );
+    my $const = '[c]'; ##
+    #my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const ); # ###
+    my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition} );
     my $menu = [ @pre, @$qt_cols ];
     my $subset = [];
     my @bu;
@@ -45,7 +46,7 @@ sub __choose_columns {
         # Choose
         my @idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_h}}, info => $tmp_info, prompt => 'Columns:', meta_items => [ 0 .. $#pre - 1 ],
+            { %{$sf->{i}{lyt_h}}, info => $tmp_info, prompt => 'Columns:', meta_items => [ 0 .. $#pre - 1 ], ##
               no_spacebar => [ $#pre ], include_highlighted => 2, index => 1 }
         );
         if ( ! $idx[0] ) {
@@ -73,7 +74,7 @@ sub __choose_columns {
             }
             push @$subset, $complex_col;
         }
-        elsif ( $menu->[$idx[0]] eq $const ) {
+        elsif ( $menu->[$idx[0]] eq $const ) { ##
             my $rl_info = $tmp_info =~ s/\)\z/,?)/r;
             my $value = $tr->readline(
                 'Value: ',
@@ -97,14 +98,14 @@ sub __choose_columns {
 sub __choose_a_column {
     my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    $info .= "\n" . $sf->__nested_func_info( $nested_func, '?' );
+    $info .= "\n" . $sf->__nested_func_info( $nested_func, '' );
     my @pre = ( undef, $sf->{i}{menu_addition} );
 
     while ( 1 ) {
         # Choose
         my $choice = $tc->choose(
             [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Col:' }
+            { %{$sf->{i}{lyt_h}}, info => $info, prompt => '' }
         );
         if ( ! defined $choice ) {
             return;
@@ -166,6 +167,7 @@ sub col_function {
     my @pre = ( undef );
     my $menu = [ @pre, map( $prefix . lc $_, @functions ) ];
     my $info = $ax->get_sql_info( $sql );
+    my $old_idx = 0;
 
     SCALAR_FUNCTION: while( 1 ) {
         my $tmp_info = $info;
@@ -178,10 +180,17 @@ sub col_function {
         # Choose
         my $idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => '', index => 1, undef => '<=' }
+            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => 'Scalar functions:', index => 1, default => $old_idx, undef => '<=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx = 0;
+                next SCALAR_FUNCTION;
+            }
+            $old_idx = $idx;
         }
         my $func = $functions[$idx-@pre];
         push @$nested_func, $func;
@@ -236,7 +245,7 @@ sub col_function {
             }
             elsif ( $func eq $Substr ) {
                 my $prompts = [ 'StartPos', 'Length' ];
-                my $history = [ [ 1 .. 100 ], [ 1 .. 100 ] ];
+                my $history = [ [ 1 .. 100 ], [ 1 .. 100 ] ]; # ###
                 $function_stmt = $sf->__func_with_col_and_2args( $sql, $chosen_col, $func, $info, $prompts, $history );
             }
             elsif ( $func =~ /^(?:$Epoch_to_Date|$Epoch_to_DateTime)\z/ ) {
@@ -252,7 +261,7 @@ sub col_function {
 
 sub __func_with_no_col {
     my ( $sf, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->function_with_no_col( $func );
     return $function_stmt;
 }
@@ -260,7 +269,7 @@ sub __func_with_no_col {
 
 sub __func_with_col {
     my ( $sf, $sql, $chosen_col, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->function_with_col( $func, $chosen_col );
     return $function_stmt;
 }
@@ -268,7 +277,7 @@ sub __func_with_col {
 
 sub __func_with_col_and_arg {
     my ( $sf, $sql, $chosen_col, $func, $info, $prompt, $history ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     $info .= "\n" . $func . '(' . $chosen_col . ',?)';
     my $value = $tr->readline(
@@ -283,45 +292,72 @@ sub __func_with_col_and_arg {
 }
 
 
+#sub __func_with_col_and_2args { # ###
+#    my ( $sf, $sql, $chosen_col, $func, $info, $prompts, $history ) = @_;
+#    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+#    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+#    my ( $arg1, $arg2 );
+#    my $count = 0;
+#
+#    while( 1 ) {
+#        my $tmp_info = $info . "\n" . $func . '(' . $chosen_col . ')';
+#        #my $tmp_info = $info . "\n" . sprintf "%s(%s,%s,%s)", $func, $chosen_col, $prompts->[0], $prompts->[1];
+#        if ( ++$count > 3 ) {
+#            $arg1 = undef;
+#        }
+#        $arg1 = $tr->readline(
+#            $prompts->[0] . ': ',
+#            { info => $tmp_info, history => $history->[0], default => $arg1 }
+#        );
+#        if ( ! length $arg1 ) {
+#            return;
+#        }
+#        $tmp_info =~ s/\?,\?\)\z/$arg1,?)/;
+#        #$tmp_info .= "\n" . $prompts->[0] . ': ' . $arg1;
+#        $arg2 = $tr->readline(
+#            $prompts->[1] . ': ',
+#            { info => $tmp_info, history => $history->[1] }
+#        );
+#        if ( ! length $arg2 ) {
+#            next;
+#        }
+#        last;
+#    }
+#    my $function_stmt = $fsql->function_with_col_and_2args( $func, $chosen_col, $arg1, $arg2 );
+#    return $function_stmt;
+#}
 sub __func_with_col_and_2args {
-    my ( $sf, $sql, $chosen_col, $func, $info, $prompts, $history ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my ( $arg1, $arg2 );
-    my $count = 0;
-
-    while( 1 ) {
-        my $tmp_info = $info . "\n" . $func . '(' . $chosen_col . ',?,?)';
-        #my $tmp_info = $info . "\n" . sprintf "%s(%s,%s,%s)", $func, $chosen_col, $prompts->[0], $prompts->[1];
-        if ( ++$count > 3 ) {
-            $arg1 = undef;
-        }
-        $arg1 = $tr->readline(
-            $prompts->[0] . ': ',
-            { info => $tmp_info, history => $history->[0], default => $arg1 }
-        );
-        if ( ! length $arg1 ) {
+    my ( $sf, $sql, $qt_col, $func, $info, $prompts ) = @_;
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tf = Term::Form->new( $sf->{i}{tf_default} );
+    my $fields = [
+        [ $prompts->[0], ],
+        [ $prompts->[1], ],
+    ];
+    my $tmp_info = $info . "\n" . $func . '(' . $qt_col . ')';
+    my $pad = ' ' x ( length( $fields->[0][0] ) - 1 );
+    my $form = $tf->fill_form(
+        $fields,
+        { info => $tmp_info, prompt => '', confirm => 'OK' . $pad, back => '<<' . $pad }
+    );
+    if ( ! $form ) {
+        return;
+    }
+    else {
+        my $arg1 = $form->[0][1];
+        my $arg2 = $form->[1][1];
+        if ( ! length $arg1 ) { ##
             return;
         }
-        $tmp_info =~ s/\?,\?\)\z/$arg1,?)/;
-        #$tmp_info .= "\n" . $prompts->[0] . ': ' . $arg1;
-        $arg2 = $tr->readline(
-            $prompts->[1] . ': ',
-            { info => $tmp_info, history => $history->[1] }
-        );
-        if ( ! length $arg2 ) {
-            next;
-        }
-        last;
+        my $function_stmt = $fsql->function_with_col_and_2args( $func, $qt_col, $arg1, $arg2 );
+        return $function_stmt;
     }
-    my $function_stmt = $fsql->function_with_col_and_2args( $func, $chosen_col, $arg1, $arg2 );
-    return $function_stmt;
 }
 
 
 sub __func_Concat {
     my ( $sf, $sql, $chosen_cols, $func, $info ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $sep = $tr->readline(
@@ -338,7 +374,7 @@ sub __func_Concat {
 
 sub __func_Coalesce {
     my ( $sf, $sql, $chosen_cols, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->coalesce( $chosen_cols );
     return $function_stmt;
 }
@@ -408,7 +444,7 @@ sub __select_stmt {
 
 sub __interval_to_converted_epoch {
     my ( $sf, $sql, $func, $max_examples, $chosen_col, $interval ) = @_;
-    my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt;
     if ( $func eq 'EPOCH_TO_DATETIME' ) {
         $function_stmt = $fsql->epoch_to_datetime( $chosen_col, $interval );
@@ -498,7 +534,7 @@ sub __choose_interval {
         if ( $sf->{o}{G}{menu_memory} ) {
             if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
                 $old_idx = 0;
-                next SCALAR_FUNCTION;
+                next CHOOSE_INTERVAL;
             }
             $old_idx = $idx;
         }

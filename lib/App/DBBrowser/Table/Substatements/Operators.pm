@@ -12,7 +12,7 @@ use Term::Form::ReadLine qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::Extensions;
-#use App::DBBrowser::Table::Functions::SQL;  # required
+#use App::DBBrowser::Table::ScalarFunctions::SQL;  # required
 
 
 sub new {
@@ -205,8 +205,8 @@ sub __add_operator {
         }
         else {
             if ( ! eval {
-                require App::DBBrowser::Table::Functions::SQL;
-                my $fsql = App::DBBrowser::Table::Functions::SQL->new( $sf->{i}, $sf->{o} );
+                require App::DBBrowser::Table::ScalarFunctions::SQL;
+                my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o} );
                 my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
                 my $qt_arg = $fsql->concatenate( \@el );
                 $qt_arg =~ s/'col'/$qt_col/;
@@ -254,6 +254,7 @@ sub read_and_add_value {
         if ( ! defined $complex_value ) {
             return;
         }
+        # $complex_value already in ()
         $sql->{$stmt} .= ' ' . $complex_value;
         return 1;
     }

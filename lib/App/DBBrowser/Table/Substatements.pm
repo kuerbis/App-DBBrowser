@@ -77,7 +77,7 @@ sub select {
             shift @idx;
             push @{$sql->{selected_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{selected_cols}} ) {
-                return 0; # 0 ... # ### 
+                return 0; ##
             }
             return 1;
         }
@@ -335,7 +335,7 @@ sub set {
         }
         if ( $quote_col eq $sf->{i}{ok} ) {
             if ( $col_sep eq ' ' ) {
-                $sql->{set_stmt} = '';
+                $sql->{set_stmt} = ''; ##
             }
             if ( ! length $sql->{set_stmt} ) {
                 return 0;
@@ -407,14 +407,13 @@ sub group_by {
                 pop @{$sql->{group_by_cols}};
                 next GROUP_BY;
             }
-            $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
             return;
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
             shift @idx;
             push @{$sql->{group_by_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{group_by_cols}} ) {
-                $sql->{group_by_stmt} = '';
+                $sql->{group_by_stmt} = ''; ##
             }
             else {
                 $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
@@ -484,7 +483,7 @@ sub order_by {
         }
         if ( $col eq $sf->{i}{ok} ) {
             if ( $col_sep eq ' ' ) {
-                $sql->{order_by_stmt} = '';
+                $sql->{order_by_stmt} = ''; ##
             }
             if ( ! length $sql->{order_by_stmt} ) {
                 return 0;

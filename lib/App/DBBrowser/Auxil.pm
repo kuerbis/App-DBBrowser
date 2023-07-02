@@ -159,7 +159,7 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, ")", $indent0 );
     }
     if ( $used_for eq 'prepare' ) {
-        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp; # ### 
+        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp;
         return $prepare_stmt;
     }
     else {

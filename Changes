@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.332    2023-07-02
+        - Bugfix Postgress: single schema with metadata disabled.
+        - Added window functions.
+
 2.331    2023-06-28
         - Added operators ALL and ANY.
         - Different fixes.

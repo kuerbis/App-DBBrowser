@@ -8,9 +8,9 @@ use 5.014;
 use Term::Choose qw();
 
 use App::DBBrowser::Auxil;
-#use App::DBBrowser::Subqueries;        # required
-#use App::DBBrowser::Table::Functions;  # required
-
+#use App::DBBrowser::Subqueries;              # required
+#use App::DBBrowser::Table::ScalarFunctions;  # required
+#use App::DBBrowser::Table::WindowFunctions;  # required
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -26,10 +26,13 @@ sub complex_unit {
     my ( $sf, $sql, $clause, $func_recurs_arg ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $function, $subquery, $set_to_null ) = ( 'f()', 'SQ', '=N' );
+    my ( $function, $subquery, $set_to_null, $window_function ) = ( 'f()', 'SQ', '=N', 'w()' );  # w() documentation # ### 
     my @types;
     if ( $clause eq 'set' ) {
         @types = ( $function, $subquery, $set_to_null );
+    }
+    elsif ( $clause =~ /^(?:select|order_by)\z/i ) { ##
+        @types = ( $function, $subquery, $window_function );
     }
     elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
             @types = ( $subquery );
@@ -61,13 +64,22 @@ sub complex_unit {
         return $subq;
     }
     elsif ( $type eq $function ) {
-        require App::DBBrowser::Table::Functions;
-        my $new_func = App::DBBrowser::Table::Functions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        require App::DBBrowser::Table::ScalarFunctions;
+        my $new_func = App::DBBrowser::Table::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
         my $col_with_func = $new_func->col_function( $sql, $clause, $func_recurs_arg );
-        if ( ! defined $col_with_func ) {
+        if ( ! defined $col_with_func ) { # name
             return;
         }
         return $col_with_func;
+    }
+    elsif ( $type eq $window_function ) {
+        require App::DBBrowser::Table::WindowFunctions;
+        my $wf = App::DBBrowser::Table::WindowFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        my $win_func = $wf->window_function( $sql, $clause );
+        if ( ! defined $win_func ) {
+            return;
+        }
+        return $win_func;
     }
 }
 

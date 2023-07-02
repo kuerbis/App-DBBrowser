@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::Functions::SQL;
+App::DBBrowser::Table::ScalarFunctions::SQL;
 
 use warnings;
 use strict;
