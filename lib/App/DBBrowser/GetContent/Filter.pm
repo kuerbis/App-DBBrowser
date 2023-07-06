@@ -414,7 +414,7 @@ sub __insert_cell {
         # Readline
         my $cell = $tr->readline(
             $prompt,
-            { info => $info }
+            { info => $info, history => [] }
         );
         $sf->__print_busy_string();
         splice( @{$aoa->[$row_idx]}, $col_idx, 0, $cell );
@@ -698,7 +698,7 @@ sub __join_columns {
         # Readline
         $join_char = $tr->readline(
             'Join-string: ',
-            { info => $info }
+            { info => $info, history => [] }
         );
         $sf->__print_busy_string();
         if ( ! defined $join_char ) {

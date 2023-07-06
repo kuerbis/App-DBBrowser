@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.333';
+our $VERSION = '2.334';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -38,7 +38,7 @@ sub new {
     my $info = {
         tc_default    => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => '<<', prompt => 'Your choice:' },
         tf_default    => { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6, auto_up => 1 },
-        tr_default    => { hide_cursor => 2, clear_screen => 1, page => 2 },
+        tr_default    => { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] },
         tcu_default   => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6 }, ##
         lyt_h         => { order => 0, alignment => 2 },
         lyt_v         => { undef => '  BACK', layout => 2 },
@@ -607,7 +607,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.333
+Version 2.334
 
 =head1 DESCRIPTION
 

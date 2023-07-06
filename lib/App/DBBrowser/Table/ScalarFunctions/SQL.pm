@@ -20,7 +20,7 @@ sub function_with_no_col {
     my ( $sf, $func ) = @_;
     my $driver = $sf->{i}{driver};
     $func = uc( $func );
-    if ( $func eq 'NOW' ) {
+    if ( $func =~ /^NOW\z/i ) {
         return "strftime('%Y-%m-%d %H-%M-%S','now')" if $driver eq 'SQLite';
         return "timestamp 'NOW'"                     if $driver eq 'Firebird';
         return "CURRENT"                             if $driver eq 'Informix'; # "CURRENT YEAR TO SECOND"
@@ -37,19 +37,19 @@ sub function_with_col {
     my ( $sf, $func, $col ) = @_;
     my $driver = $sf->{i}{driver};
     $func = uc( $func );
-    if ( $func eq 'LTRIM' ) {
+    if ( $func =~ /^LTRIM\z/i ) {
         return "TRIM(LEADING FROM $col)"  if $driver =~ /^(?:Pg|Firebird|Informix)\z/;
         return "LTRIM($col)";
     }
-    elsif ( $func eq 'RTRIM' ) {
+    elsif ( $func =~ /^RTRIM\z/i ) {
         return "TRIM(TRAILING FROM $col)" if $driver =~ /^(?:Pg|Firebird|Informix)\z/;
         return "RTRIM($col)";
     }
-    elsif ( $func eq 'OCTET_LENGTH' ) {
+    elsif ( $func =~ /^OCTET_LENGTH\z/i ) {
         return "LENGTHB($col)"            if $driver eq 'Oracle';
         return "OCTET_LENGTH($col)";
     }
-    elsif ( $func =~ /^CHAR_LENGTH/ ) {
+    elsif ( $func =~ /^CHAR_LENGTH\z/i ) {
         return "LENGTH($col)"             if $driver =~ /^(?:SQLite|Oracle)\z/;
         return "CHAR_LENGTH($col)";
     }
@@ -62,22 +62,58 @@ sub function_with_col {
 sub function_with_col_and_arg {
     my ( $sf, $func, $col, $arg ) = @_;
     $func = uc( $func );
-    if ( $func eq 'CAST' ) {
+    if ( $func =~ /^CAST\z/i ) {
         return "CAST($col AS $arg)";
     }
-    elsif ( $func eq 'ROUND' ) {
-        return "ROUND($col,$arg)";
+    elsif ( $func =~ /^EXTRACT\z/i ) {
+        if ( $sf->{i}{driver} eq 'SQLite' ) {
+            my %map = ( YEAR => '%Y', MONTH => '%m', WEEK => '%W', DAY => '%d', HOUR => '%H', MINUTE => '%M', SECOND => '%S',
+                        DOY => '%j', DOW => '%w'
+            );
+            if ( $map{ uc( $arg ) } ) {
+                $arg = "'" . $map{ uc( $arg ) } . "'";
+            }
+            return "strftime($arg,$col)";
+        }
+        else {
+            return "EXTRACT($arg FROM $col)";
+        }
     }
-    elsif ( $func eq 'TRUNCATE' ) {
-        #if ( $sf->{i}{driver} eq 'SQLite' ) {
-        #    my $prec_num = '1' . '0' x $arg;
-        #    return "cast( ( $col * $prec_num ) as int ) / $prec_num.0";
-        #}
-        return "TRUNC($col,$arg)"     if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/;
-        return "TRUNCATE($col,$arg)";
+    elsif ( $func =~ /^ROUND\z/i ) {
+        if ( length $arg ) {
+            return "ROUND($col,$arg)";
+        }
+        else {
+            return "ROUND($col)";
+        }
     }
+    elsif ( $func =~ /^TRUNCATE\z/i ) {
+        if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/ ) {
+            return "TRUNC($col,$arg)" if length $arg;
+            return "TRUNC($col)";
+        }
+        else {
+            return "TRUNCATE($col,$arg)" if length $arg;
+            return "TRUNCATE($col)";
+        }
+    }
+    elsif ( $func =~ /^INSTR\z/i ) {
+        my $substring = $sf->{d}{dbh}->quote( $arg );
+        return "POSITION($substring IN $col)" if $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/;
+        return "INSTR($col,$substring)";
+        # DB2, informix, Oracle: INSTR(string, substring, start, count)
+        # Firebird: position(substring, string, start)
+    }
+    #elsif ( $func =~ /^LEFT\z/i ) {
+    #    return "SUBSTR($col,1,$arg)" if $sf->{i}{driver} eq 'SQLite';
+    #    return "LEFT($col,$arg)";
+    #}
+    #elsif ( $func =~ /^RIGHT\z/i ) {
+    #    return "SUBSTR($col,-$arg)" if $sf->{i}{driver} eq 'SQLite';
+    #    return "RIGHT($col,$arg)";
+    #}
     else {
-        return "$func($col,$arg)"; # none
+        return "$func($col,$arg)";
     }
 }
 
@@ -85,12 +121,12 @@ sub function_with_col_and_arg {
 sub function_with_col_and_2args {
     my ( $sf, $func, $col, $arg1, $arg2 ) = @_;
     my $driver = $sf->{i}{driver};
-    if ( $func eq 'REPLACE' ) {
+    if ( $func =~ /^REPLACE\z/i ) {
         my $string_to_replace =  $sf->{d}{dbh}->quote( $arg1 );
         my $replacement_string = $sf->{d}{dbh}->quote( $arg2 );
         return "REPLACE($col,$string_to_replace,$replacement_string)";
     }
-    elsif ( $func eq 'SUBSTR' ) {
+    elsif ( $func =~ /^SUBSTR\z/i ) {
         my $startpos = $arg1;
         my $length = $arg2;
         if ( $driver =~ /^(?:SQLite|mysql|MariaDB|Oracle)\z/ ) {
@@ -100,6 +136,34 @@ sub function_with_col_and_2args {
         else {
             return "SUBSTRING($col FROM $startpos FOR $length)" if length $length;
             return "SUBSTRING($col FROM $startpos)";
+        }
+    }
+    elsif ( $func =~ /^LPAD\z/i ) {
+        my $length = $arg1;
+        my $fill = $arg2;
+        if ( $sf->{i}{driver} eq 'SQLite' ) {
+            $fill = ' ' if ! length $fill;
+            $fill = $sf->{d}{dbh}->quote( $fill x $length );
+            return "SUBSTR($fill||$col,-$length,$length)";
+        }
+        else {
+            return "LPAD($col,$length)" if ! length $fill;
+            $fill = $sf->{d}{dbh}->quote( $fill );
+            return "LPAD($col,$length,$fill)";
+        }
+    }
+    elsif ( $func =~ /^RPAD\z/i ) {
+        my $length = $arg1;
+        my $fill = $arg2;
+        if ( $sf->{i}{driver} eq 'SQLite' ) {
+            $fill = ' ' if ! length $fill;
+            $fill = $sf->{d}{dbh}->quote( $fill x $length );
+            return "SUBSTR($col||$fill,1,$length)";
+        }
+        else {
+            return "RPAD($col,$length)" if ! length $fill;
+            $fill = $sf->{d}{dbh}->quote( $fill );
+            return "RPAD($col,$length,$fill)";
         }
     }
     else {

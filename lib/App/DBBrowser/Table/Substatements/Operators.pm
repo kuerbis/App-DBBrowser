@@ -245,7 +245,6 @@ sub read_and_add_value {
     my ( $sf, $sql, $clause, $op, $is_complex_value ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $history = [ 0 ..  1000 ];
     my $stmt = $clause . '_stmt';
     my $args = $clause . '_args';
     if ( $is_complex_value ) {
@@ -274,7 +273,7 @@ sub read_and_add_value {
                 # Readline
                 my $value = $tr->readline(
                     'Value: ',
-                    { info => $info, history => $history }
+                    { info => $info }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $value ) {
@@ -297,7 +296,7 @@ sub read_and_add_value {
             # Readline
             my $value_1 = $tr->readline(
                 'Value 1: ',
-                { info => $info, history => $history }
+                { info => $info }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $value_1 ) {
@@ -309,7 +308,7 @@ sub read_and_add_value {
             # Readline
             my $value_2 = $tr->readline(
                 'Value 2: ',
-                { info => $info, history => $history }
+                { info => $info }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $value_2 ) {
@@ -349,7 +348,7 @@ sub read_and_add_value {
             else {
                 $value = $tr->readline(
                     'Value: ',
-                    { info => $info, history => $history }
+                    { info => $info }
                 );
             }
             $ax->print_sql_info( $info );

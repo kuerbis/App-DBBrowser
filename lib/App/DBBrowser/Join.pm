@@ -307,7 +307,7 @@ sub __add_join_condition {
                 # Readline
                 $condition = $tr->readline( # conditions are boolean expressions
                     'Edit: ',
-                    { info => $info, default => $condition, show_context => 1 }
+                    { info => $info, default => $condition, show_context => 1, history => [] }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $condition ) {

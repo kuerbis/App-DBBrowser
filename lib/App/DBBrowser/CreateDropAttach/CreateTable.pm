@@ -59,7 +59,7 @@ sub create_view {
             # Readline
             my $view = $tr->readline(
                 'View name: ' . $sf->{o}{create}{view_name_prefix},
-                { info => $info }
+                { info => $info, history => [] }
             );
             $ax->print_sql_info( $info );
             if ( ! length $view ) {
@@ -245,7 +245,7 @@ sub __set_table_name {
         # Readline
         my $table_name = $tr->readline(
             'Table name: ',
-            { info => $info, default => $tablename_default }
+            { info => $info, default => $tablename_default, history => [] }
         );
         $ax->print_sql_info( $info );
         if ( ! length $table_name ) {
@@ -446,6 +446,13 @@ sub __edit_column_types { ##
     if ( length $sf->{col_auto} ) {
         unshift @$fields, [ $ax->prepare_identifier( $sf->{col_auto} ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
+    }
+    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/ ) {
+        for my $field ( @$fields ) {
+            if ( $field->[1] eq 'DATETIME' ) {
+                $field->[1] = 'TIMESTAMP';
+            }
+        }
     }
     my $info = $ax->get_sql_info( $sql );
     # Fill_form

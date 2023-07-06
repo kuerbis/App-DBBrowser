@@ -12,10 +12,11 @@ use List::MoreUtils qw( all minmax uniq );
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( line_fold );
 use Term::Choose::Util     qw( unicode_sprintf get_term_height get_term_width );
-use Term::Form             qw(); # ###
+use Term::Form             qw(); ##
 use Term::Form::ReadLine   qw();
 
 use App::DBBrowser::Auxil;
+use App::DBBrowser::Table::Extensions;
 use App::DBBrowser::Table::ScalarFunctions::SQL;
 
 
@@ -105,7 +106,7 @@ sub __choose_a_column {
         # Choose
         my $choice = $tc->choose(
             [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => '' }
+            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Column:' }
         );
         if ( ! defined $choice ) {
             return;
@@ -150,22 +151,53 @@ sub col_function {
     else {
         $qt_cols = [ @{$sql->{cols}} ];
     }
-    my @one_col_functions = ( 'TRIM', 'LTRIM', 'RTRIM', 'UPPER', 'LOWER', 'OCTET_LENGTH', 'CHAR_LENGTH' );
-    my $Now               = 'NOW';
-    my $Cast              = 'CAST';
-    my $Concat            = 'CONCAT';
-    my $Coalesce          = 'COALESCE';
-    my $Epoch_to_Date     = 'EPOCH_TO_DATE';
-    my $Epoch_to_DateTime = 'EPOCH_TO_DATETIME';
-    my $Replace           = 'REPLACE';
-    my $Substr            = 'SUBSTR';
-    my $Round             = 'ROUND';
-    my $Truncate          = 'TRUNCATE';
-    my @functions = ( @one_col_functions, $Now, $Cast, $Concat, $Coalesce, $Epoch_to_Date, $Epoch_to_DateTime, $Replace, $Substr, $Round, $Truncate );
-    my $joined_one_col_functions = join( '|', @one_col_functions );
-    my $prefix = '- ';
+    my $cast         = 'CAST';
+    my $char_length  = 'CHAR_LENGTH';
+    my $coalesce     = 'COALESCE';
+    my $concat       = 'CONCAT';
+    my $epoch_to_d   = 'EPOCH_TO_DATE';
+    my $epoch_to_dt  = 'EPOCH_TO_DATETIME';
+    my $extract      = 'EXTRACT';
+    my $instr        = 'INSTR';
+#    my $left         = 'LEFT';
+    my $lower        = 'LOWER';
+    my $lpad         = 'LPAD';
+    my $ltrim        = 'LTRIM';
+    my $now          = 'NOW';
+    my $octet_length = 'OCTET_LENGTH';
+    my $replace      = 'REPLACE';
+#    my $right        = 'RIGHT';
+    my $round        = 'ROUND';
+    my $rpad         = 'RPAD';
+    my $rtrim        = 'RTRIM';
+    my $substr       = 'SUBSTR';
+    my $trim         = 'TRIM';
+    my $truncate     = 'TRUNCATE';
+    my $upper        = 'UPPER';
+
+    my @only_func = ( $now );
+    my @one_col_func = ( $trim, $ltrim, $rtrim, $upper, $lower, $octet_length, $char_length );
+    my @one_col_one_arg_func = ( $cast, $extract, $instr, $round, $truncate );  # , $left, $right
+    my @one_col_two_arg_func = ( $lpad, $replace, $rpad, $substr );
+    my @multi_col_func = ( $coalesce, $concat );
+    my @epoch_dt_func = ( $epoch_to_d, $epoch_to_dt );
+
+    my $rx_only_func = join( '|', @only_func );
+    my $rx_one_col_func = join( '|', @one_col_func );
+    my $rx_one_col_one_arg_func = join( '|', @one_col_one_arg_func );
+    my $rx_one_col_two_arg_func = join( '|', @one_col_two_arg_func );
+    my $rx_multi_col_func = join( '|', @multi_col_func );
+    my $rx_epoch_dt_func = join( '|', @epoch_dt_func );
+
+    #my @string_func = ( $char_length, $concat, $instr, $lower, $lpad, $ltrim, $octet_length, $replace, $rpad, $rtrim, $substr, $trim, $upper); # , $left, $right
+    #my @numeric_func = ( $round, $truncate );
+    #my @datetime_func = ( $epoch_to_d, $epoch_to_dt, $extract, $now );
+    #my @other_func = ( $cast, $coalesce );
+    #my @functions = ( sort @string_func, @numeric_func, @datetime_func, @other_func );
+    my @functions = ( sort @only_func, @one_col_func, @one_col_one_arg_func, @one_col_two_arg_func, @multi_col_func, @epoch_dt_func );
+
     my @pre = ( undef );
-    my $menu = [ @pre, map( $prefix . lc $_, @functions ) ];
+    my $menu = [ @pre, map( '- ' . $_, @functions ) ];
     my $info = $ax->get_sql_info( $sql );
     my $old_idx = 0;
 
@@ -196,10 +228,10 @@ sub col_function {
         push @$nested_func, $func;
 
         my $function_stmt;
-        if ( $func eq $Now ) {
+        if ( $func =~ /^(?:$rx_only_func)\z/i ) {
             $function_stmt =  $sf->__func_with_no_col( $func );
         }
-        elsif ( $func eq $Concat || $func eq $Coalesce ) {
+        elsif ( $func =~ /^(?:$rx_multi_col_func)\z/i ) {
             my $chosen_cols = $sf->__choose_columns( $sql, $clause, $qt_cols, $info, $nested_func );
             if ( ! defined $chosen_cols ) {
                 if ( @$nested_func == 1 ) {
@@ -209,10 +241,10 @@ sub col_function {
                 pop @$nested_func;
                 return;
             }
-            if ( $func eq $Concat ) {
+            if ( $func =~ /^$concat\z/i ) {
                 $function_stmt = $sf->__func_Concat( $sql, $chosen_cols, $func, $info );
             }
-            elsif ( $func eq $Coalesce ) {
+            elsif ( $func =~ /^$coalesce\z/i ) {
                 $function_stmt = $sf->__func_Coalesce( $sql, $chosen_cols, $func );
             }
         }
@@ -226,29 +258,46 @@ sub col_function {
                 pop @$nested_func;
                 return;
             }
-            if ( $func =~ /^(?:$joined_one_col_functions)\z/ ) {
+            if ( $func =~ /^(?:$rx_one_col_func)\z/i ) {
                 $function_stmt = $sf->__func_with_col( $sql, $chosen_col, $func );
             }
-            elsif ( $func eq $Cast ) {
-                my $prompt = 'Data type';
-                my $history = [ 'VARCHAR', 'INT', 'NUMBER' ];
+            elsif ( $func =~ /^(?:$rx_one_col_one_arg_func)\z/i ) {
+                my ( $prompt, $history );
+                if ( $func =~ /^$cast\z/i ) {
+                    $prompt = 'Data type';
+                    $history = [ qw(VARCHAR TEXT INT BIGINT DECIMAL DATE) ];
+                }
+                if ( $func =~ /^$extract\z/i ) {
+                    $prompt = 'Field';
+                    $history = [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND) ];
+                    # Pg: DOY, ISODOW, no timezone
+                }
+                elsif ( $func =~ /^(?:$round|$truncate)\z/i ) {
+                    $prompt = 'Decimal places';
+                }
+                elsif ( $func =~ /^(?:$instr)\z/i ) {
+                    $prompt = 'Substr';
+                    $history = [];
+                }
+                #elsif ( $func =~ /^(?:$left|$right)\z/i ) {
+                #    $prompt = 'Length';
+                #}
                 $function_stmt = $sf->__func_with_col_and_arg( $sql, $chosen_col, $func, $info, $prompt, $history );
             }
-            elsif ( $func =~ /^(?:$Round|$Truncate)\z/ ) {
-                my $prompt = 'Decimal places';
-                my $history = [ 0 .. 9 ];
-                $function_stmt = $sf->__func_with_col_and_arg( $sql, $chosen_col, $func, $info, $prompt, $history );
-            }
-            elsif ( $func eq $Replace ) {
-                my $prompts = [ 'From string', 'To string' ];
+            elsif ( $func =~ /^(?:$rx_one_col_two_arg_func)\z/i ) {
+                my $prompts;
+                if ( $func =~ /^(?:$replace)\z/i ) {
+                    $prompts = [ 'From string', 'To string' ];
+                }
+                elsif ( $func =~ /^(?:$substr)\z/i ) {
+                    $prompts = [ 'StartPos', 'Length' ];
+                }
+                elsif ( $func =~ /^(?:$lpad|$rpad)\z/i ) {
+                    $prompts = [ 'Length', 'Fill' ];
+                }
                 $function_stmt = $sf->__func_with_col_and_2args( $sql, $chosen_col, $func, $info, $prompts );
             }
-            elsif ( $func eq $Substr ) {
-                my $prompts = [ 'StartPos', 'Length' ];
-                my $history = [ [ 1 .. 100 ], [ 1 .. 100 ] ]; # ###
-                $function_stmt = $sf->__func_with_col_and_2args( $sql, $chosen_col, $func, $info, $prompts, $history );
-            }
-            elsif ( $func =~ /^(?:$Epoch_to_Date|$Epoch_to_DateTime)\z/ ) {
+            elsif ( $func =~ /^(?:$rx_epoch_dt_func)\z/i ) {
                 $function_stmt = $sf->__func_Date_Time( $sql, $chosen_col, $func, $info );
             }
         }
@@ -284,7 +333,7 @@ sub __func_with_col_and_arg {
         $prompt . ': ',
         { info => $info, history => $history }
     );
-    if ( ! length $value ) {
+    if ( ! defined $value ) {
         return;
     }
     my $function_stmt = $fsql->function_with_col_and_arg( $func, $chosen_col, $value );
@@ -292,7 +341,7 @@ sub __func_with_col_and_arg {
 }
 
 
-#sub __func_with_col_and_2args { # ###
+#sub __func_with_col_and_2args { ##
 #    my ( $sf, $sql, $chosen_col, $func, $info, $prompts, $history ) = @_;
 #    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
 #    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
@@ -334,7 +383,7 @@ sub __func_with_col_and_2args {
         [ $prompts->[0], ],
         [ $prompts->[1], ],
     ];
-    my $tmp_info = $info . "\n" . $func . '(' . $qt_col . ')';
+    my $tmp_info = $info . "\n" . $func . '(' . $qt_col . ', ?)';
     my $pad = ' ' x ( length( $fields->[0][0] ) - 1 );
     my $form = $tf->fill_form(
         $fields,
@@ -346,9 +395,6 @@ sub __func_with_col_and_2args {
     else {
         my $arg1 = $form->[0][1];
         my $arg2 = $form->[1][1];
-        if ( ! length $arg1 ) { ##
-            return;
-        }
         my $function_stmt = $fsql->function_with_col_and_2args( $func, $qt_col, $arg1, $arg2 );
         return $function_stmt;
     }
@@ -362,7 +408,7 @@ sub __func_Concat {
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $sep = $tr->readline(
         'Separator: ',
-        { info => $info }
+        { info => $info, history => [ '-', ' ', '_', ',', '/', '=', '+' ] }
     );
     if ( ! defined $sep ) {
         return;
@@ -446,7 +492,7 @@ sub __interval_to_converted_epoch {
     my ( $sf, $sql, $func, $max_examples, $chosen_col, $interval ) = @_;
     my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt;
-    if ( $func eq 'EPOCH_TO_DATETIME' ) {
+    if ( $func =~ /^EPOCH_TO_DATETIME\z/i ) {
         $function_stmt = $fsql->epoch_to_datetime( $chosen_col, $interval );
     }
     else {

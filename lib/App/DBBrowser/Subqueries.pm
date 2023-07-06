@@ -262,7 +262,7 @@ sub __add_subqueries {
             # Readline
             my $stmt = $tr->readline(
                 'Stmt: ',
-                { info => $info, show_context => 1, clear_screen => 1, default => $default }
+                { info => $info, show_context => 1, clear_screen => 1, default => $default, history => [] }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $stmt || ! length $stmt ) {
@@ -276,7 +276,7 @@ sub __add_subqueries {
             # Readline
             my $name = $tr->readline(
                 'Name: ',
-                { info => $info, show_context => 1 }
+                { info => $info, show_context => 1, history => [] }
             );
             $ax->print_sql_info( $info );
             if ( ! defined $name ) {
@@ -315,7 +315,8 @@ sub __edit_subqueries {
     # Readline
     my $stmt = $tr->readline(
         'Stmt: ',
-        { info => $info, default => $saved_subqueries->[$idx]{stmt}, show_context => 1, clear_screen => 1 }
+        { info => $info, default => $saved_subqueries->[$idx]{stmt}, show_context => 1, clear_screen => 1,
+          history => [] }
     );
     if ( ! defined $stmt || ! length $stmt ) {
         return;
@@ -332,7 +333,7 @@ sub __edit_subqueries {
     # Readline
     my $name = $tr->readline(
         'Name: ',
-        { info => $info, default => $default_name, show_context => 1 }
+        { info => $info, default => $default_name, show_context => 1, history => [] }
     );
     if ( ! defined $name ) {
         return;

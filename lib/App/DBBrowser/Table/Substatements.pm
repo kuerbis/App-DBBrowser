@@ -76,9 +76,6 @@ sub select {
         if ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
             shift @idx;
             push @{$sql->{selected_cols}}, @{$menu}[@idx];
-            if ( ! @{$sql->{selected_cols}} ) {
-                return 0; ##
-            }
             return 1;
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
@@ -335,10 +332,7 @@ sub set {
         }
         if ( $quote_col eq $sf->{i}{ok} ) {
             if ( $col_sep eq ' ' ) {
-                $sql->{set_stmt} = ''; ##
-            }
-            if ( ! length $sql->{set_stmt} ) {
-                return 0;
+                $sql->{set_stmt} = '';
             }
             return 1;
         }
@@ -413,13 +407,10 @@ sub group_by {
             shift @idx;
             push @{$sql->{group_by_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{group_by_cols}} ) {
-                $sql->{group_by_stmt} = ''; ##
+                $sql->{group_by_stmt} = '';
             }
             else {
                 $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
-            }
-            if ( ! length $sql->{group_by_stmt} ) {
-                return 0;
             }
             return 1;
         }
@@ -462,6 +453,18 @@ sub order_by {
     else {
         @cols = @{$sql->{cols}};
     }
+    my @aliases;
+    for my $col ( @{$sql->{selected_cols}} ) {
+        #if ( any { $_ eq $col } @cols ) {
+        #    next;
+        #}
+        if ( $sql->{alias}{$col} ) {
+            push @aliases, $sql->{alias}{$col};
+        }
+    }
+    if ( @aliases ) {
+        push @cols, @aliases;
+    }
     my $col_sep = ' ';
     $sql->{order_by_stmt} = "ORDER BY";
     my @bu;
@@ -483,10 +486,7 @@ sub order_by {
         }
         if ( $col eq $sf->{i}{ok} ) {
             if ( $col_sep eq ' ' ) {
-                $sql->{order_by_stmt} = ''; ##
-            }
-            if ( ! length $sql->{order_by_stmt} ) {
-                return 0;
+                $sql->{order_by_stmt} = '';
             }
             return 1;
         }

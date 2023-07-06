@@ -247,10 +247,11 @@ sub __selected_statement_result {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $statement = $ax->get_stmt( $sql, 'Select', 'prepare' );
-    my @arguments = ( @{$sql->{where_args}}, @{$sql->{having_args}} );
-    if ( defined $sql->{derived_table_args} ) { # ###
-        unshift @arguments, @{$sql->{derived_table_args}};
-    }
+    my @arguments = (
+        @{$sql->{derived_table_args}},
+        @{$sql->{where_args}},
+        @{$sql->{having_args}}
+    );
     unshift @{$sf->{d}{table_print_history}}, [ $statement, \@arguments ];
     if ( $#{$sf->{d}{table_print_history}} > 50 ) {
         $#{$sf->{d}{table_print_history}} = 50;
@@ -291,7 +292,7 @@ sub __get_filename_fs {
         # Readline
         $file_name = $tr->readline(
             'File name: ',
-            { info => $info, default => $file_name, hide_cursor => 2 }
+            { info => $info, default => $file_name, hide_cursor => 2, history => [] }
         );
         $ax->print_sql_info( $info );
         if ( ! length $file_name ) {

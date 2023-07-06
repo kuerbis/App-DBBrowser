@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.334    2023-07-06
+        - Aliases in ORDER BY.
+        - Added scalar functions 'extract', 'instr', 'lpad' and 'rpad'.
+
 2.333    2023-07-02
         Bugfixes:
         - Single user schema with metadata disabled.

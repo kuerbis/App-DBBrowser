@@ -492,7 +492,7 @@ sub __get_entry_name {
         # Readline
         my $new_name = $tr->readline(
             $prompt,
-            { info => $info, default => $name_default }
+            { info => $info, default => $name_default, history => [] }
         );
         if ( ! defined $new_name || ! length $new_name ) {
             return;

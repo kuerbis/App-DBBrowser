@@ -100,7 +100,7 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, "AS " . $sql->{view_select_stmt}, $indent1 );
     }
     elsif ( $stmt_type eq 'Select' ) {
-        @tmp = ( $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 ) );  ## //
+        @tmp = ( $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 ) );
         push @tmp, $sf->__stmt_fold( $used_for, "FROM " . $qt_table,   $indent1, $sql->{derived_table_args} );
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt},    $indent2, $sql->{where_args}  ) if $sql->{where_stmt};
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{group_by_stmt}, $indent2                      ) if $sql->{group_by_stmt};
@@ -234,7 +234,8 @@ sub __select_cols {
     elsif ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
         @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
     }
-    elsif ( $sf->{d}{special_table} eq 'join' ) { # ###
+    elsif ( $sf->{d}{special_table} eq 'join' ) {
+    #elsif ( keys %{$sql->{alias}} ) {
         @cols = @{$sql->{cols}};
         # join: use qualified column names and not * because:
         #- different tables could have columns with the same name
@@ -303,7 +304,7 @@ sub alias {
         # Readline
         $alias = $tr->readline(
             $prompt,
-            { info => $info }
+            { info => $info, history => [] }
         );
         $sf->print_sql_info( $info );
     }
@@ -404,7 +405,7 @@ sub reset_sql {
     map { delete $sql->{$_} } keys %$sql; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_into_cols create_table_cols
-                     set_args where_args having_args insert_into_args );
+                     set_args where_args having_args insert_into_args derived_table_args );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
     @{$sql}{@array}  = map{ [] } @array;

@@ -9,6 +9,7 @@ use Term::Choose         qw();
 use Term::Form::ReadLine qw();
 
 use App::DBBrowser::Auxil;
+use App::DBBrowser::Table::Extensions;
 
 
 sub new {
@@ -33,7 +34,7 @@ sub __choose_a_column {
         # Choose
         my $choice = $tc->choose(
             [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => $func . '()' }
+            { %{$sf->{i}{lyt_h}}, info => $info . "\n" . $func . '()', prompt => 'Column:' }
         );
         if ( ! defined $choice ) {
             return;
@@ -50,57 +51,6 @@ sub __choose_a_column {
         return $choice;
     }
 }
-#sub __choose_columns {
-#    my ( $sf, $sql, $qt_cols, $info, $func ) = @_;
-#    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-#    my @pre = ( undef, $sf->{i}{ok} );
-#    if ( $sf->{i}{menu_addition} ) {
-#        push @pre, $sf->{i}{menu_addition};
-#    }
-#    my $menu = [ @pre, @$qt_cols ];
-#    my $subset = [];
-#    my @bu;
-#
-#    COLUMNS: while ( 1 ) {
-#        my $tmp_info = $info; ##
-#        my $prompt = sprintf '%s(%s)', $func, join( ',', @$subset ) // '?';
-#        # Choose
-#        my @idx = $tc->choose(
-#            $menu,
-#            { %{$sf->{i}{lyt_h}}, info => $tmp_info, prompt => $prompt, meta_items => [ 0 .. $#pre - 1 ],
-#              no_spacebar => [ $#pre ], include_highlighted => 2, index => 1 }
-#        );
-#        if ( ! $idx[0] ) {
-#            if ( @bu ) {
-#                $subset = pop @bu;
-#                next COLUMNS;
-#            }
-#            return;
-#        }
-#        push @bu, [ @$subset ];
-#        if ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
-#            shift @idx;
-#            push @$subset, @{$menu}[@idx];
-#            if ( ! @$subset ) {
-#                return;
-#            }
-#            return $subset;
-#        }
-#        elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
-#            # recursion
-#            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-#            # clause 'window_function': to avoid window function in window function
-#            my $complex_col = $ext->complex_unit( $sql, 'window_function' );
-#            if ( ! defined $complex_col ) {
-#                next COLUMNS;
-#            }
-#            push @$subset, $complex_col;
-#        }
-#        else {
-#            push @$subset, @{$menu}[@idx];
-#        }
-#    }
-#}
 
 
 sub __get_win_func_stmt {
@@ -198,8 +148,7 @@ sub window_function {
                 # Readline
                 $col = $tr->readline(
                     'n = ',
-                    { info => $info . "\n" . $func . '(n)', history => [ 1 .. 100 ] }
-                    #{ info => $tmp_info, history => [ 1 .. 100 ] }
+                    { info => $info . "\n" . $func . '(n)' }
                 );
                 if ( ! length $col ) {
                     next WINDOW_FUNCTION;
@@ -212,33 +161,38 @@ sub window_function {
                     next WINDOW_FUNCTION;
                 }
             }
+            $win_func_data->{col} = $col;
             if ( $func =~ /^(?:$offset_func_regex)\z/i ) {
+                $tmp_info = $info . "\n" . $sf->__get_win_func_stmt( $win_func_data );
                 # Readline
                 my $offset = $tr->readline(
                     'offset: ',
-                    { info => $tmp_info, history => [ 1 .. 100 ] }
+                    { info => $tmp_info }
                 );
                 if ( ! defined $offset ) {
                     next WINDOW_FUNCTION;
                 }
+
                 if ( length $offset ) {
                     $col .= ',' . $offset;
+                    $win_func_data->{col} = $col;
+                    $tmp_info = $info . "\n" . $sf->__get_win_func_stmt( $win_func_data );
                     if ( $func =~ /^(?:$default_value_func_regex)\z/i ) {
                         # Readline
                         my $default_value = $tr->readline(
                             'default: ',
-                            { info => $tmp_info, history => [ 0 .. 100 ] }
+                            { info => $tmp_info }
                         );
                         if ( ! defined $default_value) {
                             next WINDOW_FUNCTION;
                         }
                         if ( length $default_value ) {
                             $col .= ',' . $default_value;
+                            $win_func_data->{col} = $col;
                         }
                     }
                 }
             }
-            $win_func_data->{col} = $col;
             my @bu;
             my $old_idx = 0;
 
@@ -320,7 +274,7 @@ sub __add_partition_by {
         my @idx = $tc->choose(
             $menu,
             { %{$sf->{i}{lyt_h}}, info => $tmp_info, meta_items => [ 0 .. $#pre - 1 ], no_spacebar => [ $#pre ],
-              include_highlighted => 2, index => 1, prompt => '' }
+              include_highlighted => 2, index => 1, prompt => 'Columns:' }
         );
         $ax->print_sql_info( $tmp_info );
         if ( ! $idx[0] ) {
@@ -372,7 +326,7 @@ sub __add_order_by {
         # Choose
         my $col = $tc->choose(
             [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $tmp_info, prompt => '' }
+            { %{$sf->{i}{lyt_h}}, info => $tmp_info, prompt => 'Column:' }
         );
         $ax->print_sql_info( $tmp_info );
         if ( ! defined $col ) {
@@ -426,8 +380,11 @@ sub __add_frame_clause {
     my ( $sf, $sql, $win_func_data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my @frame_clause_modes = ( 'ROWS', 'RANGE', 'GROUPS' );
+    my @frame_clause_modes = ( 'ROWS', 'RANGE' );
+    if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
+        push @frame_clause_modes, 'GROUPS';
+    }
+    # mysql, MariaDB, Firebird, Informix, DB2: only  ROWS and RANGE and no eclude clause
     my $info = $ax->get_sql_info( $sql );
     my $win_func_stmt = $sf->__get_win_func_stmt( $win_func_data );
     $info .= "\n" . $win_func_stmt;
@@ -453,61 +410,64 @@ sub __add_frame_clause {
             $old_idx_fc = $idx_fc;
         }
         my $frame_mode = $frame_clause_modes[$idx_fc-@pre];
+        my $frame_clause_data = { frame_mode => $frame_mode };
+        my @bu;
+        my $old_idx_fe = 0;
 
-        FRAME_START: while ( 1 ) {
-            my $frame_clause_data = { frame_mode => $frame_mode };
-            my $ret = $sf->__add_frame_start_or_end( $frame_clause_data, $info, 'frame_start' );
-            if ( ! defined $ret ) {
+        FRAME_END_AND_EXCLUSION: while ( 1 ) {
+            my $confirm = 'Confirm';
+            my @pre = ( undef, $confirm );
+            my ( $frame_start, $frame_end, $frame_exclusion ) = ( '- Add Frame start', '- Add Frame end', '- Add Frame exclusion' );
+            my $menu = [ @pre, $frame_start, $frame_end ];
+            if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
+                push @$menu, $frame_exclusion;
+            }
+            my $tmp_info = $info . "\n" . $sf->__get_frame_clause_stmt( $frame_clause_data );
+            # Choose
+            my $idx_fe = $tc->choose(
+                $menu,
+                { %{$sf->{i}{lyt_v}}, info => $tmp_info, index => 1, default => $old_idx_fe, prompt => 'Frame clause:', undef => 'Back' }
+            );
+            $ax->print_sql_info( $tmp_info );
+            if ( ! defined $idx_fe || ! defined $menu->[$idx_fe] ) {
+                if ( @bu ) {
+                    $frame_clause_data = pop @bu;
+                    next FRAME_END_AND_EXCLUSION;
+                }
                 next FRAME_CLAUSE;
             }
-            my @bu;
-            my $old_idx_fe = 0;
-
-            FRAME_END_AND_EXCLUSION: while ( 1 ) {
-                my ( $frame_end, $frame_exclusion ) = ( '- Add Frame end', '- Add Frame exclusion' );
-                my $confirm = 'Confirm';
-                my @pre = ( undef, $confirm );
-                my $menu = [ @pre, $frame_end, $frame_exclusion ];
-                my $tmp_info = $info . "\n" . $sf->__get_frame_clause_stmt( $frame_clause_data );
-                # Choose
-                my $idx_fe = $tc->choose(
-                    $menu,
-                    { %{$sf->{i}{lyt_v}}, info => $tmp_info, index => 1, default => $old_idx_fe, prompt => 'Frame clause:', undef => 'Back' }
-                );
-                $ax->print_sql_info( $tmp_info );
-                if ( ! defined $idx_fe || ! defined $menu->[$idx_fe] ) {
-                    if ( @bu ) {
-                        $frame_clause_data = pop @bu;
-                        next FRAME_END_AND_EXCLUSION;
-                    }
-                    next FRAME_START;
+            if ( $sf->{o}{G}{menu_memory} ) {
+                if ( $old_idx_fe == $idx_fe && ! $ENV{TC_RESET_AUTO_UP} ) {
+                    $old_idx_fe = 0;
+                    next FRAME_END_AND_EXCLUSION;
                 }
-                if ( $sf->{o}{G}{menu_memory} ) {
-                    if ( $old_idx_fe == $idx_fe && ! $ENV{TC_RESET_AUTO_UP} ) {
-                        $old_idx_fe = 0;
-                        next FRAME_END_AND_EXCLUSION;
-                    }
-                    $old_idx_fe = $idx_fe;
+                $old_idx_fe = $idx_fe;
+            }
+            my $choice = $menu->[$idx_fe];
+            if ( $choice eq $confirm ) {
+                $win_func_data->{frame_clause} = $sf->__get_frame_clause_stmt( $frame_clause_data );
+                return 1;
+            }
+            push @bu, { %$frame_clause_data };
+            if ( $choice eq $frame_start ) {
+                my $ret = $sf->__add_frame_start_or_end( $frame_clause_data, $info, 'frame_start' );
+                if ( ! defined $ret ) {
+                    pop @bu;
+                    next FRAME_END_AND_EXCLUSION;
                 }
-                my $choice = $menu->[$idx_fe];
-                if ( $choice eq $confirm ) {
-                    $win_func_data->{frame_clause} = $sf->__get_frame_clause_stmt( $frame_clause_data );
-                    return 1;
+            }
+            elsif ( $choice eq $frame_end ) {
+                my $ret = $sf->__add_frame_start_or_end( $frame_clause_data, $info, 'frame_end' );
+                if ( ! defined $ret ) {
+                    pop @bu;
+                    next FRAME_END_AND_EXCLUSION;
                 }
-                push @bu, { %$frame_clause_data };
-                if ( $choice eq $frame_end ) {
-                    my $ret = $sf->__add_frame_start_or_end( $frame_clause_data, $info, 'frame_end' );
-                    if ( ! defined $ret ) {
-                        pop @bu;
-                        next FRAME_END_AND_EXCLUSION;
-                    }
-                }
-                else {
-                    my $ret = $sf->__add_frame_exclusion( $frame_clause_data, $info );
-                    if ( ! defined $ret ) {
-                        pop @bu;
-                        next FRAME_END_AND_EXCLUSION;
-                    }
+            }
+            else {
+                my $ret = $sf->__add_frame_exclusion( $frame_clause_data, $info );
+                if ( ! defined $ret ) {
+                    pop @bu;
+                    next FRAME_END_AND_EXCLUSION;
                 }
             }
         }
@@ -520,29 +480,25 @@ sub __add_frame_start_or_end {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my ( @frame_point_types, $prompt,  $reset );
+    my ( @frame_point_types, $prompt );
     if ( $pos eq 'frame_start' ) {
         @frame_point_types = ( 'UNBOUNDED PRECEDING', 'n PRECEDING', 'CURRENT ROW', 'n FOLLOWING' );
         $prompt = 'Frame start:';
-        $reset = '';
     }
     elsif ( $pos eq 'frame_end' ) {
         @frame_point_types = ( 'n PRECEDING', 'CURRENT ROW', 'n FOLLOWING', 'UNBOUNDED FOLLOWING' );
         $prompt = 'Frame end:';
-        $reset = '  Reset';
     }
+    my $reset = '  Reset';
     my @pre = ( undef );
 
     FRAME_START: while ( 1 ) {
         my $tmp_info = $info . "\n" . $sf->__get_frame_clause_stmt( $frame_clause_data );
-        my $menu = [ @pre, map { '- ' . $_ } @frame_point_types ];
-        if ( $reset ) {
-            push @$menu, $reset;
-        }
+        my $menu = [ @pre, map( '- ' . $_, @frame_point_types ), $reset ];
         # Choose
         my $point = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => $prompt }
+            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => $prompt, undef => '<=' }
         );
         $ax->print_sql_info( $tmp_info );
         if ( ! defined $point ) {
@@ -558,7 +514,7 @@ sub __add_frame_start_or_end {
                 my $tmp_info = $info . "\n" . $sf->__get_frame_clause_stmt( $frame_clause_data );
                 my $offset = $tr->readline(
                     'n = ',
-                    { info => $tmp_info, history => [ 1 .. 100 ] }
+                    { info => $tmp_info }
                 );
                 if ( ! length $offset ) {
                     next FRAME_START;
@@ -584,7 +540,7 @@ sub __add_frame_exclusion {
     # Choose
     my $frame_exclusion = $tc->choose(
         $menu,
-        { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => 'Frame exclusion:' }
+        { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => 'Frame exclusion:', undef => '<=' }
     );
     $ax->print_sql_info( $tmp_info );
     if ( ! defined $frame_exclusion ) {
@@ -604,13 +560,14 @@ sub __add_frame_exclusion {
 sub __get_frame_clause_stmt {
     my ( $sf, $frame_clause_data ) = @_;
     my $frame_clause_stmt = $frame_clause_data->{frame_mode};
-    if ( length $frame_clause_data->{frame_start} ) {
-        if ( length $frame_clause_data->{frame_end} ) {
-            $frame_clause_stmt .= " BETWEEN " . $frame_clause_data->{frame_start} . " AND " . $frame_clause_data->{frame_end};
-        }
-        else {
-            $frame_clause_stmt .= " " . $frame_clause_data->{frame_start};
-        }
+    if ( length $frame_clause_data->{frame_start} && length $frame_clause_data->{frame_end} ) {
+        $frame_clause_stmt .= " BETWEEN " . $frame_clause_data->{frame_start} . " AND " . $frame_clause_data->{frame_end};
+    }
+    elsif ( length $frame_clause_data->{frame_start} ) {
+        $frame_clause_stmt .= " " . $frame_clause_data->{frame_start};
+    }
+    elsif ( length $frame_clause_data->{frame_end} ) {
+         $frame_clause_stmt .= " " . $frame_clause_data->{frame_end};
     }
     if ( length $frame_clause_data->{frame_exclusion} ) {
         $frame_clause_stmt .= " " . $frame_clause_data->{frame_exclusion};
