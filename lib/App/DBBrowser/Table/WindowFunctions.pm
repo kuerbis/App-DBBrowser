@@ -384,7 +384,7 @@ sub __add_frame_clause {
     if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
         push @frame_clause_modes, 'GROUPS';
     }
-    # mysql, MariaDB, Firebird, Informix, DB2: only  ROWS and RANGE and no eclude clause
+    # mysql, MariaDB, Firebird, Informix, DB2: only  ROWS and RANGE and no exclude clause
     my $info = $ax->get_sql_info( $sql );
     my $win_func_stmt = $sf->__get_win_func_stmt( $win_func_data );
     $info .= "\n" . $win_func_stmt;

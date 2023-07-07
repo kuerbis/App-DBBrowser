@@ -449,7 +449,7 @@ sub __edit_column_types { ##
     }
     if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/ ) {
         for my $field ( @$fields ) {
-            if ( $field->[1] eq 'DATETIME' ) {
+            if ( defined $field->[1] && $field->[1] eq 'DATETIME' ) {
                 $field->[1] = 'TIMESTAMP';
             }
         }

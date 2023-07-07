@@ -180,7 +180,7 @@ sub info_format_insert_args {
     if ( $row_count == 0 ) {
         return [];
     }
-    my $avail_h = $term_h - ( @{$sql->{insert_into_args}[0]} + 12 );
+    my $avail_h = $term_h - 22; ##
     if ( $avail_h < $term_h / 3.5 ) { ##
         $avail_h = int $term_h / 3.5;
     }

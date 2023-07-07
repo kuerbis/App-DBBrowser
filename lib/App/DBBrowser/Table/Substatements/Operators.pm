@@ -253,8 +253,12 @@ sub read_and_add_value {
         if ( ! defined $complex_value ) {
             return;
         }
-        # $complex_value already in ()
-        $sql->{$stmt} .= ' ' . $complex_value;
+        if ( $op =~ /^(?:NOT\s)?IN\z/ && $complex_value !~ /^\s*\(.+\)\s*\z/ ) { # never ##
+            $sql->{$stmt} .= '(' . $complex_value . ')';
+        }
+        else {
+            $sql->{$stmt} .= ' ' . $complex_value;
+        }
         return 1;
     }
     else {
@@ -267,6 +271,7 @@ sub read_and_add_value {
         elsif ( $op =~ /^(?:NOT\s)?IN\z/ ) {
             my $col_sep = '';
             $sql->{$stmt} .= ' (';
+            my @bu;
 
             IN: while ( 1 ) {
                 my $info = $ax->get_sql_info( $sql );
@@ -277,6 +282,10 @@ sub read_and_add_value {
                 );
                 $ax->print_sql_info( $info );
                 if ( ! defined $value ) {
+                    if ( @bu ) {
+                        ( $sql->{$stmt}, $sql->{$args}, $col_sep ) = @{pop @bu};
+                        next IN;
+                    }
                     return;
                 }
                 if ( $value eq '' ) {
@@ -286,6 +295,7 @@ sub read_and_add_value {
                     $sql->{$stmt} .= ')';
                     return 1;
                 }
+                push @bu, [ $sql->{$stmt}, [ @{$sql->{$args}} ], $col_sep ];
                 $sql->{$stmt} .= $col_sep . '?';
                 push @{$sql->{$args}}, $value;
                 $col_sep = ',';

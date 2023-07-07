@@ -204,7 +204,7 @@ sub __choose_columns {
     my $col_idx = $tu->choose_a_subset(
         $header,
         { cs_label => 'Cols: ', layout => 0, order => 0, mark => $non_empty_cols, all_by_default => 1, index => 1,
-          confirm => $sf->{i}{ok}, back => $sf->{s_back}, info => $info, busy_string => $sf->{working} }
+          confirm => $sf->{i}{ok}, back => $sf->{s_back}, info => $info, busy_string => $sf->{working} } # keep_chosen ##
     );
     $sf->__print_busy_string();
     if ( ! defined $col_idx ) {
@@ -698,7 +698,7 @@ sub __join_columns {
         # Readline
         $join_char = $tr->readline(
             'Join-string: ',
-            { info => $info, history => [] }
+            { info => $info, history => [ '-', ' ', '_', ',', '/', '=', '+' ] }
         );
         $sf->__print_busy_string();
         if ( ! defined $join_char ) {

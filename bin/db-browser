@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.334';
+our $VERSION = '2.335';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.334
+Version 2.335
 
 =head1 SYNOPSIS
 
@@ -722,7 +722,7 @@ Selecting C<SQ> opens the subqueries menu.
 
 By selecting the I<Read-Line> menu entry one can enter a subquery or an expression.
 
-The subqueries/expressions are automatically enclosed in parentheses.
+The entries which mach C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
 
 If stored subqueries are available, it is also possible to select one of those subqueries instead of entering a
 subquery.

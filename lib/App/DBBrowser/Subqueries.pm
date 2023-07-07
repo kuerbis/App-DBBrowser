@@ -31,8 +31,11 @@ sub new {
 sub __session_history {
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    # Subquery history:
+    # Subqueries in `$sf->{d}{subquery_history}` to survive the end of Subqueries.pm in a controlled way.
+    my $subquery_history = $sf->{d}{subquery_history};
     my $tmp_subquery_history = [];
-    for my $subquery ( @{$sf->{d}{subquery_history}} ) {
+    for my $subquery ( @$subquery_history ) {
         if ( any { $_->{stmt} eq $subquery->{stmt} } @$tmp_subquery_history ) {
             next;
         }
@@ -41,22 +44,23 @@ sub __session_history {
             last;
         }
     }
-    $sf->{d}{subquery_history} = $tmp_subquery_history;
+    $subquery_history = $tmp_subquery_history;
+    # Print history:
     my $tmp_table_print_history = [];
-    my $session_history = [];
+    my $print_history = [];
     for my $stmt_and_args ( @{$sf->{d}{table_print_history}} ) {
         my $filled_stmt = $ax->stmt_placeholder_to_value( @$stmt_and_args, 1 );
-        if ( any { $_->{stmt} eq $filled_stmt } @{$sf->{d}{subquery_history}}, @$session_history ) {
+        if ( any { $_->{stmt} eq $filled_stmt } @$subquery_history, @$print_history ) {
             next;
         }
         push @$tmp_table_print_history, $stmt_and_args;
-        push @$session_history, { stmt => $filled_stmt, name => $filled_stmt };
+        push @$print_history, { stmt => $filled_stmt, name => $filled_stmt };
         if ( @$tmp_table_print_history == 7 ) {
             $sf->{d}{table_print_history} = $tmp_table_print_history;
             last;
         }
     }
-    return [ @{$sf->{d}{subquery_history}}, @$session_history ];
+    return( $subquery_history, $print_history );
 }
 
 
@@ -65,8 +69,8 @@ sub __get_history {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $h_ref = $ax->read_json( $sf->{i}{f_subqueries} ) // {};
     my $saved_subqueries = $h_ref->{ $sf->{i}{driver} }{ $sf->{d}{db} } // [];
-    my $session_history = $sf->__session_history() // [];
-    return $saved_subqueries, $session_history;
+    my ( $subquery_history, $print_history ) = $sf->__session_history();
+    return $saved_subqueries, $subquery_history, $print_history;
 }
 
 
@@ -74,18 +78,18 @@ sub choose_subquery {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $saved_subqueries, $session_history ) = $sf->__get_history();
+    my ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
     my $edit_sq_history_file = 'Choose SQ:';
     my $readline = '  Read-Line';
     my @pre = ( $edit_sq_history_file, undef, $readline );
     my $old_idx = 1;
 
     SUBQUERY: while ( 1 ) {
-        my $menu = [
-            @pre,
-            map( '- ' . $_->{name}, @$saved_subqueries ),
-            map( '  ' . $_->{name}, @$session_history )
-        ];
+        my @queries;
+        push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
+        push @queries, map {  '  ' . $_->{name} } @$subquery_history; # ###
+        push @queries, map {  '  ' . $_->{name} } @$print_history;
+        my $menu = [ @pre, @queries ];
         my $info = $ax->get_sql_info( $sql );
         # Choose
         my $idx = $tc->choose(
@@ -106,12 +110,12 @@ sub choose_subquery {
         my ( $prompt, $history, $chosen_stmt );
         if ( $menu->[$idx] eq $edit_sq_history_file ) {
             if ( $sf->__edit_sq_history_file() ) {
-                ( $saved_subqueries, $session_history ) = $sf->__get_history();
-                $menu = [
-                    @pre,
-                    map( '- ' . $_->{name}, @$saved_subqueries ),
-                    map( '  ' . $_->{name}, @$session_history )
-                ];
+                ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
+                @queries = ();
+                push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
+                push @queries, map {  '  ' . $_->{name} } @$subquery_history; # ###
+                push @queries, map {  '  ' . $_->{name} } @$print_history;
+                $menu = [ @pre, @queries ];
             }
             next SUBQUERY;
         }
@@ -122,7 +126,7 @@ sub choose_subquery {
         else {
             $prompt = 'Edit SQ: ';
             $idx -= @pre;
-            $chosen_stmt = ( @$saved_subqueries, @$session_history )[$idx]{stmt};
+            $chosen_stmt = ( @$saved_subqueries, @$subquery_history, @$print_history )[$idx]{stmt};
         }
         $info = $ax->get_sql_info( $sql );
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
@@ -139,7 +143,12 @@ sub choose_subquery {
             $stmt = $1;
         }
         unshift @{$sf->{d}{subquery_history}}, { stmt => $stmt, name => $stmt };
-        return "(" . $stmt . ")";
+        if ( $stmt =~ /^\s*SELECT\s/i ) {
+            return "(" . $stmt . ")";
+        }
+        else {
+            return $stmt;
+        }
     }
 }
 
@@ -215,7 +224,7 @@ sub __add_subqueries {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $session_history = $sf->__session_history();
+    my ( $subquery_history, $print_history ) = $sf->__session_history() // [];
     my $used = [];
     my $readline = '  Read-Line';
     my @pre = ( undef, $sf->{i}{_confirm}, $readline );
@@ -237,7 +246,9 @@ sub __add_subqueries {
             ), @$added_sq ); #
         }
         push @tmp_info, ' ';
-        my $menu = [ @pre, map {  '- ' . $_->{name} } @$session_history ];
+        my $menu = [ @pre ];
+        push @$menu, map {  '- ' . $_->{name} } @$subquery_history;
+        push @$menu, map {  '  ' . $_->{name} } @$print_history;
         my $info = join( "\n", @tmp_info );
         # Choose
         my $idx = $tc->choose(
@@ -257,7 +268,7 @@ sub __add_subqueries {
             return 1;
         }
         else {
-            my $default = $menu->[$idx] eq $readline ? undef : $session_history->[$idx-@pre]{stmt};
+            my $default = $menu->[$idx] eq $readline ? undef : ( @$subquery_history, @$print_history )[$idx-@pre]{stmt};
             my $info = join( "\n", @tmp_info );
             # Readline
             my $stmt = $tr->readline(

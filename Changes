@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.335    2023-07-07
+        - Bugfix in create_table: check for definedness of data type.
+
 2.334    2023-07-06
         - Aliases in ORDER BY.
         - Added scalar functions 'extract', 'instr', 'lpad' and 'rpad'.
