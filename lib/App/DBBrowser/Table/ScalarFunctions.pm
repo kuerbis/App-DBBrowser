@@ -31,9 +31,10 @@ sub new {
 
 
 sub __choose_columns {
-    my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $info, $r_data ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $const = '[c]'; ##
     #my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const ); # ###
     my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition} );
@@ -43,7 +44,7 @@ sub __choose_columns {
 
     COLUMNS: while ( 1 ) {
         my $fill_string = join( ',', @$subset );
-        my $tmp_info = $info . "\n" . $sf->__nested_func_info( $nested_func, $fill_string );
+        my $tmp_info = $info . "\n" . $sf->__nested_func_info( $r_data->{nested_func}, $fill_string );
         # Choose
         my @idx = $tc->choose(
             $menu,
@@ -69,7 +70,13 @@ sub __choose_columns {
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             # recursion
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause,  [ [ $sf->__nested_func_info( $nested_func, $fill_string ) ] ] );
+            my $bu_nested_func = $ax->backup_href( $r_data );
+            # reset nested_func and add an array-ref so the child function knows that the parent is a multi-col function.
+            # Children of a  multi-col function start with an empty nested_func. Only whenn they return to
+            # the parent multi-col function there results are integrated in the parent nested_func.
+            $r_data->{nested_func} = [ [ $sf->__nested_func_info( $r_data->{nested_func}, $fill_string ) ] ];
+            my $complex_col = $ext->complex_unit( $sql, $clause, $tmp_info, $r_data );
+            $r_data = $bu_nested_func;
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
@@ -84,10 +91,7 @@ sub __choose_columns {
             if ( ! defined $value ) {
                 next COLUMNS;
             }
-            if ( ! looks_like_number $value ) {
-                $value = $sf->{d}{dbh}->quote( $value );
-            }
-            push @$subset, $value;
+            push @$subset, $ax->quote_constant( $value );
         }
         else {
             push @$subset, @{$menu}[@idx];
@@ -97,9 +101,9 @@ sub __choose_columns {
 
 
 sub __choose_a_column {
-    my ( $sf, $sql, $clause, $qt_cols, $info, $nested_func ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $info, $r_data ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    $info .= "\n" . $sf->__nested_func_info( $nested_func, '' );
+    $info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '' );
     my @pre = ( undef, $sf->{i}{menu_addition} );
 
     while ( 1 ) {
@@ -114,7 +118,7 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             # recursion
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause, $nested_func );
+            my $complex_col = $ext->complex_unit( $sql, $clause, $info, $r_data );
             if ( ! defined $complex_col ) {
                 next;
             }
@@ -132,11 +136,15 @@ sub __nested_func_info {
 
 
 sub col_function {
-    my ( $sf, $sql, $clause, $nested_func ) = @_;
-    $nested_func //= [];
+    my ( $sf, $sql, $clause, $r_data ) = @_;
+    $r_data //= {};
+    $r_data->{nested_func} //= [];
     my $parent;
-    if ( ref $nested_func->[0] eq 'ARRAY' ) {
-        $parent = ( shift @$nested_func )->[0];
+    if ( ref $r_data->{nested_func}[0] eq 'ARRAY' ) {
+        # because called from of multi-col function
+        $parent = shift @{$r_data->{nested_func}};
+        $parent = $parent->[0];
+        # $r_data->{nested_func} is now empty
     }
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -206,8 +214,8 @@ sub col_function {
         if ( length $parent ) {
             $tmp_info .= "\n" . $parent;
         }
-        if ( @$nested_func ) {
-            $tmp_info .= "\n" . $sf->__nested_func_info( $nested_func, '?' );
+        if ( @{$r_data->{nested_func}} ) {
+            $tmp_info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '?' );
         }
         # Choose
         my $idx = $tc->choose(
@@ -225,20 +233,20 @@ sub col_function {
             $old_idx = $idx;
         }
         my $func = $functions[$idx-@pre];
-        push @$nested_func, $func;
+        push @{$r_data->{nested_func}}, $func;
 
         my $function_stmt;
         if ( $func =~ /^(?:$rx_only_func)\z/i ) {
             $function_stmt =  $sf->__func_with_no_col( $func );
         }
         elsif ( $func =~ /^(?:$rx_multi_col_func)\z/i ) {
-            my $chosen_cols = $sf->__choose_columns( $sql, $clause, $qt_cols, $info, $nested_func );
+            my $chosen_cols = $sf->__choose_columns( $sql, $clause, $qt_cols, $info, $r_data );
             if ( ! defined $chosen_cols ) {
-                if ( @$nested_func == 1 ) {
-                    $nested_func = [];
+                if ( @{$r_data->{nested_func}} == 1 ) {
+                    $r_data->{nested_func} = [];
                     next SCALAR_FUNCTION;
                 }
-                pop @$nested_func;
+                pop @{$r_data->{nested_func}};
                 return;
             }
             if ( $func =~ /^$concat\z/i ) {
@@ -249,13 +257,13 @@ sub col_function {
             }
         }
         else {
-            my $chosen_col = $sf->__choose_a_column( $sql, $clause, $qt_cols, $info, $nested_func );
+            my $chosen_col = $sf->__choose_a_column( $sql, $clause, $qt_cols, $info, $r_data );
             if ( ! defined $chosen_col ) {
-                if ( @$nested_func == 1 ) {
-                    $nested_func = [];
+                if ( @{$r_data->{nested_func}} == 1 ) {
+                    $r_data->{nested_func} = [];
                     next SCALAR_FUNCTION;
                 }
-                pop @$nested_func;
+                pop @{$r_data->{nested_func}};
                 return;
             }
             if ( $func =~ /^(?:$rx_one_col_func)\z/i ) {

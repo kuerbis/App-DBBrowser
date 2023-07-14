@@ -139,6 +139,9 @@ sub create_table {
                     $count_table_name_loop++;
                     next GET_TABLE_NAME;
                 }
+                if ( ! @{$sql->{insert_into_args}} ) {
+                    $sf->{d}{stmt_types} = [ 'Create_table' ];
+                }
                 $count_table_name_loop = 0;
 
                 AUTO_INCREMENT: while( 1 ) {
@@ -184,7 +187,6 @@ sub create_table {
                                 $sql->{create_table_cols} = [ @bu_orig_create_table_cols ];
                                 next EDIT_COLUMN_NAMES;
                             }
-
                             # CREATE_TABLE
                             my $ok_create_table = $sf->__create( $sql, 'table' );
                             if ( ! defined $ok_create_table ) {
@@ -204,7 +206,6 @@ sub create_table {
                                 }
                             }
                             return 1;
-
                         }
                     }
                 }
@@ -409,7 +410,7 @@ sub __edit_column_names {
 }
 
 
-sub __edit_column_types { ##
+sub __edit_column_types {
     my ( $sf, $sql, $data_types ) = @_;
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -469,6 +470,7 @@ sub __edit_column_types { ##
         no warnings 'uninitialized'; ##
         $sql->{create_table_cols} = [ map { join ' ', @$_ }  @$col_name_and_type ];
     }
+    $data_types = { map { $_->[0] => $_->[1] } @$col_name_and_type };
     return $data_types;
 }
 

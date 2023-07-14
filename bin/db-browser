@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-
-our $VERSION = '2.335';
+$SIG{__WARN__} = sub { die @_ };
+our $VERSION = '2.335_01';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.335
+Version 2.335_01
 
 =head1 SYNOPSIS
 
@@ -722,13 +722,13 @@ Selecting C<SQ> opens the subqueries menu.
 
 By selecting the I<Read-Line> menu entry one can enter a subquery or an expression.
 
-The entries which mach C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
+Entries matching C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
 
 If stored subqueries are available, it is also possible to select one of those subqueries instead of entering a
 subquery.
 
 The last subqueries entered in the subquery menu and the last statements printed with I<Print TABLE> are stored
-temporarily.
+temporarily. Before printed statements are stored, newlines are replaced with spaces.
 
 A subquery can be saved permanently in the sub-menu which opens by selecting the prompt line of a subquery menu
 (I<Choose SQ:>).

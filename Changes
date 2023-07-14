@@ -1,5 +1,7 @@
 Revision history for App-DBBrowser
 
+2.335_01  2023-07-14
+        - Added CASE expression.
 
 2.335    2023-07-07
         - Bugfix in create_table: check for definedness of data type.

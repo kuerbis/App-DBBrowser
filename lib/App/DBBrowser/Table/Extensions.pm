@@ -23,28 +23,31 @@ sub new {
 
 
 sub complex_unit {
-    my ( $sf, $sql, $clause, $func_recurs_arg ) = @_;
+    my ( $sf, $sql, $clause, $info, $r_data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $function, $subquery, $set_to_null, $window_function ) = ( 'f()', 'SQ', '=N', 'w()' );
+    my ( $subquery, $function, $window_function, $cs, $set_to_null ) = ( 'SQ', 'f()', 'w()', '(c)', '=N' );
     my @types;
     if ( $clause eq 'set' ) {
-        @types = ( $subquery, $function, $set_to_null );
+        @types = ( $subquery, $function, $cs, $set_to_null );
     }
     elsif ( $clause =~ /^(?:select|order_by)\z/i ) {
-        @types = ( $subquery, $function, $window_function );
+        @types = ( $subquery, $function, $window_function, $cs );
     }
     elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
             @types = ( $subquery );
     }
     else {
-        @types = ( $subquery, $function );
+        @types = ( $subquery, $function, $cs );
+    }
+    if ( $clause =~ /^when\z/ ) {
+        @types = grep { ! /^\Q$cs\E\z/ } @types;
     }
     my $old_idx = 0;
 
     EXTENSIONS: while ( 1 ) {
         my @pre = ( undef );
-        my $info = $ax->get_sql_info( $sql );
+        #my $info = $ax->get_sql_info( $sql );
         # Choose
         my $idx = $tc->choose(
             [ @pre, @types ],
@@ -78,7 +81,7 @@ sub complex_unit {
         elsif ( $type eq $function ) {
             require App::DBBrowser::Table::ScalarFunctions;
             my $new_func = App::DBBrowser::Table::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $func_recurs_arg );
+            my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $r_data );
             if ( ! defined $scalar_func_stmt ) {
                 next EXTENSIONS;
             }
@@ -92,6 +95,15 @@ sub complex_unit {
                 next EXTENSIONS;
             }
             return $win_func_stmt;
+        }
+        elsif ( $type eq $cs ) {
+            require App::DBBrowser::Table::Case;
+            my $new_cs = App::DBBrowser::Table::Case->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $case_stmt = $new_cs->case( $sql, $clause, $r_data );
+            if ( ! defined $case_stmt ) {
+                next EXTENSIONS;
+            }
+            return $case_stmt;
         }
     }
 }

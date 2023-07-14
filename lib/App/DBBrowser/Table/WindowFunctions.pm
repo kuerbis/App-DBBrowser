@@ -29,12 +29,12 @@ sub __choose_a_column {
     if ( $sf->{i}{menu_addition} ) {
         push @pre, $sf->{i}{menu_addition};
     }
-
+    $info .= "\n" . $func . '()';
     while ( 1 ) {
         # Choose
         my $choice = $tc->choose(
             [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $info . "\n" . $func . '()', prompt => 'Column:' }
+            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Column:' }
         );
         if ( ! defined $choice ) {
             return;
@@ -42,7 +42,7 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             # clause 'window_function': to avoid window function in window function
-            my $complex_col = $ext->complex_unit( $sql, 'window_function' );
+            my $complex_col = $ext->complex_unit( $sql, 'window_function', $info );
             if ( ! defined $complex_col ) {
                 next;
             }
@@ -197,7 +197,7 @@ sub window_function {
             my $old_idx = 0;
 
             WINDOW_DEFINITION: while( 1 ) {
-                my ( $partition_by, $order_by, $frame_clause ) = ( '- Partition by', '- Order by', '- Frame clause' );
+                my ( $partition_by, $order_by, $frame_clause ) = ( '- Partition by', '- Order by', '- Frame clause' ); ##
                 my @pre = ( undef, $sf->{i}{confirm} );
                 my $menu = [ @pre, $partition_by, $order_by, $frame_clause ];
                 my $tmp_info = $info . "\n" . $sf->__get_win_func_stmt( $win_func_data );
@@ -297,7 +297,7 @@ sub __add_partition_by {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause );
+            my $complex_column = $ext->complex_unit( $sql, $clause, $tmp_info );
             if ( defined $complex_column ) {
                 push @partition_by_cols, $complex_column;
             }
@@ -348,7 +348,7 @@ sub __add_order_by {
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause );
+            my $complex_column = $ext->complex_unit( $sql, $clause, $tmp_info );
             if ( ! defined $complex_column ) {
                 if ( @bu ) {
                     ( $order_by_stmt, $col_sep ) = @{pop @bu};

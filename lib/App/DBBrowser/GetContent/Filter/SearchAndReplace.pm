@@ -93,10 +93,12 @@ sub search_and_replace {
             $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
             $sql->{insert_into_args} = $aoa;
             my $header_changed = 0;
-            for my $i ( 0 .. $#$header ) {
-                if ( $header->[$i] ne $sql->{insert_into_args}[0][$i] ) {
-                    $header_changed = 1;
-                    last;
+            if ( $sf->{d}{stmt_types}[0] =~ /^Create_table\z/i ) {
+                for my $i ( 0 .. $#$header ) {
+                    if ( $header->[$i] ne $sql->{insert_into_args}[0][$i] ) {
+                        $header_changed = 1;
+                        last;
+                    }
                 }
             }
             if ( $header_changed ) {

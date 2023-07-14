@@ -62,7 +62,7 @@ sub build_having_col {
             }
             elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
                 my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                my $complex_column = $ext->complex_unit( $sql, $clause );
+                my $complex_column = $ext->complex_unit( $sql, $clause, $info );
                 if ( ! defined $complex_column ) {
                     next COLUMN;
                 }
@@ -86,7 +86,6 @@ sub choose_and_add_operator {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $stmt = $clause . '_stmt';
-    my $args = $clause . '_args';
     my $menu_addition;
     my @operators_default;
     my @operators_complex;
@@ -165,7 +164,6 @@ sub __add_operator {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $stmt = $clause . '_stmt';
-    my $args = $clause . '_args';
     my $ok;
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );
     if ( $op =~ /^(.+)\s(%?col%?)\z/ ) {
@@ -242,14 +240,15 @@ sub __add_operator {
 
 
 sub read_and_add_value {
-    my ( $sf, $sql, $clause, $op, $is_complex_value ) = @_;
+    my ( $sf, $sql, $clause, $qt_col, $op, $is_complex_value ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $stmt = $clause . '_stmt';
     my $args = $clause . '_args';
     if ( $is_complex_value ) {
         my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my $complex_value = $ext->complex_unit( $sql, $clause );
+        my $info = $ax->get_sql_info( $sql );
+        my $complex_value = $ext->complex_unit( $sql, $clause, $info );
         if ( ! defined $complex_value ) {
             return;
         }
@@ -296,8 +295,13 @@ sub read_and_add_value {
                     return 1;
                 }
                 push @bu, [ $sql->{$stmt}, [ @{$sql->{$args}} ], $col_sep ];
-                $sql->{$stmt} .= $col_sep . '?';
-                push @{$sql->{$args}}, $value;
+                if ( $clause eq 'when' ) {
+                    $sql->{$stmt} .= $col_sep . $ax->quote_constant( $value );
+                }
+                else {
+                    $sql->{$stmt} .= $col_sep . '?';
+                    push @{$sql->{$args}}, $value;
+                }
                 $col_sep = ',';
             }
         }
@@ -312,8 +316,13 @@ sub read_and_add_value {
             if ( ! defined $value_1 ) {
                 return;
             }
-            $sql->{$stmt} .= ' ' . '?' . ' AND';
-            push @{$sql->{$args}}, $value_1;
+            if ( $clause eq 'when' ) {
+                $sql->{$stmt} .= ' ' . $ax->quote_constant( $value_1 ) . ' AND';
+            }
+            else {
+                $sql->{$stmt} .= ' ' . '?' . ' AND';
+                push @{$sql->{$args}}, $value_1;
+            }
             $info = $ax->get_sql_info( $sql );
             # Readline
             my $value_2 = $tr->readline(
@@ -324,8 +333,13 @@ sub read_and_add_value {
             if ( ! defined $value_2 ) {
                 return;
             }
-            $sql->{$stmt} .= ' ' . '?';
-            push @{$sql->{$args}}, $value_2;
+            if ( $clause eq 'when' ) {
+                $sql->{$stmt} .= ' ' . $ax->quote_constant( $value_2 );
+            }
+            else {
+                $sql->{$stmt} .= ' ' . '?';
+                push @{$sql->{$args}}, $value_2;
+            }
             return 1;
         }
         elsif ( $op =~ /REGEXP(_i)?\z/ ) {
@@ -342,7 +356,18 @@ sub read_and_add_value {
             }
             $value = '^$' if ! length $value;
             pop @{$sql->{$args}};
-            push @{$sql->{$args}}, $value;
+            if ( $clause eq 'when' ) {
+                $value = $ax->quote_constant( $value );
+                if ( $sf->{i}{driver} eq 'SQLite' ) {
+                    $sql->{$stmt} =~ s/ (?<=\sREGEXP\() \? (?=,\Q$qt_col\E,[01]\)\z) /$value/x;
+                }
+                else {
+                    $sql->{$stmt} =~ s/\?\z/$value/;
+                }
+            }
+            else {
+                push @{$sql->{$args}}, $value;
+            }
             return 1;
         }
         else {
@@ -365,8 +390,13 @@ sub read_and_add_value {
             if ( ! defined $value ) {
                 return;
             }
-            $sql->{$stmt} .= ' ' . '?';
-            push @{$sql->{$args}}, $value;
+            if ( $clause eq 'when' ) {
+                $sql->{$stmt} .= ' ' . $ax->quote_constant( $value );
+            }
+            else {
+                $sql->{$stmt} .= ' ' . '?';
+                push @{$sql->{$args}}, $value;
+            }
             return 1;
         }
     }

@@ -61,19 +61,24 @@ sub stmt_placeholder_to_value {
     }
     my $rx_placeholder = qr/(?<=(?:,|\s|\())\?(?=(?:,|\s|\)|$))/;
     for my $value ( @$values ) {
-        my $value_copy;
-        if ( $quote_values && $value && ! looks_like_number $value ) {
-            $value_copy = $sf->{d}{dbh}->quote( $value );
-        }
-        else {
-            $value_copy = $value;
-        }
+        my $value_copy = $sf->quote_constant( $value );
         $stmt =~ s/$rx_placeholder/$value_copy/;
     }
     if ( $stmt =~ $rx_placeholder ) {
         return;
     }
     return $stmt;
+}
+
+
+sub quote_constant {
+    my ( $sf, $value ) = @_;
+    if ( looks_like_number $value ) {
+        return $value;
+    }
+    else {
+        return $sf->{d}{dbh}->quote( $value );
+    }
 }
 
 
@@ -113,6 +118,12 @@ sub get_stmt {
         else {
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{limit_stmt},  $indent2 ) if $sql->{limit_stmt};
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{offset_stmt}, $indent2 ) if $sql->{offset_stmt};
+        }
+        if ( $sql->{case_stmt} ) {
+            push @tmp, ' ';
+            push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_stmt},   $indent0, $sql->{case_args}  );
+            push @tmp, $sf->__stmt_fold( $used_for, $sql->{when_stmt},   $indent0, $sql->{when_args}  ) if $sql->{when_stmt};
+            push @tmp, ' ';
         }
     }
     elsif ( $stmt_type eq 'Delete' ) {
@@ -163,7 +174,11 @@ sub get_stmt {
         return $prepare_stmt;
     }
     else {
-        my $print_stmt = join( "\n", @tmp ) . "\n";
+        #my $print_stmt = join( "\n", @tmp ) . "\n";
+        my $print_stmt = join( "\n", @tmp );
+        if ( ! length $sql->{case_stmt} ) {
+            $print_stmt .= "\n";
+        }
         return $print_stmt;
     }
 }
@@ -300,7 +315,13 @@ sub alias {
     my $alias;
     if ( $sf->{o}{alias}{$type} ) {
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-        my $info = $sf->get_sql_info( $sql ) . "\n" . $identifier;
+        my $info = $sf->get_sql_info( $sql );
+        if ( $identifier =~ /^\n/ ) {
+            $info .= $identifier;
+        }
+        else {
+            $info .= "\n" . $identifier;
+        }
         # Readline
         $alias = $tr->readline(
             $prompt,
