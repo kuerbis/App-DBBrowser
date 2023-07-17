@@ -69,37 +69,48 @@ sub function_with_col_and_arg {
     elsif ( $func =~ /^EXTRACT\z/i ) {
         if ( $driver eq 'SQLite' ) {
             my %map = ( YEAR => '%Y', MONTH => '%m', WEEK => '%W', DAY => '%d', HOUR => '%H', MINUTE => '%M', SECOND => '%S',
-                        DOY => '%j', DAY_OF_WEEK => '%w',
+                        DAY_OF_YEAR => '%j', DAY_OF_WEEK => '%w',
             );
             if ( $map{ uc( $arg ) } ) {
                 $arg = "'" . $map{ uc( $arg ) } . "'";
             }
             return "strftime($arg,$col)";
         }
+        elsif ( $arg eq 'WEEK' ) {
+            return "to_char($col,'WI')" if $driver eq 'Oracle'; # WW
+            return "EXTRACT($arg FROM $col)";
+        }
         elsif ( $arg eq 'day_of_week' ) {
             # SQLite: '%w': 0 = Sunday
 
-            # mysql: weekday:   0 = Monday
-            # mysql: dayofweek: 1 = Sunday
+            # mysql: WEEKDAY:   0 = Monday
+            # mysql: DAYOFWEEK: 1 = Sunday
 
             # Firebird: EXTRACT(WEEKDAY ...): 0 = Sunday
 
-            # Pg: isodow: 1 = Monday
-            # Pg: dow:    0 = Sunday
+            # Pg: ISODOW: 1 = Monday
+            # Pg: DOW:    0 = Sunday
 
             # DB2: DAYOFWEEK_ISO: 1 = Monday
             # DB2: DAYOFWEEK:     1 = Sunday
 
-            # Informix: weekday:  0 = Sunday
+            # Informix: WEEKDAY:  0 = Sunday
 
-            # Oracle: to_number(to_char($col,'D')): 1 = Monday
+            # Oracle: to_char($col,'D'): 1 = Sunday
 
-            return "WEEKDAY($col)"                if $driver =~ /^(?:mysql|MariaDB|Informix)\z/;
-            return "EXTRACT(isodow FROM $col)"    if $driver eq 'Pg';
-            return "EXTRACT(WEEKDAY FROM $col)"   if $driver eq 'Firebird';
-            return "DAYOFWEEK_ISO($col)"          if $driver eq 'DB2';
-            return "to_number(to_char($col,'D'))" if $driver eq 'Oracle';
-
+            return "DAYOFWEEK($col)"            if $driver =~ /^(?:mysql|MariaDB)\z/;
+            return "EXTRACT(DOW FROM $col)"     if $driver eq 'Pg';
+            return "EXTRACT(WEEKDAY FROM $col)" if $driver eq 'Firebird';
+            return "DAYOFWEEK($col)"            if $driver eq 'DB2';
+            return "WEEKDAY($col)"              if $driver eq 'Informix';
+            return "to_char($col,'D')"          if $driver eq 'Oracle';
+        }
+        elsif ( $arg eq 'day_of_year' ) {
+            return "DAYOFYEAR($col)"            if $driver =~ /^(?:mysql|MariaDB)\z/;
+            return "EXTRACT(DOY FROM $col)"     if $driver eq 'Pg';
+            return "EXTRACT(YEARDAY FROM $col)" if $driver eq 'Firebird';
+            return "DAYOFYEAR($col)"            if $driver eq 'DB2';
+            return "to_char($col,'DDD')"        if $driver eq 'Oracle';
         }
         else {
             return "EXTRACT($arg FROM $col)";
@@ -200,6 +211,7 @@ sub function_with_col_and_2args {
 
 sub concatenate {
     my ( $sf, $cols, $sep ) = @_;
+    return $cols->[0] if @$cols == 1; # ###
     my $arg;
     if ( defined $sep && length $sep ) {
         my $qt_sep = $sf->{d}{dbh}->quote( $sep );

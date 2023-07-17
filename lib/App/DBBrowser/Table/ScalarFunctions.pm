@@ -278,8 +278,12 @@ sub col_function {
                 }
                 if ( $func =~ /^$extract\z/i ) {
                     $prompt = 'Field';
-                    $history = [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND day_of_week) ];
-                    # Pg: DOY, ISODOW, no timezone
+                    if ( $sf->{i}{driver} eq 'Informix' ) {
+                        $history = [ qw(YEAR MONTH DAY HOUR MINUTE SECOND day_of_week) ];
+                    }
+                    else {
+                        $history = [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND day_of_week day_of_year) ];
+                    }
                 }
                 elsif ( $func =~ /^(?:$round|$truncate)\z/i ) {
                     $prompt = 'Decimal places';

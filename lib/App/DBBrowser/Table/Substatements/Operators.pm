@@ -166,57 +166,58 @@ sub __add_operator {
     my $stmt = $clause . '_stmt';
     my $ok;
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );
-    if ( $op =~ /^(.+)\s(%?col%?)\z/ ) {
-        $op = $1;
-        my $arg = $2;
-        $sql->{$stmt} .= ' ' . $op;
-        my $qt_col;
-        my @pre = ( undef );
-        if ( $stmt eq 'having_stmt' ) {
-            my @choices = ( @{$sf->{i}{avail_aggr}}, map( '@' . $_,  @{$sql->{aggr_cols}} ) );
-            my $info = $ax->get_sql_info( $sql );
-            # Choose
-            my $aggr = $tc->choose(
-                [ @pre, @choices ],
-                { %{$sf->{i}{lyt_h}}, info => $info }
-            );
-            $ax->print_sql_info( $info );
-            if ( ! defined $aggr ) {
-                return;
-            }
-            $qt_col = $sf->build_having_col( $sql, $clause, $aggr );
-        }
-        else {
-            my $info = $ax->get_sql_info( $sql );
-            # Choose
-            $qt_col = $tc->choose(
-                [ @pre, @{$sql->{cols}} ],
-                { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Col:' }
-            );
-            $ax->print_sql_info( $info );
-        }
-        if ( ! defined $qt_col ) {
-            return;
-        }
-        if ( $arg !~ /%/ ) {
-            $sql->{$stmt} .= ' ' . $qt_col;
-        }
-        else {
-            if ( ! eval {
-                require App::DBBrowser::Table::ScalarFunctions::SQL;
-                my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o} );
-                my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
-                my $qt_arg = $fsql->concatenate( \@el );
-                $qt_arg =~ s/'col'/$qt_col/;
-                $sql->{$stmt} .= ' ' . $qt_arg;
-                1 }
-            ) {
-                $ax->print_error_message( $@ );
-                return;
-            }
-        }
-    }
-    elsif ( $op =~ /REGEXP(_i)?\z/ ) {
+    #if ( $op =~ /^(.+)\s(%?col%?)\z/ ) {
+    #    $op = $1;
+    #    my $arg = $2;
+    #    $sql->{$stmt} .= ' ' . $op;
+    #    my $qt_col;
+    #    my @pre = ( undef );
+    #    if ( $stmt eq 'having_stmt' ) {
+    #        my @choices = ( @{$sf->{i}{avail_aggr}}, map( '@' . $_,  @{$sql->{aggr_cols}} ) );
+    #        my $info = $ax->get_sql_info( $sql );
+    #        # Choose
+    #        my $aggr = $tc->choose(
+    #            [ @pre, @choices ],
+    #            { %{$sf->{i}{lyt_h}}, info => $info }
+    #        );
+    #        $ax->print_sql_info( $info );
+    #        if ( ! defined $aggr ) {
+    #            return;
+    #        }
+    #        $qt_col = $sf->build_having_col( $sql, $clause, $aggr );
+    #    }
+    #    else {
+    #        my $info = $ax->get_sql_info( $sql );
+    #        # Choose
+    #        $qt_col = $tc->choose(
+    #            [ @pre, @{$sql->{cols}} ],
+    #            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Col:' }
+    #        );
+    #        $ax->print_sql_info( $info );
+    #    }
+    #    if ( ! defined $qt_col ) {
+    #        return;
+    #    }
+    #    if ( $arg !~ /%/ ) {
+    #        $sql->{$stmt} .= ' ' . $qt_col;
+    #    }
+    ##    else {
+    #        if ( ! eval {
+    #            require App::DBBrowser::Table::ScalarFunctions::SQL;
+    #            my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o} );
+    #            my @el = map { "'$_'" } grep { length $_ } $arg =~ /^(%?)(col)(%?)\z/g;
+    #            my $qt_arg = $fsql->concatenate( \@el );
+    #            $qt_arg =~ s/'col'/$qt_col/;
+    #            $sql->{$stmt} .= ' ' . $qt_arg;
+    #            1 }
+    #        ) {
+    #            $ax->print_error_message( $@ );
+    #            return;
+    #        }
+    #    }
+    #}
+    #elsif ( $op =~ /REGEXP(_i)?\z/ ) {
+    if ( $op =~ /REGEXP(_i)?\z/ ) {
         $sql->{$stmt} =~ s/ (?: (?<=\() | \s ) \Q$qt_col\E \z //x;
         my $do_not_match_regexp = $op =~ /^NOT/ ? 1 : 0;
         my $case_sensitive      = $op =~ /REGEXP_i\z/ ? 0 : 1;

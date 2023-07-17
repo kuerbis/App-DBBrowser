@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.335_03  2023-07-17
+        - Added day_of_year.
+        - Update day_of_week.
+        - Removed operators with col.
+
 2.335_02  2023-07-17
         - Added day_of_week
         - Use Encode::find_encoding
