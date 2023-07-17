@@ -448,12 +448,13 @@ sub __edit_column_types {
         unshift @$fields, [ $ax->prepare_identifier( $sf->{col_auto} ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
-    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/ ) {
+    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Oracle)\z/ ) {
         for my $field ( @$fields ) {
             if ( defined $field->[1] && $field->[1] eq 'DATETIME' ) {
                 $field->[1] = 'TIMESTAMP';
             }
         }
+        # Informix: DATETIME largest_qualifier TO smallest_qualifier
     }
     my $info = $ax->get_sql_info( $sql );
     # Fill_form

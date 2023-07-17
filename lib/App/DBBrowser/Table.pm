@@ -264,9 +264,12 @@ sub __selected_statement_result {
 
     if ( $sf->{i}{driver} eq 'DB2' && length $sf->{o}{G}{db2_encoding} ) {
         print 'Decoding: ...' . "\r"  if $sf->{o}{table}{progress_bar};
-        require Encode;
+        my $encoding = Encode::find_encoding( $sf->{o}{G}{db2_encoding} );
+        if ( ! ref $encoding ) {
+            die qq(encoding "$sf->{o}{G}{db2_encoding}" not found);
+        }
         for my $row ( @$all_arrayref ) {
-            $_ = Encode::decode( $sf->{o}{G}{db2_encoding}, $_ ) for @$row;
+            $_ = $encoding->decode( $_ ) for @$row;
         }
     }
     return $all_arrayref;

@@ -73,7 +73,7 @@ sub __choose_columns {
             my $bu_nested_func = $ax->backup_href( $r_data );
             # reset nested_func and add an array-ref so the child function knows that the parent is a multi-col function.
             # Children of a  multi-col function start with an empty nested_func. Only whenn they return to
-            # the parent multi-col function there results are integrated in the parent nested_func.
+            # the parent multi-col function their results are integrated in the parent nested_func.
             $r_data->{nested_func} = [ [ $sf->__nested_func_info( $r_data->{nested_func}, $fill_string ) ] ];
             my $complex_col = $ext->complex_unit( $sql, $clause, $tmp_info, $r_data );
             $r_data = $bu_nested_func;
@@ -141,7 +141,7 @@ sub col_function {
     $r_data->{nested_func} //= [];
     my $parent;
     if ( ref $r_data->{nested_func}[0] eq 'ARRAY' ) {
-        # because called from of multi-col function
+        # because called from a multi-col function
         $parent = shift @{$r_data->{nested_func}};
         $parent = $parent->[0];
         # $r_data->{nested_func} is now empty
@@ -212,6 +212,7 @@ sub col_function {
     SCALAR_FUNCTION: while( 1 ) {
         my $tmp_info = $info;
         if ( length $parent ) {
+            # $parent only available at the first recursion after parent
             $tmp_info .= "\n" . $parent;
         }
         if ( @{$r_data->{nested_func}} ) {
@@ -277,7 +278,7 @@ sub col_function {
                 }
                 if ( $func =~ /^$extract\z/i ) {
                     $prompt = 'Field';
-                    $history = [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND) ];
+                    $history = [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND day_of_week) ];
                     # Pg: DOY, ISODOW, no timezone
                 }
                 elsif ( $func =~ /^(?:$round|$truncate)\z/i ) {

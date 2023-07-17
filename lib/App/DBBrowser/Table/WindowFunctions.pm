@@ -396,7 +396,7 @@ sub __add_frame_clause {
         # Choose
         my $idx_fc = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, index => 1, default => $old_idx_fc, prompt => 'Frame clause:' }
+            { %{$sf->{i}{lyt_v}}, info => $info, index => 1, default => $old_idx_fc, prompt => 'Frame clause:', undef => '  <=' }
         );
         $ax->print_sql_info( $info );
         if ( ! defined $idx_fc || ! defined $menu->[$idx_fc] ) {

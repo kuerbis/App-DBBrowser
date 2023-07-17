@@ -32,6 +32,7 @@ sub complex_unit {
         @types = ( $subquery, $function, $cs, $set_to_null );
     }
     elsif ( $clause =~ /^(?:select|order_by)\z/i ) {
+        # Window functions are permitted only in SELECT and ORDER BY
         @types = ( $subquery, $function, $window_function, $cs );
     }
     elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
@@ -47,7 +48,7 @@ sub complex_unit {
 
     EXTENSIONS: while ( 1 ) {
         my @pre = ( undef );
-        #my $info = $ax->get_sql_info( $sql );
+        $info ||= $ax->get_sql_info( $sql ); ##
         # Choose
         my $idx = $tc->choose(
             [ @pre, @types ],

@@ -80,7 +80,7 @@ sub select {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause, $info );
+            my $complex_col = $ext->complex_unit( $sql, $clause );
             if ( ! defined $complex_col ) {
                 ( $sql->{selected_cols}, $sql->{alias} ) = @{pop @bu};
             }
@@ -228,7 +228,7 @@ sub __add_aggregate_substmt {
             elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
                 my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
                 my $info = $ax->get_sql_info( $sql );
-                my $complex_column = $ext->complex_unit( $sql, $clause, $info );
+                my $complex_column = $ext->complex_unit( $sql, $clause );
                 if ( ! defined $complex_column ) {
                     next COLUMN;
                 }
@@ -418,7 +418,7 @@ sub group_by {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, $info );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( defined $complex_column ) {
                 push @{$sql->{group_by_cols}}, $complex_column;
             }
@@ -495,7 +495,7 @@ sub order_by {
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, $info );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( ! defined $complex_column ) {
                 if ( @bu ) {
                     ( $sql->{order_by_stmt}, $col_sep ) = @{pop @bu};
@@ -660,7 +660,7 @@ sub __add_condition {
         }
         if ( $qt_col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, $info );
+            my $complex_column = $ext->complex_unit( $sql, $clause );
             if ( ! defined $complex_column ) {
                 next COL;
             }

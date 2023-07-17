@@ -62,7 +62,7 @@ sub build_having_col {
             }
             elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
                 my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                my $complex_column = $ext->complex_unit( $sql, $clause, $info );
+                my $complex_column = $ext->complex_unit( $sql, $clause );
                 if ( ! defined $complex_column ) {
                     next COLUMN;
                 }
@@ -248,7 +248,7 @@ sub read_and_add_value {
     if ( $is_complex_value ) {
         my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
         my $info = $ax->get_sql_info( $sql );
-        my $complex_value = $ext->complex_unit( $sql, $clause, $info );
+        my $complex_value = $ext->complex_unit( $sql, $clause );
         if ( ! defined $complex_value ) {
             return;
         }
