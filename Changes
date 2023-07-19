@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.335_04  2023-07-19
+        - Update operators ANY and ALL.
+
 2.335_03  2023-07-17
         - Added day_of_year.
         - Update day_of_week.

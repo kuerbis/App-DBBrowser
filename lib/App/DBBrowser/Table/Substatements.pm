@@ -68,6 +68,7 @@ sub select {
         if ( ! $idx[0] ) {
             if ( @bu ) {
                 ( $sql->{selected_cols}, $sql->{alias} ) = @{pop @bu};
+
                 next COLUMNS;
             }
             return;
