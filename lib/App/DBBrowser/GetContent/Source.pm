@@ -72,9 +72,7 @@ sub from_col_by_col {
                 if ( ! $col_count ) {
                     return;
                 }
-                $col_names = [ map { 'col_' . $_ } 1 .. $col_count ];
-                my $col_number = 0;
-                my $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @$col_names ];
+                my $fields = [ map { [ $_, '' ] } 1 .. $col_count ];
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,

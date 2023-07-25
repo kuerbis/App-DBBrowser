@@ -8,9 +8,13 @@ use 5.014;
 use Term::Choose qw();
 
 use App::DBBrowser::Auxil;
-#use App::DBBrowser::Subqueries;              # required
-#use App::DBBrowser::Table::ScalarFunctions;  # required
-#use App::DBBrowser::Table::WindowFunctions;  # required
+#use App::DBBrowser::Subqueries;                          # required
+#use App::DBBrowser::Table::Extensions::Arithmetic;       # required
+#use App::DBBrowser::Table::Extensions::Case;             # required
+#use App::DBBrowser::Table::Extensions::ScalarFunctions;  # required
+#use App::DBBrowser::Table::Extensions::WindowFunctions;  # required
+
+
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -23,32 +27,40 @@ sub new {
 
 
 sub complex_unit {
-    my ( $sf, $sql, $clause, $info, $r_data ) = @_;
+    my ( $sf, $sql, $clause, $r_data, $op ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $subquery, $function, $window_function, $cs, $set_to_null ) = ( 'SQ', 'f()', 'w()', '(c)', '=N' );
+    my ( $subquery, $function, $window_function, $cs, $math, $set_to_null ) = ( 'SQ', 'f()', 'w()', 'case', 'm()', '=N' );
     my @types;
     if ( $clause eq 'set' ) {
-        @types = ( $subquery, $function, $cs, $set_to_null );
+        @types = ( $subquery, $function, $cs, $math, $set_to_null );
     }
     elsif ( $clause =~ /^(?:select|order_by)\z/i ) {
         # Window functions are permitted only in SELECT and ORDER BY
-        @types = ( $subquery, $function, $window_function, $cs );
+        @types = ( $subquery, $function, $window_function, $cs, $math );
     }
     elsif ( $clause =~ /^(?:where|having)\z/ && $sql->{$clause . '_stmt'} =~ /\s(?:ALL|ANY|IN)\z/ ) {
             @types = ( $subquery );
     }
     else {
-        @types = ( $subquery, $function, $cs );
+        @types = ( $subquery, $function, $cs, $math );
     }
     if ( $clause =~ /^when\z/ ) {
         @types = grep { ! /^\Q$cs\E\z/ } @types;
+    }
+    if ( length $op->{from} ) {
+        if ( $op->{from} eq 'arithmetic' ) {
+            @types = grep { ! /^\Q$math\E\z/ } @types;
+        }
+        elsif ( $op->{from} eq 'window_function' ) {
+            @types = grep { ! /^\Q$window_function\E\z/ } @types;
+        }
     }
     my $old_idx = 0;
 
     EXTENSIONS: while ( 1 ) {
         my @pre = ( undef );
-        $info ||= $ax->get_sql_info( $sql ); ##
+        my $info = $op->{info} || $ax->get_sql_info( $sql ); ##
         # Choose
         my $idx = $tc->choose(
             [ @pre, @types ],
@@ -80,8 +92,8 @@ sub complex_unit {
             return $subq;
         }
         elsif ( $type eq $function ) {
-            require App::DBBrowser::Table::ScalarFunctions;
-            my $new_func = App::DBBrowser::Table::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            require App::DBBrowser::Table::Extensions::ScalarFunctions;
+            my $new_func = App::DBBrowser::Table::Extensions::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $r_data );
             if ( ! defined $scalar_func_stmt ) {
                 next EXTENSIONS;
@@ -89,8 +101,8 @@ sub complex_unit {
             return $scalar_func_stmt;
         }
         elsif ( $type eq $window_function ) {
-            require App::DBBrowser::Table::WindowFunctions;
-            my $wf = App::DBBrowser::Table::WindowFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            require App::DBBrowser::Table::Extensions::WindowFunctions;
+            my $wf = App::DBBrowser::Table::Extensions::WindowFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $win_func_stmt = $wf->window_function( $sql, $clause );
             if ( ! defined $win_func_stmt ) {
                 next EXTENSIONS;
@@ -98,13 +110,22 @@ sub complex_unit {
             return $win_func_stmt;
         }
         elsif ( $type eq $cs ) {
-            require App::DBBrowser::Table::Case;
-            my $new_cs = App::DBBrowser::Table::Case->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            require App::DBBrowser::Table::Extensions::Case;
+            my $new_cs = App::DBBrowser::Table::Extensions::Case->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $case_stmt = $new_cs->case( $sql, $clause, $r_data );
             if ( ! defined $case_stmt ) {
                 next EXTENSIONS;
             }
             return $case_stmt;
+        }
+        elsif ( $type eq $math ) {
+            require App::DBBrowser::Table::Extensions::Arithmetic;
+            my $new_am = App::DBBrowser::Table::Extensions::Arithmetic->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $arith = $new_am->arithmetics( $sql, $clause, $r_data );
+            if ( ! defined $arith ) {
+                next EXTENSIONS;
+            }
+            return $arith;
         }
     }
 }

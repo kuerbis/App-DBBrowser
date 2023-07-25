@@ -204,7 +204,7 @@ sub __choose_columns {
     my $col_idx = $tu->choose_a_subset(
         $header,
         { cs_label => 'Cols: ', layout => 0, order => 0, mark => $non_empty_cols, all_by_default => 1, index => 1,
-          confirm => $sf->{i}{ok}, back => $sf->{s_back}, info => $info, busy_string => $sf->{working} } # keep_chosen ##
+          confirm => $sf->{i}{ok}, back => $sf->{s_back}, info => $info, busy_string => $sf->{working}, keep_chosen => 1 } # ###
     );
     $sf->__print_busy_string();
     if ( ! defined $col_idx ) {
@@ -225,6 +225,7 @@ sub __choose_rows {
     my $non_empty_rows = [];
     {
         no warnings 'uninitialized';
+        # ###
         for my $i ( 0 .. $#$aoa ) {
             push @$non_empty_rows, $i + @pre if length join '', @{$aoa->[$i]};
             push @$stringified_rows, join ',', @{$aoa->[$i]};

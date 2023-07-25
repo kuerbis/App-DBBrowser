@@ -68,7 +68,6 @@ sub select {
         if ( ! $idx[0] ) {
             if ( @bu ) {
                 ( $sql->{selected_cols}, $sql->{alias} ) = @{pop @bu};
-
                 next COLUMNS;
             }
             return;
@@ -124,9 +123,6 @@ sub distinct {
             return;
         }
         elsif ( $select_distinct eq $sf->{i}{ok} ) {
-            if ( ! length $sql->{distinct_stmt} ) {
-                return 0;
-            }
             return 1;
         }
         $sql->{distinct_stmt} = ' ' . $select_distinct;
@@ -151,9 +147,6 @@ sub aggregate {
             return;
         }
         elsif ( $ret eq $sf->{i}{ok} ) {
-            if ( ! @{$sql->{aggr_cols}} ) {
-                return 0;
-            }
             return 1;
         }
     }
@@ -552,9 +545,6 @@ sub limit_offset {
             return;
         }
         if ( $choice eq $sf->{i}{ok} ) {
-            if ( ! length $sql->{limit_stmt} && ! length $sql->{offset_stmt} ) {
-                return 0;
-            }
             return 1;
         }
         push @bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];
@@ -623,7 +613,6 @@ sub __add_condition {
     my $stmt = $clause . '_stmt';
     my $AND_OR = '';
     my $unclosed = 0;
-    my $count = 0;
     my @bu_col;
     my @pre = ( undef, $sf->{i}{ok} );
     if ( $sf->{o}{enable}{col_menu_addition} ) {
@@ -644,13 +633,13 @@ sub __add_condition {
         $ax->print_sql_info( $info );
         if ( ! defined $qt_col ) {
             if ( @bu_col ) {
-                ( $sql->{$stmt}, $sql->{$args}, $AND_OR, $unclosed, $count ) = @{pop @bu_col};
+                ( $sql->{$stmt}, $sql->{$args}, $unclosed ) = @{pop @bu_col};
                 next COL;
             }
             return;
         }
         if ( $qt_col eq $sf->{i}{ok} ) {
-            if ( $count == 0 ) {
+            if ( ! @bu_col ) {
                 $sql->{$stmt} = '';
             }
             if ( $unclosed == 1 ) { # close an open parentheses automatically on OK
@@ -667,47 +656,51 @@ sub __add_condition {
             }
             $qt_col = $complex_column;
         }
+        push @bu_col, [ $sql->{$stmt}, [@{$sql->{$args}}], $unclosed ];
         if ( $qt_col eq ')' ) {
-            push @bu_col, [ $sql->{$stmt}, [@{$sql->{$args}}], $AND_OR, $unclosed, $count ];
             $sql->{$stmt} .= ")";
             $unclosed--;
             next COL;
         }
-        if ( $count > 0 && $sql->{$stmt} !~ /\(\z/ ) {
+        if ( @bu_col > 1 && $sql->{$stmt} !~ /\(\z/ ) {
             my $info = $ax->get_sql_info( $sql );
             # Choose
-            $AND_OR = $tc->choose(
+            my $choice = $tc->choose(
                 [ undef, "AND", "OR" ],
                 { %{$sf->{i}{lyt_h}}, info => $info }
             );
             $ax->print_sql_info( $info );
-            if ( ! defined $AND_OR ) {
+            if ( ! defined $choice ) {
+                ( $sql->{$stmt}, $sql->{$args}, $unclosed ) = @{pop @bu_col};
                 next COL;
             }
-            $AND_OR = ' ' . $AND_OR;
+            $AND_OR = ' ' . $choice;
         }
         if ( $qt_col eq '(' ) {
-            push @bu_col, [ $sql->{$stmt}, [@{$sql->{$args}}], $AND_OR, $unclosed, $count ];
             $sql->{$stmt} .= $AND_OR . " (";
             $AND_OR = '';
             $unclosed++;
             next COL;
         }
-        push @bu_col, [ $sql->{$stmt}, [@{$sql->{$args}}], $AND_OR, $unclosed, $count ];
         if ( $clause eq 'having' ) {
             $qt_col = $so->build_having_col( $sql, $clause, $qt_col );
             if ( ! defined $qt_col ) {
-                ( $sql->{$stmt}, $sql->{$args}, $AND_OR, $unclosed, $count ) = @{pop @bu_col};
+                ( $sql->{$stmt}, $sql->{$args}, $unclosed ) = @{pop @bu_col};
                 next COL;
             }
         }
-        $sql->{$stmt} .= $AND_OR . ' ' . $qt_col;
+        if ( $sql->{$stmt} =~ /\(\z/ ) {
+            $sql->{$stmt} .= $qt_col;
+        }
+        else {
+            $sql->{$stmt} .= $AND_OR . ' ' . $qt_col;
+        }
 
         OPERATOR: while ( 1 ) {
             my $bu_op = [ $sql->{$stmt}, [@{$sql->{$args}}] ];
             my ( $op, $is_complex_value ) = $so->choose_and_add_operator( $sql, $clause, $qt_col );
             if ( ! defined $op ) {
-                ( $sql->{$stmt}, $sql->{$args}, $AND_OR, $unclosed, $count ) = @{pop @bu_col};
+                ( $sql->{$stmt}, $sql->{$args}, $unclosed ) = @{pop @bu_col};
                 next COL;
             }
 
@@ -721,7 +714,6 @@ sub __add_condition {
             }
             last OPERATOR;
         }
-        $count++;
     }
 }
 

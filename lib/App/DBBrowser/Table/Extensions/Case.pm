@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::Case;
+App::DBBrowser::Table::Extensions::Case;
 
 use warnings;
 use strict;
@@ -10,7 +10,7 @@ use Term::Form::ReadLine qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Subqueries;
-
+use App::DBBrowser::Table::Extensions::ScalarFunctions;
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -110,7 +110,6 @@ sub case {
             $tmp_sql->{case_stmt} .= "\n" . delete $tmp_sql->{when_stmt};
             $tmp_sql->{case_stmt} .= " THEN";
             my $value = $sf->__value( $tmp_sql, $qt_cols, $r_data );
-            #my $value = $sf->__choose_a_column( $tmp_sql, $qt_cols, $r_data ); ##
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;
                 next ROWS;
@@ -120,7 +119,6 @@ sub case {
         elsif ( $menu->[$idx] eq $else ) {
             $tmp_sql->{case_stmt} .= "\n${pad2}ELSE";
             my $value = $sf->__value( $tmp_sql, $qt_cols, $r_data );
-            #my $value = $sf->__choose_a_column( $tmp_sql, $qt_cols, $r_data ); ##
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;
                 next ROWS;
@@ -138,7 +136,7 @@ sub __value {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $const, $sq, $func, $cs, $col ) = ( 'Value', 'SQ', 'f()', '(c)', 'col' );
+    my ( $const, $sq, $func, $cs, $col ) = ( 'Value', 'SQ', 'f()', 'case', 'col' );
     my $clause = 'case';
 
     TYPE: while ( 1 ) {
@@ -165,7 +163,6 @@ sub __value {
             return $ax->quote_constant( $value );
         }
         elsif ( $type eq $sq ) {
-            require App::DBBrowser::Subqueries;
             my $new_sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $subq = $new_sq->choose_subquery( $tmp_sql );
             if ( ! defined $subq ) {
@@ -186,8 +183,7 @@ sub __value {
             return $col =~ s/^- //r;
         }
         elsif ( $type eq $func ) {
-            require App::DBBrowser::Table::ScalarFunctions;
-            my $new_func = App::DBBrowser::Table::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $new_func = App::DBBrowser::Table::Extensions::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $scalar_func_stmt = $new_func->col_function( $tmp_sql, $clause, $r_data );
             if ( ! defined $scalar_func_stmt ) {
                 next TYPE;
@@ -205,57 +201,6 @@ sub __value {
         }
     }
 }
-
-
-sub __choose_a_column {
-    my ( $sf, $tmp_sql, $qt_cols, $r_data ) = @_;
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $const = '[Value]';
-    my @pre = ( undef, $sf->{i}{menu_addition}, $const );
-
-    while ( 1 ) {
-        my $info = $ax->get_sql_info( $tmp_sql );
-        # Choose
-        my $choice = $tc->choose(
-            [ @pre, @$qt_cols ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Result:' }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $choice ) {
-            return;
-        }
-        elsif ( $choice eq $const ) { ##
-            my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-            my $value = $tr->readline(
-                'Value: ',
-                { info => $info }
-            );
-            if ( ! defined $value ) {
-                next;
-            }
-            return $ax->quote_constant( $value );
-        }
-        elsif ( $choice eq $sf->{i}{menu_addition} ) {
-            # recursion
-            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $clause = 'case';
-            push @{$r_data->{case}}, $tmp_sql->{case_stmt};
-            my $complex_col = $ext->complex_unit( $tmp_sql, $clause, $info, $r_data );
-            pop @{$r_data->{case}};
-            if ( ! defined $complex_col ) {
-                next;
-            }
-            $complex_col =~ s/^\Q$tmp_sql->{case_stmt}\E//;
-            return $complex_col;
-        }
-        else {
-            return $choice;
-        }
-    }
-}
-
 
 
 

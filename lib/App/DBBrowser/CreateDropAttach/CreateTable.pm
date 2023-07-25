@@ -295,8 +295,7 @@ sub __get_column_names {
         $header_row = shift @{$sql->{insert_into_args}};
     }
     else {
-        my $c = 0;
-        $header_row = $sf->__generic_header_row( scalar @{$sql->{insert_into_args}->[0]} );
+        $header_row = [ ( '' ) x @{$sql->{insert_into_args}[0]} ];
     }
     return $header_row;
 }
@@ -528,14 +527,6 @@ sub __insert_data {
     my $commit_ok = $cs->commit_sql( $sql );
     return $commit_ok;
 }
-
-
-sub __generic_header_row {
-    my ( $sf, $col_count ) = @_;
-    my $c = 0;
-    return [ map { 'c' . $c++ } 1 .. $col_count ];
-}
-
 
 
 

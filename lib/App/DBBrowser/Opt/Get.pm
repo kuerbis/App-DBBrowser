@@ -86,7 +86,7 @@ sub defaults {
             parse_mode_input_file    => 0,
             enable_input_filter      => 0,
             empty_to_null_plain      => 1,
-            empty_to_null_file       => 0,
+            empty_to_null_file       => 1,
             data_source_Create_table => 2,
             data_source_Insert       => 2,
             show_hidden_files        => 0,

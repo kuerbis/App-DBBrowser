@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::ScalarFunctions;
+App::DBBrowser::Table::Extensions::ScalarFunctions;
 
 use warnings;
 use strict;
@@ -35,15 +35,15 @@ sub __choose_columns {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $const = '[c]'; ##
-    #my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const ); # ###
-    my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition} );
+    my $const = '[val]';
+    my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $const );
     my $menu = [ @pre, @$qt_cols ];
     my $subset = [];
     my @bu;
 
     COLUMNS: while ( 1 ) {
-        my $fill_string = join( ',', @$subset );
+        my $fill_string = join( ',', @$subset, '?' );
+        $fill_string =~ s/,\?/ ?/;
         my $tmp_info = $info . "\n" . $sf->__nested_func_info( $r_data->{nested_func}, $fill_string );
         # Choose
         my @idx = $tc->choose(
@@ -75,18 +75,17 @@ sub __choose_columns {
             # Children of a  multi-col function start with an empty nested_func. Only whenn they return to
             # the parent multi-col function their results are integrated in the parent nested_func.
             $r_data->{nested_func} = [ [ $sf->__nested_func_info( $r_data->{nested_func}, $fill_string ) ] ];
-            my $complex_col = $ext->complex_unit( $sql, $clause, $tmp_info, $r_data );
+            my $complex_col = $ext->complex_unit( $sql, $clause, $r_data, { info => $tmp_info } );
             $r_data = $bu_nested_func;
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
             push @$subset, $complex_col;
         }
-        elsif ( $menu->[$idx[0]] eq $const ) { ##
-            my $rl_info = $tmp_info =~ s/\)\z/,?)/r;
+        elsif ( $menu->[$idx[0]] eq $const ) {
             my $value = $tr->readline(
                 'Value: ',
-                { info => $rl_info }
+                { info => $tmp_info }
             );
             if ( ! defined $value ) {
                 next COLUMNS;
@@ -103,7 +102,7 @@ sub __choose_columns {
 sub __choose_a_column {
     my ( $sf, $sql, $clause, $qt_cols, $info, $r_data ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    $info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '' );
+    $info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '?' );
     my @pre = ( undef, $sf->{i}{menu_addition} );
 
     while ( 1 ) {
@@ -118,7 +117,7 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             # recursion
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause, $info, $r_data );
+            my $complex_col = $ext->complex_unit( $sql, $clause, $r_data, { info => $info } );
             if ( ! defined $complex_col ) {
                 next;
             }

@@ -192,11 +192,12 @@ sub info_format_insert_args {
         $term_w += WIDTH_CURSOR;
     }
     my $row_count = @{$sql->{insert_into_args}};
+    my $col_count = @{$sql->{insert_into_args}[0]//[]};
     if ( $row_count == 0 ) {
         return [];
     }
-    my $avail_h = $term_h - 22; ##
-    if ( $avail_h < $term_h / 3.5 ) { ##
+    my $avail_h = $term_h - ( 12  + $col_count );
+    if ( $avail_h < $term_h / 3.5 ) {
         $avail_h = int $term_h / 3.5;
     }
     if ( $avail_h < 5) {
@@ -325,7 +326,7 @@ sub alias {
         # Readline
         $alias = $tr->readline(
             $prompt,
-            { info => $info, history => [] }
+            { info => $info, history => [ 'a' .. 'z' ] }
         );
         $sf->print_sql_info( $info );
     }

@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::WindowFunctions;
+App::DBBrowser::Table::Extensions::WindowFunctions;
 
 use warnings;
 use strict;
@@ -23,7 +23,7 @@ sub new {
 
 
 sub __choose_a_column {
-    my ( $sf, $sql, $qt_cols, $info, $func ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $info, $func ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @pre = ( undef );
     if ( $sf->{i}{menu_addition} ) {
@@ -42,7 +42,7 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             # clause 'window_function': to avoid window function in window function
-            my $complex_col = $ext->complex_unit( $sql, 'window_function', $info );
+            my $complex_col = $ext->complex_unit( $sql, $clause, {}, { from =>'window_function', info => $info } );
             if ( ! defined $complex_col ) {
                 next;
             }
@@ -155,7 +155,7 @@ sub window_function {
                 }
             }
             else {
-                $col = $sf->__choose_a_column( $sql, $tmp_qt_cols, $info, $func );
+                $col = $sf->__choose_a_column( $sql, $clause, $tmp_qt_cols, $info, $func );
                 if ( ! defined $col ) {
                     delete $win_func_data->{func};
                     next WINDOW_FUNCTION;
@@ -297,7 +297,7 @@ sub __add_partition_by {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, $tmp_info );
+            my $complex_column = $ext->complex_unit( $sql, $clause, {}, { info => $tmp_info, from => 'window_function' } ); ##
             if ( defined $complex_column ) {
                 push @partition_by_cols, $complex_column;
             }
@@ -348,7 +348,7 @@ sub __add_order_by {
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, $tmp_info );
+            my $complex_column = $ext->complex_unit( $sql, $clause, {}, { info => $tmp_info, from => 'window_function' } ); ##
             if ( ! defined $complex_column ) {
                 if ( @bu ) {
                     ( $order_by_stmt, $col_sep ) = @{pop @bu};
