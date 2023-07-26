@@ -29,7 +29,7 @@ sub __choose_a_column {
     if ( $sf->{i}{menu_addition} ) {
         push @pre, $sf->{i}{menu_addition};
     }
-    $info .= "\n" . $func . '()';
+    $info .= "\n" . $func . '(?)';
     while ( 1 ) {
         # Choose
         my $choice = $tc->choose(

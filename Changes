@@ -1,6 +1,19 @@
 Revision history for App-DBBrowser
 
 
+2.336  2023-07-26
+        New:
+        - CASE expressions.
+        - Arithmetic operators.
+        - Extract: day_of_week and year_of_week.
+
+        Changes:
+        - 'empty_to_null' for file import enabled by default.
+        - Update operators ANY and ALL.
+        - Removed operators with col.
+        - Term::Form minimum version '0.554'.
+        - Use Encode::find_encoding
+
 2.335_05  2023-07-25
         - Arithmetic.
         - Term::Form minimum version '0.554'.

@@ -219,7 +219,7 @@ sub __new_search_dir {
     my $default_dir = $sf->{d}{default_search_dir} // $sf->{i}{home_dir};
     # Choose
     my $dir = $tu->choose_a_directory(
-        { init_dir => $default_dir, decoded => 1, clear_screen => 1 }
+        { init_dir => $default_dir, decoded => 1, clear_screen => 1, confirm => '-OK-', back => '<<' }
     );
     if ( $dir ) {
         $sf->{d}{default_search_dir} = $dir;

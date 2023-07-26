@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-$SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.335_05';
+
+our $VERSION = '2.336';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.335_05
+Version 2.336
 
 =head1 SYNOPSIS
 
@@ -712,10 +712,6 @@ available extensions:
 
 =over
 
-=item Scalar functions
-
-Selecting C<f()> opens the menu, where the user can choose from a list of scalar functions.
-
 =item Subqueries
 
 Selecting C<SQ> opens the subqueries menu.
@@ -733,13 +729,25 @@ temporarily. Before printed statements are stored, newlines are replaced with sp
 A subquery can be saved permanently in the sub-menu which opens by selecting the prompt line of a subquery menu
 (I<Choose SQ:>).
 
-=item Set column to C<NULL>
+=item Scalar functions
 
-Available after the C<SET> in an C<UPDATE> statement. Selecting C<=N> sets the column to C<NULL>.
+Selecting C<f()> opens the menu, where the user can choose from a list of scalar functions.
 
 =item Window functions
 
 Selecting C<w()> opens the menu, where the user can choose from a list of window functions.
+
+=item Case expression
+
+Selecting C<case> opens the menu, where the user can build a C<CASE> expression.
+
+=item Arithmetic
+
+Selecting C<m()> opens the menu, where the user can combine expressions with arithmetic operators.
+
+=item Set column to C<NULL>
+
+Available after the C<SET> in an C<UPDATE> statement. Selecting C<=N> sets the column to C<NULL>.
 
 =back
 

@@ -6,17 +6,20 @@ use Test::More;
 
 
 for my $file (
-    'bin/db-browser',
     'lib/App/DBBrowser.pm',
     'lib/App/DBBrowser/Auxil.pm',
     'lib/App/DBBrowser/CreateDropAttach.pm',
+    'lib/App/DBBrowser/CreateDropAttach/AttachDB.pm',
     'lib/App/DBBrowser/CreateDropAttach/CreateTable.pm',
     'lib/App/DBBrowser/CreateDropAttach/DropTable.pm',
-    'lib/App/DBBrowser/CreateDropAttach/AttachDB.pm',
     'lib/App/DBBrowser/Credentials.pm',
     'lib/App/DBBrowser/DB.pm',
+    'lib/App/DBBrowser/DB/DB2.pm',
+    'lib/App/DBBrowser/DB/Firebird.pm',
+    'lib/App/DBBrowser/DB/Informix.pm',
     'lib/App/DBBrowser/DB/MariaDB.pm',
     'lib/App/DBBrowser/DB/mysql.pm',
+    'lib/App/DBBrowser/DB/Oracle.pm',
     'lib/App/DBBrowser/DB/Pg.pm',
     'lib/App/DBBrowser/DB/SQLite.pm',
     'lib/App/DBBrowser/GetContent.pm',
@@ -31,16 +34,18 @@ for my $file (
     'lib/App/DBBrowser/Opt/Set.pm',
     'lib/App/DBBrowser/Subqueries.pm',
     'lib/App/DBBrowser/Table.pm',
-    'lib/App/DBBrowser/Table/Case.pm',
     'lib/App/DBBrowser/Table/CommitWriteSQL.pm',
     'lib/App/DBBrowser/Table/Extensions.pm',
+    'lib/App/DBBrowser/Table/Extensions/Arithmetic.pm',
+    'lib/App/DBBrowser/Table/Extensions/Case.pm',
+    'lib/App/DBBrowser/Table/Extensions/ScalarFunctions.pm',
+    'lib/App/DBBrowser/Table/Extensions/ScalarFunctions/SQL.pm',
+    'lib/App/DBBrowser/Table/Extensions/WindowFunctions.pm',
     'lib/App/DBBrowser/Table/InsertUpdateDelete.pm',
-    'lib/App/DBBrowser/Table/ScalarFunctions.pm',
-    'lib/App/DBBrowser/Table/ScalarFunctions/SQL.pm',
     'lib/App/DBBrowser/Table/Substatements.pm',
     'lib/App/DBBrowser/Table/Substatements/Operators.pm',
-    'lib/App/DBBrowser/Table/WindowFunctions.pm',
-    'lib/App/DBBrowser/Union.pm' ) {
+    'lib/App/DBBrowser/Union.pm',
+) {
 
     my $data_dumper   = 0;
     my $warnings      = 0;

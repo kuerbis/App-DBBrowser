@@ -55,8 +55,6 @@ sub arithmetics {
         }
         push @bu, [ @$subset ];
         if ( $menu->[$idx] eq $sf->{i}{ok} ) {
-            #shift @idx;
-            #push @$subset, @{$menu}[@idx];
             if ( ! @$subset ) {
                 return;
             }
