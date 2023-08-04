@@ -87,7 +87,7 @@ sub from_col_by_col {
             }
         }
         else {
-            $col_names = $sql->{insert_into_cols};
+            $col_names = $sql->{insert_col_names};
         }
         my $default;
 
@@ -125,7 +125,7 @@ sub from_col_by_col {
                     }
                 }
                 else {
-                    $sql->{insert_into_args} = $aoa;
+                    $sql->{insert_args} = $aoa;
                     return 1;
                 }
             }

@@ -42,7 +42,10 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             # clause 'window_function': to avoid window function in window function
-            my $complex_col = $ext->complex_unit( $sql, $clause, {}, { from =>'window_function', info => $info } );
+            my $complex_col = $ext->column(
+                $sql, $clause, {},
+                { from =>'window_function', info => $info }
+            );
             if ( ! defined $complex_col ) {
                 next;
             }
@@ -69,7 +72,7 @@ sub __get_win_func_stmt {
 
 
 sub window_function {
-    my ( $sf, $sql, $clause ) = @_;
+    my ( $sf, $sql, $clause, $opt ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -104,7 +107,7 @@ sub window_function {
     my @default_value_func = ( 'LAG', 'LEAD' );
     my $default_value_func_regex = join( '|', map { quotemeta } @default_value_func );
 
-    my $info = $ax->get_sql_info( $sql );
+    my $info = $opt->{info} // $ax->get_sql_info( $sql );
     my $win_func_data = {};
     my $old_idx_wf = 0;
 
@@ -260,7 +263,7 @@ sub __add_partition_by {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @partition_by_cols;
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{col_menu_addition} ) {
+    if ( $sf->{o}{enable}{ext_express_col} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my $menu = [ @pre, @$qt_cols ];
@@ -268,7 +271,6 @@ sub __add_partition_by {
 
     PARTITION_BY: while ( 1 ) {
         my $partition_by_stmt = "PARTITION BY " . join ',', @partition_by_cols;
-
         my $tmp_info = $info . "\n" . $sf->__get_win_func_stmt( $win_func_data ) . "\n" . $partition_by_stmt;
         # Choose
         my @idx = $tc->choose(
@@ -297,7 +299,10 @@ sub __add_partition_by {
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, {}, { info => $tmp_info, from => 'window_function' } ); ##
+            my $complex_column = $ext->column(
+                $sql, $clause, {},
+                { info => $tmp_info, from => 'window_function' }
+            );
             if ( defined $complex_column ) {
                 push @partition_by_cols, $complex_column;
             }
@@ -313,7 +318,7 @@ sub __add_order_by {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{col_menu_addition} ) {
+    if ( $sf->{o}{enable}{ext_express_col} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my $info = $ax->get_sql_info( $sql );
@@ -348,7 +353,10 @@ sub __add_order_by {
         }
         elsif ( $col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->complex_unit( $sql, $clause, {}, { info => $tmp_info, from => 'window_function' } ); ##
+            my $complex_column = $ext->column(
+                $sql, $clause, {},
+                { info => $tmp_info, from => 'window_function' }
+            );
             if ( ! defined $complex_column ) {
                 if ( @bu ) {
                     ( $order_by_stmt, $col_sep ) = @{pop @bu};
@@ -384,7 +392,6 @@ sub __add_frame_clause {
     if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
         push @frame_clause_modes, 'GROUPS';
     }
-    # mysql, MariaDB, Firebird, Informix, DB2: only  ROWS and RANGE and no exclude clause
     my $info = $ax->get_sql_info( $sql );
     my $win_func_stmt = $sf->__get_win_func_stmt( $win_func_data );
     $info .= "\n" . $win_func_stmt;

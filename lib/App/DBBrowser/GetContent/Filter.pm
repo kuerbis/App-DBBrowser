@@ -51,8 +51,8 @@ sub input_filter {
     my $append_col    = 'Append_Columns';
     my $cols_to_rows  = 'Columns_to_Rows';
     my $s_and_replace = 'Search_&_Replace';
-    my $field_count = @{$sql->{insert_into_args}} * @{$sql->{insert_into_args}[0]};
-    my $bu_insert_into_args = [ map { [ @$_ ] } @{$sql->{insert_into_args}} ]; # copy the entire data
+    my $field_count = @{$sql->{insert_args}} * @{$sql->{insert_args}[0]};
+    my $bu_insert_args = [ map { [ @$_ ] } @{$sql->{insert_args}} ]; # copy the entire data
     $sf->{empty_to_null} = $sf->{o}{insert}{empty_to_null_file};
     $sf->{working} = $field_count > 500_000 ? 'Working ... ' : undef;
     my $old_idx = 0;
@@ -78,7 +78,7 @@ sub input_filter {
         );
         $sf->__print_busy_string();
         if ( ! $idx ) {
-            $sql->{insert_into_args} = [];
+            $sql->{insert_args} = [];
             delete $sf->{d}{fi};
             return;
         }
@@ -92,14 +92,14 @@ sub input_filter {
         my $filter = $menu->[$idx];
         my $filter_str = sprintf( "Filter: %s", $filter );
         if ( $filter eq $reset ) {
-            $sql->{insert_into_args} = [ map { [ @$_ ] } @{$bu_insert_into_args} ];
+            $sql->{insert_args} = [ map { [ @$_ ] } @{$bu_insert_args} ];
             $sf->{empty_to_null} = $sf->{o}{insert}{empty_to_null_file};
             next FILTER
         }
         elsif ( $filter eq $confirm ) {
             if ( $sf->{empty_to_null} ) {
                 no warnings 'uninitialized';
-                $sql->{insert_into_args} = [ map { [ map { length ? $_ : undef } @$_ ] } @{$sql->{insert_into_args}} ];
+                $sql->{insert_args} = [ map { [ map { length ? $_ : undef } @$_ ] } @{$sql->{insert_args}} ];
             }
             return 1;
         }
@@ -133,7 +133,7 @@ sub input_filter {
         elsif ( $filter eq $s_and_replace ) {
             require App::DBBrowser::GetContent::Filter::SearchAndReplace;
             my $sr = App::DBBrowser::GetContent::Filter::SearchAndReplace->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $sr->search_and_replace( $sql, $bu_insert_into_args, $filter_str, $sf->{s_back} );
+            $sr->search_and_replace( $sql, $bu_insert_args, $filter_str, $sf->{s_back} );
         }
         elsif ( $filter eq $split_table ) {
             $sf->__split_table( $sql, $filter_str );
@@ -185,7 +185,7 @@ sub __get_filter_info {
 sub __choose_columns {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $is_empty = $sf->__search_empty_cols( $aoa );
     my $header = $sf->__prepare_header( $aoa, $is_empty );
     my $row_count = @$aoa;
@@ -210,7 +210,7 @@ sub __choose_columns {
     if ( ! defined $col_idx ) {
         return;
     }
-    $sql->{insert_into_args} = [ map { [ @{$_}[@$col_idx] ] } @$aoa ];
+    $sql->{insert_args} = [ map { [ @{$_}[@$col_idx] ] } @$aoa ];
     return 1;
 }
 
@@ -219,7 +219,7 @@ sub __choose_rows {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my @pre = ( undef, $sf->{i}{ok} );
     my $stringified_rows = [];
     my $non_empty_rows = [];
@@ -234,7 +234,7 @@ sub __choose_rows {
         $non_empty_rows = undef;
     }
     my $prompt = 'Choose rows:';
-    $sql->{insert_into_args} = []; # $sql->{insert_into_args} refers to a new empty array - this doesn't delete $aoa
+    $sql->{insert_args} = []; # $sql->{insert_args} refers to a new empty array - this doesn't delete $aoa
 
     while ( 1 ) {
         my $info = $sf->__get_filter_info( $sql, $filter_str );
@@ -247,23 +247,23 @@ sub __choose_rows {
         );
         $sf->__print_busy_string();
         if ( ! $idx[0] ) {
-            $sql->{insert_into_args} = $aoa;
+            $sql->{insert_args} = $aoa;
             return;
         }
         if ( $idx[0] == $#pre ) {
             shift @idx;
             for my $i ( @idx ) {
                 my $idx = $i - @pre;
-                push @{$sql->{insert_into_args}}, $aoa->[$idx];
+                push @{$sql->{insert_args}}, $aoa->[$idx];
             }
-            if ( ! @{$sql->{insert_into_args}} ) {
-                $sql->{insert_into_args} = $aoa;
+            if ( ! @{$sql->{insert_args}} ) {
+                $sql->{insert_args} = $aoa;
             }
             return 1;
         }
         for my $i ( @idx ) {
             my $idx = $i - @pre;
-            push @{$sql->{insert_into_args}}, $aoa->[$idx];
+            push @{$sql->{insert_args}}, $aoa->[$idx];
         }
     }
 }
@@ -271,27 +271,27 @@ sub __choose_rows {
 
 sub __range_of_rows {
     my ( $sf, $sql, $filter_str ) = @_;
-    my $aoa = $sql->{insert_into_args};
-    $sql->{insert_into_args} = []; # temporarily for the info output
+    my $aoa = $sql->{insert_args};
+    $sql->{insert_args} = []; # temporarily for the info output
     my $prompt = "Choose first row:";
     my $info = $sf->__get_filter_info( $sql, $filter_str );
     # Stop
     my $idx_first_row = $sf->__choose_a_row_idx( $aoa, $info, $prompt, $sf->{s_back} );
     if ( ! defined $idx_first_row ) {
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
         return;
     }
-    $sql->{insert_into_args} = [ $aoa->[$idx_first_row] ]; # temporarily for the info output
+    $sql->{insert_args} = [ $aoa->[$idx_first_row] ]; # temporarily for the info output
     $prompt = "Choose last row:";
     $info = $sf->__get_filter_info( $sql, $filter_str );
     # Stop
     my $idx_last_row = $sf->__choose_a_row_idx( [ @{$aoa}[$idx_first_row .. $#$aoa] ], $info, $prompt, $sf->{s_back} );
     if ( ! defined $idx_last_row ) {
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
         return;
     }
     $idx_last_row += $idx_first_row;
-    $sql->{insert_into_args} = [ @{$aoa}[$idx_first_row .. $idx_last_row] ];
+    $sql->{insert_args} = [ @{$aoa}[$idx_first_row .. $idx_last_row] ];
     return 1;
 }
 
@@ -299,7 +299,7 @@ sub __range_of_rows {
 sub __row_groups {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my %group; # group rows by the number of cols
     for my $row_idx ( 0 .. $#$aoa ) {
         my $col_count = scalar @{$aoa->[$row_idx]};
@@ -335,7 +335,7 @@ sub __row_groups {
         for my $idx ( @$idxs ) {
             push @$row_idxs, @{$group{ $keys_sorted[$idx] }};
         }
-        $sql->{insert_into_args} = [ @{$aoa}[sort { $a <=> $b } @$row_idxs] ];
+        $sql->{insert_args} = [ @{$aoa}[sort { $a <=> $b } @$row_idxs] ];
         return;
     }
 }
@@ -344,7 +344,7 @@ sub __row_groups {
 sub __remove_cell {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
 
     while ( 1 ) {
         my $prompt = "Choose row:";
@@ -362,7 +362,7 @@ sub __remove_cell {
             next;
         }
         splice( @{$aoa->[$row_idx]}, $col_idx, 1 );
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
         return;
     }
 }
@@ -380,7 +380,7 @@ sub __insert_cell {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
 
     while ( 1 ) {
         my $prompt = "Choose row:";
@@ -418,7 +418,7 @@ sub __insert_cell {
         );
         $sf->__print_busy_string();
         splice( @{$aoa->[$row_idx]}, $col_idx, 0, $cell );
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
         return;
     }
 }
@@ -427,7 +427,7 @@ sub __insert_cell {
 sub __fill_up_rows {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $menu = [ undef, '- YES' ];
     my $prompt = 'Fill up shorter rows?';
     my $info = $sf->__get_filter_info( $sql, $filter_str );
@@ -451,7 +451,7 @@ sub __fill_up_rows {
     for my $row ( @$aoa ) {
         $#$row = $last_idx;
     }
-    $sql->{insert_into_args} = $aoa;
+    $sql->{insert_args} = $aoa;
     return;
 }
 
@@ -459,7 +459,7 @@ sub __fill_up_rows {
 sub __append_col {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $menu = [ undef, '- YES' ];
     my $prompt = 'Append an empty column?';
     my $info = $sf->__get_filter_info( $sql, $filter_str );
@@ -474,7 +474,7 @@ sub __append_col {
         for my $row ( @$aoa ) {
             $#$row = $new_last_idx;
         }
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
     }
     return;
 }
@@ -483,7 +483,7 @@ sub __split_column {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $is_empty =  $sf->__search_empty_cols( $aoa );
     my $header = $sf->__prepare_header( $aoa, $is_empty );
     my $prompt = 'Choose column:';
@@ -530,7 +530,7 @@ sub __split_column {
         }
         splice @$row, $idx, 0, @split_col;
     }
-    $sql->{insert_into_args} = $aoa;
+    $sql->{insert_args} = $aoa;
 }
 
 
@@ -538,7 +538,7 @@ sub __split_table {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $digits = length( scalar @{$aoa->[0]} );
     my $col_count;
 
@@ -589,7 +589,7 @@ sub __split_table {
         }
         $end = $end + $col_count;
     }
-    $sql->{insert_into_args} = $tmp;
+    $sql->{insert_args} = $tmp;
 }
 
 
@@ -597,7 +597,7 @@ sub __merge_rows {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $term_w = get_term_width();
     my $stringified_rows;
     {
@@ -657,7 +657,7 @@ sub __merge_rows {
     for my $idx ( sort { $b <=> $a } @$chosen_idxs ) {
         splice @$aoa, $idx, 1;
     }
-    $sql->{insert_into_args} = $aoa;
+    $sql->{insert_args} = $aoa;
     return;
 }
 
@@ -667,7 +667,7 @@ sub __join_columns {
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $is_empty = $sf->__search_empty_cols( $aoa );
     my $header = $sf->__prepare_header( $aoa, $is_empty );
     my $info = $sf->__get_filter_info( $sql, $filter_str );
@@ -727,7 +727,7 @@ sub __join_columns {
     );
     $sf->__print_busy_string();
     if ( ! $form ) {
-        $sql->{insert_into_args} = $aoa;
+        $sql->{insert_args} = $aoa;
         return;
     }
     $merged = [ map { $_->[1] } @$form ];
@@ -738,7 +738,7 @@ sub __join_columns {
             splice @{$aoa->[$row]}, $idx, 1 if $idx < @{$aoa->[$row]};
         }
     }
-    $sql->{insert_into_args} = $aoa;
+    $sql->{insert_args} = $aoa;
     return;
 }
 
@@ -746,7 +746,7 @@ sub __join_columns {
 sub __transpose_rows_to_cols {
     my ( $sf, $sql, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $menu = [ undef, '- YES' ];
     my $prompt = 'Transpose columns to rows?';
     my $info = $sf->__get_filter_info( $sql, $filter_str );
@@ -762,7 +762,7 @@ sub __transpose_rows_to_cols {
                 $tmp_aoa->[$col][$row] = $aoa->[$row][$col];
             }
         }
-        $sql->{insert_into_args} = $tmp_aoa;
+        $sql->{insert_args} = $tmp_aoa;
     }
     return;
 }

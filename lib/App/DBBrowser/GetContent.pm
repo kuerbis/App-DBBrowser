@@ -210,10 +210,10 @@ sub get_content {
                         $goto_filter = 0;
                     }
                     if ( $goto_filter ) {
-                        # keep current insert_into_args
+                        # keep current insert_args
                     }
                     else {
-                        $sql->{insert_into_args} = [];
+                        $sql->{insert_args} = [];
                         if ( $parse_mode_idx < 3 && -T $source->{file_fs} ) {
                             my $open_mode;
                             if ( length $sf->{o}{insert}{file_encoding} ) {
@@ -239,7 +239,7 @@ sub get_content {
                             if ( ! $parse_ok ) {
                                 next FILE;
                             }
-                            if ( ! @{$sql->{insert_into_args}} ) {
+                            if ( ! @{$sql->{insert_args}} ) {
                                 $tc->choose(
                                     [ 'empty file!' ],
                                     { prompt => 'Press ENTER' }
@@ -254,7 +254,7 @@ sub get_content {
                                 if ( ! $ok ) {
                                     next FILE;
                                 }
-                                if ( ! @{$sql->{insert_into_args}} ) { #
+                                if ( ! @{$sql->{insert_args}} ) { #
                                     next SHEET if $source->{saved_book};
                                     next FILE;
                                 }

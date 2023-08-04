@@ -6,6 +6,7 @@ use Test::More;
 
 
 for my $file (
+    'bin/db-browser',
     'lib/App/DBBrowser.pm',
     'lib/App/DBBrowser/Auxil.pm',
     'lib/App/DBBrowser/CreateDropAttach.pm',
@@ -36,7 +37,7 @@ for my $file (
     'lib/App/DBBrowser/Table.pm',
     'lib/App/DBBrowser/Table/CommitWriteSQL.pm',
     'lib/App/DBBrowser/Table/Extensions.pm',
-    'lib/App/DBBrowser/Table/Extensions/Arithmetic.pm',
+    'lib/App/DBBrowser/Table/Extensions/Maths.pm',
     'lib/App/DBBrowser/Table/Extensions/Case.pm',
     'lib/App/DBBrowser/Table/Extensions/ScalarFunctions.pm',
     'lib/App/DBBrowser/Table/Extensions/ScalarFunctions/SQL.pm',

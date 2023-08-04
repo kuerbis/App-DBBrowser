@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.336';
+our $VERSION = '2.336_01';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -492,7 +492,7 @@ sub run {
                             next DATABASE;
                         }
                     }
-                    my ( $qt_table, $qt_columns, $qt_aliases, $derived_table_args );
+                    my ( $qt_table, $qt_columns, $qt_aliases );
                     if ( $table eq $join ) {
                         require App::DBBrowser::Join;
                         my $new_j = App::DBBrowser::Join->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -507,7 +507,7 @@ sub run {
                         require App::DBBrowser::Union;
                         my $new_u = App::DBBrowser::Union->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         $sf->{d}{special_table} = 'union';
-                        if ( ! eval { ( $qt_table, $qt_columns, $derived_table_args ) = $new_u->union_tables(); 1 } ) {
+                        if ( ! eval { ( $qt_table, $qt_columns ) = $new_u->union_tables(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
                         }
@@ -554,7 +554,6 @@ sub run {
                     $sql->{table} = $qt_table;
                     $sql->{cols} = $qt_columns;
                     $sql->{alias} = $qt_aliases // {};
-                    $sql->{derived_table_args} = $derived_table_args // [];
                     $tbl->browse_the_table( $sql );
                 }
             }
@@ -607,7 +606,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.336
+Version 2.336_01
 
 =head1 DESCRIPTION
 

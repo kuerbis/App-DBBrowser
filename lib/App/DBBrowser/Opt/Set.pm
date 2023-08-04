@@ -72,7 +72,7 @@ sub _options {
             { name => '_e_table',        text => "- Tables menu",  section => 'enable' },
             { name => '_e_join',         text => "- Join menu",    section => 'enable' },
             { name => '_e_union',        text => "- Union menu",   section => 'enable' },
-            { name => '_e_columns',      text => "- Column menus", section => 'enable' },
+            { name => '_e_expressions',  text => "- Expressions",  section => 'enable' },
             { name => '_e_write_access', text => "- Write access", section => 'enable' },
         ],
         group_sql_settings => [
@@ -298,11 +298,11 @@ sub set_options {
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
-            elsif ( $opt eq '_e_columns' ) {
-                my $prompt = 'Column menus:';
+            elsif ( $opt eq '_e_expressions' ) {
+                my $prompt = 'Extended expressions:';
                 my $sub_menu = [
-                    [ 'col_menu_addition', "- Column menu additions", [ $no, $yes ] ],
-                    [ 'parentheses',       "- Add Parentheses",       [ $no, $yes ] ],
+                    [ 'ext_express_col',        "- Columns",             [ $no, $yes ] ],
+                    [ 'ext_express_right_side', "- Right side operands", [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

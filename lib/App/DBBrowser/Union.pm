@@ -63,8 +63,7 @@ sub union_tables {
         my $prompt = 'Choose a table:';
         my $menu  = [ @pre, @tmp_tables, @post ];
         my $sql = {
-            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-            derived_table_args => $sf->__get_where_args( $data ),
+            subselect_stmts => $sf->__get_sub_select_stmts( $data )
         };
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -108,8 +107,7 @@ sub union_tables {
         elsif ( $table eq $from_subquery ) {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             my $sql = {
-                subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-                derived_table_args => $sf->__get_where_args( $data ),
+                subselect_stmts => $sf->__get_sub_select_stmts( $data )
             };
             $table = $sq->choose_subquery( $sql );
             if ( ! defined $table ) {
@@ -136,10 +134,8 @@ sub union_tables {
         }
         push @$used_tables, $table;
     }
-    my $union_derived_table_args = $sf->__get_where_args( $data );
     my $sql = {
-        subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-        derived_table_args => $union_derived_table_args,
+        subselect_stmts => $sf->__get_sub_select_stmts( $data )
     };
     my $union_stmt = $ax->get_stmt( $sql, 'Union', 'prepare' );
     my $union_derived_table = $union_stmt =~ s/^\s*SELECT\s\*\sFROM\s+//r;
@@ -148,9 +144,9 @@ sub union_tables {
         $union_derived_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( 't1' );
     }
     # column names in the result-set of a UNION are taken from the first query.
-    my $columns = $ax->column_names( $union_derived_table, $union_derived_table_args );
+    my $columns = $ax->column_names( $union_derived_table );
     my $qt_columns = $ax->quote_cols( $columns );
-    return $union_derived_table, $qt_columns, $union_derived_table_args;
+    return $union_derived_table, $qt_columns;
 }
 
 
@@ -196,7 +192,7 @@ sub __choose_table_columns {
     my $next_idx = @$data;
     my $chosen_cols = [];
     my @bu_cols;
-    $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table, $data->[$next_idx]{where_args} ); ##
+    $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table ); ##
     $data->[$next_idx] = { qt_table => $qt_table, table => $table };
     if ( $operator ) {
         $data->[$next_idx]{operator} = $operator;
@@ -204,14 +200,13 @@ sub __choose_table_columns {
 
     COLUMNS: while ( 1 ) {
         my @pre = ( undef, $sf->{i}{ok} );
-        push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{col_menu_addition};
+        push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{ext_express_col};
         #push @pre, $privious_cols          if $next_idx; # ###
         if ( ! @{$data->[$next_idx]{qt_columns}//[]} ) {
             $data->[$next_idx]{qt_columns} = [ '*' ];
         }
         my $sql = {
-            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-            derived_table_args => $sf->__get_where_args( $data ),
+            subselect_stmts => $sf->__get_sub_select_stmts( $data )
         };
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -250,7 +245,7 @@ sub __choose_table_columns {
         elsif ( $choices[0] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $sql->{cols} = $ax->quote_cols( $sf->{d}{col_names}{$table} );
-            my $complex_col = $ext->complex_unit( $sql, 'Union' );
+            my $complex_col = $ext->column( $sql, 'Union' );
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
@@ -313,18 +308,6 @@ sub __get_sub_select_stmts {
 }
 
 
-sub __get_where_args {
-    my ( $sf, $data ) = @_;
-    my $where_args = [];
-    for my $d ( @$data ) {
-        if ( defined $d->{where_args} ) {
-            push @$where_args, @{$d->{where_args}};
-        }
-    }
-    return $where_args;
-}
-
-
 sub __add_where_condition {
     my ( $sf, $data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -338,8 +321,7 @@ sub __add_where_condition {
         my $menu = [ @pre, map { '- ' . $_->{table} } @$data ];
         my $prompt = 'Where condition:';
         my $sql = {
-            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-            derived_table_args => $sf->__get_where_args( $data ),
+            subselect_stmts => $sf->__get_sub_select_stmts( $data )
         };
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -353,7 +335,6 @@ sub __add_where_condition {
             if ( @idx_changed_tables ) {
                 my $idx = pop @idx_changed_tables;
                 delete $data->[$idx]{where_stmt};
-                delete $data->[$idx]{where_args};
                 $old_idx_tbl = 0;
                 next TABLE;
             }
@@ -383,7 +364,6 @@ sub __add_where_condition {
         $sf->{d}{stmt_types} = $bu_stmt_types;
         if ( defined $ret ) {
             $data->[$idx_tbl]{where_stmt} = delete $tmp_sql->{where_stmt};
-            $data->[$idx_tbl]{where_args} = delete $tmp_sql->{where_args};
             push @idx_changed_tables, $idx_tbl;
         }
     }
@@ -404,8 +384,7 @@ sub __add_parentheses {
         my $menu = [ @pre, map('- ' . $_->{table}, @$data ) , $reset_all ];
         my $prompt = 'Parentheses:';
         my $sql = {
-            subselect_stmts => $sf->__get_sub_select_stmts( $data ),
-            derived_table_args => $sf->__get_where_args( $data ),
+            subselect_stmts => $sf->__get_sub_select_stmts( $data )
         };
         my $info = $ax->get_sql_info( $sql );
         # Choose

@@ -48,14 +48,13 @@ sub __session_history {
     # Print history:
     my $tmp_table_print_history = [];
     my $print_history = [];
-    for my $stmt_and_args ( @{$sf->{d}{table_print_history}} ) {
-        my $filled_stmt = $ax->stmt_placeholder_to_value( @$stmt_and_args, 1 );
-        $filled_stmt =~ s/\s*\n\s*/ /g;
-        if ( any { $_->{stmt} eq $filled_stmt } @$subquery_history, @$print_history ) {
+    for my $stmt ( @{$sf->{d}{table_print_history}} ) {
+        $stmt =~ s/\s*\n\s*/ /g;
+        if ( any { $_->{stmt} eq $stmt } @$subquery_history, @$print_history ) {
             next;
         }
-        push @$tmp_table_print_history, $stmt_and_args;
-        push @$print_history, { stmt => $filled_stmt, name => $filled_stmt };
+        push @$tmp_table_print_history, $stmt;
+        push @$print_history, { stmt => $stmt, name => $stmt };
         if ( @$tmp_table_print_history == 7 ) {
             $sf->{d}{table_print_history} = $tmp_table_print_history;
             last;

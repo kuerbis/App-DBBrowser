@@ -28,46 +28,19 @@ sub new {
 
 
 sub __stmt_fold {
-    my ( $sf, $used_for, $stmt, $indent, $values ) = @_;
+    my ( $sf, $used_for, $stmt, $indent ) = @_;
     if ( $used_for eq 'print' ) {
         my $term_w = get_term_width();
         if ( $^O ne 'MSWin32' && $^O ne 'cygwin' ) {
             $term_w += WIDTH_CURSOR;
         }
         my $in = ' ' x $sf->{o}{G}{base_indent};
-        my $tabs = [
-            { init_tab => $in x 0, subseq_tab => $in x 1 },
-            { init_tab => $in x 1, subseq_tab => $in x 2 },
-            { init_tab => $in x 2, subseq_tab => $in x 3 },
-        ];
-        if ( defined $values ) {
-            my $filled = $sf->stmt_placeholder_to_value( $stmt, $values, 0 );
-            if ( defined $filled ) {
-                $stmt = $filled;
-            }
-        }
-        return line_fold( $stmt, $term_w, { %{$tabs->[$indent]}, join => 0 } ); ##
+        my %tabs = ( init_tab => $in x $indent, subseq_tab => $in x ( $indent + 1 ) );
+        return line_fold( $stmt, $term_w, { %tabs, join => 0 } ); ##
     }
     else {
         return $stmt;
     }
-}
-
-
-sub stmt_placeholder_to_value {
-    my ( $sf, $stmt, $values, $quote_values ) = @_;
-    if ( ! @$values ) {
-        return $stmt;
-    }
-    my $rx_placeholder = qr/(?<=(?:,|\s|\())\?(?=(?:,|\s|\)|$))/;
-    for my $value ( @$values ) {
-        my $value_copy = $sf->quote_constant( $value );
-        $stmt =~ s/$rx_placeholder/$value_copy/;
-    }
-    if ( $stmt =~ $rx_placeholder ) {
-        return;
-    }
-    return $stmt;
 }
 
 
@@ -90,14 +63,21 @@ sub get_stmt {
     my $indent2 = 2;
     my $qt_table = $sql->{table};
     my @tmp;
-    if ( $stmt_type eq 'Drop_table' ) {
+    if ( $sql->{case_stmt} ) {
+        # only for print info (it has to be here because then 'when' uses the __add_condition method).
+        # When the case expression is completed, it is appended to the corresponding substmt and these case keys are deleted.
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_info}, $indent0 ) if $sql->{case_info};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_stmt}, $indent0 );
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{when_stmt}, $indent0 ) if $sql->{when_stmt};
+    }
+    elsif ( $stmt_type eq 'Drop_table' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "DROP TABLE $qt_table", $indent0 ) );
     }
     elsif ( $stmt_type eq 'Drop_view' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "DROP VIEW $qt_table", $indent0 ) );
     }
     elsif ( $stmt_type eq 'Create_table' ) {
-        my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_cols}};
+        my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', map { $_ // '' } @{$sql->{create_table_col_names}};
         @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
     }
     elsif ( $stmt_type eq 'Create_view' ) {
@@ -106,11 +86,11 @@ sub get_stmt {
     }
     elsif ( $stmt_type eq 'Select' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 ) );
-        push @tmp, $sf->__stmt_fold( $used_for, "FROM " . $qt_table,   $indent1, $sql->{derived_table_args} );
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt},    $indent2, $sql->{where_args}  ) if $sql->{where_stmt};
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{group_by_stmt}, $indent2                      ) if $sql->{group_by_stmt};
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{having_stmt},   $indent2, $sql->{having_args} ) if $sql->{having_stmt};
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{order_by_stmt}, $indent2                      ) if $sql->{order_by_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, "FROM " . $qt_table,   $indent1 );
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt},    $indent2 ) if $sql->{where_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{group_by_stmt}, $indent2 ) if $sql->{group_by_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{having_stmt},   $indent2 ) if $sql->{having_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{order_by_stmt}, $indent2 ) if $sql->{order_by_stmt};
         if ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{offset_stmt}, $indent2 ) if $sql->{offset_stmt};
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{limit_stmt},  $indent2 ) if $sql->{limit_stmt};
@@ -119,27 +99,21 @@ sub get_stmt {
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{limit_stmt},  $indent2 ) if $sql->{limit_stmt};
             push @tmp, $sf->__stmt_fold( $used_for, $sql->{offset_stmt}, $indent2 ) if $sql->{offset_stmt};
         }
-        if ( $sql->{case_stmt} ) {
-            push @tmp, ' ';
-            push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_stmt},   $indent0, $sql->{case_args}  );
-            push @tmp, $sf->__stmt_fold( $used_for, $sql->{when_stmt},   $indent0, $sql->{when_args}  ) if $sql->{when_stmt};
-            push @tmp, ' ';
-        }
     }
     elsif ( $stmt_type eq 'Delete' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "DELETE FROM " . $qt_table, $indent0 ) );
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1, $sql->{where_args} ) if $sql->{where_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1 ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Update' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "UPDATE " . $qt_table, $indent0 ) );
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{set_stmt},   $indent1, $sql->{set_args} )   if $sql->{set_stmt};
-        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1, $sql->{where_args} ) if $sql->{where_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{set_stmt},   $indent1 ) if $sql->{set_stmt};
+        push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1 ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Insert' ) {
-        my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_into_cols}};
+        my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_col_names}};
         @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
         if ( $used_for eq 'prepare' ) {
-            push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_into_cols}} );
+            push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_col_names}} );
         }
         else {
             push @tmp, $sf->__stmt_fold( $used_for, "VALUES(", $indent1 );
@@ -157,15 +131,11 @@ sub get_stmt {
         @tmp = ( $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ) );
         if ( @{$sql->{subselect_stmts}//[]} ) {
             my $extra = 0;
-            my @subselect_stmts;
             for my $stmt ( @{$sql->{subselect_stmts}} ) {
                 $extra-- if $stmt eq ")" && $extra;
-                push @subselect_stmts, ( $in x $extra ) . $stmt;
+                push @tmp, $sf->__stmt_fold( $used_for, $stmt, $indent1 + $extra );
                 $extra++ if $stmt eq "(";
             }
-            # join subselect-stmts into one string because all subselect-stmts arguments
-            # are in one array (derived_table_args)
-            push @tmp, $sf->__stmt_fold( $used_for, join( "\n", @subselect_stmts ), $indent1, $sql->{derived_table_args} );
         }
         push @tmp, $sf->__stmt_fold( $used_for, ")", $indent0 );
     }
@@ -174,11 +144,7 @@ sub get_stmt {
         return $prepare_stmt;
     }
     else {
-        #my $print_stmt = join( "\n", @tmp ) . "\n";
-        my $print_stmt = join( "\n", @tmp );
-        if ( ! length $sql->{case_stmt} ) {
-            $print_stmt .= "\n";
-        }
+        my $print_stmt = join( "\n", @tmp ) . "\n";
         return $print_stmt;
     }
 }
@@ -191,12 +157,12 @@ sub info_format_insert_args {
     if ( $^O ne 'MSWin32' && $^O ne 'cygwin' ) {
         $term_w += WIDTH_CURSOR;
     }
-    my $row_count = @{$sql->{insert_into_args}};
-    my $col_count = @{$sql->{insert_into_args}[0]//[]};
+    my $row_count = @{$sql->{insert_args}};
+    my $col_count = @{$sql->{insert_args}[0]//[]};
     if ( $row_count == 0 ) {
         return [];
     }
-    my $avail_h = $term_h - ( 12  + $col_count );
+    my $avail_h = $term_h - ( 12  + ( $col_count < 10 ? 10 : $col_count ) );
     if ( $avail_h < $term_h / 3.5 ) {
         $avail_h = int $term_h / 3.5;
     }
@@ -212,18 +178,18 @@ sub info_format_insert_args {
         my $end___idx_part_1 = $count_part_1 - 1;
         my $begin_idx_part_2 = $row_count - $count_part_2;
         my $end___idx_part_2 = $row_count - 1;
-        for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_1 .. $end___idx_part_1 ] ) {
+        for my $row ( @{$sql->{insert_args}}[ $begin_idx_part_1 .. $end___idx_part_1 ] ) {
             push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
         push @$tmp, $indent . '[...]';
-        for my $row ( @{$sql->{insert_into_args}}[ $begin_idx_part_2 .. $end___idx_part_2 ] ) {
+        for my $row ( @{$sql->{insert_args}}[ $begin_idx_part_2 .. $end___idx_part_2 ] ) {
             push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
-        my $row_count = scalar( @{$sql->{insert_into_args}} );
+        my $row_count = scalar( @{$sql->{insert_args}} );
         push @$tmp, $indent . '[' . insert_sep( $row_count, $sf->{i}{info_thsd_sep} ) . ' rows]';
     }
     else {
-        for my $row ( @{$sql->{insert_into_args}} ) {
+        for my $row ( @{$sql->{insert_args}} ) {
             push @$tmp, $sf->__prepare_table_row( $row, $indent, $term_w );
         }
     }
@@ -426,8 +392,8 @@ sub reset_sql {
     }
     map { delete $sql->{$_} } keys %$sql; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
-    my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_into_cols create_table_cols
-                     set_args where_args having_args insert_into_args derived_table_args );
+    my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_col_names create_table_col_names
+                     set_args where_args having_args insert_args derived_table_args );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
     @{$sql}{@array}  = map{ [] } @array;
@@ -465,19 +431,14 @@ sub sql_limit {
 
 
 sub column_names {
-    my ( $sf, $qt_table, $args ) = @_;
+    my ( $sf, $qt_table ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
     my $columns;
     if ( ! eval {
         my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 ) );
         if ( $sf->{i}{driver} ne 'SQLite' ) {
-            if ( defined $args ) {
-                $sth->execute( @$args );
-            }
-            else {
-                $sth->execute();
-            }
+            $sth->execute();
         }
         $columns = [ @{$sth->{NAME}} ];
         1 }

@@ -77,7 +77,7 @@ sub parse_with_Text_CSV {
     while ( my $cols = $csv->getline( $fh ) ) {
         push @$rows_of_cols, $cols;
     }
-    $sql->{insert_into_args} = $rows_of_cols;
+    $sql->{insert_args} = $rows_of_cols;
     return 1;
 }
 
@@ -102,7 +102,7 @@ sub parse_with_split {
                 $_
             } split /$sf->{o}{split}{field_sep}/, $row, -1 ]; # negative LIMIT (-1) to preserve trailing empty fields
     }
-    $sql->{insert_into_args} = $rows_of_cols;
+    $sql->{insert_args} = $rows_of_cols;
     return 1;
 }
 
@@ -306,7 +306,7 @@ sub parse_with_template {
                     @$fields = @$form;
                     next COL_WIDTHS;
                 }
-                $sql->{insert_into_args} = $rows_of_cols;
+                $sql->{insert_args} = $rows_of_cols;
                 return 1;
             }
         }
@@ -383,7 +383,7 @@ sub parse_with_Spreadsheet_Read {
         );
         return 1;
     }
-    $sql->{insert_into_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
+    $sql->{insert_args} = [ Spreadsheet::Read::rows( $book->[$sheet_idx] ) ];
     if ( ! -T $file_fs && length $book->[$sheet_idx]{label} ) {
         $source->{sheet_name} = $book->[$sheet_idx]{label};
     }

@@ -211,7 +211,6 @@ sub function_with_col_and_2args {
 
 sub concatenate {
     my ( $sf, $cols, $sep ) = @_;
-    #return $cols->[0] if @$cols == 1; # ###
     my $arg;
     if ( defined $sep && length $sep ) {
         my $qt_sep = $sf->{d}{dbh}->quote( $sep );

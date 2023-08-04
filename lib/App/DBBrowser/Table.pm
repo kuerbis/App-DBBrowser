@@ -247,17 +247,12 @@ sub __selected_statement_result {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $statement = $ax->get_stmt( $sql, 'Select', 'prepare' );
-    my @arguments = (
-        @{$sql->{derived_table_args}},
-        @{$sql->{where_args}},
-        @{$sql->{having_args}}
-    );
-    unshift @{$sf->{d}{table_print_history}}, [ $statement, \@arguments ];
+    unshift @{$sf->{d}{table_print_history}}, $statement;
     if ( $#{$sf->{d}{table_print_history}} > 50 ) {
         $#{$sf->{d}{table_print_history}} = 50;
     }
     my $sth = $sf->{d}{dbh}->prepare( $statement );
-    $sth->execute( @arguments );
+    $sth->execute();
     my $col_names = $sth->{NAME}; # not quoted
     my $all_arrayref = $sth->fetchall_arrayref;
     unshift @$all_arrayref, $col_names;

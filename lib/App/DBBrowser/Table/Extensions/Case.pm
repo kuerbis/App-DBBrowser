@@ -12,6 +12,7 @@ use App::DBBrowser::Auxil;
 use App::DBBrowser::Subqueries;
 use App::DBBrowser::Table::Extensions::ScalarFunctions;
 
+
 sub new {
     my ( $class, $info, $options, $d ) = @_;
     bless {
@@ -23,19 +24,25 @@ sub new {
 
 
 sub case {
-    my ( $sf, $sql, $clause, $r_data ) = @_;
+    my ( $sf, $sql, $clause, $r_data, $opt ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    $r_data //= {};
-    $r_data->{case} //= []; # name ##
+    if ( ! defined $r_data->{case} ) {
+        # reset recursion data other than case at the first call of case
+        # set 'case_info' only at the first call of case (don't reset it in recursive calls)
+        $r_data = {
+            case => [],
+            case_info => $opt->{info} // $ax->get_sql_info( $sql )
+        };
+    }
     my $tmp_sql = $ax->backup_href( $sql );
     $tmp_sql->{case_stmt} = $r_data->{case}[-1] // '';
+    $tmp_sql->{case_info} = $r_data->{case_info};
     my $qt_cols = [ @{$sql->{cols}} ];
     my $in = ' ' x $sf->{o}{G}{base_indent};
     my $count = @{$r_data->{case}};
-    #my $pad1 = $in x ( $count * 4 );
-    #my $pad2 = $in x ( ($count + 1 ) * 4 );
     my $pad1;
     my $pad2;
     if ( ! $count ) {
@@ -86,6 +93,7 @@ sub case {
             return;
         }
         push @bu, $tmp_sql->{case_stmt};
+        my $op = '=';
         if ( $menu->[$idx] eq $end ) {
             $tmp_sql->{case_stmt} .= "\n${pad1}END";
             my $case_stmt = delete $tmp_sql->{case_stmt};
@@ -99,9 +107,7 @@ sub case {
         }
         elsif ( $menu->[$idx] eq $when ) {
             $tmp_sql->{when_stmt} = "${pad2}WHEN";
-            $tmp_sql->{when_args} = [];
             my $ret = $sb->__add_condition( $tmp_sql, 'when', $qt_cols );
-            delete $tmp_sql->{when_args};
             if ( ! defined $ret ) {
                 delete $tmp_sql->{when_stmt};
                 $tmp_sql->{case_stmt} = pop @bu;
@@ -109,7 +115,9 @@ sub case {
             }
             $tmp_sql->{case_stmt} .= "\n" . delete $tmp_sql->{when_stmt};
             $tmp_sql->{case_stmt} .= " THEN";
-            my $value = $sf->__value( $tmp_sql, $qt_cols, $r_data );
+            push @{$r_data->{case}}, $tmp_sql->{case_stmt};
+            my $value = $ext->value( $tmp_sql, $clause, $r_data, $op );
+            pop @{$r_data->{case}};
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;
                 next ROWS;
@@ -118,7 +126,9 @@ sub case {
         }
         elsif ( $menu->[$idx] eq $else ) {
             $tmp_sql->{case_stmt} .= "\n${pad2}ELSE";
-            my $value = $sf->__value( $tmp_sql, $qt_cols, $r_data );
+            push @{$r_data->{case}}, $tmp_sql->{case_stmt};
+            my $value = $ext->value( $tmp_sql, $clause, $r_data, $op );
+            pop @{$r_data->{case}};
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;
                 next ROWS;
@@ -129,79 +139,6 @@ sub case {
         }
     }
 }
-
-
-sub __value {
-    my ( $sf, $tmp_sql, $qt_cols, $r_data ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $const, $sq, $func, $cs, $col ) = ( 'Value', 'SQ', 'f()', 'case', 'col' );
-    my $clause = 'case';
-
-    TYPE: while ( 1 ) {
-        my $info = $ax->get_sql_info( $tmp_sql );
-        # Choose
-        my $type = $tc->choose(
-            [ undef, $const, $sq, $func, $cs, $col ],
-            { %{$sf->{i}{lyt_h}}, info => $info, prompt => 'Result:', undef => '<<' }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $type ) {
-            return;
-        }
-        if ( $type eq $const ) {
-            # Readline
-            my $value = $tr->readline(
-                'Value: ',
-                { info => $info }
-            );
-            $ax->print_sql_info( $info );
-            if ( ! defined $value ) {
-                next TYPE;
-            }
-            return $ax->quote_constant( $value );
-        }
-        elsif ( $type eq $sq ) {
-            my $new_sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $subq = $new_sq->choose_subquery( $tmp_sql );
-            if ( ! defined $subq ) {
-                next TYPE;
-            }
-            return $subq;
-        }
-        elsif ( $type eq $col ) {
-            # Choose
-            my $col = $tc->choose(
-                [ undef, map { '- ' . $_ } @$qt_cols ],
-                { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', undef => '<=' }
-            );
-            $ax->print_sql_info( $info );
-            if ( ! defined $col ) {
-                next TYPE;
-            }
-            return $col =~ s/^- //r;
-        }
-        elsif ( $type eq $func ) {
-            my $new_func = App::DBBrowser::Table::Extensions::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $scalar_func_stmt = $new_func->col_function( $tmp_sql, $clause, $r_data );
-            if ( ! defined $scalar_func_stmt ) {
-                next TYPE;
-            }
-            return $scalar_func_stmt;
-        }
-        elsif ( $type eq $cs ) {
-            push @{$r_data->{case}}, $tmp_sql->{case_stmt};
-            my $case_stmt = $sf->case( $tmp_sql, $clause, $r_data );
-            pop @{$r_data->{case}};
-            if ( ! defined $case_stmt ) {
-                next TYPE;
-            }
-            return $case_stmt;
-        }
-    }
-}
-
 
 
 

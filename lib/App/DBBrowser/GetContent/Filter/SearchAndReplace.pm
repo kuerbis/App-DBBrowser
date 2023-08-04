@@ -27,12 +27,12 @@ sub new {
 
 
 sub search_and_replace {
-    my ( $sf, $sql, $bu_insert_into_args, $filter_str, $back  ) = @_;
+    my ( $sf, $sql, $bu_insert_args, $filter_str, $back  ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $aoa = $sql->{insert_into_args};
+    my $aoa = $sql->{insert_args};
     my $is_empty = $cf->__search_empty_cols( $aoa );
     my $header = $cf->__prepare_header( $aoa, $is_empty );
     my $saved = $ax->read_json( $sf->{i}{f_search_and_replace} ) // {};
@@ -91,11 +91,11 @@ sub search_and_replace {
                 next ADD_SEARCH_AND_REPLACE;
             }
             $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
-            $sql->{insert_into_args} = $aoa;
+            $sql->{insert_args} = $aoa;
             my $header_changed = 0;
             if ( $sf->{d}{stmt_types}[0] =~ /^Create_table\z/i ) {
                 for my $i ( 0 .. $#$header ) {
-                    if ( $header->[$i] ne $sql->{insert_into_args}[0][$i] ) {
+                    if ( $header->[$i] ne $sql->{insert_args}[0][$i] ) {
                         $header_changed = 1;
                         last;
                     }
@@ -104,7 +104,7 @@ sub search_and_replace {
             if ( $header_changed ) {
                 my ( $yes, $no ) = ( 'Yes', 'No' );
                 my $menu = [ undef, $yes, $no ];
-                my @tmp_info_addition = ( 'Header: ' . join( ', ', @{$sql->{insert_into_args}[0]} ), ' ' );
+                my @tmp_info_addition = ( 'Header: ' . join( ', ', @{$sql->{insert_args}[0]} ), ' ' );
                 my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info, @tmp_info_addition ) );
                 # Choose
                 my $idx = $tc->choose(
@@ -112,12 +112,12 @@ sub search_and_replace {
                     { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', index => 1, undef => $sf->{s_back} }
                 );
                 if ( ! defined $idx || ! defined $menu->[$idx] ) {
-                    $sql->{insert_into_args} = [ map { [ @$_ ] } @{$bu_insert_into_args} ];
+                    $sql->{insert_args} = [ map { [ @$_ ] } @{$bu_insert_args} ];
                     return;
                 }
                 my $choice = $menu->[$idx];
                 if ( $choice eq $yes ) {
-                    $sql->{insert_into_args}[0] = $header;
+                    $sql->{insert_args}[0] = $header;
                 }
             }
             return 1;

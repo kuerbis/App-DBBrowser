@@ -30,8 +30,8 @@ lib/App/DBBrowser/Subqueries.pm
 lib/App/DBBrowser/Table.pm
 lib/App/DBBrowser/Table/CommitWriteSQL.pm
 lib/App/DBBrowser/Table/Extensions.pm
-lib/App/DBBrowser/Table/Extensions/Arithmetic.pm
 lib/App/DBBrowser/Table/Extensions/Case.pm
+lib/App/DBBrowser/Table/Extensions/Maths.pm
 lib/App/DBBrowser/Table/Extensions/ScalarFunctions.pm
 lib/App/DBBrowser/Table/Extensions/ScalarFunctions/SQL.pm
 lib/App/DBBrowser/Table/Extensions/WindowFunctions.pm

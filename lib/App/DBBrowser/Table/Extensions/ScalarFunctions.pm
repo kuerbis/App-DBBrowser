@@ -75,7 +75,10 @@ sub __choose_columns {
             # Children of a  multi-col function start with an empty nested_func. Only whenn they return to
             # the parent multi-col function their results are integrated in the parent nested_func.
             $r_data->{nested_func} = [ [ $sf->__nested_func_info( $r_data->{nested_func}, $fill_string ) ] ];
-            my $complex_col = $ext->complex_unit( $sql, $clause, $r_data, { info => $tmp_info } );
+            my $complex_col = $ext->column(
+                $sql, $clause, $r_data,
+                { info => $tmp_info }
+            );
             $r_data = $bu_nested_func;
             if ( ! defined $complex_col ) {
                 next COLUMNS;
@@ -117,7 +120,10 @@ sub __choose_a_column {
         elsif ( $choice eq $sf->{i}{menu_addition} ) {
             # recursion
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause, $r_data, { info => $info } );
+            my $complex_col = $ext->column(
+                $sql, $clause, $r_data,
+                { info => $info }
+            );
             if ( ! defined $complex_col ) {
                 next;
             }
@@ -133,11 +139,34 @@ sub __nested_func_info {
     return join( '', map { $_ . '(' } @$nested_func ) . ( $fill_string // '' ) . ( ')' x @$nested_func );
 }
 
+sub __enable_extended_arguments {
+    my ( $sf, $tmp_info ) = @_;
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $prompt = 'Extended arguments: (' . ( $sf->{o}{enable}{ext_express_func_arg} ? 'on)' : 'off)' );
+    # Choose
+    my $choice = $tc->choose(
+        [ undef, '- NO', '- YES' ],
+        { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => $prompt, undef => '<=' }
+    );
+    if ( ! defined $choice ) {
+        next SCALAR_FUNCTION;
+    }
+    if ( $choice eq '- YES' ) {
+        $sf->{o}{enable}{ext_express_func_arg} = 1;
+    }
+    else {
+        $sf->{o}{enable}{ext_express_func_arg} = 0;
+    }
+}
+
 
 sub col_function {
     my ( $sf, $sql, $clause, $r_data ) = @_;
-    $r_data //= {};
-    $r_data->{nested_func} //= [];
+    if ( ! defined $r_data->{nested_func} ) {
+        # reset recusrion data other than nested_func
+        # at the first call of col_function
+        $r_data = { nested_func => [] };
+    }
     my $parent;
     if ( ref $r_data->{nested_func}[0] eq 'ARRAY' ) {
         # because called from a multi-col function
@@ -196,17 +225,12 @@ sub col_function {
     my $rx_multi_col_func = join( '|', @multi_col_func );
     my $rx_epoch_dt_func = join( '|', @epoch_dt_func );
 
-    #my @string_func = ( $char_length, $concat, $instr, $lower, $lpad, $ltrim, $octet_length, $replace, $rpad, $rtrim, $substr, $trim, $upper); # , $left, $right
-    #my @numeric_func = ( $round, $truncate );
-    #my @datetime_func = ( $epoch_to_d, $epoch_to_dt, $extract, $now );
-    #my @other_func = ( $cast, $coalesce );
-    #my @functions = ( sort @string_func, @numeric_func, @datetime_func, @other_func );
     my @functions = ( sort @only_func, @one_col_func, @one_col_one_arg_func, @one_col_two_arg_func, @multi_col_func, @epoch_dt_func );
-
-    my @pre = ( undef );
+    my $hidden = 'Scalar functions:';
+    my @pre = ( $hidden, undef );
     my $menu = [ @pre, map( '- ' . $_, @functions ) ];
     my $info = $ax->get_sql_info( $sql );
-    my $old_idx = 0;
+    my $old_idx = 1;
 
     SCALAR_FUNCTION: while( 1 ) {
         my $tmp_info = $info;
@@ -220,21 +244,24 @@ sub col_function {
         # Choose
         my $idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => 'Scalar functions:', index => 1, default => $old_idx, undef => '<=' }
+            { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => '', index => 1, default => $old_idx, undef => '<=' }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             return;
         }
         if ( $sf->{o}{G}{menu_memory} ) {
             if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $old_idx = 0;
+                $old_idx = 1;
                 next SCALAR_FUNCTION;
             }
             $old_idx = $idx;
         }
+        if ( $menu->[$idx] eq $hidden ) {
+            $sf->__enable_extended_arguments($tmp_info );
+            next SCALAR_FUNCTION;
+        }
         my $func = $functions[$idx-@pre];
         push @{$r_data->{nested_func}}, $func;
-
         my $function_stmt;
         if ( $func =~ /^(?:$rx_only_func)\z/i ) {
             $function_stmt =  $sf->__func_with_no_col( $func );
@@ -272,11 +299,11 @@ sub col_function {
             elsif ( $func =~ /^(?:$rx_one_col_one_arg_func)\z/i ) {
                 my ( $prompt, $history );
                 if ( $func =~ /^$cast\z/i ) {
-                    $prompt = 'Data type';
+                    $prompt = 'Data type: ';
                     $history = [ qw(VARCHAR TEXT INT BIGINT DECIMAL DATE) ];
                 }
                 if ( $func =~ /^$extract\z/i ) {
-                    $prompt = 'Field';
+                    $prompt = 'Field: ';
                     if ( $sf->{i}{driver} eq 'Informix' ) {
                         $history = [ qw(YEAR MONTH DAY HOUR MINUTE SECOND day_of_week) ];
                     }
@@ -285,29 +312,29 @@ sub col_function {
                     }
                 }
                 elsif ( $func =~ /^(?:$round|$truncate)\z/i ) {
-                    $prompt = 'Decimal places';
+                    $prompt = 'Decimal places: ';
                 }
                 elsif ( $func =~ /^(?:$instr)\z/i ) {
-                    $prompt = 'Substr';
+                    $prompt = 'Substr: ';
                     $history = [];
                 }
                 #elsif ( $func =~ /^(?:$left|$right)\z/i ) {
                 #    $prompt = 'Length';
                 #}
-                $function_stmt = $sf->__func_with_col_and_arg( $sql, $chosen_col, $func, $info, $prompt, $history );
+                $function_stmt = $sf->__func_with_col_and_arg( $sql, $clause, $chosen_col, $func, $info, $prompt, $history );
             }
             elsif ( $func =~ /^(?:$rx_one_col_two_arg_func)\z/i ) {
                 my $prompts;
                 if ( $func =~ /^(?:$replace)\z/i ) {
-                    $prompts = [ 'From string', 'To string' ];
+                    $prompts = [ 'From string: ', 'To string: ' ];
                 }
                 elsif ( $func =~ /^(?:$substr)\z/i ) {
-                    $prompts = [ 'StartPos', 'Length' ];
+                    $prompts = [ 'StartPos: ', 'Length: ' ];
                 }
                 elsif ( $func =~ /^(?:$lpad|$rpad)\z/i ) {
-                    $prompts = [ 'Length', 'Fill' ];
+                    $prompts = [ 'Length: ', 'Fill: ' ];
                 }
-                $function_stmt = $sf->__func_with_col_and_2args( $sql, $chosen_col, $func, $info, $prompts );
+                $function_stmt = $sf->__func_with_col_and_2args( $sql, $clause, $chosen_col, $func, $info, $prompts );
             }
             elsif ( $func =~ /^(?:$rx_epoch_dt_func)\z/i ) {
                 $function_stmt = $sf->__func_Date_Time( $sql, $chosen_col, $func, $info );
@@ -337,14 +364,11 @@ sub __func_with_col {
 
 
 sub __func_with_col_and_arg {
-    my ( $sf, $sql, $chosen_col, $func, $info, $prompt, $history ) = @_;
+    my ( $sf, $sql, $clause, $chosen_col, $func, $info, $prompt, $history ) = @_;
     my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+    my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $info .= "\n" . $func . '(' . $chosen_col . ',?)';
-    my $value = $tr->readline(
-        $prompt . ': ',
-        { info => $info, history => $history }
-    );
+    my $value = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => $prompt } );
     if ( ! defined $value ) {
         return;
     }
@@ -353,63 +377,30 @@ sub __func_with_col_and_arg {
 }
 
 
-#sub __func_with_col_and_2args { ##
-#    my ( $sf, $sql, $chosen_col, $func, $info, $prompts, $history ) = @_;
-#    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
-#    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-#    my ( $arg1, $arg2 );
-#    my $count = 0;
-#
-#    while( 1 ) {
-#        my $tmp_info = $info . "\n" . $func . '(' . $chosen_col . ')';
-#        #my $tmp_info = $info . "\n" . sprintf "%s(%s,%s,%s)", $func, $chosen_col, $prompts->[0], $prompts->[1];
-#        if ( ++$count > 3 ) {
-#            $arg1 = undef;
-#        }
-#        $arg1 = $tr->readline(
-#            $prompts->[0] . ': ',
-#            { info => $tmp_info, history => $history->[0], default => $arg1 }
-#        );
-#        if ( ! length $arg1 ) {
-#            return;
-#        }
-#        $tmp_info =~ s/\?,\?\)\z/$arg1,?)/;
-#        #$tmp_info .= "\n" . $prompts->[0] . ': ' . $arg1;
-#        $arg2 = $tr->readline(
-#            $prompts->[1] . ': ',
-#            { info => $tmp_info, history => $history->[1] }
-#        );
-#        if ( ! length $arg2 ) {
-#            next;
-#        }
-#        last;
-#    }
-#    my $function_stmt = $fsql->function_with_col_and_2args( $func, $chosen_col, $arg1, $arg2 );
-#    return $function_stmt;
-#}
 sub __func_with_col_and_2args {
-    my ( $sf, $sql, $qt_col, $func, $info, $prompts ) = @_;
+    my ( $sf, $sql, $clause, $chosen_col, $func, $info, $prompts, $history ) = @_;
     my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tf = Term::Form->new( $sf->{i}{tf_default} );
-    my $fields = [
-        [ $prompts->[0], ],
-        [ $prompts->[1], ],
-    ];
-    my $tmp_info = $info . "\n" . $func . '(' . $qt_col . ', ?)';
-    my $pad = ' ' x ( length( $fields->[0][0] ) - 1 );
-    my $form = $tf->fill_form(
-        $fields,
-        { info => $tmp_info, prompt => '', confirm => 'OK' . $pad, back => '<<' . $pad }
-    );
-    if ( ! $form ) {
-        return;
+    my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tail = ',?)';
+    my ( $arg1, $arg2 );
+
+    while( 1 ) {
+        my $tmp_info = $info . "\n" . $func . '(' . $chosen_col . $tail;
+        # Readline ##
+        $arg1 = $ext->argument( $sql, $clause, { info => $tmp_info, history => $history->[0], prompt => $prompts->[0] } );
+        if ( ! length $arg1 ) {
+            return;
+        }
+        $tmp_info =~ s/\Q$tail\E\z/,${arg1}${tail}/;
+        # Readline ##
+        $arg2 = $ext->argument( $sql, $clause, { info => $tmp_info, history => $history->[1], prompt => $prompts->[1] } );
+        #if ( ! defined $arg2 ) { # ###
+        #    next;
+        #}
+        last;
     }
-    else {
-        my $arg1 = $form->[0][1];
-        my $arg2 = $form->[1][1];
-        my $function_stmt = $fsql->function_with_col_and_2args( $func, $qt_col, $arg1, $arg2 );
-        return $function_stmt;
-    }
+    my $function_stmt = $fsql->function_with_col_and_2args( $func, $chosen_col, $arg1, $arg2 );
+    return $function_stmt;
 }
 
 
@@ -513,8 +504,7 @@ sub __interval_to_converted_epoch {
     my $stmt = $sf->__select_stmt( $sql, $function_stmt, $chosen_col );
     my $example_results = $sf->{d}{dbh}->selectcol_arrayref(
         $stmt,
-        { Columns => [1], MaxRows => $max_examples },
-        @{$sql->{where_args}//[]}
+        { Columns => [1], MaxRows => $max_examples }
     );
     return $function_stmt, [ map { $_ // 'undef' } @$example_results ];
 }

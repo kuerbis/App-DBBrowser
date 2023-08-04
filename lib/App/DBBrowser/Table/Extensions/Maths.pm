@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::Extensions::Arithmetic;
+App::DBBrowser::Table::Extensions::Maths;
 
 use warnings;
 use strict;
@@ -22,22 +22,21 @@ sub new {
 }
 
 
-
-sub arithmetics {
-    my ( $sf, $sql, $clause, $r_data ) = @_;
+sub maths {
+    my ( $sf, $sql, $clause, $opt ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my ( $num, $op ) = ( '[num]', '[op]' );
+    my ( $num, $op ) = ( '[number]', '[operator]' );
     my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $op , $num);
     my $menu = [ @pre, @{$sql->{cols}} ];
-    my $info = $ax->get_sql_info( $sql );
-    my $subset = [];
-    my $prompt = 'Your choice:';
+    my $info = $opt->{info} // $ax->get_sql_info( $sql );
+    my $items = [];
+    my $prompt = $opt->{prompt} // 'Your choice:';
     my @bu;
 
     COLUMNS: while ( 1 ) { ##
-        my $fill_string = join( ' ', @$subset, '?' );
+        my $fill_string = join( ' ', @$items, '?' );
         $fill_string =~ s/\(\s/(/g;
         $fill_string =~ s/\s\)/)/g;
         my $tmp_info = $info . "\n" . $fill_string;
@@ -48,40 +47,43 @@ sub arithmetics {
         );
         if ( ! $idx ) {
             if ( @bu ) {
-                $subset = pop @bu;
+                $items = pop @bu;
                 next COLUMNS;
             }
             return;
         }
-        push @bu, [ @$subset ];
+        push @bu, [ @$items ];
         if ( $menu->[$idx] eq $sf->{i}{ok} ) {
-            if ( ! @$subset ) {
+            if ( ! @$items ) {
                 return;
             }
-            my $result = join ' ', @$subset;
+            my $result = join ' ', @$items;
             $result =~ s/\(\s/(/g;
             $result =~ s/\s\)/)/g;
             return $result;
         }
         elsif ( $menu->[$idx] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_col = $ext->complex_unit( $sql, $clause, $r_data, { from => 'arithmetic', info => $tmp_info } );
+            my $complex_col = $ext->column(
+                $sql, $clause, {},
+                { from => 'maths', info => $tmp_info }
+            );
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
-            push @$subset, $complex_col;
+            push @$items, $complex_col;
         }
         elsif ( $menu->[$idx] eq $op ) {
             # Choose
             my $operator = $tc->choose(
-                [ undef, '  +  ',   '  -  ', '  *  ', '  /  ', '  %  ', '  (  ', '  )  ' ],
-                { %{$sf->{i}{lyt_v}}, info => $tmp_info . "\n" . $prompt, prompt => '', undef => '<=' }
+                [ undef, ' + ',   ' - ', ' * ', ' / ', ' % ', ' ( ', ' ) ' ],
+                { %{$sf->{i}{lyt_h}}, info => $tmp_info . "\n" . $prompt, prompt => '', undef => '<=' }
             );
             if ( ! defined $operator ) {
                 next COLUMNS;
                 return;
             }
-            push @$subset, $operator =~ s/^\s+|\s+\z//gr;
+            push @$items, $operator =~ s/^\s+|\s+\z//gr;
         }
         elsif ( $menu->[$idx] eq $num ) {
             my $number = $tr->readline(
@@ -91,10 +93,10 @@ sub arithmetics {
             if ( ! defined $number ) {
                 next COLUMNS;
             }
-            push @$subset, $number;
+            push @$items, $number;
         }
         else {
-            push @$subset, $menu->[$idx];
+            push @$items, $menu->[$idx];
         }
     }
 }

@@ -121,47 +121,47 @@ sub create_table {
                 $goto_filter = 1;
                 next GET_CONTENT;
             }
-            my $bu_first_row = [ @{$sql->{insert_into_args}[0]} ];
-            my $orig_row_count = @{$sql->{insert_into_args}};
+            my $bu_first_row = [ @{$sql->{insert_args}[0]} ];
+            my $orig_row_count = @{$sql->{insert_args}};
 
             GET_COLUMN_NAMES: while ( 1 ) {
-                if ( $orig_row_count - 1 == @{$sql->{insert_into_args}} ) {
-                    unshift @{$sql->{insert_into_args}}, $bu_first_row;
+                if ( $orig_row_count - 1 == @{$sql->{insert_args}} ) {
+                    unshift @{$sql->{insert_args}}, $bu_first_row;
                 }
-                $sql->{create_table_cols} = [];
-                $sql->{insert_into_cols}  = [];
+                $sql->{create_table_col_names} = [];
+                $sql->{insert_col_names}  = [];
                 my $header_row = $sf->__get_column_names( $sql );
                 if ( ! $header_row ) {
                     $sql->{table} = '';
-                    if ( $orig_row_count - 1 == @{$sql->{insert_into_args}[0]} ) {
-                        unshift @{$sql->{insert_into_args}}, $bu_first_row;
+                    if ( $orig_row_count - 1 == @{$sql->{insert_args}[0]} ) {
+                        unshift @{$sql->{insert_args}}, $bu_first_row;
                     }
                     $count_table_name_loop++;
                     next GET_TABLE_NAME;
                 }
-                if ( ! @{$sql->{insert_into_args}} ) {
+                if ( ! @{$sql->{insert_args}} ) {
                     $sf->{d}{stmt_types} = [ 'Create_table' ];
                 }
                 $count_table_name_loop = 0;
 
                 AUTO_INCREMENT: while( 1 ) {
-                    $sql->{create_table_cols} = [ @$header_row ];  # not quoted
-                    $sql->{insert_into_cols}  = [ @$header_row ];  # not quoted
+                    $sql->{create_table_col_names} = [ @$header_row ];  # not quoted
+                    $sql->{insert_col_names}  = [ @$header_row ];  # not quoted
                     my $continue = $sf->__autoincrement_column( $sql);
                     if ( ! $continue ) {
                         next GET_COLUMN_NAMES;
                     }
-                    my @bu_orig_create_table_cols = @{$sql->{create_table_cols}};
+                    my @bu_orig_create_table_col_names = @{$sql->{create_table_col_names}};
                     my $column_names = []; # column_names memory
 
                     EDIT_COLUMN_NAMES: while( 1 ) {
                         $column_names = $sf->__edit_column_names( $sql, $column_names );
                         if ( ! $column_names ) {
-                            $sql->{create_table_cols} = [ @bu_orig_create_table_cols ];
+                            $sql->{create_table_col_names} = [ @bu_orig_create_table_col_names ];
                             next AUTO_INCREMENT if $sf->{col_auto};
                             next GET_COLUMN_NAMES;
                         }
-                        if ( any { ! length } @{$sql->{create_table_cols}} ) {
+                        if ( any { ! length } @{$sql->{create_table_col_names}} ) {
                             # Choose
                             $tc->choose(
                                 [ 'Column with no name!' ],
@@ -169,7 +169,7 @@ sub create_table {
                             );
                             next EDIT_COLUMN_NAMES;
                         }
-                        my @duplicates = duplicates map { lc } @{$sql->{create_table_cols}};
+                        my @duplicates = duplicates map { lc } @{$sql->{create_table_col_names}};
                         if ( @duplicates ) {
                             # Choose
                             $tc->choose(
@@ -178,31 +178,31 @@ sub create_table {
                             );
                             next EDIT_COLUMN_NAMES;
                         }
-                        my @bu_edited_create_table_cols = @{$sql->{create_table_cols}};
+                        my @bu_edited_create_table_col_names = @{$sql->{create_table_col_names}};
                         my $data_types = {}; # data_types memory
 
                         EDIT_COLUMN_TYPES: while( 1 ) {
-                            $data_types = $sf->__edit_column_types( $sql, $data_types ); # `create_table_cols` quoted in `__edit_column_types`
+                            $data_types = $sf->__edit_column_types( $sql, $data_types ); # `create_table_col_names` quoted in `__edit_column_types`
                             if ( ! $data_types ) {
-                                $sql->{create_table_cols} = [ @bu_orig_create_table_cols ];
+                                $sql->{create_table_col_names} = [ @bu_orig_create_table_col_names ];
                                 next EDIT_COLUMN_NAMES;
                             }
                             # CREATE_TABLE
                             my $ok_create_table = $sf->__create( $sql, 'table' );
                             if ( ! defined $ok_create_table ) {
-                                $sql->{create_table_cols} = [ @bu_edited_create_table_cols ];
-                                $sql->{insert_into_cols}  = [];
+                                $sql->{create_table_col_names} = [ @bu_edited_create_table_col_names ];
+                                $sql->{insert_col_names}  = [];
                                 next EDIT_COLUMN_TYPES;
                             }
                             if ( ! $ok_create_table ) {
                                 return;
                             }
-                            if ( @{$sql->{insert_into_args}} ) {
+                            if ( @{$sql->{insert_args}} ) {
 
                                 # INSERT_DATA
-                                my $ok_insert = $sf->__insert_data( $sql ); # `insert_into_cols` quoted in `__insert_data`
+                                my $ok_insert = $sf->__insert_data( $sql ); # `insert_col_names` quoted in `__insert_data`
                                 if ( ! $ok_insert ) {
-                                    return;
+                                   return;
                                 }
                             }
                             return 1;
@@ -292,10 +292,10 @@ sub __get_column_names {
         return;
     }
     elsif ( $chosen eq $first_row ) {
-        $header_row = shift @{$sql->{insert_into_args}};
+        $header_row = shift @{$sql->{insert_args}};
     }
     else {
-        $header_row = [ ( '' ) x @{$sql->{insert_into_args}[0]} ];
+        $header_row = [ ( '' ) x @{$sql->{insert_args}[0]} ];
     }
     return $header_row;
 }
@@ -328,7 +328,7 @@ sub __autoincrement_column {
             $sf->{col_auto} = '';
         }
         else {
-            unshift @{$sql->{create_table_cols}}, $sf->{col_auto};
+            unshift @{$sql->{create_table_col_names}}, $sf->{col_auto};
         }
     }
     return 1;
@@ -389,7 +389,7 @@ sub __edit_column_names {
         $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @$column_names ];
     }
     else {
-        $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @{$sql->{create_table_cols}} ];
+        $fields = [ map { [ ++$col_number, defined $_ ? "$_" : '' ] } @{$sql->{create_table_col_names}} ];
     }
     my $info = $ax->get_sql_info( $sql );
     # Fill_form
@@ -401,9 +401,9 @@ sub __edit_column_names {
     if ( ! defined $form ) {
         return;
     }
-    $column_names = $sql->{create_table_cols} = [ map { $_->[1] } @$form ]; # not quoted
+    $column_names = $sql->{create_table_col_names} = [ map { $_->[1] } @$form ]; # not quoted
     if ( length $sf->{col_auto} ) {
-        $sf->{col_auto} = $sql->{create_table_cols}[0];
+        $sf->{col_auto} = $sql->{create_table_col_names}[0];
     }
     return $column_names;
 }
@@ -413,19 +413,19 @@ sub __edit_column_types {
     my ( $sf, $sql, $data_types ) = @_;
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $unquoted_table_cols = [ @{$sql->{create_table_cols}} ];
-    $sql->{create_table_cols} = $ax->quote_cols( $sql->{create_table_cols} ); # now quoted
-    $sql->{insert_into_cols} = [ @{$sql->{create_table_cols}} ];
+    my $unquoted_table_cols = [ @{$sql->{create_table_col_names}} ];
+    $sql->{create_table_col_names} = $ax->quote_cols( $sql->{create_table_col_names} ); # now quoted
+    $sql->{insert_col_names} = [ @{$sql->{create_table_col_names}} ];
     if ( length $sf->{col_auto} ) {
-        shift @{$sql->{insert_into_cols}};
+        shift @{$sql->{insert_col_names}};
     }
     my $fields;
     if ( ! %$data_types && $sf->{o}{create}{data_type_guessing} ) {
         $ax->print_sql_info( $ax->get_sql_info( $sql ), 'Column data types: guessing ... ' );
         require SQL::Type::Guess;
         my $g = SQL::Type::Guess->new();
-        my $header = $sql->{insert_into_cols}; #
-        my $table  = $sql->{insert_into_args};
+        my $header = $sql->{insert_col_names}; #
+        my $table  = $sql->{insert_args};
         my @aoh;
         for my $row ( @$table ) {
             push @aoh, {
@@ -437,10 +437,10 @@ sub __edit_column_types {
         $data_types = { map { $_ => uc( $tmp->{$_} ) } keys %$tmp };
     }
     if ( defined $data_types ) {
-        $fields = [ map { [ $_, $data_types->{$_} ] } @{$sql->{insert_into_cols}} ];
+        $fields = [ map { [ $_, $data_types->{$_} ] } @{$sql->{insert_col_names}} ];
     }
     else {
-        $fields = [ map { [ $_, '' ] } @{$sql->{insert_into_cols}} ];
+        $fields = [ map { [ $_, '' ] } @{$sql->{insert_col_names}} ];
     }
     my $read_only = []; ##
     if ( length $sf->{col_auto} ) {
@@ -468,7 +468,7 @@ sub __edit_column_types {
     }
     else {
         no warnings 'uninitialized'; ##
-        $sql->{create_table_cols} = [ map { join ' ', @$_ }  @$col_name_and_type ];
+        $sql->{create_table_col_names} = [ map { join ' ', @$_ }  @$col_name_and_type ];
     }
     $data_types = { map { $_->[0] => $_->[1] } @$col_name_and_type };
     return $data_types;
@@ -482,10 +482,10 @@ sub __create {
     my ( $no, $yes ) = ( '- NO', '- YES' );
     my $menu = [ undef, $yes, $no ]; ##
     my $prompt = "Create $type $sql->{table}";
-    if ( @{$sql->{insert_into_args}} ) {
-        my $row_count = @{$sql->{insert_into_args}};
+    if ( @{$sql->{insert_args}} ) {
+        my $row_count = @{$sql->{insert_args}};
         $prompt .= "\nInsert " . insert_sep( $row_count, $sf->{i}{info_thsd_sep} ) . " row";
-        if ( @{$sql->{insert_into_args}} > 1 ) {
+        if ( @{$sql->{insert_args}} > 1 ) {
             $prompt .= "s";
         }
     }
@@ -503,7 +503,7 @@ sub __create {
         return 0;
     }
     my $stmt = $ax->get_stmt( $sql, 'Create_' . $type, 'prepare' );
-    # don't reset `$sql->{create_table_cols}` and `$sf->{d}{stmt_types}`:
+    # don't reset `$sql->{create_table_col_names}` and `$sf->{d}{stmt_types}`:
     #    to get a consistent print_sql_info output in CommitSQL
     #    to avoid another confirmation prompt in CommitSQL
     if ( ! eval { $sf->{d}{dbh}->do( $stmt ); 1 } ) {
@@ -521,7 +521,7 @@ sub __insert_data {
     if ( length $sf->{col_auto} ) {
         shift @$columns;
     }
-    $sql->{insert_into_cols} = $ax->quote_cols( $columns ); # now quoted
+    $sql->{insert_col_names} = $ax->quote_cols( $columns ); # now quoted
     require App::DBBrowser::Table::CommitWriteSQL;
     my $cs = App::DBBrowser::Table::CommitWriteSQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $commit_ok = $cs->commit_sql( $sql );

@@ -157,7 +157,7 @@ sub __insert_into_stmt_columns {
     my ( $sf, $sql ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    $sql->{insert_into_cols} = [];
+    $sql->{insert_col_names} = [];
     my @cols = ( @{$sql->{cols}} );
     if ( $sf->__first_column_is_autoincrement( $sql ) ) {
         shift @cols;
@@ -174,7 +174,7 @@ sub __insert_into_stmt_columns {
     if ( ! defined $idxs ) {
         return;
     }
-    $sql->{insert_into_cols} = [ @cols[@$idxs] ];
+    $sql->{insert_col_names} = [ @cols[@$idxs] ];
     return 1;
 }
 
