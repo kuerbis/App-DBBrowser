@@ -72,21 +72,11 @@ sub __get_win_func_stmt {
 
 
 sub window_function {
-    my ( $sf, $sql, $clause, $opt ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $opt ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
-    my $qt_cols;
-    if ( $clause eq 'select' && ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) ) {
-        $qt_cols = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
-    }
-    elsif ( $clause eq 'having' ) {
-        $qt_cols = [ @{$sql->{aggr_cols}} ];
-    }
-    else {
-        $qt_cols = [ @{$sql->{cols}} ];
-    }
     my $count_all = 'COUNT*';
     my $count_all_regex = quotemeta $count_all;
     my @win_func_aggr = ( 'AVG', 'COUNT', $count_all, 'MAX', 'MIN', 'SUM' );
@@ -132,7 +122,6 @@ sub window_function {
         }
         my $func = $functions[$idx_wf-@pre];
         $win_func_data->{func} = $func;
-        my $tmp_qt_cols = [ @$qt_cols ];
 
         COLUMN: while ( 1 ) {
             if ( exists $win_func_data->{col} ) {
@@ -158,7 +147,7 @@ sub window_function {
                 }
             }
             else {
-                $col = $sf->__choose_a_column( $sql, $clause, $tmp_qt_cols, $info, $func );
+                $col = $sf->__choose_a_column( $sql, $clause, $qt_cols, $info, $func );
                 if ( ! defined $col ) {
                     delete $win_func_data->{func};
                     next WINDOW_FUNCTION;
@@ -263,7 +252,7 @@ sub __add_partition_by {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @partition_by_cols;
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my $menu = [ @pre, @$qt_cols ];
@@ -318,7 +307,7 @@ sub __add_order_by {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my $info = $ax->get_sql_info( $sql );

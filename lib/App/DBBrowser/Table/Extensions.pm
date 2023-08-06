@@ -47,14 +47,11 @@ sub column {
         # Window functions are permitted only in SELECT and ORDER BY
         $extensions = [ $sf->{subquery}, $sf->{scalar_func}, $sf->{window_func}, $sf->{case}, $sf->{math} ];
     }
-    elsif ( $clause =~ /^(?:where|having|when)\z/i ) {
-        $extensions = [ $sf->{subquery}, $sf->{scalar_func}, $sf->{case}, $sf->{math}, $sf->{par_open}, $sf->{par_close} ];
-    }
     else {
         $extensions = [ $sf->{subquery}, $sf->{scalar_func}, $sf->{case}, $sf->{math} ];
     }
-    if ( $clause =~ /^when\z/ ) {
-        $extensions = [ grep { ! /^\Q$sf->{subquery}\E\z/ } @$extensions ];
+    if ( $clause =~ /^(?:where|having|when)\z/i ) {
+        push @$extensions, $sf->{par_open}, $sf->{par_close};
     }
     if ( length $opt->{from} ) {
         # no recursion:
@@ -72,7 +69,7 @@ sub column {
 
 sub value {
     my ( $sf, $sql, $clause, $r_data, $operator, $opt ) = @_;
-    my $ext_express = $sf->{o}{enable}{ext_express_right_side};
+    my $ext_express = $sf->{o}{enable}{extended_values};
     my $extensions = [];
     if ( $ext_express ) {
         $extensions = [ $sf->{const}, $sf->{subquery}, $sf->{scalar_func}, $sf->{case}, $sf->{math}, $sf->{col} ];
@@ -80,7 +77,7 @@ sub value {
             push @$extensions, $sf->{null};
         }
         if ( $operator =~ /\s(?:ALL|ANY)\z/ ) {
-            $extensions = [ $sf->{subquery}, undef ]; # ### 
+            $extensions = [ $sf->{subquery} ];
         }
         elsif ( $operator =~ /^(?:NOT\s)?IN\z/ ) {
             push @$extensions, $sf->{close_in};
@@ -119,6 +116,16 @@ sub __choose_extension {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $qt_cols;
+    if ( $clause eq 'select' && ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) ) {
+        $qt_cols = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
+    }
+    elsif ( $clause eq 'having' ) {
+        $qt_cols = [ @{$sql->{aggr_cols}} ];
+    }
+    else {
+        $qt_cols = [ @{$sql->{cols}} ];
+    }
     my $old_idx = 0;
 
     EXTENSION: while ( 1 ) {
@@ -128,7 +135,6 @@ sub __choose_extension {
             $extension = $extensions->[0];
         }
         else {
-            $extensions = [ grep { defined } @$extensions ]; # ### 
             my @pre = ( undef );
             # Choose
             my $idx = $tc->choose(
@@ -180,7 +186,7 @@ sub __choose_extension {
         elsif ( $extension eq $sf->{scalar_func} ) {
             require App::DBBrowser::Table::Extensions::ScalarFunctions;
             my $new_func = App::DBBrowser::Table::Extensions::ScalarFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $r_data, $opt ); # recursion yes
+            my $scalar_func_stmt = $new_func->col_function( $sql, $clause, $qt_cols, $r_data, $opt ); # recursion yes
             if ( ! defined $scalar_func_stmt ) {
                 return if @$extensions = 1;
                 next EXTENSION;
@@ -190,7 +196,7 @@ sub __choose_extension {
         elsif ( $extension eq $sf->{window_func} ) {
             require App::DBBrowser::Table::Extensions::WindowFunctions;
             my $wf = App::DBBrowser::Table::Extensions::WindowFunctions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $win_func_stmt = $wf->window_function( $sql, $clause, $opt );
+            my $win_func_stmt = $wf->window_function( $sql, $clause, $qt_cols, $opt );
             if ( ! defined $win_func_stmt ) {
                 next EXTENSION;
             }
@@ -199,7 +205,7 @@ sub __choose_extension {
         elsif ( $extension eq $sf->{case}  ) {
             require App::DBBrowser::Table::Extensions::Case;
             my $new_cs = App::DBBrowser::Table::Extensions::Case->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $case_stmt = $new_cs->case( $sql, $clause, $r_data, $opt ); # recursion yes
+            my $case_stmt = $new_cs->case( $sql, $clause, $qt_cols, $r_data, $opt ); # recursion yes
             if ( ! defined $case_stmt ) {
                 return if @$extensions = 1;
                 next EXTENSION;
@@ -209,7 +215,7 @@ sub __choose_extension {
         elsif ( $extension eq $sf->{math}  ) {
             require App::DBBrowser::Table::Extensions::Maths;
             my $new_math = App::DBBrowser::Table::Extensions::Maths->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $arith = $new_math->maths( $sql, $clause, $opt );
+            my $arith = $new_math->maths( $sql, $clause, $qt_cols, $opt );
             if ( ! defined $arith ) {
                 return if @$extensions = 1;
                 next EXTENSION;
@@ -220,7 +226,7 @@ sub __choose_extension {
             my $prompt = defined $opt->{prompt} ? $opt->{prompt} : '';
             # Choose
             my $col = $tc->choose(
-                [ undef, map { '- ' . $_ } @{$sql->{cols}} ],
+                [ undef, map { '- ' . $_ } @$qt_cols ],
                 { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, undef => '<=' }
             );
             $ax->print_sql_info( $info );

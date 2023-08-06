@@ -23,13 +23,13 @@ sub new {
 
 
 sub maths {
-    my ( $sf, $sql, $clause, $opt ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $opt ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my ( $num, $op ) = ( '[number]', '[operator]' );
     my @pre = ( undef, $sf->{i}{ok}, $sf->{i}{menu_addition}, $op , $num);
-    my $menu = [ @pre, @{$sql->{cols}} ];
+    my $menu = [ @pre, @$qt_cols ];
     my $info = $opt->{info} // $ax->get_sql_info( $sql );
     my $items = [];
     my $prompt = $opt->{prompt} // 'Your choice:';

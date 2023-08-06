@@ -28,6 +28,7 @@ ENV
 IFS
 Kiem
 LTrim
+Maths
 MERCHANTIBILITY
 MSWin32
 Matthäus

@@ -142,26 +142,27 @@ sub __nested_func_info {
 sub __enable_extended_arguments {
     my ( $sf, $tmp_info ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $prompt = 'Extended arguments: (' . ( $sf->{o}{enable}{ext_express_func_arg} ? 'on)' : 'off)' );
+    my $prompt = 'Extended arguments:';
+    my $yes = '- YES';
     # Choose
     my $choice = $tc->choose(
-        [ undef, '- NO', '- YES' ],
+        [ undef, '- NO', $yes ],
         { %{$sf->{i}{lyt_v}}, info => $tmp_info, prompt => $prompt, undef => '<=' }
     );
     if ( ! defined $choice ) {
         next SCALAR_FUNCTION;
     }
-    if ( $choice eq '- YES' ) {
-        $sf->{o}{enable}{ext_express_func_arg} = 1;
+    if ( $choice eq $yes ) {
+        $sf->{o}{enable}{extended_func_args} = 1;
     }
     else {
-        $sf->{o}{enable}{ext_express_func_arg} = 0;
+        $sf->{o}{enable}{extended_func_args} = 0;
     }
 }
 
 
 sub col_function {
-    my ( $sf, $sql, $clause, $r_data ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $r_data ) = @_;
     if ( ! defined $r_data->{nested_func} ) {
         # reset recusrion data other than nested_func
         # at the first call of col_function
@@ -177,16 +178,6 @@ sub col_function {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
-    my $qt_cols;
-    if ( $clause eq 'select' && ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) ) {
-        $qt_cols = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
-    }
-    elsif ( $clause eq 'having' ) {
-        $qt_cols = [ @{$sql->{aggr_cols}} ];
-    }
-    else {
-        $qt_cols = [ @{$sql->{cols}} ];
-    }
     my $cast         = 'CAST';
     my $char_length  = 'CHAR_LENGTH';
     my $coalesce     = 'COALESCE';
@@ -227,12 +218,12 @@ sub col_function {
 
     my @functions = ( sort @only_func, @one_col_func, @one_col_one_arg_func, @one_col_two_arg_func, @multi_col_func, @epoch_dt_func );
     my $hidden = 'Scalar functions:';
-    my @pre = ( $hidden, undef );
-    my $menu = [ @pre, map( '- ' . $_, @functions ) ];
     my $info = $ax->get_sql_info( $sql );
     my $old_idx = 1;
 
     SCALAR_FUNCTION: while( 1 ) {
+        my @pre = ( $hidden, undef );
+        my $menu = [ @pre, map( '- ' . $_, @functions ) ];
         my $tmp_info = $info;
         if ( length $parent ) {
             # $parent only available at the first recursion after parent
@@ -258,6 +249,12 @@ sub col_function {
         }
         if ( $menu->[$idx] eq $hidden ) {
             $sf->__enable_extended_arguments($tmp_info );
+            if ( $sf->{o}{enable}{extended_func_args} ) {
+                $hidden = 'Scalar functions:*';
+            }
+            else {
+                $hidden = 'Scalar functions:';
+            }
             next SCALAR_FUNCTION;
         }
         my $func = $functions[$idx-@pre];

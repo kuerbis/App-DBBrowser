@@ -69,11 +69,11 @@ sub _options {
             { name => '_db_defaults', text => '', section => ''  },
         ],
         group_extensions => [
-            { name => '_e_table',        text => "- Tables menu",  section => 'enable' },
-            { name => '_e_join',         text => "- Join menu",    section => 'enable' },
-            { name => '_e_union',        text => "- Union menu",   section => 'enable' },
-            { name => '_e_expressions',  text => "- Expressions",  section => 'enable' },
-            { name => '_e_write_access', text => "- Write access", section => 'enable' },
+            { name => '_e_table',        text => "- Tables menu",        section => 'enable' },
+            { name => '_e_join',         text => "- Join menu",          section => 'enable' },
+            { name => '_e_union',        text => "- Union menu",         section => 'enable' },
+            { name => '_e_expressions',  text => "- Columns and Values", section => 'enable' },
+            { name => '_e_write_access', text => "- Write access",       section => 'enable' },
         ],
         group_sql_settings => [
             { name => '_meta',                   text => "- System DB/Tables", section => 'G'      },
@@ -301,8 +301,8 @@ sub set_options {
             elsif ( $opt eq '_e_expressions' ) {
                 my $prompt = 'Extended expressions:';
                 my $sub_menu = [
-                    [ 'ext_express_col',        "- Columns",             [ $no, $yes ] ],
-                    [ 'ext_express_right_side', "- Right side operands", [ $no, $yes ] ],
+                    [ 'extended_cols',   "- Exdented Columns", [ $no, $yes ] ],
+                    [ 'extended_values', "- Exdented Values",  [ $no, $yes ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

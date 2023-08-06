@@ -44,7 +44,7 @@ sub select {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $menu = [];
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     if ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
@@ -203,7 +203,7 @@ sub __add_aggregate_substmt {
             }
         }
         my @pre = ( undef );
-        if ( $sf->{o}{enable}{ext_express_col} ) {
+        if ( $sf->{o}{enable}{extended_cols} ) {
             push @pre, $sf->{i}{menu_addition};
         }
         my $qt_col;
@@ -361,7 +361,7 @@ sub group_by {
     $sql->{group_by_cols} = [];
     $sql->{selected_cols} = [];
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my $menu = [ @pre, @{$sql->{cols}} ];
@@ -423,7 +423,7 @@ sub order_by {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
     my @cols;
@@ -587,7 +587,8 @@ sub limit_offset {
 
 
 sub __add_condition {
-    my ( $sf, $sql, $clause, $items ) = @_;
+    my ( $sf, $sql, $clause, $items, $parent_clause ) = @_;
+    # the case when-clause has a parent_clause
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $so = App::DBBrowser::Table::Substatements::Operators->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
@@ -595,7 +596,7 @@ sub __add_condition {
     my $AND_OR = '';
     my @bu;
     my @pre = ( undef, $sf->{i}{ok} );
-    if ( $sf->{o}{enable}{ext_express_col} ) {
+    if ( $sf->{o}{enable}{extended_cols} ) {
         push @pre, $sf->{i}{menu_addition};
     }
 
@@ -603,7 +604,7 @@ sub __add_condition {
         my @choices = ( @$items );
         my $info = $ax->get_sql_info( $sql );
         # Choose
-        my $qt_col = $tc->choose( ## name
+        my $qt_col = $tc->choose(
             [ @pre, @choices ],
             { %{$sf->{i}{lyt_h}}, info => $info }
         );
@@ -623,7 +624,7 @@ sub __add_condition {
         }
         if ( $qt_col eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $complex_column = $ext->column( $sql, $clause );
+            my $complex_column = $ext->column( $sql, $parent_clause // $clause );
             if ( ! defined $complex_column ) {
                 next COL;
             }

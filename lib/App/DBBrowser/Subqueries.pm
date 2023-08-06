@@ -121,7 +121,12 @@ sub choose_subquery {
         }
         elsif ( $menu->[$idx] eq $readline ) {
             $prompt = 'Enter SQ: ';
-            $history = [ @{$sql->{cols}} ];
+            if ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
+                $history = [  @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
+            }
+            else {
+                $history = [ @{$sql->{cols}} ];
+            }
         }
         else {
             $prompt = 'Edit SQ: ';

@@ -24,7 +24,7 @@ sub new {
 
 
 sub case {
-    my ( $sf, $sql, $clause, $r_data, $opt ) = @_;
+    my ( $sf, $sql, $clause, $qt_cols, $r_data, $opt ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -40,7 +40,6 @@ sub case {
     my $tmp_sql = $ax->backup_href( $sql );
     $tmp_sql->{case_stmt} = $r_data->{case}[-1] // '';
     $tmp_sql->{case_info} = $r_data->{case_info};
-    my $qt_cols = [ @{$sql->{cols}} ];
     my $in = ' ' x $sf->{o}{G}{base_indent};
     my $count = @{$r_data->{case}};
     my $pad1;
@@ -107,7 +106,7 @@ sub case {
         }
         elsif ( $menu->[$idx] eq $when ) {
             $tmp_sql->{when_stmt} = "${pad2}WHEN";
-            my $ret = $sb->__add_condition( $tmp_sql, 'when', $qt_cols );
+            my $ret = $sb->__add_condition( $tmp_sql, 'when', $qt_cols, $clause );
             if ( ! defined $ret ) {
                 delete $tmp_sql->{when_stmt};
                 $tmp_sql->{case_stmt} = pop @bu;

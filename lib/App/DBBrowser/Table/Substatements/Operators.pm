@@ -38,7 +38,7 @@ sub build_having_col {
         my $tc = Term::Choose->new( $sf->{i}{tc_default} );
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
         my @pre = ( undef );
-        if ( $sf->{o}{enable}{ext_express_col} ) {
+        if ( $sf->{o}{enable}{extended_cols} ) {
             push @pre, $sf->{i}{menu_addition};
         }
         $aggr =~ s/\(\S\)\z//;

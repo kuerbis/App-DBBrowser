@@ -200,7 +200,7 @@ sub __choose_table_columns {
 
     COLUMNS: while ( 1 ) {
         my @pre = ( undef, $sf->{i}{ok} );
-        push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{ext_express_col};
+        push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{extended_cols};
         #push @pre, $privious_cols          if $next_idx; # ###
         if ( ! @{$data->[$next_idx]{qt_columns}//[]} ) {
             $data->[$next_idx]{qt_columns} = [ '*' ];

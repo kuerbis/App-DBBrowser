@@ -1,9 +1,14 @@
 Revision history for App-DBBrowser
 
 
+2.336_02  2023-08-06
+        - Update documentation.
+        - Fixes und updates.
+
 2.336_01  2023-08-04
         - Reorganizing extended values.
         - Fixed case expression info output.
+        - Use placeholders only in INSERT INTO statement.
 
 2.336  2023-07-26
         New:

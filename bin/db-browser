@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 $SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.336_01';
+our $VERSION = '2.336_02';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.336_01
+Version 2.336_02
 
 =head1 SYNOPSIS
 
@@ -139,6 +139,8 @@ C<Page-Up> to move back 10 characters, C<Page-Down> to move forward 10 character
 C<Home> or C<Strg-A> to move to the start of the line, C<End> or C<Strg-E> to move to the end of the line.
 
 =back
+
+Some C<read-line>s have predefined values. These values can be accessed with the C<Up-Arrow> and C<Down-Arrow> keys.
 
 To leave a C<read-line> without returning anything press C<Ctrl-X>. When the input puffer is empty and an C<Enter> is
 pressed, C<read-line> returns an empty string.
@@ -659,7 +661,7 @@ Derived (table)
 
 =item
 
-Join
+Join menu
 
 =item
 
@@ -703,12 +705,28 @@ Parentheses are not available in C<SQLite> and C<Firebird>.
 
 These settings are also valid when C<Intersect> or C<Except> is used.
 
-=head3 Column menus
+=head3 Columns and Values
 
-=head4 Column-menu additions
+=over
+
+=item
+
+Extended Columns
 
 If enabled, C<%%> is shown as additionally menu entry in the column menus. Selecting C<%%> lets one choose between the
-available extensions:
+available extensions.
+
+=item
+
+Extended Values
+
+If enabled, then - in addition to constants - subqueries, functions and more (see Extensions) are available for the
+right side of operators. Places where extended values are available: C<SET> in update, C<WHEN>, C<THEN> and
+C<ELSE> in case expressions and C<WHERE> and C<HAVING>.
+
+=back
+
+Extensions:
 
 =over
 
@@ -733,30 +751,36 @@ A subquery can be saved permanently in the sub-menu which opens by selecting the
 
 Selecting C<f()> opens the menu, where the user can choose from a list of scalar functions.
 
+Extended arguments for scalar functions can be temporarily enabled by selecting the prompt line (I<Scalar functions:>)
+of the scalar function menu.
+
+Function C<EXTRACT>: use the keys C<Up-Arrow> and C<Down-Arrow> to choose one of the predefined fields.
+
 =item Window functions
 
-Selecting C<w()> opens the menu, where the user can choose from a list of window functions.
+Selecting C<win()> opens the menu, where the user can choose from a list of window functions.
 
 =item Case expression
 
 Selecting C<case> opens the menu, where the user can build a C<CASE> expression.
 
-=item Arithmetic
+=item Maths
 
-Selecting C<m()> opens the menu, where the user can combine expressions with arithmetic operators.
+Selecting C<math()> opens the menu, where the user can combine expressions with arithmetic operators.
 
-=item Set column to C<NULL>
+=item Columns
 
-Available after the C<SET> in an C<UPDATE> statement. Selecting C<=N> sets the column to C<NULL>.
+Selecting C<col> opens the menu, where the user can choose a column.
+
+=item Set to C<NULL>
+
+Available after the C<SET> in an C<UPDATE> statement.
+
+=item Parentheses
+
+C<WHERE>, C<WHEN> and C<HAVING>: in the C<%%> menu are also available parentheses.
 
 =back
-
-If C<%%> is prefixed with C<'='> (C<=%%>), it is required to select the wanted operator I<after> the extended menu entry
-has been chosen.
-
-=head4 Parentheses
-
-Enable parentheses in C<WHERE> and C<HAVING> clauses.
 
 =head3 Write access
 

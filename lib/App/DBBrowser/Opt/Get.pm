@@ -47,8 +47,8 @@ sub defaults {
             update      => 0,
             delete      => 0,
 
-            ext_express_col        => 0,
-            ext_express_right_side => 0,
+            extended_cols   => 0, # ### 
+            extended_values => 0, # ### 
 
             m_derived   => 0,
             join        => 0,
