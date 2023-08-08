@@ -588,7 +588,8 @@ sub limit_offset {
 
 sub __add_condition {
     my ( $sf, $sql, $clause, $items, $parent_clause ) = @_;
-    # the case when-clause has a parent_clause
+    # the when-clause of a case expression has a $parent_clause
+    # because case expressions can be found in different places.
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $so = App::DBBrowser::Table::Substatements::Operators->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );

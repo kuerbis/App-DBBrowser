@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-$SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.336_02';
+
+our $VERSION = '2.337';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.336_02
+Version 2.337
 
 =head1 SYNOPSIS
 
@@ -833,8 +833,6 @@ There are two regexp entries: C<REGEXP> matches case sensitive while C<REGEXP_i>
 With C<MySQL> the sensitive match is achieved by enabling the C<BINARY> operator.
 
 With C<Firebird>, C<SIMILAR TO> is used instead of C<REGEXP>.
-
-C<ANY> and C<ALL> operators are available in the C<=%%> sub-menu in the C<WHERE> and C<HAVING> menus.
 
 =head3 Aliases
 

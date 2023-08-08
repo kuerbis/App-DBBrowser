@@ -87,8 +87,8 @@ sub choose_subquery {
     SUBQUERY: while ( 1 ) {
         my @queries;
         push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
-        push @queries, map {  '| ' . $_->{name} } @$subquery_history;
-        push @queries, map {  '  ' . $_->{name} } @$print_history;
+        push @queries, map {  '  ' . $_->{name} } @$subquery_history;
+        push @queries, map {  '| ' . $_->{name} } @$print_history;
         my $menu = [ @pre, @queries ];
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -113,8 +113,8 @@ sub choose_subquery {
                 ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
                 @queries = ();
                 push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
-                push @queries, map {  '| ' . $_->{name} } @$subquery_history;
-                push @queries, map {  '  ' . $_->{name} } @$print_history;
+                push @queries, map {  '  ' . $_->{name} } @$subquery_history;
+                push @queries, map {  '| ' . $_->{name} } @$print_history;
                 $menu = [ @pre, @queries ];
             }
             next SUBQUERY;

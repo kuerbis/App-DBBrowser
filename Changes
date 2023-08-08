@@ -1,6 +1,13 @@
 Revision history for App-DBBrowser
 
 
+2.337     2023-08-08
+        - Reorganizing extended values.
+        - Option to enable extended arguments.
+        - Use placeholders only when inserting into a table.
+        - Improved case expression info output.
+        - Update documentation.
+
 2.336_02  2023-08-06
         - Update documentation.
         - Fixes und updates.

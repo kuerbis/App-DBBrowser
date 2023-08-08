@@ -127,7 +127,7 @@ sub choose_and_add_operator {
             $sql->{$stmt} .= $regex_op;
         }
         elsif ( $op =~ /^(?:ALL|ANY)\z/) {
-            my @comb_op = ( "= $op", "!= $op", "<> $op", "> $op", "< $op", ">= $op", "<= $op" );
+            my @comb_op = ( "= $op", "<> $op", "> $op", "< $op", ">= $op", "<= $op" );
             my @pre = ( undef );
             my $info = $ax->get_sql_info( $sql );
             # Choose
@@ -193,13 +193,13 @@ sub read_and_add_value {
         }
     }
     elsif ( $op =~ /^(?:NOT\s)?BETWEEN\z/ ) {
-        # Readline ## 
+        # Readline
         my $value_1 = $ext->value( $sql, $clause, {}, $op );
         if ( ! defined $value_1 ) {
             return;
         }
         $sql->{$stmt} .= ' ' . $value_1 . ' AND';
-        # Readline ## 
+        # Readline
         my $value_2 = $ext->value( $sql, $clause, {}, $op );
         if ( ! defined $value_2 ) {
             return;
@@ -208,7 +208,7 @@ sub read_and_add_value {
         return 1;
     }
     elsif ( $op =~ /REGEXP(_i)?\z/ ) {
-        # Readline ## 
+        # Readline
         my $value = $ext->value( $sql, $clause, {}, $op );
         if ( ! defined $value ) {
             return;
@@ -223,7 +223,7 @@ sub read_and_add_value {
         return 1;
     }
     else {
-        # Readline ## 
+        # Readline
         my $value = $ext->value( $sql, $clause, {}, $op );
         if ( ! defined $value ) {
             return;
