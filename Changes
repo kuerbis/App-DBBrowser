@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.338     2023-08-14
+        - Fixed wrong module name in ScalarFunctions.pm.
+
 2.337     2023-08-08
         - Reorganizing extended values.
         - Option to enable extended arguments.

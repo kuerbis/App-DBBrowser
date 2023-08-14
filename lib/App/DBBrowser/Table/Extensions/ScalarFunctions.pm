@@ -17,7 +17,7 @@ use Term::Form::ReadLine   qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::Extensions;
-use App::DBBrowser::Table::ScalarFunctions::SQL;
+use App::DBBrowser::Table::Extensions::ScalarFunctions::SQL;
 
 
 sub new {
@@ -346,7 +346,7 @@ sub col_function {
 
 sub __func_with_no_col {
     my ( $sf, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->function_with_no_col( $func );
     return $function_stmt;
 }
@@ -354,7 +354,7 @@ sub __func_with_no_col {
 
 sub __func_with_col {
     my ( $sf, $sql, $chosen_col, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->function_with_col( $func, $chosen_col );
     return $function_stmt;
 }
@@ -362,7 +362,7 @@ sub __func_with_col {
 
 sub __func_with_col_and_arg {
     my ( $sf, $sql, $clause, $chosen_col, $func, $info, $prompt, $history ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $info .= "\n" . $func . '(' . $chosen_col . ',?)';
     my $value = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => $prompt } );
@@ -376,7 +376,7 @@ sub __func_with_col_and_arg {
 
 sub __func_with_col_and_2args {
     my ( $sf, $sql, $clause, $chosen_col, $func, $info, $prompts, $history ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tail = ',?)';
     my ( $arg1, $arg2 );
@@ -403,7 +403,7 @@ sub __func_with_col_and_2args {
 
 sub __func_Concat {
     my ( $sf, $sql, $chosen_cols, $func, $info ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $sep = $tr->readline(
@@ -420,7 +420,7 @@ sub __func_Concat {
 
 sub __func_Coalesce {
     my ( $sf, $sql, $chosen_cols, $func ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->coalesce( $chosen_cols );
     return $function_stmt;
 }
@@ -490,7 +490,7 @@ sub __select_stmt {
 
 sub __interval_to_converted_epoch {
     my ( $sf, $sql, $func, $max_examples, $chosen_col, $interval ) = @_;
-    my $fsql = App::DBBrowser::Table::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt;
     if ( $func =~ /^EPOCH_TO_DATETIME\z/i ) {
         $function_stmt = $fsql->epoch_to_datetime( $chosen_col, $interval );
