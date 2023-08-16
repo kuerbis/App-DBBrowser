@@ -505,6 +505,7 @@ sub limit_offset {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
     my $driver = $sf->{i}{driver};
+    my $rx_use_limit = 'SQLite|mysql|MariaDB|Pg|Informix';
     my @pre = ( undef, $sf->{i}{ok} );
     $sql->{limit_stmt}  = '';
     $sql->{offset_stmt} = '';
@@ -532,12 +533,11 @@ sub limit_offset {
         push @bu, [ $sql->{limit_stmt}, $sql->{offset_stmt} ];
         my $digits = 7;
         if ( $choice eq $limit ) {
-            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
-                # https://www.ibm.com/docs/en/db2-for-zos/12?topic=subselect-fetch-clause
-                $sql->{limit_stmt} = "FETCH NEXT";
+            if ( $driver =~ /^(?:$rx_use_limit)\z/ ) {
+                $sql->{limit_stmt} = "LIMIT";
             }
             else {
-                $sql->{limit_stmt} = "LIMIT";
+                $sql->{limit_stmt} = "FETCH NEXT";
             }
             my $info = $ax->get_sql_info( $sql );
             # Choose_a_number
@@ -550,7 +550,7 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{limit_stmt} .=  sprintf ' %d', $limit;
-            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+            if ( $driver !~ /^(?:$rx_use_limit)\z/ ) {
                 $sql->{limit_stmt} .= " ROWS ONLY";
             }
         }
@@ -578,7 +578,7 @@ sub limit_offset {
                 next LIMIT;
             }
             $sql->{offset_stmt} .= sprintf ' %d', $offset;
-            if ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+            if ( $driver !~ /^(?:$rx_use_limit)\z/ ) {
                 $sql->{offset_stmt} .= " ROWS";
             }
         }

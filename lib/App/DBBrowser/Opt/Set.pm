@@ -336,7 +336,7 @@ sub set_options {
                 my $sub_menu = [
                     [ 'select_func_sq', "- Functions/Subqueries in SELECT",  [ $no, 'ASK' ] ],
                     [ 'join',           "- JOIN",                            [ 'AUTO', 'ASK' ] ],
-                    [ 'table',          "- Table",                           [ $no, 'AUTO' ] ],
+                    [ 'table',          "- Derived table",                   [ 'AUTO', 'ASK' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

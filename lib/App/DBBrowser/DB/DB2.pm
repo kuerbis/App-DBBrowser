@@ -7,8 +7,6 @@ use 5.014;
 
 use DBI qw();
 
-use Term::Choose::Util qw();
-
 use App::DBBrowser::Credentials;
 use App::DBBrowser::Opt::DBGet;
 

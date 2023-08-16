@@ -164,7 +164,7 @@ sub __enable_extended_arguments {
 sub col_function {
     my ( $sf, $sql, $clause, $qt_cols, $r_data ) = @_;
     if ( ! defined $r_data->{nested_func} ) {
-        # reset recusrion data other than nested_func
+        # reset recursion data other than nested_func
         # at the first call of col_function
         $r_data = { nested_func => [] };
     }
