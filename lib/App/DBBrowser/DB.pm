@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.338_02';
+our $VERSION = '2.338_03';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -324,7 +324,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.338_02
+Version 2.338_03
 
 =head1 DESCRIPTION
 
@@ -435,7 +435,7 @@ An example C<env_variables> method:
 
     sub env_variables {
         my ( $self ) = @_;
-        return [ qw( DBI_DSN DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
+        return [ qw( DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
     }
 
 See the option I<ENV Variables> in I<DB Settings>.
@@ -517,7 +517,6 @@ The result of the I<ENV Variables>* settings:
 
     $env_var_yes:
     {
-        DBI_DSN  => 0,
         DBI_HOST => 1,
         DBI_PORT => 1,
         DBI_USER => 0,

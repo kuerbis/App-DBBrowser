@@ -38,7 +38,6 @@ sub new {
 
 sub _groups {
     my $groups = [
-
         { name => 'group_plugins',      text => "- Plugins"   },
         { name => 'group_database',     text => "- DB Settings"  },
         { name => 'group_extensions',   text => "- Extensions"   },
@@ -253,8 +252,8 @@ sub set_options {
             elsif ( $opt eq 'path' ) {
                 my $app_dir = $sf->{i}{app_dir};
                 eval { $app_dir = decode( 'locale', $app_dir ) };
-                my $info = 'db-browser'                                  . "\n\n";
-                $info .= 'version: ' . $main::VERSION                   . "\n\n";
+                my $info = 'db-browser'  . "\n\n";
+                $info .= 'version: ' . $main::VERSION . "\n\n";
                 $info .= 'path: ' . catfile( $RealBin, $RealScript ) . "\n\n";
                 $info .= 'app-dir: ' . $app_dir . "\n";
                 $tc->choose( [ '<<' ], { prompt => $info, color => 1 } );
