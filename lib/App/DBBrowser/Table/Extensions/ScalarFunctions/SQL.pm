@@ -25,7 +25,7 @@ sub function_with_no_col {
         return "timestamp 'NOW'"                     if $driver eq 'Firebird';
         return "CURRENT"                             if $driver eq 'Informix'; # "CURRENT YEAR TO SECOND"
         return "NOW()"                               if $driver =~ /^(?:mysql|MariaDB|Pg)\z/;
-        return "CURRENT_TIMESTAMP"; # ANSI SQL 2003
+        return "CURRENT_TIMESTAMP"; # ansi 2003
         # "CURRENT_TIMESTAMP(9)"
     }
     else {
@@ -40,19 +40,19 @@ sub function_with_col {
     $func = uc( $func );
     if ( $func =~ /^LTRIM\z/i ) {
         return "LTRIM($col)"              if $driver =~ /^(?:SQLite|mysql|MariaDB|Pg|DB2|Informix|Oracle)\z/;
-        return "TRIM(LEADING FROM $col)"; # ANSI SQL 2003
+        return "TRIM(LEADING FROM $col)"; # ansi 2003
     }
     elsif ( $func =~ /^RTRIM\z/i ) {
         return "RTRIM($col)"              if $driver =~ /^(?:SQLite|mysql|MariaDB|Pg|DB2|Informix|Oracle)\z/;
-        return "TRIM(TRAILING FROM $col)"; # ANSI SQL 2003
+        return "TRIM(TRAILING FROM $col)"; # ansi 2003
     }
     elsif ( $func =~ /^OCTET_LENGTH\z/i ) {
         return "LENGTHB($col)"            if $driver eq 'Oracle';
-        return "OCTET_LENGTH($col)"; # ANSI SQL 2003
+        return "OCTET_LENGTH($col)"; # ansi 2003
     }
     elsif ( $func =~ /^CHAR_LENGTH\z/i ) {
         return "LENGTH($col)"             if $driver =~ /^(?:SQLite|Oracle)\z/;
-        return "CHAR_LENGTH($col)"; # ANSI SQL 2003
+        return "CHAR_LENGTH($col)"; # ansi 2003
     }
     else {
         return "$func($col)";
@@ -65,7 +65,7 @@ sub function_with_col_and_arg {
     my $driver = $sf->{i}{driver};
     $func = uc( $func );
     if ( $func =~ /^CAST\z/i ) {
-        return "CAST($col AS $arg)"; # ANSI SQL 2003
+        return "CAST($col AS $arg)"; # ansi 2003
     }
     elsif ( $func =~ /^EXTRACT\z/i ) {
         if ( $driver eq 'SQLite' ) {
@@ -114,7 +114,7 @@ sub function_with_col_and_arg {
             return "to_char($col,'DDD')"        if $driver eq 'Oracle';
         }
         else {
-            return "EXTRACT($arg FROM $col)"; # ANSI SQL 2003
+            return "EXTRACT($arg FROM $col)"; # ansi 2003
         }
     }
     elsif ( $func =~ /^ROUND\z/i ) {
@@ -138,7 +138,7 @@ sub function_with_col_and_arg {
     elsif ( $func =~ /^POSITION\z/i ) {
         my $substring = $sf->{d}{dbh}->quote( $arg );
         return "INSTR($col,$substring)" if $driver =~ /^(?:SQLite|Informix|Oracle)\z/;
-        return "POSITION($substring IN $col)"; # ANSI SQL 2003
+        return "POSITION($substring IN $col)"; # ansi 2003
         # DB2, Informix, Oracle: INSTR(string, substring, start, count)
         # Firebird: position(substring, string, start)
     }
@@ -172,7 +172,7 @@ sub function_with_col_and_2args {
             return "SUBSTR($col,$startpos)";
         }
         else {
-            return "SUBSTRING($col FROM $startpos FOR $length)" if length $length; # ANSI SQL 2003
+            return "SUBSTRING($col FROM $startpos FOR $length)" if length $length; # ansi 2003
             return "SUBSTRING($col FROM $startpos)";
         }
     }
@@ -224,7 +224,7 @@ sub concatenate {
         $arg = $cols
     }
     return "CONCAT(" . join( ',', @$arg ) . ")"  if $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/;
-    return join( " || ", @$arg );  # ANSI SQL 2003
+    return join( " || ", @$arg );  # ansi 2003
 }
 
 
