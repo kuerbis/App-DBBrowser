@@ -114,7 +114,7 @@ sub __choose_query {
             }
             $old_idx = $idx;
         }
-        my ( $history, $selected_stmt, $selected_name );
+        my ( $history, $selected_stmt );
         if ( $menu->[$idx] eq $edit_sq_history_file ) {
             if ( $sf->__edit_sq_history_file() ) {
                 ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();

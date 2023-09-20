@@ -450,7 +450,6 @@ sub sql_limit {
 
 sub column_names {
     my ( $sf, $qt_table ) = @_;
-    #    my ( $sf, $sql, $qt_table ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
     my $columns;
