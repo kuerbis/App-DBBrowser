@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.340';
+our $VERSION = '2.341';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.340
+Version 2.341
 
 =head1 SYNOPSIS
 
@@ -236,7 +236,18 @@ Choosing one of the tables leads to the I<SQL Menu>.
 
 =head3 Derived
 
-Choosing this entry allows one to enter a subquery and use it as a table.
+Choosing this entry allows one to enter a CTE and use it as a table.
+
+CTE query:
+
+If the query history has entries, the CTE query can be chosen from these entries (see I<stored subqueries> in
+L</Subqueries>).
+
+CTE name:
+
+  [RECURSIVE] cte_name [(col_name [, col_name] ...)]
+
+Some database types build recursive CTEs without the C<RECURSIVE> keyword.
 
 This entry is available if enabled in L</Extensions>.
 
@@ -407,9 +418,7 @@ column. This feature is available if supported by the database plugin.
 
 =head3 Update
 
-Update records. The affected (and not yet updated) records are shown shown before the user confirms the update.
-
-See also I<Subqueries> in L</Extensions>
+Update records. The affected (and not yet updated) records are shown before the user confirms the update.
 
 =head3 Delete
 
@@ -710,13 +719,13 @@ available extensions.
 
 Extended Values
 
-If enabled, then - in addition to constants - subqueries, functions and more (see Extensions) are available for the
+If enabled, then - in addition to constants - subqueries, functions and more (see the following list) are available for the
 right side of operators. Places where extended values are available: C<SET> in update, C<WHEN>, C<THEN> and
 C<ELSE> in case expressions and C<WHERE> and C<HAVING>.
 
 =back
 
-Extensions:
+=head3 Column and Value extensions
 
 =over
 
@@ -726,8 +735,6 @@ Selecting C<SQ> opens the subqueries menu.
 
 By selecting the I<Read-Line> menu entry one can enter a subquery or an expression.
 
-Entries matching C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
-
 If stored subqueries are available, it is also possible to select one of those subqueries instead of entering a
 subquery.
 
@@ -736,6 +743,8 @@ temporarily. Before printed statements are stored, newlines are replaced with sp
 
 A subquery can be saved permanently in the sub-menu which opens by selecting the prompt line of a subquery menu
 (I<Choose SQ:>).
+
+Entries matching C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
 
 =item Scalar functions
 
@@ -842,7 +851,7 @@ Join
 
 =item
 
-Tables
+Union
 
 =back
 

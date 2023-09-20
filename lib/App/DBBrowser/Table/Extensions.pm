@@ -181,7 +181,7 @@ sub __choose_extension {
         elsif ( $extension eq $sf->{subquery} ) {
             require App::DBBrowser::Subqueries;
             my $new_sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $subq = $new_sq->choose_subquery( $sql, $opt );
+            my $subq = $new_sq->subquery( $sql, $opt );
             if ( ! defined $subq ) {
                 return if @$extensions = 1;
                 next EXTENSION;

@@ -35,8 +35,9 @@ sub __session_history {
     # Subqueries in `$sf->{d}{subquery_history}` to survive the end of Subqueries.pm in a controlled way.
     my $subquery_history = $sf->{d}{subquery_history};
     my $tmp_subquery_history = [];
+
     for my $subquery ( @$subquery_history ) {
-        if ( any { $_->{stmt} eq $subquery->{stmt} } @$tmp_subquery_history ) {
+        if ( any { $_ eq $subquery } @$tmp_subquery_history ) {
             next;
         }
         push @$tmp_subquery_history, $subquery;
@@ -48,13 +49,19 @@ sub __session_history {
     # Print history:
     my $tmp_table_print_history = [];
     my $print_history = [];
+
     for my $stmt ( @{$sf->{d}{table_print_history}} ) {
-        $stmt =~ s/\s*\n\s*/ /g;
-        if ( any { $_->{stmt} eq $stmt } @$subquery_history, @$print_history ) {
+        my $iqc = $sf->{d}{identifier_quote_char};
+        # literal quote char: ' is hardcoded if `quote` is called without the $data_type argument.
+        $stmt =~ s/\s+\z//;
+        $stmt = join '', map { s/\s+/ /g if ! /^[$iqc']/; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
+        #$stmt = join '', map { /^[$iqc']/ ? s/\n/ /g : s/\s+/ /g; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
+        $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/;
+        if ( any { $_ eq $stmt } @$subquery_history, @$print_history ) {
             next;
         }
         push @$tmp_table_print_history, $stmt;
-        push @$print_history, { stmt => $stmt, name => $stmt };
+        push @$print_history, $stmt;
         if ( @$tmp_table_print_history == 7 ) {
             $sf->{d}{table_print_history} = $tmp_table_print_history;
             last;
@@ -74,12 +81,12 @@ sub __get_history {
 }
 
 
-sub choose_subquery {
+sub __choose_query {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
-    my $edit_sq_history_file = 'Choose SQ:';
+    my $edit_sq_history_file = 'Choose:';
     my $readline = 'Read-Line';
     my @pre = ( $edit_sq_history_file, undef, $readline );
     my $old_idx = 1;
@@ -87,8 +94,8 @@ sub choose_subquery {
     SUBQUERY: while ( 1 ) {
         my @queries;
         push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
-        push @queries, map {  '  ' . $_->{name} } @$subquery_history;
-        push @queries, map {  '| ' . $_->{name} } @$print_history;
+        push @queries, map {  '  ' . $_         } @$subquery_history;
+        push @queries, map {  '| ' . $_         } @$print_history;
         my $menu = [ @pre, @queries ];
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -107,20 +114,20 @@ sub choose_subquery {
             }
             $old_idx = $idx;
         }
-        my ( $prompt, $history, $chosen_stmt );
+        my ( $history, $selected_stmt, $selected_name );
         if ( $menu->[$idx] eq $edit_sq_history_file ) {
             if ( $sf->__edit_sq_history_file() ) {
                 ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
                 @queries = ();
                 push @queries, map {  '- ' . $_->{name} } @$saved_subqueries;
-                push @queries, map {  '  ' . $_->{name} } @$subquery_history;
-                push @queries, map {  '| ' . $_->{name} } @$print_history;
+                push @queries, map {  '  ' . $_         } @$subquery_history;
+                push @queries, map {  '| ' . $_         } @$print_history;
                 $menu = [ @pre, @queries ];
             }
             next SUBQUERY;
         }
         elsif ( $menu->[$idx] eq $readline ) {
-            $prompt = 'Enter SQ: ';
+            $selected_stmt = '';
             if ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
                 $history = [  @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
             }
@@ -129,25 +136,107 @@ sub choose_subquery {
             }
         }
         else {
-            $prompt = 'Edit SQ: ';
             $idx -= @pre;
-            $chosen_stmt = ( @$saved_subqueries, @$subquery_history, @$print_history )[$idx]{stmt};
+            if ( $idx < @$saved_subqueries ) {
+                $selected_stmt = $saved_subqueries->[$idx]{stmt};
+            }
+            else {
+                $selected_stmt = ( @$subquery_history, @$print_history )[$idx];
+            }
+            $history = [];
         }
-        $info = $ax->get_sql_info( $sql );
-        my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+        return $selected_stmt, $history;
+    }
+}
+
+
+sub prepare_cte {
+    my ( $sf, $sql, $table_names ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+    $table_names //= [];
+    my $cte_names = [ map { $_->{table} } @{$sf->{d}{ctes}} ];
+
+    CHOOSE_QUERY: while ( 1 ) {
+        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql, 'cte' );
+        if ( ! defined $selected_stmt ) {
+            return;
+        }
+        my $count_query;
+
+        QUERY: while ( 1 ) {
+            my $info = $ax->get_sql_info( $sql );
+            # Readline
+            my $query = $tr->readline(
+                'Query: ',
+                { default => $selected_stmt, show_context => 1, info => $info, history => $history }
+            );
+            $ax->print_sql_info( $info );
+            if ( ! length $query ) {
+                next CHOOSE_QUERY;
+            }
+            $info .= "\n". 'Query: ' . $query;
+            my $default_name;
+
+            NAME: while ( 1 ) {
+                # Readline
+                my $name = $tr->readline(
+                    'Name : ',
+                    { default => $default_name, show_context => 1, info => $info, history => [ 'a' .. 'z' ] }
+                );
+                $ax->print_sql_info( $info );
+                if ( ! length $name ) {
+                    next CHOOSE_QUERY if ++$count_query > 2;
+                    next QUERY;
+                }
+                my $qc = $sf->{d}{identifier_quote_char};
+                my $table = $name =~ s/^ \s* (?:recursive\s)? \s* ( $qc(?:[^$qc]|$qc$qc)+$qc | \S+ ) \s* (?:\(.+)? \z/$1/rix;
+                if ( any { $_ eq $table } @$cte_names, @$table_names ) {
+                    $default_name = length $default_name ? '' : $table;
+                    my $prompt = "The name '$table' already exists.";
+                    # Choose
+                    $tc->choose(
+                        [ 'Press ENTER' ],
+                        { %{$sf->{i}{lyt_h}}, info => $info, prompt => $prompt }
+                    );
+                    $ax->print_sql_info( $info );
+                    next NAME;
+                }
+                unshift @{$sf->{d}{subquery_history}}, $query;
+                my $cte = { name => $name, query => $query, table => $table };
+                push @{$sf->{d}{ctes}}, $cte;
+                return $table;
+            }
+        }
+    }
+}
+
+
+sub subquery {
+    my ( $sf, $sql ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+
+    CHOOSE_QUERY: while ( 1 ) {
+        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql, 'subquery' );
+        if ( ! defined $selected_stmt ) {
+            return;
+        }
+        my $info = $ax->get_sql_info( $sql );
         # Readline
         my $stmt = $tr->readline(
-            $prompt,
-            { default => $chosen_stmt, show_context => 1, info => $info, history => $history }
+            'Query: ',
+            { default => $selected_stmt, show_context => 1, info => $info, history => $history }
         );
         $ax->print_sql_info( $info );
-        if ( ! defined $stmt || ! length $stmt ) {
-            next SUBQUERY;
+        if ( ! length $stmt ) {
+            next CHOOSE_QUERY;
         }
         while ( $stmt =~ /^\s*\((.+)\)\s*\z/ ) {
             $stmt = $1;
         }
-        unshift @{$sf->{d}{subquery_history}}, { stmt => $stmt, name => $stmt };
+        unshift @{$sf->{d}{subquery_history}}, $stmt;
         if ( $stmt =~ /^\s*SELECT\s/i ) {
             return "(" . $stmt . ")";
         }
@@ -252,8 +341,8 @@ sub __add_subqueries {
         }
         push @tmp_info, ' ';
         my $menu = [ @pre ];
-        push @$menu, map {  '- ' . $_->{name} } @$subquery_history;
-        push @$menu, map {  '  ' . $_->{name} } @$print_history;
+        push @$menu, map {  '- ' . $_ } @$subquery_history;
+        push @$menu, map {  '  ' . $_ } @$print_history;
         my $info = join( "\n", @tmp_info );
         # Choose
         my $idx = $tc->choose(
@@ -273,7 +362,7 @@ sub __add_subqueries {
             return 1;
         }
         else {
-            my $default = $menu->[$idx] eq $readline ? undef : ( @$subquery_history, @$print_history )[$idx-@pre]{stmt};
+            my $default = $menu->[$idx] eq $readline ? undef : ( @$subquery_history, @$print_history )[$idx-@pre];
             my $info = join( "\n", @tmp_info );
             # Readline
             my $stmt = $tr->readline(

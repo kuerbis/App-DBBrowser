@@ -63,6 +63,20 @@ sub get_stmt {
     my $indent2 = 2;
     my $qt_table = $sql->{table};
     my @tmp;
+    if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) { ##
+        #if ( @{$sf->{d}{ctes}} == 1 ) {
+        #    my $cte = $sf->{d}{ctes}[0];
+        #    push @tmp, $sf->__stmt_fold( $used_for, sprintf( 'WITH %s AS (%s)', $cte->{name}, $cte->{query} ), $indent0 );
+        #}
+        #else {
+            push @tmp, "WITH";
+            for my $cte ( @{$sf->{d}{ctes}} ) {
+                push @tmp, $sf->__stmt_fold( $used_for, sprintf( '%s AS (%s),', $cte->{name}, $cte->{query} ), $indent1 );
+            }
+            $tmp[-1] =~ s/,\z//;
+        #}
+        push @tmp, " ";
+    }
     if ( $sql->{case_stmt} ) {
         # only for print info (it has to be here because then 'when' uses the __add_condition method).
         # When the case expression is completed, it is appended to the corresponding substmt and these case keys are deleted.
@@ -85,7 +99,8 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, "AS " . $sql->{view_select_stmt}, $indent1 );
     }
     elsif ( $stmt_type eq 'Select' ) {
-        @tmp = ( $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 ) );
+        push @tmp, $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 );
+        #@tmp = ( $sf->__stmt_fold( $used_for, "SELECT" . $sql->{distinct_stmt} . $sf->__select_cols( $sql ), $indent0 ) );
         push @tmp, $sf->__stmt_fold( $used_for, "FROM " . $qt_table,   $indent1 );
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt},    $indent2 ) if $sql->{where_stmt};
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{group_by_stmt}, $indent2 ) if $sql->{group_by_stmt};
@@ -124,11 +139,17 @@ sub get_stmt {
     }
     elsif ( $stmt_type eq 'Join' ) {
         my @joins = split /(?=\s(?:INNER|LEFT|RIGHT|FULL|CROSS)\sJOIN)/, $sql->{stmt};
-        @tmp = ( $sf->__stmt_fold( $used_for, shift @joins, $indent0 ) );
+        #@tmp = ( $sf->__stmt_fold( $used_for, shift @joins, $indent0 ) );
+        push @tmp, $sf->__stmt_fold( $used_for, shift @joins, $indent0 );
         push @tmp, map { s/^\s//; $sf->__stmt_fold( $used_for, $_, $indent1 ) } @joins;
     }
     elsif ( $stmt_type eq 'Union' ) {
-        @tmp = ( $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ) );
+        #@tmp = ( $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ) );
+        if ( $used_for eq 'prepare' ) {
+            @tmp = ();
+            # no ctes, they are added in the select stmt
+        }
+        push @tmp, $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ); ##
         if ( @{$sql->{subselect_stmts}//[]} ) {
             my $extra = 0;
             for my $stmt ( @{$sql->{subselect_stmts}} ) {
@@ -139,14 +160,14 @@ sub get_stmt {
         }
         push @tmp, $sf->__stmt_fold( $used_for, ")", $indent0 );
     }
-    if ( $used_for eq 'prepare' ) {
-        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp;
-        return $prepare_stmt;
-    }
-    else {
+#    if ( $used_for eq 'prepare' && $stmt_type !~ /^(?:Join|Union)\z/ ) { # ###
+#        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp;
+#        return $prepare_stmt;
+#    }
+#    else {
         my $print_stmt = join( "\n", @tmp ) . "\n";
         return $print_stmt;
-    }
+#   }
 }
 
 
@@ -334,10 +355,7 @@ sub prepare_identifier {
 sub quote_table {
     my ( $sf, $table_info ) = @_;
     my @idx;
-    # 0 = catalog
-    # 1 = schema
-    # 2 = table_name
-    # 3 = table_type
+    # 0 = catalog, 1 = schema, 2 = table_name, 3 = table_type
     if ( $sf->{o}{G}{qualified_table_name} || ( $sf->{d}{db_attached} && ! defined $sf->{d}{schema} ) ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
@@ -393,7 +411,7 @@ sub reset_sql {
     map { delete $sql->{$_} } keys %$sql; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_col_names create_table_col_names
-                     set_args where_args having_args insert_args derived_table_args );
+                     set_args where_args having_args insert_args );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
     @{$sql}{@array}  = map{ [] } @array;
@@ -432,11 +450,18 @@ sub sql_limit {
 
 sub column_names {
     my ( $sf, $qt_table ) = @_;
+    #    my ( $sf, $sql, $qt_table ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
     my $columns;
     if ( ! eval {
-        my $sth = $sf->{d}{dbh}->prepare( "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 ) );
+        my $stmt = '';
+        if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) {
+            $stmt = "WITH " . join ', ', map { sprintf '%s AS (%s)', $_->{name}, $_->{query} } @{$sf->{d}{ctes}};
+            $stmt .= ' ';
+        }
+        $stmt .= "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 );
+        my $sth = $sf->{d}{dbh}->prepare( $stmt );
         if ( $sf->{i}{driver} ne 'SQLite' ) {
             $sth->execute();
         }

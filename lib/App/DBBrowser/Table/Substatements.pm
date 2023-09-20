@@ -301,10 +301,11 @@ sub __add_aggregate_substmt {
 sub set {
     my ( $sf, $sql ) = @_;
     my $clause = 'set';
+    my $stmt = 'set_stmt';
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $so = App::DBBrowser::Table::Substatements::Operators->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    $sql->{set_stmt} = "SET";
+    $sql->{$stmt} = "SET";
     my @bu;
     my @pre = ( undef, $sf->{i}{ok} );
 
@@ -318,24 +319,24 @@ sub set {
         $ax->print_sql_info( $info );
         if ( ! defined $qt_col ) {
             if ( @bu ) {
-                $sql->{set_stmt} = pop @bu;
+                $sql->{$stmt} = pop @bu;
                 next COL;
             }
             return;
         }
         if ( $qt_col eq $sf->{i}{ok} ) {
             if ( ! @bu ) {
-                $sql->{set_stmt} = '';
+                $sql->{$stmt} = '';
             }
             return 1;
         }
-        push @bu, $sql->{set_stmt};
+        push @bu, $sql->{$stmt};
         my $col_sep = @bu == 1 ? ' ' : ', ';
         my $op = '=';
-        $sql->{set_stmt} .= $col_sep . $qt_col . ' ' . $op;
-        my $ok = $so->read_and_add_value( $sql, $clause, $qt_col, $op );
+        $sql->{$stmt} .= $col_sep . $qt_col . ' ' . $op;
+        my $ok = $so->read_and_add_value( $sql, $clause, $stmt, $qt_col, $op );
         if ( !  $ok ) {
-            $sql->{set_stmt} = pop @bu;
+            $sql->{$stmt} = pop @bu;
             next COL;
         }
     }

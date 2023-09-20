@@ -46,7 +46,7 @@ sub create_view {
     SELECT_STMT: while ( 1 ) {
         $sql->{table} = '';
         $sql->{view_select_stmt} = '?';
-        my $select_statment = $sq->choose_subquery( $sql );
+        my $select_statment = $sq->subquery( $sql );
         $ax->print_sql_info( $ax->get_sql_info( $sql ) );
         if ( ! defined $select_statment ) {
             return;
@@ -268,6 +268,8 @@ sub __set_table_name {
         if ( ! defined $chosen ) {
             return;
         }
+        $tablename_default = $tablename_default ? $table_name : '';
+        $count_table_name_loop++;
     }
 }
 

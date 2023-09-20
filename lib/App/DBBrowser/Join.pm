@@ -46,17 +46,18 @@ sub join_tables {
     else {
         $tables = [ @{$sf->{d}{user_table_keys}} ];
     }
-    my $join = {};
+    my $join;
 
     MASTER: while ( 1 ) {
         $join = {};
+        $ax->reset_sql( $join );
         $join->{stmt} = "SELECT * FROM";
         $join->{used_tables}  = [];
         $join->{aliases}      = [];
         my $join_info = '  INFO';
-        my $from_subquery = '  Derived';
+        my $from_cte = '  Derived';
         my @choices = map { "- $_" } @$tables;
-        push @choices, $from_subquery if $sf->{o}{enable}{j_derived};
+        push @choices, $from_cte if $sf->{o}{enable}{j_derived};
         push @choices, $join_info;
         my @pre = ( undef );
         my $info = $ax->get_sql_info( $join );
@@ -75,16 +76,14 @@ sub join_tables {
             next MASTER;
         }
         my $qt_master;
-        my $master_from_subquery;
-        if ( $master eq $from_subquery ) {
+        if ( $master eq $from_cte ) {
             require App::DBBrowser::Subqueries;
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $master = $sq->choose_subquery( $join );
+            $master = $sq->prepare_cte( $join, $tables );
             if ( ! defined $master ) {
                 next MASTER;
             }
             $qt_master = $master;
-            $master_from_subquery = 1;
         }
         else {
             $master =~ s/^-\s//;
@@ -98,7 +97,6 @@ sub join_tables {
         $join->{stmt} .= " " . $qt_master;
         $join->{stmt} .= " " . $ax->prepare_identifier( $master_alias );
         $sf->{d}{col_names}{$master} //= $ax->column_names( $qt_master . " " . $ax->prepare_identifier( $master_alias ) ); ##
-
         my @bu;
 
         JOIN: while ( 1 ) {
@@ -113,6 +111,9 @@ sub join_tables {
             $ax->print_sql_info( $info );
             if ( ! defined $join_type ) {
                 if ( @bu ) {
+                    if ( @{$sf->{d}{ctes}} && $join->{used_tables}[-1] eq $sf->{d}{ctes}[-1]{table} ) {
+                        pop @{$sf->{d}{ctes}};
+                    }
                     ( $join->{stmt}, $join->{default_alias}, $join->{aliases}, $join->{used_tables} ) = @{pop @bu};
                     next JOIN;
                 }
@@ -173,7 +174,7 @@ sub __add_slave_with_join_condition {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $used = ' (used)';
-    my $from_subquery = '  Derived';
+    my $from_cte = '  Derived';
     my @choices;
     for my $table ( @$tables ) {
         if ( any { $_ eq $table } @{$join->{used_tables}} ) {
@@ -183,7 +184,7 @@ sub __add_slave_with_join_condition {
             push @choices, '- ' . $table;
         }
     }
-    push @choices, $from_subquery if $sf->{o}{enable}{j_derived};
+    push @choices, $from_cte if $sf->{o}{enable}{j_derived};
     push @choices, $join_info;
     my @pre = ( undef );
     my @bu;
@@ -209,16 +210,14 @@ sub __add_slave_with_join_condition {
             next SLAVE;
         }
         my $qt_slave;
-        my $slave_from_subquery;
-        if ( $slave eq $from_subquery ) {
+        if ( $slave eq $from_cte ) {
             require App::DBBrowser::Subqueries;
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $slave = $sq->choose_subquery( $join );
+            $slave = $sq->prepare_cte( $join, $tables );
             if ( ! defined $slave ) {
                 next SLAVE;
             }
             $qt_slave = $slave;
-            $slave_from_subquery = 1;
         }
         else {
             $slave =~ s/^-\s//;
@@ -236,6 +235,9 @@ sub __add_slave_with_join_condition {
         if ( $join_type ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $join, $tables, $slave, $slave_alias );
             if ( ! $ok ) {
+                if ( @{$sf->{d}{ctes}} && $slave eq $sf->{d}{ctes}[-1]{table} ) {
+                    pop @{$sf->{d}{ctes}};
+                }
                 ( $join->{stmt}, $join->{default_alias}, $join->{aliases}, $join->{used_tables} ) = @{pop @bu};
                 next SLAVE;
             }

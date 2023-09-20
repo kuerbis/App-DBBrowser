@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.340';
+our $VERSION = '2.341';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -415,7 +415,7 @@ sub run {
 
                 TABLE: while ( 1 ) {
 
-                    my ( $join, $union, $from_subquery ) = ( '  Join', '  Union', '  Derived' );
+                    my ( $join, $union, $from_cte ) = ( '  Join', '  Union', '  Derived' );
                     my $hidden = $db_string;
                     my $table;
                     if ( $sf->{redo_table} ) {
@@ -431,9 +431,9 @@ sub run {
                         else {
                             $menu_table = [ @pre, map( "- $_", @$user_table_keys ) ];
                         }
-                        push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
-                        push @$menu_table, $join          if $sf->{o}{enable}{join};
-                        push @$menu_table, $union         if $sf->{o}{enable}{union};
+                        push @$menu_table, $from_cte if $sf->{o}{enable}{m_derived};
+                        push @$menu_table, $join     if $sf->{o}{enable}{join};
+                        push @$menu_table, $union    if $sf->{o}{enable}{union};
                         my $back = $skipped_menus == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                         # Choose
                         my $idx_tbl = $tc->choose(
@@ -490,6 +490,7 @@ sub run {
                             next DATABASE;
                         }
                     }
+                    $sf->{d}{ctes} = [];
                     my ( $qt_table, $qt_columns, $qt_aliases );
                     if ( $table eq $join ) {
                         require App::DBBrowser::Join;
@@ -511,8 +512,8 @@ sub run {
                         }
                         next TABLE if ! defined $qt_table;
                     }
-                    elsif ( $table eq $from_subquery ) {
-                        $sf->{d}{special_table} = 'from_subquery';
+                    elsif ( $table eq $from_cte ) {
+                        $sf->{d}{special_table} = 'from_cte';
                         if ( ! eval { ( $qt_table, $qt_columns ) = $sf->__derived_table(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
@@ -529,8 +530,8 @@ sub run {
                             if ( $sf->{o}{alias}{table} ) {
                                 $qt_table .= $sf->{i}{" AS "} . $ax->prepare_identifier( 't1' );
                             }
-                            $sf->{d}{cols} = $ax->column_names( $qt_table );
-                            $qt_columns = $ax->quote_cols( $sf->{d}{cols} );
+                            my $cols = $ax->column_names( $qt_table );
+                            $qt_columns = $ax->quote_cols( $cols );
                             1 }
                         ) {
                             $ax->print_error_message( $@ );
@@ -567,24 +568,17 @@ sub __derived_table {
     require App::DBBrowser::Subqueries;
     my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $sf->{d}{stmt_types} = [ 'Select' ];
-    my $tmp = { table => '()' };
-    $ax->reset_sql( $tmp );
-    $ax->print_sql_info( $ax->get_sql_info( $tmp ) );
-    my $qt_table = $sq->choose_subquery( $tmp );
-    if ( ! defined $qt_table ) {
+    my $sql = { table => '()' };
+    $ax->reset_sql( $sql );
+    $ax->print_sql_info( $ax->get_sql_info( $sql ) );
+    my $table = $sq->prepare_cte( $sql, [] );
+    if ( ! defined $table ) {
         return;
     }
-    # Oracle: key word "AS" not supported in Table aliases (Union, Join, Derived tables)
-    my $alias = $ax->alias( $tmp, 'table', $qt_table, 't1' );
-    $qt_table .= " " . $ax->prepare_identifier( $alias );
-    $tmp->{table} = $qt_table;
-    my $columns = $ax->column_names( $qt_table );
-    my $qt_columns = $ax->quote_cols( $columns );
+    my $qt_table = $table; # remains as entered by the user
+    my $qt_columns = $ax->quote_cols( $ax->column_names( $qt_table ) );
     return $qt_table, $qt_columns;
 }
-
-
-
 
 
 
@@ -604,7 +598,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.340
+Version 2.341
 
 =head1 DESCRIPTION
 

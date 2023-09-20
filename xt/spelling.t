@@ -21,6 +21,8 @@ BNRY
 Cols
 Colwidth
 Concat
+CTE
+CTEs
 Ctrl
 DB2
 Dir
