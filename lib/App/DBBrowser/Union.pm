@@ -247,7 +247,7 @@ sub __choose_table_columns {
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
-            my $default = '_col' . ( @$chosen_cols + 1 );
+            my $default = 'col_' . ( @$chosen_cols + 1 );
             my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col, $default );
             if ( ! length $alias ) {
                 $alias = $default;

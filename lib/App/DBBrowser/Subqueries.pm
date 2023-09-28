@@ -233,9 +233,6 @@ sub subquery {
         if ( ! length $stmt ) {
             next CHOOSE_QUERY;
         }
-        while ( $stmt =~ /^\s*\((.+)\)\s*\z/ ) {
-            $stmt = $1;
-        }
         unshift @{$sf->{d}{subquery_history}}, $stmt;
         if ( $stmt =~ /^\s*SELECT\s/i ) {
             return "(" . $stmt . ")";

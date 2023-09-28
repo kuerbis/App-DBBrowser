@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.342  2023-09-28
+        - Bugfix: don't remove outer parentheses in Subqueries.pm.
+        - Bugfix: wrong format of auto generated aliases in Union.pm.
+        - Bugfix in table alias: undefined variable.
+
 2.341  2023-09-20
         - Bugfix Update: 'set' was missing a parameter.
         - Bugfix in Join.pm and Union.pm: uninitialized array references.
