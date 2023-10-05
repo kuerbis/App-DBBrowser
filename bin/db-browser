@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.342';
+our $VERSION = '2.343';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.342
+Version 2.343
 
 =head1 SYNOPSIS
 
@@ -762,8 +762,6 @@ If enabled, subqueries, functions and more (see the following list) are availabl
 constants in the scalar and window functions.
 
 This option can also be enabled later in the functions menu by selecting the prompt line.
-
-C<ELSE> in case expressions and C<WHERE> and C<HAVING>.
 
 =back
 

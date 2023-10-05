@@ -104,7 +104,6 @@ sub window_function {
     my $old_idx_wf = 1;
 
     WINDOW_FUNCTION: while( 1 ) {
-        #my @pre = ( undef );
         my @pre = ( $hidden, undef );
         my $menu = [ @pre, map { '- ' . $_ } @functions ];
         # Choose

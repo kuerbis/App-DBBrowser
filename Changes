@@ -1,7 +1,7 @@
 Revision history for App-DBBrowser
 
 
-2.342  2023-10-05
+2.343  2023-10-05
         - Split option 'quote identifier' into 'quote table names', 'quote column names' and 'quote aliases'.
         - New option: enable/disable aliases for non-unique columns in join.
         - Derived table and Cte are available as extension.
@@ -13,6 +13,11 @@ Revision history for App-DBBrowser
         - Refactored Join.pm and Union.pm.
         - Bugfixes.
         - Update documentation.
+
+2.342  2023-09-28
+        - Bugfix: don't remove outer parentheses in Subqueries.pm.
+        - Bugfix: wrong format of auto generated aliases in Union.pm.
+        - Bugfix in table alias: undefined variable.
 
 2.341  2023-09-20
         - Bugfix Update: 'set' was missing a parameter.

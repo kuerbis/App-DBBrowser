@@ -65,7 +65,7 @@ sub case {
     my @bu;
     my $else_on = 0;
 
-    SUBSTMT: while ( 1 ) { # name
+    SUBSTMT: while ( 1 ) {
         my ( $when, $else, $end ) = ( '  WHEN', '  ELSE', '  END' );
         my @pre = ( undef );
         my $menu;
