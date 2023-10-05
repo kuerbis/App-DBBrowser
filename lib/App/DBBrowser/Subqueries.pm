@@ -7,7 +7,7 @@ use 5.014;
 
 use File::Spec::Functions qw( catfile );
 
-use List::MoreUtils qw( any );
+use List::MoreUtils qw( any firstidx );
 
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( line_fold );
@@ -41,7 +41,7 @@ sub __session_history {
             next;
         }
         push @$tmp_subquery_history, $subquery;
-        if ( @$tmp_subquery_history == 10 ) {
+        if ( @$tmp_subquery_history == 5 ) {
             last;
         }
     }
@@ -56,8 +56,10 @@ sub __session_history {
         $stmt =~ s/\s+\z//;
         $stmt = join '', map { s/\s+/ /g if ! /^[$iqc']/; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
         #$stmt = join '', map { /^[$iqc']/ ? s/\n/ /g : s/\s+/ /g; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
-        $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/;
-        if ( any { $_ eq $stmt } @$subquery_history, @$print_history ) {
+        if ( $sf->{caller} eq 'cte' ) {
+            $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/;
+        }
+        if ( any { $_ eq $stmt } @$subquery_history, @$print_history ) { # ###
             next;
         }
         push @$tmp_table_print_history, $stmt;
@@ -151,15 +153,14 @@ sub __choose_query {
 
 
 sub prepare_cte {
-    my ( $sf, $sql, $table_names ) = @_;
+    my ( $sf, $sql ) = @_;
+    $sf->{caller} = 'cte';
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-    $table_names //= [];
-    my $cte_names = [ map { $_->{table} } @{$sf->{d}{ctes}} ];
 
     CHOOSE_QUERY: while ( 1 ) {
-        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql, 'cte' );
+        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql );
         if ( ! defined $selected_stmt ) {
             return;
         }
@@ -183,7 +184,7 @@ sub prepare_cte {
                 # Readline
                 my $name = $tr->readline(
                     'Name : ',
-                    { default => $default_name, show_context => 1, info => $info, history => [ 'a' .. 'z' ] }
+                    { default => $default_name, show_context => 1, info => $info, history => [ 'cte1' .. 'cte9' ] }
                 );
                 $ax->print_sql_info( $info );
                 if ( ! length $name ) {
@@ -192,9 +193,13 @@ sub prepare_cte {
                 }
                 my $qc = $sf->{d}{identifier_quote_char};
                 my $table = $name =~ s/^ \s* (?:recursive\s)? \s* ( $qc(?:[^$qc]|$qc$qc)+$qc | \S+ ) \s* (?:\(.+)? \z/$1/rix;
-                if ( any { $_ eq $table } @$cte_names, @$table_names ) {
-                    $default_name = length $default_name ? '' : $table;
-                    my $prompt = "The name '$table' already exists.";
+                my $cte = { name => $name, query => $query, table => $table };
+                $default_name = length $default_name ? '' : $table;
+                my @table_names = keys %{$sf->{d}{tables_info}};
+                my @cte_names = map { $_->{table} } @{$sf->{d}{ctes}};
+                if ( any { $_ eq $table } @table_names, @cte_names ) {
+                    my $type = ( firstidx { $_ eq $table } @table_names ) > -1 ? 'table' : 'cte';
+                    my $prompt = "A $type '$table' already exists.";
                     # Choose
                     $tc->choose(
                         [ 'Press ENTER' ],
@@ -203,10 +208,11 @@ sub prepare_cte {
                     $ax->print_sql_info( $info );
                     next NAME;
                 }
-                unshift @{$sf->{d}{subquery_history}}, $query;
-                my $cte = { name => $name, query => $query, table => $table };
-                push @{$sf->{d}{ctes}}, $cte;
-                return $table;
+                else {
+                    push @{$sf->{d}{ctes}}, $cte;
+                    unshift @{$sf->{d}{subquery_history}}, $query;
+                    return $table;
+                }
             }
         }
     }
@@ -215,11 +221,12 @@ sub prepare_cte {
 
 sub subquery {
     my ( $sf, $sql ) = @_;
+    $sf->{caller} = 'subquery';
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
 
     CHOOSE_QUERY: while ( 1 ) {
-        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql, 'subquery' );
+        my ( $selected_stmt, $history ) = $sf->__choose_query( $sql );
         if ( ! defined $selected_stmt ) {
             return;
         }
@@ -234,7 +241,7 @@ sub subquery {
             next CHOOSE_QUERY;
         }
         unshift @{$sf->{d}{subquery_history}}, $stmt;
-        if ( $stmt =~ /^\s*SELECT\s/i ) {
+        if ( $stmt =~ /^\s*(?:SELECT|WITH)\s/i ) {
             return "(" . $stmt . ")";
         }
         else {
@@ -367,7 +374,7 @@ sub __add_subqueries {
                 { info => $info, show_context => 1, clear_screen => 1, default => $default, history => [] }
             );
             $ax->print_sql_info( $info );
-            if ( ! defined $stmt || ! length $stmt ) {
+            if ( ! length $stmt ) {
                     next;
             }
             my $folded_stmt = "\n" . line_fold(
@@ -381,11 +388,11 @@ sub __add_subqueries {
                 { info => $info, show_context => 1, history => [] }
             );
             $ax->print_sql_info( $info );
-            if ( ! defined $name ) {
+            if ( ! defined $name ) { ##
                 next;
             }
             push @bu, [ @$added_sq ];
-            push @$added_sq, { stmt => $stmt, name => length $name ? $name : $stmt };
+            push @$added_sq, { stmt => $stmt, name => length $name ? $name : $stmt }; ##
         }
     }
 }
@@ -420,7 +427,7 @@ sub __edit_subqueries {
         { info => $info, default => $saved_subqueries->[$idx]{stmt}, show_context => 1, clear_screen => 1,
           history => [] }
     );
-    if ( ! defined $stmt || ! length $stmt ) {
+    if ( ! length $stmt ) {
         return;
     }
     my $folded_stmt = "\n" . line_fold(
@@ -437,11 +444,11 @@ sub __edit_subqueries {
         'Name: ',
         { info => $info, default => $default_name, show_context => 1, history => [] }
     );
-    if ( ! defined $name ) {
+    if ( ! defined $name ) { ##
         return;
     }
     if ( $stmt ne $saved_subqueries->[$idx]{stmt} || $name ne $saved_subqueries->[$idx]{name} ) {
-        $saved_subqueries->[$idx] = { stmt => $stmt, name => length $name ? $name : $stmt };
+        $saved_subqueries->[$idx] = { stmt => $stmt, name => length $name ? $name : $stmt }; ##
         return 1;
     }
     return;

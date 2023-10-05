@@ -236,20 +236,11 @@ Choosing one of the tables leads to the I<SQL Menu>.
 
 =head3 Derived
 
-Choosing this entry allows one to enter a CTE and use it as a table.
+I<Derived> is available if enabled in L</Extensions>.
 
-CTE query:
+=head3 Cte
 
-If the query history has entries, the CTE query can be chosen from these entries (see I<stored subqueries> in
-L</Subqueries>).
-
-CTE name:
-
-  [RECURSIVE] cte_name [(col_name [, col_name] ...)]
-
-Some database types build recursive CTEs without the C<RECURSIVE> keyword.
-
-This entry is available if enabled in L</Extensions>.
+Common table expression, available if enabled in L</Extensions>.
 
 =head3 Join
 
@@ -658,6 +649,38 @@ Add menu entries to menus:
 
 Derived (table)
 
+One can enter a subquery and use it as a table.
+
+By selecting the I<Read-Line> menu entry the user is ask for the query.
+
+If stored statements are available, it is also possible to select one of those statements instead of entering a query.
+
+The previously entered query and the last statements printed with I<Print TABLE> are stored temporarily.
+
+Statements can be saved permanently in the sub-menu which opens by selecting the prompt line in the I<Subquery> menu
+(I<Choose:>).
+
+=item
+
+Cte
+
+The user is ask for the CTE query and the CTE name. The syntax of the CTE name is
+
+  [RECURSIVE] cte_name [(col_name [, col_name] ...)]
+
+Some database types build recursive CTEs without the C<RECURSIVE> keyword.
+
+By selecting the I<Read-Line> menu entry the user can enter the query.
+
+If stored statements are available, it is also possible to select one of those statements instead of entering a query.
+
+The previously entered queries and the last statements printed with I<Print TABLE> are stored temporarily.
+
+Statements can be saved permanently in the sub-menu which opens by selecting the prompt line in the I<CTE> menu
+(I<Choose:>).
+
+If a menu entry other than I<Cte> is chosen, all ctes are reset.
+
 =item
 
 Join menu
@@ -680,6 +703,10 @@ DB settings
 
 Derived (table)
 
+=item
+
+Cte
+
 =back
 
 =head3 Union menu
@@ -689,6 +716,10 @@ Derived (table)
 =item
 
 Derived (table)
+
+=item
+
+Cte
 
 =item
 
@@ -723,6 +754,17 @@ If enabled, then - in addition to constants - subqueries, functions and more (se
 right side of operators. Places where extended values are available: C<SET> in update, C<WHEN>, C<THEN> and
 C<ELSE> in case expressions and C<WHERE> and C<HAVING>.
 
+=item
+
+Extended Arguments
+
+If enabled, subqueries, functions and more (see the following list) are available for entering arguments in addition to
+constants in the scalar and window functions.
+
+This option can also be enabled later in the functions menu by selecting the prompt line.
+
+C<ELSE> in case expressions and C<WHERE> and C<HAVING>.
+
 =back
 
 =head3 Column and Value extensions
@@ -739,16 +781,16 @@ If stored subqueries are available, it is also possible to select one of those s
 subquery.
 
 The last subqueries entered in the subquery menu and the last statements printed with I<Print TABLE> are stored
-temporarily. Before printed statements are stored, newlines are replaced with spaces.
+temporarily.
 
 A subquery can be saved permanently in the sub-menu which opens by selecting the prompt line of a subquery menu
 (I<Choose SQ:>).
 
-Entries matching C</^\s*SELECT\s/i> are automatically enclosed in parentheses.
+Entries matching C</^\s*(?:SELECT|WITH)\s/i> are automatically enclosed in parentheses.
 
 =item Scalar functions
 
-Selecting C<f()> opens the menu, where the user can choose from a list of scalar functions.
+Selecting C<func()> opens the menu, where the user can choose from a list of scalar functions.
 
 Extended arguments for scalar functions can be temporarily enabled by selecting the prompt line (I<Scalar functions:>)
 of the scalar function menu.
@@ -847,15 +889,21 @@ Functions/Subqueries in SELECT
 
 =item
 
-Join
+Tables in JOIN
 
 =item
 
-Union
+Non-unique columns in JOIN
+
+=item
+
+Derived table
+
+=item
+
+Ordinary table
 
 =back
-
-C<mysql>, C<MariaDB> and C<Pg>: if the table is a derived table an alias is always added.
 
 =head3 Identifiers
 
@@ -863,19 +911,19 @@ C<mysql>, C<MariaDB> and C<Pg>: if the table is a derived table an alias is alwa
 
 =item Qualified table names
 
-If set to C<YES>, qualified table names are used in SQL statements.
-
 C<SQLite>: if the current database has attached databases, the use of qualified table names is enabled automatically.
 
-=item Quote identifiers
+=item Quote table names
 
-If set to C<YES>, SQL identifiers are quoted.
+=item Quote column names
+
+=item Quote aliases
+
+=back
 
 C<Informix>: set the C<DELIMIDENT> environment variable to allow quoted identifier.
 
 C<SQLite>: database names in SQL statements (C<ATTACH DATABASE>) are always quoted.
-
-=back
 
 =head3 View prefix
 
@@ -886,7 +934,7 @@ Enter a string which should be automatically put in front of all view names.
 Setting I<Auto increment> to a value which is not the empty string enables the option to set an auto increment column
 when creating a table. The value set here is then used as the default name for the auto increment column.
 
-=head3 Col data types
+=head3 Column data types
 
 If this option is enabled and a table is created, C<SQL::Type::Guess> is used to detect the data types. These data types
 are then used as default values when the user is asked for the data types.

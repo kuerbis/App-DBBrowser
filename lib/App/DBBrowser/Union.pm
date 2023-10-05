@@ -44,14 +44,16 @@ sub union_tables {
 
     TABLE: while ( 1 ) {
         my $enough_tables = '  Enough TABLES';
-        my $from_cte      = '  Derived';
+        my $derived_table = '  Derived';
+        my $cte_table     = '  Cte';
         my $where         = '  Where';
         my $parentheses   = '  Parentheses';
         my @pre  = ( undef, $enough_tables );
         my @post;
-        push @post, $from_cte    if $sf->{o}{enable}{u_derived};
-        push @post, $where       if $sf->{o}{enable}{u_where};
-        push @post, $parentheses if $sf->{o}{enable}{u_parentheses} && $sf->{i}{driver} !~ /^(?:SQLite|Firebird)\z/;
+        push @post, $derived_table if $sf->{o}{enable}{u_derived};
+        push @post, $cte_table     if $sf->{o}{enable}{u_cte};
+        push @post, $where         if $sf->{o}{enable}{u_where};
+        push @post, $parentheses   if $sf->{o}{enable}{u_parentheses} && $sf->{i}{driver} !~ /^(?:SQLite|Firebird)\z/;
         my $used = ' (used)';
         my @tmp_tables;
         for my $table ( @$tables ) {
@@ -77,7 +79,7 @@ sub union_tables {
                 $old_idx_tbl = 0;
                 my $removed_table = pop @$used_tables;
                 pop @$data;
-                if ( @{$sf->{d}{ctes}} && $removed_table eq $sf->{d}{ctes}[-1]{table} ) {
+                if ( @{$sf->{d}{ctes}//[]} && $removed_table eq $sf->{d}{ctes}[-1]{table} ) {
                     pop @{$sf->{d}{ctes}};
                 }
                 next TABLE;
@@ -107,10 +109,23 @@ sub union_tables {
             $sf->__parentheses( $sql, $data );
             next TABLE;
         }
-        elsif ( $table eq $from_cte ) {
+
+        elsif ( $table eq $derived_table ) {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
-            $table = $sq->prepare_cte( $sql, $tables );
+            $table = $sq->subquery( $sql );
+            if ( ! defined $table ) {
+                next TABLE;
+            }
+            $qt_table = $table;
+            my $default_alias = 'p' . ( @$used_tables + 1 );
+            my $alias = $ax->alias( $sql, 'derived_table', $qt_table, $default_alias );
+            $qt_table .= " " . $ax->quote_alias( $alias );
+        }
+        elsif ( $table eq $cte_table ) {
+            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
+            $table = $sq->prepare_cte( $sql );
             if ( ! defined $table ) {
                 next TABLE;
             }
@@ -125,7 +140,7 @@ sub union_tables {
         if ( @$data ) {
             $operator = $sf->__set_operator( $sql, $table );
             if ( ! $operator ) {
-                if ( @{$sf->{d}{ctes}} && $table eq $sf->{d}{ctes}[-1]{table} ) {
+                if ( @{$sf->{d}{ctes}//[]} && $table eq $sf->{d}{ctes}[-1]{table} ) {
                     pop @{$sf->{d}{ctes}};
                 }
                 next TABLE;
@@ -133,23 +148,20 @@ sub union_tables {
         }
         my $ok = $sf->__choose_table_columns( $sql, $data, $table, $qt_table, $operator );
         if ( ! $ok ) {
-            if ( @{$sf->{d}{ctes}} && $table eq $sf->{d}{ctes}[-1]{table} ) {
+            if ( @{$sf->{d}{ctes}//[]} && $table eq $sf->{d}{ctes}[-1]{table} ) {
                 pop @{$sf->{d}{ctes}};
             }
             next TABLE;
         }
         push @$used_tables, $table;
     }
+    my $qt_columns = delete $data->[0]{cols};
+    my $qt_aliases = delete $data->[0]{alias};
     $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
-    my $union_stmt = $ax->get_stmt( $sql, 'Union', 'prepare' );
-    my $union_derived_table = $union_stmt =~ s/^\s*SELECT\s\*\sFROM\s+//r; ##
-    $union_derived_table =~ s/\n\z//;
-    my $alias = $ax->alias( $sql, 'table', $union_derived_table, 't1' );
-    $union_derived_table .= " " . $ax->prepare_identifier( $alias );
-    # column names in the result-set of a UNION are taken from the first query.
-    my $columns = $ax->column_names( $union_derived_table );
-    my $qt_columns = $ax->quote_cols( $columns );
-    return $union_derived_table, $qt_columns;
+    my $union_derived_table = $ax->get_stmt( $sql, 'Union', 'prepare' );
+    my $union_alias = $ax->alias( $sql, 'derived_table', '', 't1' );
+    $union_derived_table .= " " . $ax->quote_alias( $union_alias );
+    return $union_derived_table, $qt_columns, $qt_aliases;
 }
 
 
@@ -172,7 +184,7 @@ sub __set_operator {
     }
     my @pre = ( undef );
     my $menu = [ @pre, map { '  ' . lc $_ } @set_operators ];
-    my $prompt = sprintf 'Join %s with:', $table;
+    my $prompt = sprintf 'Add %s with:', $table;
     my $info = $ax->get_sql_info( $sql );
     # Choose
     my $operator = $tc->choose(
@@ -191,7 +203,7 @@ sub __choose_table_columns {
     my ( $sf, $sql, $data, $table, $qt_table, $operator ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $privious_cols =  "'^'";
+    #my $privious_cols =  "'^'"; ##
     my $next_idx = @$data;
     my $chosen_cols = [];
     my @bu_cols;
@@ -204,10 +216,8 @@ sub __choose_table_columns {
     COLUMNS: while ( 1 ) {
         my @pre = ( undef, $sf->{i}{ok} );
         push @pre, $sf->{i}{menu_addition} if $sf->{o}{enable}{extended_cols};
-        #push @pre, $privious_cols          if $next_idx; # ###
-        if ( ! @{$data->[$next_idx]{qt_columns}//[]} ) {
-            $data->[$next_idx]{qt_columns} = [ '*' ];
-        }
+        #push @pre, $privious_cols          if $next_idx; ##
+        $sf->__cols_alias_sub_stmt( $data, $next_idx, $chosen_cols );
         $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
         my $info = $ax->get_sql_info( $sql );
         # Choose
@@ -220,23 +230,26 @@ sub __choose_table_columns {
         if ( ! defined $choices[0] ) {
             if ( @bu_cols ) {
                 $chosen_cols = pop @bu_cols;
-                $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
                 next COLUMNS;
             }
             $#$data = $next_idx - 1;
             return;
         }
-        if ( $choices[0] eq $privious_cols ) {
-            $data->[$next_idx]{qt_columns} = $data->[$next_idx-1]{qt_columns};
-            return 1;
-        }
-        elsif ( $choices[0] eq $sf->{i}{ok} ) {
+        #if ( $choices[0] eq $privious_cols ) { ##
+        #    $data->[$next_idx]{qt_columns} = $data->[$next_idx-1]{qt_columns};
+        #    return 1;
+        #}
+        #els
+        if ( $choices[0] eq $sf->{i}{ok} ) {
             shift @choices;
             push @$chosen_cols, map { { name => $_ } } @choices;
             if ( ! @$chosen_cols ) {
                 $chosen_cols = [ map { { name => $_ } } @{$sf->{d}{col_names}{$table}} ];
             }
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
+            $sf->__cols_alias_sub_stmt( $data, $next_idx, $chosen_cols );
+            if ( $next_idx == 0 ) {
+                $sf->__cols_alias_main_stmt( $data, $chosen_cols );
+            }
             return 1;
         }
         elsif ( $choices[0] eq $sf->{i}{menu_addition} ) {
@@ -248,38 +261,54 @@ sub __choose_table_columns {
                 next COLUMNS;
             }
             my $default = 'col_' . ( @$chosen_cols + 1 );
-            my $alias = $ax->alias( $sql, 'select_func_sq', $complex_col, $default );
-            if ( ! length $alias ) {
-                $alias = $default;
-            }
+            my $alias = $ax->alias( $sql, 'select_complex_col', $complex_col, $default );
             push @bu_cols, [ @$chosen_cols ];
             push @$chosen_cols, { name => $complex_col, alias => $alias };
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
-        }
+         }
         else {
             push @bu_cols, [ @$chosen_cols ];
             push @$chosen_cols, map { { name => $_ } } @choices;
-            $data->[$next_idx]{qt_columns} = $sf->__quote_union_table_cols( $chosen_cols );
-        }
+         }
     }
 }
 
 
-sub __quote_union_table_cols {
-    my ( $sf, $cols ) = @_;
+sub __cols_alias_main_stmt {
+    my ( $sf, $data, $chosen_cols ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $count = 0;
-    my $qt_cols = [];
-    for my $col ( @$cols ) {
+    # column names in the result-set of a UNION are taken from the first query.
+    for my $col ( @$chosen_cols ) {
         if ( length $col->{alias} ) {
-            # only scalar functions and subqueries have an alias
-            push @$qt_cols, $col->{name} . ' AS ' . $ax->prepare_identifier( $col->{alias} );
+            $data->[0]{alias}{$col->{name}} = $ax->quote_alias( $col->{alias} );
+            push @{$data->[0]{cols}}, $col->{name};
         }
         else {
-            push @$qt_cols, $ax->prepare_identifier( $col->{name} );
+            push @{$data->[0]{cols}}, $ax->quote_column( $col->{name} );
         }
     }
-    return $qt_cols;
+    return;
+}
+
+
+sub __cols_alias_sub_stmt {
+    my ( $sf, $data, $tbl_idx, $chosen_cols ) = @_;
+    if ( ! @{$chosen_cols//[]} ) {
+        $data->[$tbl_idx]{qt_columns} = [ '*' ];
+        return;
+    }
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $qt_cols = [];
+    for my $col ( @$chosen_cols ) {
+        if ( length $col->{alias} ) {
+            # $col->{name} is scalar_functions or a subquery if it has an alias
+            push @$qt_cols, $col->{name} . ' AS ' . $ax->quote_alias( $col->{alias} );
+        }
+        else {
+            push @$qt_cols, $ax->quote_column( $col->{name} );
+        }
+    }
+    $data->[$tbl_idx]{qt_columns} = $qt_cols;
+    return;
 }
 
 

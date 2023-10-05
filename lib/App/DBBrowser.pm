@@ -105,14 +105,18 @@ sub __options {
             print clear_screen();
             require App::DBBrowser::Opt::Set;
             my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-            $sf->{o} = $opt_set->set_options();
+            my $opt = $opt_set->set_options();
+            if ( defined $opt ) {
+                $sf->{o} = $opt;
+            }
         }
         1 }
     ) {
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, {}, {} );
         $ax->print_error_message( $@ );
-        my $opt_get = App::DBBrowser::Opt::Get->new( $sf->{i}, {} );
-        $sf->{o} = $opt_get->defaults();
+        if ( ! defined $sf->{o} ) {
+            return;
+        }
         while ( $ARGV[0] && $ARGV[0] =~ /^-/ ) {
             my $arg = shift @ARGV;
             last if $arg eq '--';
@@ -415,7 +419,7 @@ sub run {
 
                 TABLE: while ( 1 ) {
 
-                    my ( $join, $union, $from_cte ) = ( '  Join', '  Union', '  Derived' );
+                    my ( $join, $union, $derived_table, $cte_table ) = ( '  Join', '  Union', '  Derived', '  Cte' );
                     my $hidden = $db_string;
                     my $table;
                     if ( $sf->{redo_table} ) {
@@ -431,9 +435,10 @@ sub run {
                         else {
                             $menu_table = [ @pre, map( "- $_", @$user_table_keys ) ];
                         }
-                        push @$menu_table, $from_cte if $sf->{o}{enable}{m_derived};
-                        push @$menu_table, $join     if $sf->{o}{enable}{join};
-                        push @$menu_table, $union    if $sf->{o}{enable}{union};
+                        push @$menu_table, $derived_table if $sf->{o}{enable}{m_derived};
+                        push @$menu_table, $cte_table     if $sf->{o}{enable}{m_cte};
+                        push @$menu_table, $join          if $sf->{o}{enable}{join};
+                        push @$menu_table, $union         if $sf->{o}{enable}{union};
                         my $back = $skipped_menus == 3 ? $sf->{i}{_quit} : $sf->{i}{_back};
                         # Choose
                         my $idx_tbl = $tc->choose(
@@ -444,6 +449,7 @@ sub run {
                             $table = $menu_table->[$idx_tbl];
                         }
                         if ( ! defined $table ) {
+                            $sf->{d}{ctes} = [];
                             next SCHEMA         if @schemas                > 1;
                             $dbh->disconnect();
                             next DATABASE       if @databases              > 1;
@@ -457,6 +463,9 @@ sub run {
                             }
                             $old_idx_tbl = $idx_tbl;
                         }
+                    }
+                    if ( $table ne $cte_table ) {
+                        $sf->{d}{ctes} = [];
                     }
                     if ( $table eq $hidden ) {
                         require App::DBBrowser::CreateDropAttach;
@@ -490,7 +499,6 @@ sub run {
                             next DATABASE;
                         }
                     }
-                    $sf->{d}{ctes} = [];
                     my ( $qt_table, $qt_columns, $qt_aliases );
                     if ( $table eq $join ) {
                         require App::DBBrowser::Join;
@@ -506,14 +514,23 @@ sub run {
                         require App::DBBrowser::Union;
                         my $new_u = App::DBBrowser::Union->new( $sf->{i}, $sf->{o}, $sf->{d} );
                         $sf->{d}{special_table} = 'union';
-                        if ( ! eval { ( $qt_table, $qt_columns ) = $new_u->union_tables(); 1 } ) {
+                        if ( ! eval { ( $qt_table, $qt_columns, $qt_aliases ) = $new_u->union_tables(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
                         }
                         next TABLE if ! defined $qt_table;
                     }
-                    elsif ( $table eq $from_cte ) {
-                        $sf->{d}{special_table} = 'from_cte';
+
+                    elsif ( $table eq $derived_table ) {
+                        $sf->{d}{special_table} = 'drived_table';
+                        if ( ! eval { ( $qt_table, $qt_columns ) = $sf->__derived_table(); 1 } ) {
+                            $ax->print_error_message( $@ );
+                            next TABLE;
+                        }
+                        next TABLE if ! defined $qt_table;
+                    }
+                    elsif ( $table eq $cte_table ) {
+                        $sf->{d}{special_table} = 'cte_table';
                         if ( ! eval { ( $qt_table, $qt_columns ) = $sf->__derived_table(); 1 } ) {
                             $ax->print_error_message( $@ );
                             next TABLE;
@@ -528,7 +545,7 @@ sub run {
                             my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                             $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
                             if ( $sf->{o}{alias}{table} ) {
-                                $qt_table .= " " . $ax->prepare_identifier( 't1' );
+                                $qt_table .= " " . $ax->quote_alias( 't1' );
                             }
                             my $cols = $ax->column_names( $qt_table );
                             $qt_columns = $ax->quote_cols( $cols );
@@ -571,11 +588,24 @@ sub __derived_table {
     my $sql = { table => '()' };
     $ax->reset_sql( $sql );
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );
-    my $table = $sq->prepare_cte( $sql, [] );
-    if ( ! defined $table ) {
-        return;
+    my $qt_table;
+    if ( $sf->{d}{special_table} eq 'cte_table' ) {
+        my $table = $sq->prepare_cte( $sql );
+        if ( ! defined $table ) {
+            return;
+        }
+        $qt_table = $table;
     }
-    my $qt_table = $table; # remains as entered by the user
+    else {
+        my $table = $sq->subquery( $sql );
+        if ( ! defined $table ) {
+            return;
+        }
+        $qt_table = $table;
+        # Oracle: key word "AS" not supported in Table aliases (Union, Join, Derived tables)
+        my $alias = $ax->alias( $sql, 'derived_table', $qt_table, 't1' );
+        $qt_table .= " " . $ax->quote_alias( $alias );
+    }
     my $qt_columns = $ax->quote_cols( $ax->column_names( $qt_table ) );
     return $qt_table, $qt_columns;
 }

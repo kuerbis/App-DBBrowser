@@ -430,7 +430,7 @@ sub __edit_column_types {
         my @aoh;
         for my $row ( @$table ) {
             push @aoh, {
-                map { $header->[$_] => $row->[$_] } 0 .. $#{$row}
+                map { $header->[$_] => $row->[$_] } 0 .. $#$header
             };
         }
         $g->guess( @aoh );
@@ -445,16 +445,17 @@ sub __edit_column_types {
     }
     my $read_only = []; ##
     if ( length $sf->{col_auto} ) {
-        unshift @$fields, [ $ax->prepare_identifier( $sf->{col_auto} ), $sf->{constraint_auto} ];
+        unshift @$fields, [ $ax->quote_column( $sf->{col_auto} ), $sf->{constraint_auto} ];
         $read_only = [ 0 ];
     }
-    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Oracle)\z/ ) {
+    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/ ) {
         for my $field ( @$fields ) {
             if ( defined $field->[1] && $field->[1] eq 'DATETIME' ) {
-                $field->[1] = 'TIMESTAMP';
+                $field->[1] = 'TIMESTAMP'                 if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Oracle)\z/;
+                $field->[1] = 'DATETIME YEAR TO FRACTION' if $sf->{i}{driver} eq 'Informix';
+                # Informix: DATETIME largest_qualifier TO smallest_qualifier
             }
         }
-        # Informix: DATETIME largest_qualifier TO smallest_qualifier
     }
     my $info = $ax->get_sql_info( $sql );
     # Fill_form

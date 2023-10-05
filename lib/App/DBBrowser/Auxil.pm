@@ -78,7 +78,8 @@ sub get_stmt {
         push @tmp, " ";
     }
     if ( $sql->{case_stmt} ) {
-        # only for print info (it has to be here because then 'when' uses the __add_condition method).
+        @tmp = ();
+        # only for print info (it has to be here because 'when' uses the __add_condition method).
         # When the case expression is completed, it is appended to the corresponding substmt and these case keys are deleted.
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_info}, $indent0 ) if $sql->{case_info};
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_stmt}, $indent0 );
@@ -138,18 +139,38 @@ sub get_stmt {
         }
     }
     elsif ( $stmt_type eq 'Join' ) {
-        my @joins = split /(?=\s(?:INNER|LEFT|RIGHT|FULL|CROSS)\sJOIN)/, $sql->{stmt};
-        #@tmp = ( $sf->__stmt_fold( $used_for, shift @joins, $indent0 ) );
-        push @tmp, $sf->__stmt_fold( $used_for, shift @joins, $indent0 );
-        push @tmp, map { s/^\s//; $sf->__stmt_fold( $used_for, $_, $indent1 ) } @joins;
+        my $select_from;
+        if ( $used_for eq 'prepare' ) {
+            @tmp = ();
+            # no ctes, they are added in the select stmt
+            $select_from = "";
+        }
+        else {
+            $select_from = "SELECT * FROM ";
+       }
+        my @join_data = @{$sql->{join_data}//[]};
+        if ( @join_data ) {
+            my $master_data = shift @join_data;
+            push @tmp, $sf->__stmt_fold( $used_for, $select_from . $master_data->{table}, $indent0 );
+            for my $slave_data ( @join_data ) {
+                my $sub_stmt = join ' ', grep { length } @{$slave_data}{ qw(join_type table condition) };
+                push @tmp, $sf->__stmt_fold( $used_for, $sub_stmt, $indent1 );
+            }
+        }
+        else {
+            push @tmp, $sf->__stmt_fold( $used_for, $select_from, $indent0 );
+        }
     }
     elsif ( $stmt_type eq 'Union' ) {
         #@tmp = ( $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ) );
         if ( $used_for eq 'prepare' ) {
             @tmp = ();
             # no ctes, they are added in the select stmt
+            push @tmp, $sf->__stmt_fold( $used_for, "(", $indent0 ); ##
         }
-        push @tmp, $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ); ##
+        else {
+            push @tmp, $sf->__stmt_fold( $used_for, "SELECT * FROM (", $indent0 ); ##
+        }
         if ( @{$sql->{subselect_stmts}//[]} ) {
             my $extra = 0;
             for my $stmt ( @{$sql->{subselect_stmts}} ) {
@@ -160,14 +181,9 @@ sub get_stmt {
         }
         push @tmp, $sf->__stmt_fold( $used_for, ")", $indent0 );
     }
-#    if ( $used_for eq 'prepare' && $stmt_type !~ /^(?:Join|Union)\z/ ) { # ###
-#        my $prepare_stmt = join ' ', map { s/^\s+//r } @tmp;
-#        return $prepare_stmt;
-#    }
-#    else {
-        my $print_stmt = join( "\n", @tmp ) . "\n";
-        return $print_stmt;
-#   }
+    my $print_stmt = join( "\n", @tmp );
+    $print_stmt .= "\n" if $used_for eq 'print'; # ###
+    return $print_stmt;
 }
 
 
@@ -237,12 +253,9 @@ sub __select_cols {
     elsif ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
         @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
     }
-    elsif ( $sf->{d}{special_table} eq 'join' ) {
-    #elsif ( keys %{$sql->{alias}} ) {
+    elsif ( keys %{$sql->{alias}} ) {
         @cols = @{$sql->{cols}};
-        # join: use qualified column names and not * because:
-        #- different tables could have columns with the same name
-        #- columns could have aliases
+        # use column names and not * if columns have aliases
     }
     if ( ! @cols ) {
         return " *";
@@ -299,16 +312,18 @@ sub alias {
     #   Columns: optional (SQ, functions)
 
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
-    my $prompt = 'AS ';
+    my $prompt = 'as ';
     my $alias;
     if ( $sf->{o}{alias}{$type} ) {
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
         my $info = $sf->get_sql_info( $sql );
-        if ( $identifier =~ /^\n/ ) {
-            $info .= $identifier;
-        }
-        else {
-            $info .= "\n" . $identifier;
+        if ( length $identifier ) {
+            if ( $identifier =~ /^\n/ ) {
+                $info .= $identifier;
+            }
+            else {
+                $info .= "\n" . $identifier;
+            }
         }
         # Readline
         $alias = $tr->readline(
@@ -324,18 +339,8 @@ sub alias {
 }
 
 
-sub prepare_identifier {
+sub __qualify_identifier {
     my ( $sf, @id ) = @_;
-    if ( $sf->{o}{G}{quote_identifiers} ) {
-        my $quote = $sf->{d}{identifier_quote_char};
-        for ( @id ) {
-            if ( ! defined ) {
-                next;
-            }
-            s/$quote/$quote$quote/g;
-            $_ = qq{$quote$_$quote};
-        }
-    }
 #    my $catalog = ( @id >= 3 ) ? shift @id : undef;        # catalog not used (if used, uncomment also catalog_location and catalog_name_sep)
     my $quoted_id = join '.', grep { defined } @id;
 #    if ( $catalog ) {
@@ -348,7 +353,21 @@ sub prepare_identifier {
 #        }
 #    }
     return $quoted_id;
-    # quote_identifier  DBI.pm
+}
+
+sub __quote_identifier {
+    my ( $sf, $type, @id ) = @_;
+    if ( $sf->{o}{G}{'quote_' . $type} ) {
+        my $quote = $sf->{d}{identifier_quote_char};
+        for ( @id ) {
+            if ( ! defined ) {
+                next;
+            }
+            s/$quote/$quote$quote/g;
+            $_ = qq{$quote$_$quote};
+        }
+    }
+    return @id;
 }
 
 
@@ -366,13 +385,32 @@ sub quote_table {
     else {
         @idx = ( 2 );
     }
-    return $sf->prepare_identifier( @{$table_info}[@idx] );
+    return $sf->__qualify_identifier( $sf->__quote_identifier( 'tables', @{$table_info}[@idx] ) );
+}
+
+
+sub quote_column {
+    my ( $sf, @id ) = @_;
+    if ( @id == 2 ) { # join: table_alias.column_name
+        return $sf->__qualify_identifier(
+            $sf->__quote_identifier( 'aliases', shift @id ), $sf->__quote_identifier( 'columns', shift @id )
+        );
+    }
+    else {
+        return $sf->__qualify_identifier( $sf->__quote_identifier( 'columns', @id ) );
+    }
 }
 
 
 sub quote_cols {
     my ( $sf, $cols ) = @_;
-    return [ map { $sf->prepare_identifier( $_ ) } @$cols ];
+    return [ map { $sf->__qualify_identifier( $sf->__quote_identifier( 'columns', $_ ) ) } @$cols ];
+}
+
+
+sub quote_alias {
+    my ( $sf, @id ) = @_;
+    return $sf->__qualify_identifier( $sf->__quote_identifier( 'aliases', @id ) );
 }
 
 
@@ -460,6 +498,7 @@ sub column_names {
             $stmt .= ' ';
         }
         $stmt .= "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 );
+        #my $stmt = $sf->get_stmt( $sql, 'Select', 'prepare' ) . $sf->sql_limit( 0 ); #  $sql
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
         if ( $sf->{i}{driver} ne 'SQLite' ) {
             $sth->execute();

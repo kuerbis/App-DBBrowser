@@ -98,7 +98,6 @@ sub table_write_access {
             if ( ! defined $idx || ! defined $menu->[$idx] ) {
                 next STMT_TYPE;
             }
-            my $custom = $menu->[$idx];
             if ( $sf->{o}{G}{menu_memory} ) {
                 if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
                     $old_idx = 0;
@@ -107,6 +106,7 @@ sub table_write_access {
                 $old_idx = $idx;
             }
             my $backup_sql = $ax->backup_href( $sql );
+            my $custom = $menu->[$idx];
             if ( $custom eq $cu{'set'} ) {
                 my $ok = $sb->set( $sql );
                 if ( ! $ok ) {
