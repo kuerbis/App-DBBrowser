@@ -68,6 +68,10 @@ sub table_write_access {
         $stmt_type =~ s/^-\ //;
         $sf->{d}{stmt_types} = [ $stmt_type ];
         $ax->reset_sql( $sql );
+        ##
+        my $table_key = $sf->{d}{table_key};
+        $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table_key} ); # table name without alias
+        ##
         if ( $stmt_type eq 'Insert' ) {
             my $ok = $sf->__build_insert_stmt( $sql );
             if ( $ok ) {

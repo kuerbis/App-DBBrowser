@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.344  2023-10-15
+        - Bugfix: no table alias in update/insert/delete.
+
 2.343  2023-10-05
         - Split option 'quote identifier' into 'quote table names', 'quote column names' and 'quote aliases'.
         - New option: enable/disable aliases for non-unique columns in join.
