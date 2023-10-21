@@ -126,7 +126,7 @@ sub join_tables {
             $ax->print_sql_info( $info );
             if ( ! defined $join_type ) {
                 if ( @bu ) {
-                    if ( @{$sf->{d}{ctes}//[]} && $data->{used_tables}[-1] eq $sf->{d}{ctes}[-1]{table} ) {
+                    if ( @{$sf->{d}{ctes}} && $data->{used_tables}[-1] eq $sf->{d}{ctes}[-1]{table} ) {
                         pop @{$sf->{d}{ctes}};
                     }
                     ( $data->{default_alias}, $data->{aliases}, $data->{used_tables} ) = @{pop @bu};
@@ -279,7 +279,7 @@ sub __add_slave_with_join_condition {
         if ( $sql->{join_data}[-1]{join_type} ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $sql, $data, $slave, $slave_alias );
             if ( ! $ok ) {
-                if ( @{$sf->{d}{ctes}//[]} && $slave eq $sf->{d}{ctes}[-1]{table} ) {
+                if ( @{$sf->{d}{ctes}} && $slave eq $sf->{d}{ctes}[-1]{table} ) {
                     pop @{$sf->{d}{ctes}};
                 }
                 ( $data->{default_alias}, $data->{aliases}, $data->{used_tables} ) = @{pop @bu};

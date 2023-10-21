@@ -92,7 +92,7 @@ sub case {
             return;
         }
         push @bu, $tmp_sql->{case_stmt};
-        my $op = '=';
+        my $operator= '=';
         if ( $menu->[$idx] eq $end ) {
             $tmp_sql->{case_stmt} .= "\n${pad1}END";
             my $case_stmt = delete $tmp_sql->{case_stmt};
@@ -105,9 +105,9 @@ sub case {
             return $case_stmt;
         }
         elsif ( $menu->[$idx] eq $when ) {
-            my $stmt = 'when_stmt';
-            $tmp_sql->{$stmt} = "${pad2}WHEN";
-            my $ret = $sb->__add_condition( $tmp_sql, $clause, $stmt, $qt_cols );
+            my $substmt_type = "${pad2}WHEN";
+            my $ret = $sb->__add_condition( $tmp_sql, $clause, $substmt_type, $qt_cols );
+
             if ( ! defined $ret ) {
                 delete $tmp_sql->{when_stmt};
                 $tmp_sql->{case_stmt} = pop @bu;
@@ -116,7 +116,7 @@ sub case {
             $tmp_sql->{case_stmt} .= "\n" . delete $tmp_sql->{when_stmt};
             $tmp_sql->{case_stmt} .= " THEN";
             push @{$r_data->{case}}, $tmp_sql->{case_stmt};
-            my $value = $ext->value( $tmp_sql, $clause, $r_data, $op );
+            my $value = $ext->value( $tmp_sql, $clause, $r_data, $operator);
             pop @{$r_data->{case}};
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;
@@ -127,7 +127,7 @@ sub case {
         elsif ( $menu->[$idx] eq $else ) {
             $tmp_sql->{case_stmt} .= "\n${pad2}ELSE";
             push @{$r_data->{case}}, $tmp_sql->{case_stmt};
-            my $value = $ext->value( $tmp_sql, $clause, $r_data, $op );
+            my $value = $ext->value( $tmp_sql, $clause, $r_data, $operator);
             pop @{$r_data->{case}};
             if ( ! defined $value ) {
                 $tmp_sql->{case_stmt} = pop @bu;

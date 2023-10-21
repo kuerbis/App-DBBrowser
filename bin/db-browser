@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-
-our $VERSION = '2.344';
+$SIG{__WARN__} = sub { die @_ };
+our $VERSION = '2.345_01';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.344
+Version 2.345_01
 
 =head1 SYNOPSIS
 
@@ -288,7 +288,8 @@ Select I<Print TABLE> to show the result of the formed statement on the screen.
 
 =head3 The Sub-Statements Entries
 
-To reset a SQL "sub-statement" (e.g C<WHERE>) re-enter into the respective menu and choose C<-OK->.
+In a SQL submenu (e.g C<WHERE>) the back arrow resets the subquery step by step. With no items left, the SQL submenu is
+left when the back arrow is chosen.
 
 See also L</Extensions> and L</Operators>
 
@@ -821,6 +822,10 @@ Available after the C<SET> in an C<UPDATE> statement.
 
 C<WHERE>, C<WHEN> and C<HAVING>: in the C<%%> menu are also available parentheses.
 
+=item Column aliases
+
+Selecting C<as> allows one to set aliases for the selected columns.
+
 =back
 
 =head3 Write access
@@ -902,6 +907,22 @@ Derived table
 Ordinary table
 
 =back
+
+Possible settings:
+
+=over
+
+=item C<NO>: no alias
+
+=item C<AUTO>: a default alias is used
+
+=item C<ASK>: the user is asked for the alias; if entered nothing, no alias is added
+
+=item C<ASK/AUTO>: the user is asked for the alias; if entered nothing, a default alias is added
+
+=back
+
+No all of these settings are available in any alias type.
 
 =head3 Identifiers
 

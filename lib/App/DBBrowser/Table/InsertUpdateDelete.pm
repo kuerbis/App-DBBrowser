@@ -32,12 +32,12 @@ sub table_write_access {
     my $cs = App::DBBrowser::Table::CommitWriteSQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my @stmt_types;
-    if ( ! $sf->{d}{special_table} ) {
+    if ( $sf->{d}{table_origin} eq 'ordinary' ) {
         push @stmt_types, 'Insert' if $sf->{o}{enable}{insert_into};
         push @stmt_types, 'Update' if $sf->{o}{enable}{update};
         push @stmt_types, 'Delete' if $sf->{o}{enable}{delete};
     }
-    elsif ( $sf->{d}{special_table} eq 'join' && $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $sf->{d}{table_origin} eq 'join' && $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
         push @stmt_types, 'Update' if $sf->{o}{enable}{update};
     }
     if ( ! @stmt_types ) {
@@ -69,10 +69,13 @@ sub table_write_access {
         $sf->{d}{stmt_types} = [ $stmt_type ];
         $ax->reset_sql( $sql );
         ##
-        my $table_key = $sf->{d}{table_key};
-        $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table_key} ); # table name without alias
+#        my $table_key = $sf->{d}{table_key};
+#        $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table_key} ); # table name without alias
         ##
         if ( $stmt_type eq 'Insert' ) {
+            # Insert: use tablename without alias:
+            my $table_key = $sf->{d}{table_key};
+            $sql->{table} = $ax->quote_table( $sf->{d}{tables_info}{$table_key} );
             my $ok = $sf->__build_insert_stmt( $sql );
             if ( $ok ) {
                 $ok = $cs->commit_sql( $sql );

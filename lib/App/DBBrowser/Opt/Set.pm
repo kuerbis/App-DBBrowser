@@ -338,11 +338,11 @@ sub set_options {
             elsif ( $opt eq '_alias' ) {
                 my $prompt = 'Enable alias for:';
                 my $sub_menu = [
-                    [ 'select_complex_col', "- Functions/Subqueries in SELECT",  [ $no, 'ASK'    ] ],
-                    [ 'join_table',         "- Tables in join",                  [ 'AUTO', 'ASK' ] ],
-                    [ 'join_columns',       "- Non-unique columns in join",      [ $no, 'AUTO'   ] ],
-                    [ 'derived_table',      "- Derived table",                   [ 'AUTO', 'ASK' ] ],
-                    [ 'table',              "- Ordinary table",                  [ $no, 'AUTO'   ] ],
+                    [ 'select_complex_col', "- Functions/Subqueries in SELECT",  [ 'NO',   undef, 'ASK',   undef     ] ],
+                    [ 'join_table',         "- Tables in join",                  [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
+                    [ 'join_columns',       "- Non-unique columns in join",      [ 'NO',  'AUTO',  undef,  undef     ] ],
+                    [ 'derived_table',      "- Derived table",                   [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
+                    [ 'table',              "- Ordinary table",                  [ 'NO',  'AUTO', 'ASK',  'ASK/AUTO' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }

@@ -1,6 +1,14 @@
 Revision history for App-DBBrowser
 
 
+2.345_01  2023-10-21
+        - Changed SQL submenu behavior.
+        - Removed backwards compatibility for old f_attached_db and f_subqueries format.
+        - Added scalar new functions.
+        - Added extension to set aliases for all selected columns.
+        - Update option alias.
+        - Term::Choose::Util minimum version '0.140'.
+
 2.344  2023-10-15
         - Bugfix: no table alias in update/insert/delete.
 

@@ -61,6 +61,7 @@ repexp
 schemas
 sql
 stackoverflow
+submenu
 subqueries
 subquery
 substatement

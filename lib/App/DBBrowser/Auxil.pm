@@ -314,7 +314,13 @@ sub alias {
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
     my $prompt = 'as ';
     my $alias;
-    if ( $sf->{o}{alias}{$type} ) {
+    if ( $sf->{o}{alias}{$type} == 0 ) {
+        return;
+    }
+    elsif ( $sf->{o}{alias}{$type} == 1 ) {
+        return $default;
+    }
+    elsif ( $sf->{o}{alias}{$type} == 2 || $sf->{o}{alias}{$type} == 3 ) {
         my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
         my $info = $sf->get_sql_info( $sql );
         if ( length $identifier ) {
@@ -331,11 +337,11 @@ sub alias {
             { info => $info, history => [ 'a' .. 'z' ] }
         );
         $sf->print_sql_info( $info );
+        if ( $sf->{o}{alias}{$type} == 3 && ! length $alias ) {
+            $alias = $default;
+        }
+        return $alias;
     }
-    if ( ! length $alias ) {
-        $alias = $default;
-    }
-    return $alias;
 }
 
 
@@ -393,7 +399,7 @@ sub quote_column {
     my ( $sf, @id ) = @_;
     if ( @id == 2 ) { # join: table_alias.column_name
         return $sf->__qualify_identifier(
-            $sf->__quote_identifier( 'aliases', shift @id ), $sf->__quote_identifier( 'columns', shift @id )
+            $sf->__quote_identifier( 'aliases', shift @id ), $sf->__quote_identifier( 'columns', shift @id ) ##
         );
     }
     else {
@@ -542,50 +548,6 @@ sub read_json {
     ) {
         die "In '$file_fs':\n$@";
     }
-
-############################################################## 2.317  12.03.2023
-    if ( $file_fs eq ( $sf->{i}{f_attached_db} // '' ) ) {
-        my @keys = keys %$ref;
-        if ( ref( $ref->{$keys[0]} ) eq 'ARRAY' ) {
-            my $tmp;
-            for my $key ( @keys ) {
-                for my $ar ( @{$ref->{$key}} ) {
-                    $tmp->{$key}{$ar->[1]} = $ar->[0];
-                }
-            }
-            $sf->write_json( $sf->{i}{f_attached_db}, $tmp );
-            return $tmp;
-        }
-        #else {
-        #    return $ref;
-        #}
-    }
-##############################################################
-
-################################################################################################# 2.314  03.02.2023
-    if ( $file_fs eq ( $sf->{i}{f_subqueries} // '' ) ) {
-        my $tmp;
-        CONVERT: for my $driver ( keys %$ref ) {
-            for my $db ( keys %{$ref->{$driver}} ) {
-                last CONVERT if ref( $ref->{$driver}{$db} ) ne 'HASH';
-                for my $key ( keys %{$ref->{$driver}{$db}} ) {
-                    next if $key ne 'substmt';
-                    for my $ref ( @{$ref->{$driver}{$db}{$key}} ) {
-                        push @{$tmp->{$driver}{$db}}, { stmt => $ref->[0], name => $ref->[1] };
-                    }
-                }
-            }
-        }
-        if ( defined $tmp ) {
-            $sf->write_json( $sf->{i}{f_subqueries}, $tmp );
-            return $tmp;
-        }
-        #else {
-        #    return $ref;
-        #}
-    }
-##################################################################################################
-
     return $ref;
 }
 

@@ -79,7 +79,7 @@ sub union_tables {
                 $old_idx_tbl = 0;
                 my $removed_table = pop @$used_tables;
                 pop @$data;
-                if ( @{$sf->{d}{ctes}//[]} && $removed_table eq $sf->{d}{ctes}[-1]{table} ) {
+                if ( @{$sf->{d}{ctes}} && $removed_table eq $sf->{d}{ctes}[-1]{table} ) {
                     pop @{$sf->{d}{ctes}};
                 }
                 next TABLE;
@@ -140,7 +140,7 @@ sub union_tables {
         if ( @$data ) {
             $operator = $sf->__set_operator( $sql, $table );
             if ( ! $operator ) {
-                if ( @{$sf->{d}{ctes}//[]} && $table eq $sf->{d}{ctes}[-1]{table} ) {
+                if ( @{$sf->{d}{ctes}} && $table eq $sf->{d}{ctes}[-1]{table} ) {
                     pop @{$sf->{d}{ctes}};
                 }
                 next TABLE;
@@ -148,7 +148,7 @@ sub union_tables {
         }
         my $ok = $sf->__choose_table_columns( $sql, $data, $table, $qt_table, $operator );
         if ( ! $ok ) {
-            if ( @{$sf->{d}{ctes}//[]} && $table eq $sf->{d}{ctes}[-1]{table} ) {
+            if ( @{$sf->{d}{ctes}} && $table eq $sf->{d}{ctes}[-1]{table} ) {
                 pop @{$sf->{d}{ctes}};
             }
             next TABLE;

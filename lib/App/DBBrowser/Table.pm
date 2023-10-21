@@ -114,86 +114,46 @@ sub __on_table {
             }
             $old_idx = $idx;
         }
-        my $backup_sql = $ax->backup_href( $sql );
         if ( $sub_stmt eq $select ) {
             my $ret = $sb->select( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $distinct ) {
             my $ret = $sb->distinct( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $aggregate ) {
             my $ret = $sb->aggregate( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $where ) {
             my $ret = $sb->where( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $group_by ) {
             my $ret = $sb->group_by( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $having ) {
             my $ret = $sb->having( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $order_by ) {
             my $ret = $sb->order_by( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $limit ) {
             my $ret = $sb->limit_offset( $sql );
-            if ( ! defined $ret ) {
-                $sql = $backup_sql;
-            }
-            else {
-                $changed->{$sub_stmt} = $ret;
-            }
+            $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $hidden ) {
             require App::DBBrowser::Table::InsertUpdateDelete;
             my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $backup_sql = $ax->backup_href( $sql );
             $write->table_write_access( $sql );
+            $sql = $backup_sql;
             $sf->{d}{stmt_types} = [ 'Select' ];
             $old_idx = 1;
-            $sql = $backup_sql; # so no need for table_write_access to return $sql
         }
         elsif ( $sub_stmt eq $export ) {
             my $file_fs = $sf->__get_filename_fs( $sql );

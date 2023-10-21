@@ -54,12 +54,11 @@ sub __session_history {
         my $iqc = $sf->{d}{identifier_quote_char};
         # literal quote char: ' is hardcoded if `quote` is called without the $data_type argument.
         $stmt =~ s/\s+\z//;
-        $stmt = join '', map { s/\s+/ /g if ! /^[$iqc']/; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
-        #$stmt = join '', map { /^[$iqc']/ ? s/\n/ /g : s/\s+/ /g; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|'(?:[^']|'')+')/, $stmt;
+        $stmt = join '', map { s/\s+/ /g if ! /^[$iqc']/; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|(?<!')'(?:[^']|'')*'(?!'))/, $stmt;
         if ( $sf->{caller} eq 'cte' ) {
-            $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/;
+            $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/; ##
         }
-        if ( any { $_ eq $stmt } @$subquery_history, @$print_history ) { # ###
+        if ( any { $_ eq $stmt } @$subquery_history, @$print_history ) { ##
             next;
         }
         push @$tmp_table_print_history, $stmt;

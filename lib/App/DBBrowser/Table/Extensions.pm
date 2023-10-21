@@ -11,6 +11,7 @@ use App::DBBrowser::Auxil;
 #use App::DBBrowser::Subqueries;                          # required
 #use App::DBBrowser::Table::Extensions::Maths;            # required
 #use App::DBBrowser::Table::Extensions::Case;             # required
+#use App::DBBrowser::Table::Extensions::ColumnAliases     # required
 #use App::DBBrowser::Table::Extensions::ScalarFunctions;  # required
 #use App::DBBrowser::Table::Extensions::WindowFunctions;  # required
 
@@ -27,12 +28,13 @@ sub new {
     $sf->{scalar_func} = 'func()';
     $sf->{window_func} = 'win()';
     $sf->{case} = 'case';
-    $sf->{math} = 'math()';
+    $sf->{math} = 'math';
     $sf->{col} = 'col';
     $sf->{null} = 'NULL';
     $sf->{close_in} = ')end';
     $sf->{par_open} = '(';
     $sf->{par_close} = ')';
+    $sf->{col_aliases} = 'alias';
     bless $sf, $class;
 }
 
@@ -45,6 +47,9 @@ sub column {
     if ( $clause =~ /^(?:select|order_by)\z/i ) {
         # Window functions are permitted only in SELECT and ORDER BY
         $extensions = [ $sf->{subquery}, $sf->{scalar_func}, $sf->{window_func}, $sf->{case}, $sf->{math} ];
+        if ( $clause eq 'select' ) {
+            push @$extensions, $sf->{col_aliases};
+        }
     }
     else {
         $extensions = [ $sf->{subquery}, $sf->{scalar_func}, $sf->{case}, $sf->{math} ];
@@ -275,6 +280,16 @@ sub __choose_extension {
         }
         elsif ( $extension eq $sf->{par_close} ) {
             return ")";
+        }
+        elsif ( $extension eq $sf->{col_aliases}  ) {
+            require App::DBBrowser::Table::Extensions::ColumnAliases;
+            my $new_ca = App::DBBrowser::Table::Extensions::ColumnAliases->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $col_aliases = $new_ca->column_aliases( $sql, $qt_cols );
+            if ( ! defined $col_aliases ) {
+                return if @$extensions == 1;
+                next EXTENSION;
+            }
+            return $col_aliases;
         }
     }
 }
