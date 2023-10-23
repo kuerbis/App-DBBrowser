@@ -112,6 +112,9 @@ sub join_tables {
         push @{$data->{aliases}}, [ $master, $master_alias ];
         push @{$sql->{join_data}}, { table => $qt_master . " " . $ax->quote_alias( $master_alias ) };
         $sf->{d}{col_names}{$master} //= $ax->column_names( $qt_master . " " . $ax->quote_alias( $master_alias ) ); ##
+        if ( ! defined $sf->{d}{col_names}{$master} ) {
+            next MASTER;
+        }
         my @bu;
 
         JOIN_TYPE: while ( 1 ) {
@@ -251,7 +254,7 @@ sub __add_slave_with_join_condition {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $slave = $sq->subquery( $sql );
             if ( ! defined $slave ) {
-                next MASTER;
+                next SLAVE;
             }
             $qt_slave = $slave;
         }
@@ -260,7 +263,7 @@ sub __add_slave_with_join_condition {
             my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $slave = $sq->prepare_cte( $sql );
             if ( ! defined $slave ) {
-                next MASTER;
+                next SLAVE;
             }
             $qt_slave = $slave;
         }
@@ -276,6 +279,9 @@ sub __add_slave_with_join_condition {
         $sql->{join_data}[-1]{table} = $qt_slave . " " . $ax->quote_alias( $slave_alias );
         push @{$data->{aliases}}, [ $slave, $slave_alias ];
         $sf->{d}{col_names}{$slave} //= $ax->column_names( $qt_slave . " " . $ax->quote_alias( $slave_alias ) ); ##
+        if ( ! defined $sf->{d}{col_names}{$slave} ) {
+            next SLAVE;
+        }
         if ( $sql->{join_data}[-1]{join_type} ne 'CROSS JOIN' ) {
             my $ok = $sf->__add_join_condition( $sql, $data, $slave, $slave_alias );
             if ( ! $ok ) {

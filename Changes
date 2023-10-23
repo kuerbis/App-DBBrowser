@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.345_02  2023-10-23
+        - Bugfixes, updates and cleanups.
+
 2.345_01  2023-10-21
         - Changed SQL submenu behavior.
         - Removed backwards compatibility for old f_attached_db and f_subqueries format.

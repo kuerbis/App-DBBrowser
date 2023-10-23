@@ -36,7 +36,7 @@ sub __stmt_fold {
         }
         my $in = ' ' x $sf->{o}{G}{base_indent};
         my %tabs = ( init_tab => $in x $indent, subseq_tab => $in x ( $indent + 1 ) );
-        return line_fold( $stmt, $term_w, { %tabs, join => 0 } ); ##
+        return line_fold( $stmt, $term_w, { %tabs, join => 0 } );
     }
     else {
         return $stmt;
@@ -63,7 +63,7 @@ sub get_stmt {
     my $indent2 = 2;
     my $qt_table = $sql->{table};
     my @tmp;
-    if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) { ##
+    if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) {
         #if ( @{$sf->{d}{ctes}} == 1 ) {
         #    my $cte = $sf->{d}{ctes}[0];
         #    push @tmp, $sf->__stmt_fold( $used_for, sprintf( 'WITH %s AS (%s)', $cte->{name}, $cte->{query} ), $indent0 );
@@ -239,7 +239,8 @@ sub __prepare_table_row {
     my $dots = $sf->{i}{dots};
     my $dots_w = print_columns( $dots );
     no warnings 'uninitialized';
-    my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/[NL]/g; s/\v/[VWS]/g; $_ } @$row );
+    #my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/[NL]/g; s/\v/[VWS]/g; $_ } @$row );
+    my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/\\n/g; s/\v/\\v/g; $_ } @$row ); # documentation # ###
     return unicode_sprintf( $indent . $row_str, $term_w, { mark_if_truncated => [ $dots, $dots_w ] } );
 }
 

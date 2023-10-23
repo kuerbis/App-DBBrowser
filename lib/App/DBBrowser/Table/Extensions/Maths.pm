@@ -35,7 +35,7 @@ sub maths {
     my $prompt = $opt->{prompt} // 'Math:';
     my @bu;
 
-    COLUMNS: while ( 1 ) { ##
+    CHOICE: while ( 1 ) {
         my $fill_string = join( ' ', @$items, '?' );
         $fill_string =~ s/\(\s/(/g;
         $fill_string =~ s/\s\)/)/g;
@@ -48,7 +48,7 @@ sub maths {
         if ( ! $idx ) {
             if ( @bu ) {
                 $items = pop @bu;
-                next COLUMNS;
+                next CHOICE;
             }
             return;
         }
@@ -68,7 +68,7 @@ sub maths {
                 { from => 'maths', info => $tmp_info }
             );
             if ( ! defined $complex_col ) {
-                next COLUMNS;
+                next CHOICE;
             }
             push @bu, [ @$items ];
             push @$items, $complex_col;
@@ -80,7 +80,7 @@ sub maths {
                 { %{$sf->{i}{lyt_h}}, info => $tmp_info . "\n" . $prompt, prompt => '', undef => '<=' }
             );
             if ( ! defined $operator ) {
-                next COLUMNS;
+                next CHOICE;
             }
             push @bu, [ @$items ];
             push @$items, $operator =~ s/^\s+|\s+\z//gr;
@@ -91,7 +91,7 @@ sub maths {
                 { info => $tmp_info . "\n" . $prompt }
             );
             if ( ! length $number ) {
-                next COLUMNS;
+                next CHOICE;
             }
             push @bu, [ @$items ];
             push @$items, $number;

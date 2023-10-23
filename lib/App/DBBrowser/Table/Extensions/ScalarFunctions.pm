@@ -171,13 +171,20 @@ sub col_function {
     my $octet_length = 'OCTET_LENGTH';
     my $position     = 'POSITION';
     my $replace      = 'REPLACE';
+    my $reverse      = 'REVERSE';
     my $right        = 'RIGHT';
     my $rpad         = 'RPAD';
     my $rtrim        = 'RTRIM';
     my $substr       = 'SUBSTR';
     my $trim         = 'TRIM';
     my $upper        = 'UPPER';
-    $functions{string} = [ sort( $char_length, $concat, $left, $lower, $lpad, $ltrim, $octet_length, $position, $replace, $right, $rpad, $rtrim, $substr, $trim, $upper ) ];
+    $functions{string} = [ sort( $char_length, $concat, $left, $lower, $lpad, $ltrim, $octet_length, $position, $replace, $reverse, $right, $rpad, $rtrim, $substr, $trim, $upper ) ];
+    if ( $sf->{i}{driver} eq 'SQLite' ) {
+        $functions{string} = [ grep { ! /^(?:$reverse)\z/ } @{$functions{string}} ];
+    }
+    if ( $sf->{i}{driver} eq 'DB2' ) {
+        $functions{string} = [ grep { ! /^(?:$reverse)\z/ } @{$functions{string}} ];
+    }
 
     my $abs          = 'ABS';
     my $ceil         = 'CEIL';
@@ -223,7 +230,7 @@ sub col_function {
 
     my @only_func = ( $now, $rand );
     my @one_col_func = (
-        $trim, $ltrim, $rtrim, $upper, $lower, $octet_length, $char_length,
+        $trim, $ltrim, $rtrim, $upper, $lower, $octet_length, $char_length, $reverse,
         $abs, $ceil, $exp, $floor, $log, $sign, $sqrt,
         $year, $quarter, $month, $week, $day, $hour, $minute, $second, $day_of_week, $day_of_year,
     );
@@ -356,7 +363,7 @@ sub col_function {
                     my ( $prompt, $history );
                     if ( $func =~ /^$cast\z/i ) {
                         $prompt = 'Data type: ';
-                        $history = [ sort qw(VARCHAR CHAR TEXT INT BIGINT DECIMAL NUMERIC DATE DATETIME TIME TIMESTAMP) ];
+                        $history = [ sort qw(VARCHAR CHAR TEXT INT DECIMAL DATE DATETIME TIME TIMESTAMP) ];
                     }
                     if ( $func =~ /^$extract\z/i ) {
                         $prompt = 'Field: ';
@@ -437,7 +444,7 @@ sub __func_with_col_and_arg {
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $info .= "\n" . $func . '(' . $chosen_col . ',?)';
     my $value = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => $prompt } );
-    if ( ! length $value ) { # ###
+    if ( ! length $value && $func !~ /^(?:ROUND|TRUNCATE)\z/i ) {
         return;
     }
     my $function_stmt = $fsql->function_with_col_and_arg( $func, $chosen_col, $value );
@@ -462,9 +469,9 @@ sub __func_with_col_and_2args {
         $tmp_info =~ s/\Q$tail\E\z/,${arg1}${tail}/;
         # Readline ##
         $arg2 = $ext->argument( $sql, $clause, { info => $tmp_info, history => $history->[1], prompt => $prompts->[1] } );
-        #if ( ! defined $arg2 ) { # ###
-        #    next;
-        #}
+        if ( ! length $arg2 && $func !~ /^(?:SUBSTR)\z/i ) {
+            next;
+        }
         last;
     }
     my $function_stmt = $fsql->function_with_col_and_2args( $func, $chosen_col, $arg1, $arg2 );

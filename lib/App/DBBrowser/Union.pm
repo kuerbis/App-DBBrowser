@@ -208,6 +208,9 @@ sub __choose_table_columns {
     my $chosen_cols = [];
     my @bu_cols;
     $sf->{d}{col_names}{$table} //= $ax->column_names( $qt_table ); ##
+    if ( ! defined $sf->{d}{col_names}{$table} ) {
+        return;
+    }
     $data->[$next_idx] = { qt_table => $qt_table, table => $table };
     if ( $operator ) {
         $data->[$next_idx]{operator} = $operator;

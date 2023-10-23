@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 $SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.345_01';
+our $VERSION = '2.345_02';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.345_01
+Version 2.345_02
 
 =head1 SYNOPSIS
 
@@ -794,7 +794,10 @@ Selecting C<func()> opens the menu, where the user can choose from a list of sca
 Extended arguments for scalar functions can be temporarily enabled by selecting the prompt line (I<Scalar functions:>)
 of the scalar function menu.
 
-Function C<EXTRACT>: use the keys C<Up-Arrow> and C<Down-Arrow> to choose one of the predefined fields.
+Function c<DATEADD> and C<EXTRACT>: use the keys C<Up-Arrow> and C<Down-Arrow> to choose one of the predefined fields
+(in C<Value> if the extended arguments are enabled).
+
+To subtract from a date use C<DATEADD> with a negative amount.
 
 Non ANSI SQL scalar functions may not work with the C<ODBC> plugin.
 

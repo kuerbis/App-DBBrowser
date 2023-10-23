@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.345_01';
+our $VERSION = '2.345_02';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -572,7 +572,7 @@ sub run {
                     #$ax->reset_sql( $sql );
                     $sql->{table} = $qt_table;
                     $sql->{cols} = $qt_columns;
-                    $sql->{alias} = $qt_aliases // {}; # ###
+                    $sql->{alias} = $qt_aliases // {};
                     $tbl->browse_the_table( $sql );
                 }
             }
@@ -629,7 +629,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.345_01
+Version 2.345_02
 
 =head1 DESCRIPTION
 
