@@ -117,11 +117,12 @@ sub _options {
             { name => '_file_encoding_out', text => "- File encoding out",  section => 'export'  },
         ],
         group_misc => [
-            { name => '_menu_memory',   text => "- Menu memory",  section => 'G'     },
-            { name => '_table_expand',  text => "- Expand table", section => 'table' },
-            { name => '_search',        text => "- Search",       section => 'table' },
-            { name => '_mouse',         text => "- Mouse mode",   section => 'table' },
-            { name => '_db2_encoding',  text => "- DB2 encoding", section => 'G'     },
+            { name => '_fast_reset',    text => "- SQL sub-statement reset",  section => 'G'     }, # ###
+            { name => '_menu_memory',   text => "- Menu memory",              section => 'G'     },
+            { name => '_table_expand',  text => "- Expand table",             section => 'table' },
+            { name => '_search',        text => "- Search",                   section => 'table' },
+            { name => '_mouse',         text => "- Mouse mode",               section => 'table' },
+            { name => '_db2_encoding',  text => "- DB2 encoding",             section => 'G'     },
         ],
     };
     return $groups->{$group_name};
@@ -581,6 +582,14 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             ##### misc #####
+            elsif ( $opt eq '_fast_reset' ) {
+                my $prompt = 'Your choice: ';
+                my $sub_menu = [
+                    #[ 'fast_reset', "- SQL sub-statement reset", [ 'step by step', 'conditionally fast', 'always fast' ] ], # ###
+                    [ 'fast_reset', "- SQL sub-statement reset", [ 'step by step', undef, 'always fast' ] ], # ###
+                ];
+                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
+            }
             elsif ( $opt eq '_menu_memory' ) {
                 my $prompt = 'Your choice: ';
                 my $sub_menu = [

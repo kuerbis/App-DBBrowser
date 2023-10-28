@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.345_03  2023-10-28
+        - Use Clone to backup data.
+        - New option 'fast_reset'.
+
 2.345_02  2023-10-23
         - Bugfixes, updates and cleanups.
 

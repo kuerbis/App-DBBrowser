@@ -42,6 +42,7 @@ WriteMakefile(
         'open'                    => 0,
         'strict'                  => 0,
         'warnings'                => 0,
+        'Clone'                   => 0,
         'Cwd'                     => 0,
         'DBD::SQLite'             => '1.68',
         'DBD::SQLite::Constants'  => 0,

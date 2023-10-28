@@ -5,6 +5,8 @@ use warnings;
 use strict;
 use 5.014;
 
+use Clone qw( clone );
+
 use Term::Choose         qw();
 use Term::Form::ReadLine qw();
 
@@ -37,7 +39,7 @@ sub case {
             case_info => $opt->{info} // $ax->get_sql_info( $sql )
         };
     }
-    my $tmp_sql = $ax->backup_href( $sql );
+    my $tmp_sql = clone( $sql );
     $tmp_sql->{case_stmt} = $r_data->{case}[-1] // '';
     $tmp_sql->{case_info} = $r_data->{case_info};
     my $in = ' ' x $sf->{o}{G}{base_indent};

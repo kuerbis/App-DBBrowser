@@ -429,24 +429,6 @@ sub unquote_identifier {
 }
 
 
-sub backup_href {
-    my ( $sf, $href ) = @_;
-    my $backup = {};
-    for ( keys %$href ) {
-        if ( ref $href->{$_} eq 'ARRAY' ) {
-            $backup->{$_} = [ @{$href->{$_}} ];
-        }
-        elsif ( ref $href->{$_} eq 'HASH' ) {
-            $backup->{$_} = { %{$href->{$_}} };
-        }
-        else {
-            $backup->{$_} = $href->{$_};
-        }
-    }
-    return $backup;
-}
-
-
 sub reset_sql {
     my ( $sf, $sql ) = @_;
     my $backup = {};

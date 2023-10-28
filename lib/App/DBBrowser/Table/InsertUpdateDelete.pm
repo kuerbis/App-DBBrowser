@@ -108,19 +108,12 @@ sub table_write_access {
                 }
                 $old_idx = $idx;
             }
-            my $backup_sql = $ax->backup_href( $sql );
             my $custom = $menu->[$idx];
             if ( $custom eq $cu{'set'} ) {
-                my $ok = $sb->set( $sql );
-                if ( ! $ok ) {
-                    $sql = $backup_sql;
-                }
+                $sb->set( $sql );
             }
             elsif ( $custom eq $cu{'where'} ) {
-                my $ok = $sb->where( $sql );
-                if ( ! $ok ) {
-                    $sql = $backup_sql;
-                }
+                $sb->where( $sql );
             }
             elsif ( $custom eq $cu{'commit'} ) {
                 my $ok = $cs->commit_sql( $sql );

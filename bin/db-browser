@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.014;
 $SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.345_02';
+our $VERSION = '2.345_03';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +47,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.345_02
+Version 2.345_03
 
 =head1 SYNOPSIS
 
@@ -281,6 +281,12 @@ Delete
 =back
 
 See L</WRITE ACCESS>. These entries are available if enabled in L</Extensions>.
+
+=head3 BACK
+
+If the user has set sub-statements, selecting C<BACK> will reset all changes made.
+
+If no changes have been made or if the changes have been reset, selecting C<BACK> will exit the SQL menu.
 
 =head3 Print TABLE
 

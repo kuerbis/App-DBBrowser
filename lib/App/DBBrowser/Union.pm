@@ -159,7 +159,7 @@ sub union_tables {
     my $qt_aliases = delete $data->[0]{alias};
     $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
     my $union_derived_table = $ax->get_stmt( $sql, 'Union', 'prepare' );
-    my $union_alias = $ax->alias( $sql, 'derived_table', '', 't1' );
+    my $union_alias = $ax->alias( $sql, 'derived_table', '', 'u1' );
     $union_derived_table .= " " . $ax->quote_alias( $union_alias );
     return $union_derived_table, $qt_columns, $qt_aliases;
 }

@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.345_02';
+our $VERSION = '2.345_03';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -604,7 +604,7 @@ sub __derived_table {
         }
         $qt_table = $table;
         # Oracle: key word "AS" not supported in Table aliases (Union, Join, Derived tables)
-        my $alias = $ax->alias( $sql, 'derived_table', $qt_table, 't1' );
+        my $alias = $ax->alias( $sql, 'derived_table', $qt_table, 'd1' );
         $qt_table .= " " . $ax->quote_alias( $alias );
     }
     my $qt_columns = $ax->quote_cols( $ax->column_names( $qt_table ) );
@@ -629,7 +629,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.345_02
+Version 2.345_03
 
 =head1 DESCRIPTION
 

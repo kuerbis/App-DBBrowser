@@ -149,7 +149,8 @@ sub __on_table {
         elsif ( $sub_stmt eq $hidden ) {
             require App::DBBrowser::Table::InsertUpdateDelete;
             my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $backup_sql = $ax->backup_href( $sql );
+            require Clone;
+            my $backup_sql = Clone::clone( $sql );
             $write->table_write_access( $sql );
             $sql = $backup_sql;
             $sf->{d}{stmt_types} = [ 'Select' ];

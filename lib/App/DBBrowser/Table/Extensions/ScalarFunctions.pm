@@ -69,7 +69,8 @@ sub __choose_columns {
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
             # recursion
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            my $bu_nested_func = $ax->backup_href( $r_data );
+            require Clone;
+            my $bu_nested_func = Clone::clone( $r_data );
             # reset nested_func and add an array-ref so the child function knows that the parent is a multi-col function.
             # Children of a  multi-col function start with an empty nested_func. Only whenn they return to
             # the parent multi-col function their results are integrated in the parent nested_func.
