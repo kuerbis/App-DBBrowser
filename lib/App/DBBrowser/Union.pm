@@ -118,7 +118,7 @@ sub union_tables {
                 next TABLE;
             }
             $qt_table = $table;
-            my $default_alias = 'p' . ( @$used_tables + 1 );
+            my $default_alias = 'p' . ( @$used_tables + 1 ); # ###
             my $alias = $ax->alias( $sql, 'derived_table', $qt_table, $default_alias );
             $qt_table .= " " . $ax->quote_alias( $alias );
         }
@@ -135,6 +135,9 @@ sub union_tables {
             $table =~ s/^-\s//;
             $table =~ s/\Q$used\E\z//;
             $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
+            
+            # alias # ###
+            
         }
         my $operator;
         if ( @$data ) {
@@ -146,7 +149,7 @@ sub union_tables {
                 next TABLE;
             }
         }
-        my $ok = $sf->__choose_table_columns( $sql, $data, $table, $qt_table, $operator );
+        my $ok = $sf->__choose_table_columns( $sql, $data, $table, $qt_table, $operator ); # all # ###
         if ( ! $ok ) {
             if ( @{$sf->{d}{ctes}} && $table eq $sf->{d}{ctes}[-1]{table} ) {
                 pop @{$sf->{d}{ctes}};

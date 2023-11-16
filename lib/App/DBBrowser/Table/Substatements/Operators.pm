@@ -25,61 +25,6 @@ sub new {
 }
 
 
-sub build_having_col {
-    my ( $sf, $sql, $clause, $aggr ) = @_;
-    my $qt_aggr;
-    if ( any { '@' . $_ eq $aggr } @{$sql->{aggr_cols}} ) {
-        $qt_aggr = $aggr =~ s/^\@//r;
-    }
-    elsif ( $aggr eq 'COUNT(*)' ) {
-        $qt_aggr = $aggr;
-    }
-    elsif ( any { $aggr eq $_ } @{$sf->{i}{avail_aggr}} ) {
-        my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-        my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-        my @pre = ( undef );
-        if ( $sf->{o}{enable}{extended_cols} ) {
-            push @pre, $sf->{i}{menu_addition};
-        }
-        $aggr =~ s/\(\S\)\z//;
-        my $bu_having_stmt = $sql->{having_stmt};
-        $sql->{having_stmt} .= ' ' . $aggr . "(";
-        $qt_aggr          =       $aggr . "(";
-        my $info = $ax->get_sql_info( $sql );
-        $sql->{having_stmt} = $bu_having_stmt;
-        my $qt_col;
-
-        COLUMN: while( 1 ) {
-            # Choose
-            my $qt_col = $tc->choose(
-                [ @pre, @{$sql->{cols}} ],
-                { %{$sf->{i}{lyt_h}}, info => $info }
-            );
-            $ax->print_sql_info( $info );
-            if ( ! defined $qt_col ) {
-                return;
-            }
-            elsif ( $qt_col eq $sf->{i}{menu_addition} ) {
-                my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-                my $complex_column = $ext->column( $sql, $clause );
-                if ( ! defined $complex_column ) {
-                    next COLUMN;
-                }
-                else {
-                    $qt_col = $complex_column;
-                }
-            }
-            $qt_aggr .= $qt_col . ")";
-            last COLUMN;
-        }
-    }
-    else { # SQ
-        $qt_aggr = $aggr;
-    }
-    return $qt_aggr;
-}
-
-
 sub choose_and_add_operator {
     my ( $sf, $sql, $clause, $stmt, $qt_col ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );

@@ -42,13 +42,13 @@ sub browse_the_table {
 
     PRINT_TABLE: while ( 1 ) {
         my $all_arrayref;
-        if ( ! eval {
+        #if ( ! eval { # ###
             ( $all_arrayref, $sql ) = $sf->__on_table( $sql, $changed );
-            1 }
-        ) {
-            $ax->print_error_message( $@ );
-            last PRINT_TABLE;
-        }
+        #    1 }
+        #) {
+        #    $ax->print_error_message( $@ );
+        #    last PRINT_TABLE;
+        #}
         if ( ! defined $all_arrayref ) {
             last PRINT_TABLE;
         }
@@ -147,12 +147,17 @@ sub __on_table {
             $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $hidden ) {
-            require App::DBBrowser::Table::InsertUpdateDelete;
-            my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            require Clone;
-            my $backup_sql = Clone::clone( $sql );
-            $write->table_write_access( $sql );
-            $sql = $backup_sql;
+            if ( ! eval { # ###
+                require App::DBBrowser::Table::InsertUpdateDelete;
+                my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
+                require Clone;
+                my $backup_sql = Clone::clone( $sql );
+                $write->table_write_access( $sql );
+                $sql = $backup_sql;
+                1 }
+            ) {
+                $ax->print_error_message( $@ );
+            }
             $sf->{d}{stmt_types} = [ 'Select' ];
             $old_idx = 1;
         }
@@ -191,11 +196,19 @@ sub __on_table {
             }
         }
         elsif ( $sub_stmt eq $print_table ) {
+            #if ( ! eval { # ###
             local $| = 1;
             print hide_cursor(); # safety
             print clear_screen();
             print 'Computing:' . "\r" if $sf->{o}{table}{progress_bar};
-            my $all_arrayref = $sf->__selected_statement_result( $sql );
+            my $all_arrayref;
+            if ( ! eval { # ###
+                $all_arrayref = $sf->__selected_statement_result( $sql );
+                1 }
+            ) {
+                $ax->print_error_message( $@ );
+                next CUSTOMIZE;
+            }
             # return $sql explicitly since after a restore-backup $sql refers to a different hash.
             return $all_arrayref, $sql;
         }

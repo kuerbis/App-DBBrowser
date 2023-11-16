@@ -59,6 +59,7 @@ sub join_tables {
             used_tables => [],
             aliases => [],
             default_alias => 'a',
+            added_ctes => [],
         };
         my $join_info = $sf->{join_info};
         my $derived_table = $sf->{derived_table};
@@ -101,6 +102,7 @@ sub join_tables {
                 next MASTER;
             }
             $qt_master = $master;
+            push @{$data->{added_ctes}}, $master;
         }
         else {
             $master =~ s/^-\s//;
@@ -208,7 +210,8 @@ sub __add_slave_with_join_condition {
     my $derived_table = $sf->{derived_table};
     my $cte_table = $sf->{cte_table};
     my @choices;
-    for my $table ( @$tables ) {
+    #for my $table ( @$tables ) {
+    for my $table ( @$tables, @{$data->{added_ctes}} ) {
         if ( any { $_ eq $table } @{$data->{used_tables}} ) {
             push @choices, '- ' . $table . $used;
         }
@@ -248,6 +251,8 @@ sub __add_slave_with_join_condition {
             next SLAVE;
         }
         my $slave = $menu->[$idx];
+        my $bu_data = clone( $data ); # ###
+        my $bu_sql = clone( $sql ); # ###
         my $qt_slave;
         if ( $slave eq $derived_table ) {
             require App::DBBrowser::Subqueries;
@@ -266,19 +271,20 @@ sub __add_slave_with_join_condition {
                 next SLAVE;
             }
             $qt_slave = $slave;
+            push @{$data->{added_ctes}}, $slave;
         }
         else {
             $slave =~ s/^-\s//;
             $slave =~ s/\Q$used\E\z//;
-#            if ( exists $sf->{d}{tables_info}{$slave} ) {
+            if ( exists $sf->{d}{tables_info}{$slave} ) {
                 $qt_slave = $ax->quote_table( $sf->{d}{tables_info}{$slave} );
-#            }
-#            else {
-#                $qt_slave = $slave;
-#            }
+            }
+            else {
+                $qt_slave = $slave; # self join cte
+            }
         }
-        my $bu_data = clone( $data );
-        my $bu_sql = clone( $sql );
+        #my $bu_data = clone( $data );
+        #my $bu_sql = clone( $sql );
         push @{$data->{used_tables}}, $slave;
         # Alias
         my $slave_alias = $ax->alias( $sql, 'join_table', $qt_slave, ++$data->{default_alias} );

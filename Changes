@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.345_04  2023-11-16
+        - Bugfixes in the HAVING submenu.
+        - Removed option 'fast_reset'.
+        - Catch table-print execute errors earlier.
+
 2.345_03  2023-10-28
         - Use Clone to backup data.
         - New option 'fast_reset'.

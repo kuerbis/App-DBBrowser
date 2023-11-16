@@ -117,7 +117,6 @@ sub _options {
             { name => '_file_encoding_out', text => "- File encoding out",  section => 'export'  },
         ],
         group_misc => [
-            { name => '_fast_reset',    text => "- SQL sub-statement reset",  section => 'G'     }, # ###
             { name => '_menu_memory',   text => "- Menu memory",              section => 'G'     },
             { name => '_table_expand',  text => "- Expand table",             section => 'table' },
             { name => '_search',        text => "- Search",                   section => 'table' },
@@ -341,7 +340,7 @@ sub set_options {
                 my $sub_menu = [
                     [ 'select_complex_col', "- Functions/Subqueries in SELECT",  [ 'NO',   undef, 'ASK',   undef     ] ],
                     [ 'join_table',         "- Tables in join",                  [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
-                    [ 'join_columns',       "- Non-unique columns in join",      [ 'NO',  'AUTO',  undef,  undef     ] ],
+                    [ 'join_columns',       "- Non-unique columns in join",      [ 'NO',  'AUTO',  undef,  undef     ] ], # 'NO',  'AUTO', 'ASK',  'ASK/AUTO' # ###
                     [ 'derived_table',      "- Derived table",                   [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
                     [ 'table',              "- Ordinary table",                  [ 'NO',  'AUTO', 'ASK',  'ASK/AUTO' ] ],
                 ];
@@ -582,14 +581,6 @@ sub set_options {
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
             }
             ##### misc #####
-            elsif ( $opt eq '_fast_reset' ) {
-                my $prompt = 'Your choice: ';
-                my $sub_menu = [
-                    #[ 'fast_reset', "- SQL sub-statement reset", [ 'step by step', 'conditionally fast', 'always fast' ] ], # ###
-                    [ 'fast_reset', "- SQL sub-statement reset", [ 'step by step', undef, 'always fast' ] ], # ###
-                ];
-                $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );
-            }
             elsif ( $opt eq '_menu_memory' ) {
                 my $prompt = 'Your choice: ';
                 my $sub_menu = [

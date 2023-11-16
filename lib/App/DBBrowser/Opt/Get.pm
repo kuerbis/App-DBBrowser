@@ -22,7 +22,6 @@ sub defaults {
     my $defaults = {
         G => {
             base_indent          => 1,
-            fast_reset           => 0, # ###
             file_find_warnings   => 0,
             warnings_table_print => 1,
             menu_memory          => 1,
