@@ -30,7 +30,7 @@ sub new {
             " = ", " != ", " <> ", " < ", " > ", " >= ", " <= ",
             "REGEXP", "REGEXP_i", "NOT REGEXP", "NOT REGEXP_i", "LIKE", "NOT LIKE",
             "IS NULL", "IS NOT NULL", "IN", "NOT IN", "BETWEEN", "NOT BETWEEN",
-            "ANY", "ALL"
+            "ANY", "ALL",
         ],
     }, $class;
 }
@@ -340,8 +340,8 @@ sub set_options {
                 my $sub_menu = [
                     [ 'select_complex_col', "- Functions/Subqueries in SELECT",  [ 'NO',   undef, 'ASK',   undef     ] ],
                     [ 'join_table',         "- Tables in join",                  [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
-                    [ 'join_columns',       "- Non-unique columns in join",      [ 'NO',  'AUTO',  undef,  undef     ] ], # 'NO',  'AUTO', 'ASK',  'ASK/AUTO' # ###
-                    [ 'derived_table',      "- Derived table",                   [ undef, 'AUTO',  undef, 'ASK/AUTO' ] ],
+                    [ 'join_columns',       "- Non-unique columns in join",      [ 'NO',  'AUTO', 'ASK',  'ASK/AUTO' ] ],
+                    [ 'derived_table',      "- Derived table",                   [ 'NO',  'AUTO', 'ASK',  'ASK/AUTO' ] ],
                     [ 'table',              "- Ordinary table",                  [ 'NO',  'AUTO', 'ASK',  'ASK/AUTO' ] ],
                 ];
                 $sf->__settings_menu_wrap( $section, $sub_menu, $prompt );

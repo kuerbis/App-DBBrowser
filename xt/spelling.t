@@ -54,6 +54,7 @@ de
 dir
 eol
 fract
+isn't
 mappable
 preselected
 preselection

@@ -18,6 +18,7 @@ use Term::Form::ReadLine   qw();
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::Extensions;
 use App::DBBrowser::Table::Extensions::ScalarFunctions::SQL;
+use App::DBBrowser::Table::Substatements;
 
 
 sub new {
@@ -99,7 +100,13 @@ sub __choose_columns {
         }
         else {
             push @bu, [ @$subset ];
-            push @$subset, @{$menu}[@idx];
+            if ( $sql->{aggregate_mode} && $clause =~ /^(?:having|order_by)\z/ ) {
+                my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+                push @$subset, grep { length } map { $sb->get_prepared_aggr_func( $sql, $clause, $_ ) } @{$menu}[@idx];
+            }
+            else {
+                push @$subset, @{$menu}[@idx];
+            }
         }
     }
 }
@@ -131,6 +138,10 @@ sub __choose_a_column {
                 next;
             }
             return $complex_col;
+        }
+        if ( $sql->{aggregate_mode} && $clause =~ /^(?:having|order_by)\z/ ) {
+            my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            return $sb->get_prepared_aggr_func( $sql, $clause, $choice );
         }
         return $choice;
     }
@@ -509,7 +520,7 @@ sub __func_Date_Time {
     my ( $sf, $sql, $chosen_col, $func, $info ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $stmt = $sf->__select_stmt( $sql, $chosen_col, $chosen_col );
-    my $epochs = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => 500 }, @{$sql->{where_args}//[]} );
+    my $epochs = $sf->{d}{dbh}->selectcol_arrayref( $stmt, { Columns => [1], MaxRows => 500 });
     my $avail_h = get_term_height() - ( $info =~ tr/\n// + 10 ); # 10 = "\n" + col_name +  '...' + prompt + (4 menu) + empty row + footer
     my $max_examples = 50;
     $max_examples = ( minmax $max_examples, $avail_h, scalar( @$epochs ) )[0];

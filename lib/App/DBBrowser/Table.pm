@@ -41,14 +41,7 @@ sub browse_the_table {
     $ax->print_sql_info( $ax->get_sql_info( $sql ) );
 
     PRINT_TABLE: while ( 1 ) {
-        my $all_arrayref;
-        #if ( ! eval { # ###
-            ( $all_arrayref, $sql ) = $sf->__on_table( $sql, $changed );
-        #    1 }
-        #) {
-        #    $ax->print_error_message( $@ );
-        #    last PRINT_TABLE;
-        #}
+        ( my $all_arrayref, $sql ) = $sf->__on_table( $sql, $changed );
         if ( ! defined $all_arrayref ) {
             last PRINT_TABLE;
         }
@@ -147,7 +140,7 @@ sub __on_table {
             $changed->{$sub_stmt} = $ret;
         }
         elsif ( $sub_stmt eq $hidden ) {
-            if ( ! eval { # ###
+            if ( ! eval {
                 require App::DBBrowser::Table::InsertUpdateDelete;
                 my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
                 require Clone;
@@ -196,13 +189,12 @@ sub __on_table {
             }
         }
         elsif ( $sub_stmt eq $print_table ) {
-            #if ( ! eval { # ###
             local $| = 1;
             print hide_cursor(); # safety
             print clear_screen();
             print 'Computing:' . "\r" if $sf->{o}{table}{progress_bar};
             my $all_arrayref;
-            if ( ! eval { # ###
+            if ( ! eval {
                 $all_arrayref = $sf->__selected_statement_result( $sql );
                 1 }
             ) {

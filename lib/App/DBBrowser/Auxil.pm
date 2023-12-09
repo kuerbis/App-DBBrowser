@@ -63,18 +63,12 @@ sub get_stmt {
     my $indent2 = 2;
     my $qt_table = $sql->{table};
     my @tmp;
-    if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) {
-        #if ( @{$sf->{d}{ctes}} == 1 ) {
-        #    my $cte = $sf->{d}{ctes}[0];
-        #    push @tmp, $sf->__stmt_fold( $used_for, sprintf( 'WITH %s AS (%s)', $cte->{name}, $cte->{query} ), $indent0 );
-        #}
-        #else {
-            push @tmp, "WITH";
-            for my $cte ( @{$sf->{d}{ctes}} ) {
-                push @tmp, $sf->__stmt_fold( $used_for, sprintf( '%s AS (%s),', $cte->{name}, $cte->{query} ), $indent1 );
-            }
-            $tmp[-1] =~ s/,\z//;
-        #}
+    if ( defined $sql->{ctes} && @{$sql->{ctes}} ) {
+        push @tmp, "WITH";
+        for my $cte ( @{$sql->{ctes}} ) {
+            push @tmp, $sf->__stmt_fold( $used_for, sprintf( '%s AS (%s),', $cte->{name}, $cte->{query} ), $indent1 );
+        }
+        $tmp[-1] =~ s/,\z//;
         push @tmp, " ";
     }
     if ( $sql->{case_stmt} ) {
@@ -239,8 +233,7 @@ sub __prepare_table_row {
     my $dots = $sf->{i}{dots};
     my $dots_w = print_columns( $dots );
     no warnings 'uninitialized';
-    #my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/[NL]/g; s/\v/[VWS]/g; $_ } @$row );
-    my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/\\n/g; s/\v/\\v/g; $_ } @$row ); # documentation # ###
+    my $row_str = join( $list_sep, map { s/\t/  /g; s/\n/\\n/g; s/\v/\\v/g; $_ } @$row );
     return unicode_sprintf( $indent . $row_str, $term_w, { mark_if_truncated => [ $dots, $dots_w ] } );
 }
 
@@ -435,10 +428,10 @@ sub reset_sql {
     for my $y ( qw( db schema table cols ) ) {
         $backup->{$y} = $sql->{$y} if exists $sql->{$y};
     }
-    map { delete $sql->{$_} } keys %$sql; # not "$sql = {}" so $sql is still pointing to the outer $sql
+    delete @{$sql}{ keys %$sql }; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_col_names create_table_col_names
-                     set_args where_args having_args insert_args );
+                     set_args insert_args, ctes );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
     @{$sql}{@array}  = map{ [] } @array;
@@ -476,18 +469,18 @@ sub sql_limit {
 
 
 sub column_names {
-    my ( $sf, $qt_table ) = @_;
+    my ( $sf, $qt_table, $ctes ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
     my $columns;
     if ( ! eval {
         my $stmt = '';
-        if ( defined $sf->{d}{ctes} && @{$sf->{d}{ctes}} ) {
-            $stmt = "WITH " . join ', ', map { sprintf '%s AS (%s)', $_->{name}, $_->{query} } @{$sf->{d}{ctes}};
+        if ( defined $ctes && @$ctes ) {
+            $stmt = "WITH " . join ', ', map { sprintf '%s AS (%s)', $_->{name}, $_->{query} } @$ctes;
             $stmt .= ' ';
         }
+
         $stmt .= "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 );
-        #my $stmt = $sf->get_stmt( $sql, 'Select', 'prepare' ) . $sf->sql_limit( 0 ); #  $sql
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
         if ( $sf->{i}{driver} ne 'SQLite' ) {
             $sth->execute();

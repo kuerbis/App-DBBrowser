@@ -149,11 +149,11 @@ sub __choose_extension {
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $qt_cols;
-    if ( $clause eq 'select' && ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) ) {
+    if ( $sql->{aggregate_mode} && $clause eq 'select' ) {
         $qt_cols = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
     }
-    elsif ( $clause eq 'having' ) {
-        $qt_cols = [ @{$sql->{aggr_cols}} ];
+    elsif ( $sql->{aggregate_mode} && $clause =~ /^(?:having|order_by)\z/ ) {
+        $qt_cols = [ map( '@' . $_, @{$sql->{aggr_cols}} ), @{$sf->{i}{avail_aggr}} ];
     }
     else {
         $qt_cols = [ @{$sql->{cols}} ];

@@ -1,6 +1,14 @@
 Revision history for App-DBBrowser
 
 
+2.345_05  2023-12-09
+        - Fixes for submenus HAVING and ORDER when in aggregate mode.
+        - Update aggregate mode.
+        - Update CTEs.
+        - Update option alias for derived tables and non-unique columns in join.
+        - Bugfix backup data in join.
+        - Update documentation.
+
 2.345_04  2023-11-16
         - Bugfixes in the HAVING submenu.
         - Removed option 'fast_reset'.

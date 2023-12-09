@@ -5,11 +5,12 @@ use warnings;
 use strict;
 use 5.014;
 
-use Term::Choose           qw();
-use Term::Form::ReadLine   qw();
+use Term::Choose         qw();
+use Term::Form::ReadLine qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::Table::Extensions;
+use App::DBBrowser::Table::Substatements;
 
 
 sub new {
@@ -98,7 +99,13 @@ sub maths {
         }
         else {
             push @bu, [ @$items ];
-            push @$items, $menu->[$idx];
+            if ( $sql->{aggregate_mode} && $clause =~ /^(?:having|order_by)\z/ ) {
+                my $sb = App::DBBrowser::Table::Substatements->new( $sf->{i}, $sf->{o}, $sf->{d} );
+                push @$items, $sb->get_prepared_aggr_func( $sql, $clause, $menu->[$idx] );
+            }
+            else {
+                push @$items, $menu->[$idx];
+            }
         }
     }
 }
