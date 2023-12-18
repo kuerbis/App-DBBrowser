@@ -63,6 +63,7 @@ schemas
 sql
 stackoverflow
 submenu
+submenus
 subqueries
 subquery
 substatement

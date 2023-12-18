@@ -36,9 +36,9 @@ sub __session_history {
 
     for my $stmt ( @{$sf->{d}{table_print_history}} ) {
         $stmt =~ s/\s+\z//;
-        my $quote_chars = $sf->{d}{identifier_quote_char} . "'";
+        my $iqc = $sf->{d}{identifier_quote_char};
         # literal quote char: ' is hardcoded if `quote` is called without the $data_type argument.
-        $stmt = join '', map { s/\s+/ /g if ! /^[$quote_chars]/; $_ } split /((?<!([$quote_chars])) \1 (?:[^\1] | \1\1)* \1 (?!\1))/x, $stmt;
+        $stmt = join '', map { s/\s+/ /g if ! /^[$iqc']/; $_ } split /($iqc(?:[^$iqc]|$iqc$iqc)+$iqc|(?<!')'(?:[^']|'')*'(?!'))/, $stmt;
         if ( $sf->{caller} eq 'cte' ) {
             # nested ctes not allowed
             $stmt =~ s/^WITH\s.+\)\s(SELECT\s.+)\z/$1/;

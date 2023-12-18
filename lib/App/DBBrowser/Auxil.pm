@@ -431,7 +431,7 @@ sub reset_sql {
     delete @{$sql}{ keys %$sql }; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw( cols group_by_cols aggr_cols selected_cols insert_col_names create_table_col_names
-                     set_args insert_args, ctes );
+                     set_args insert_args ctes );
     my @hash   = qw( alias );
     @{$sql}{@string} = ( '' ) x  @string;
     @{$sql}{@array}  = map{ [] } @array;

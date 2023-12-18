@@ -82,10 +82,10 @@ sub select {
                 }
                 next COLUMNS;
             }
-            if ( $sql->{aggregate_mode} ) {
-                $ax->reset_sql( $sql );
-                $sql->{aggregate_mode} = 0;
-            }
+            #if ( $sql->{aggregate_mode} ) { ##
+            #    $ax->reset_sql( $sql );
+            #    $sql->{aggregate_mode} = 0;
+            #}
             return;
         }
         if ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
@@ -149,7 +149,71 @@ sub distinct {
 }
 
 
+
+
+
+
 sub aggregate {
+    my ( $sf, $sql ) = @_;
+    my $clause = 'aggregate';
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $bu_selected_cols = [ @{$sql->{selected_cols}} ];
+    $sql->{selected_cols} = [];
+    my $bu_aggregate_mode = $sql->{aggregate_mode} // 0;
+    $sql->{aggregate_mode} = 1;
+
+    AGGREGATE: while ( 1 ) {
+        my @pre = ( undef, $sf->{i}{ok} );
+        my $info = $ax->get_sql_info( $sql );
+        # Choose
+        my $aggr = $tc->choose(
+            [ @pre, @{$sf->{i}{avail_aggr}} ],
+            { %{$sf->{i}{lyt_h}}, info => $info }
+        );
+        $ax->print_sql_info( $info );
+        if ( ! defined $aggr ) {
+            if ( @{$sql->{aggr_cols}} ) {
+                my $aggr = pop @{$sql->{aggr_cols}};
+                $bu_selected_cols = [ grep { ! /\b\Q$aggr\E(?:\W|\z)/ } @$bu_selected_cols ]; ##
+                delete $sql->{alias}{$aggr};
+                next AGGREGATE;
+            }
+            if ( ! @{$sql->{group_by_cols}} ) {
+                $sql->{aggregate_mode} = 0;
+            }
+            if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
+                $sql->{selected_cols} = [ @$bu_selected_cols ];
+            }
+            else {
+                $sql->{order_by_stmt} = '';
+            }
+            return;
+        }
+        if ( $aggr eq $sf->{i}{ok} ) {
+            if ( ! @{$sql->{aggr_cols}} && ! @{$sql->{group_by_cols}} ) {
+                $sql->{aggregate_mode} = 0;
+            }
+            if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
+                $sql->{selected_cols} = [ @$bu_selected_cols ];
+            }
+            else {
+                $sql->{order_by_stmt} = '';
+            }
+            return 1;
+        }
+        my $prepared_aggr = $sf->get_prepared_aggr_func( $sql, $clause, $aggr );
+        if ( ! defined $prepared_aggr ) {
+            next AGGREGATE;
+        }
+        push @{$sql->{aggr_cols}}, $prepared_aggr;
+        my $alias = $ax->alias( $sql, 'select_complex_col', $prepared_aggr );
+        if ( length $alias ) {
+            $sql->{alias}{$prepared_aggr} = $ax->quote_alias( $alias );
+        }
+    }
+}
+sub _______________________________________________________________aggregate {
     my ( $sf, $sql ) = @_;
     my $clause = 'aggregate';
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
@@ -174,28 +238,31 @@ sub aggregate {
                 delete $sql->{alias}{$aggr};
                 next AGGREGATE;
             }
-            if ( ! $bu_aggregate_mode ) {
+            if ( ! @{$sql->{group_by_cols}} ) {
                 $sql->{aggregate_mode} = 0;
+                if ( $bu_aggregate_mode ) {
+                    $bu_selected_cols = [];
+                }
             }
             $sql->{selected_cols} = [ @$bu_selected_cols ];
             return;
         }
         if ( $aggr eq $sf->{i}{ok} ) {
             if ( ! @{$sql->{aggr_cols}} ) {
-                if ( ! $bu_aggregate_mode ) {
+                if ( ! @{$sql->{group_by_cols}} ) {
                     $sql->{aggregate_mode} = 0;
-
+                    if ( $bu_aggregate_mode ) {
+                        $bu_selected_cols = [];
+                    }
                 }
-                $sql->{selected_cols} = [ @$bu_selected_cols ];
             }
             else {
                 if ( ! $bu_aggregate_mode ) {
-                    # $sql->{selected_cols} remains empty;
-                }
-                else {
-                    $sql->{selected_cols} = [ @$bu_selected_cols ];
+                    $bu_selected_cols = [];
+                    $sql->{order_by_stmt} = '';
                 }
             }
+            $sql->{selected_cols} = [ @$bu_selected_cols ];
             return 1;
         }
         my $prepared_aggr = $sf->get_prepared_aggr_func( $sql, $clause, $aggr );
@@ -274,6 +341,85 @@ sub group_by {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $bu_selected_cols = [ @{$sql->{selected_cols}} ];
     $sql->{selected_cols} = [];
+    my $bu_aggregate_mode = $sql->{aggregate_mode} // 0;
+    $sql->{aggregate_mode} = 1;
+    my @pre = ( undef, $sf->{i}{ok} );
+    if ( $sf->{o}{enable}{extended_cols} ) {
+        push @pre, $sf->{i}{menu_addition};
+    }
+    my $menu = [ @pre, @{$sql->{cols}} ];
+
+    GROUP_BY: while ( 1 ) {
+        $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
+        my $info = $ax->get_sql_info( $sql );
+        # Choose
+        my @idx = $tc->choose(
+            $menu,
+            { %{$sf->{i}{lyt_h}}, info => $info, meta_items => [ 0 .. $#pre - 1 ], no_spacebar => [ $#pre ],
+              include_highlighted => 2, index => 1 }
+        );
+        $ax->print_sql_info( $info );
+        if ( ! $idx[0] ) {
+            if ( @{$sql->{group_by_cols}} ) {
+                my $removed = pop @{$sql->{group_by_cols}};
+                $bu_selected_cols = [ grep { ! /(?:^|\W)\Q$removed\E(?:\W|\z)/ } @$bu_selected_cols ]; ##
+                next GROUP_BY;
+            }
+            if ( ! @{$sql->{aggr_cols}} ) {
+                $sql->{aggregate_mode} = 0;
+            }
+            if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
+                $sql->{selected_cols} = [ @$bu_selected_cols ];
+            }
+            else {
+                $sql->{order_by_stmt} = '';
+            }
+            $sql->{group_by_stmt} = '';
+            return;
+        }
+        if ( $menu->[$idx[0]] eq $sf->{i}{ok} ) {
+            shift @idx;
+            push @{$sql->{group_by_cols}}, @{$menu}[@idx];
+            if ( ! @{$sql->{aggr_cols}} && ! @{$sql->{group_by_cols}} ) {
+                $sql->{aggregate_mode} = 0;
+            }
+            if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
+                $sql->{selected_cols} = [ @$bu_selected_cols ];
+            }
+            else {
+                $sql->{order_by_stmt} = '';
+            }
+            if ( @{$sql->{group_by_cols}} ) {
+                $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
+            }
+            else {
+                $sql->{group_by_stmt} = '';
+            }
+            return 1;
+        }
+        elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {
+            my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $complex_col = $ext->column( $sql, $clause );
+            if ( defined $complex_col ) {
+                my $alias = $ax->alias( $sql, 'select_complex_col', $complex_col );
+                # this alias is used in select
+                if ( length $alias ) {
+                    $sql->{alias}{$complex_col} = $ax->quote_alias( $alias );
+                }
+                push @{$sql->{group_by_cols}}, $complex_col;
+            }
+            next GROUP_BY;
+        }
+        push @{$sql->{group_by_cols}}, @{$menu}[@idx];
+    }
+}
+sub _____________________________group_by {
+    my ( $sf, $sql ) = @_;
+    my $clause = 'group_by';
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $bu_selected_cols = [ @{$sql->{selected_cols}} ];
+    $sql->{selected_cols} = [];
     my $bu_aggregate_mode = $sql->{aggregate_mode};
     $sql->{aggregate_mode} = 1;
     my @pre = ( undef, $sf->{i}{ok} );
@@ -300,6 +446,12 @@ sub group_by {
             if ( ! $bu_aggregate_mode ) {
                 $sql->{aggregate_mode} = 0;
             }
+            if ( ! @{$sql->{aggr_cols}} ) {
+                $sql->{aggregate_mode} = 0;
+                if ( $bu_aggregate_mode ) {
+                    $bu_selected_cols = [];
+                }
+            }
             $sql->{selected_cols} = [ @$bu_selected_cols ];
             $sql->{group_by_stmt} = '';
             return;
@@ -308,22 +460,21 @@ sub group_by {
             shift @idx;
             push @{$sql->{group_by_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{group_by_cols}} ) {
-                if ( ! $bu_aggregate_mode ) {
+                if ( ! @{$sql->{aggr_cols}} ) {
                     $sql->{aggregate_mode} = 0;
-
+                    if ( $bu_aggregate_mode ) {
+                        $bu_selected_cols = [];
+                    }
                 }
-                $sql->{selected_cols} = [ @$bu_selected_cols ];
-                $sql->{group_by_stmt} = '';
             }
             else {
                 if ( ! $bu_aggregate_mode ) {
-                    # $sql->{selected_cols} remains empty;
+                    $bu_selected_cols = [];
+                    $sql->{order_by_stmt} = '';
                 }
-                else {
-                    $sql->{selected_cols} = [ @$bu_selected_cols ];
-                }
-                $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
             }
+            $sql->{selected_cols} = [ @$bu_selected_cols ];
+            $sql->{group_by_stmt} = "GROUP BY " . join ', ', @{$sql->{group_by_cols}};
             return 1;
         }
         elsif ( $menu->[$idx[0]] eq $sf->{i}{menu_addition} ) {

@@ -1,6 +1,19 @@
 Revision history for App-DBBrowser
 
 
+2.400  2023-12-18
+        - Changed SQL submenu behavior.
+        - New scalar functions.
+        - New extension to set aliases for all selected columns.
+        - Fixes for submenus HAVING and ORDER_BY when in aggregate mode.
+        - Updates for option alias.
+        - Update aggregate mode.
+        - Catch table-print execute errors earlier.
+        - Removed backwards compatibility for old f_attached_db and f_subqueries format.
+        - Use Clone to backup data.
+        - Term::Choose::Util minimum version '0.140'.
+        - Update documentation.
+
 2.345_05  2023-12-09
         - Fixes for submenus HAVING and ORDER when in aggregate mode.
         - Update aggregate mode.

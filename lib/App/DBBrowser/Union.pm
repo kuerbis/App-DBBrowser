@@ -406,8 +406,8 @@ sub __add_where_stmt {
     my $tmp_sql = {};
     $ax->reset_sql( $tmp_sql );
     $tmp_sql->{table} = $qt_table;
-    $tmp_sql->{cols} = $qt_columns;           # cols required in WHERE
-    $tmp_sql->{selected_cols} = $qt_columns;  # selected_cols require in SELECT
+    $tmp_sql->{cols} = $qt_columns;           # 'cols' required in WHERE
+    $tmp_sql->{selected_cols} = $qt_columns;  # 'selected_cols' required in SELECT
     my $ret = $sb->where( $tmp_sql );
     $sf->{d}{stmt_types} = $bu_stmt_types;
     if ( ! defined $ret ) {

@@ -2,8 +2,7 @@
 use warnings;
 use strict;
 use 5.014;
-$SIG{__WARN__} = sub { die @_ };
-our $VERSION = '2.345_05';
+our $VERSION = '2.400';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -47,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.345_05
+Version 2.400
 
 =head1 SYNOPSIS
 
@@ -77,7 +76,7 @@ Before using C<db-browser>, ensure you have backed up your databases.
 Search and read in SQL databases: one can interactively browse databases and their tables.
 
 C<App::DBBrowser> provides and supports plugins for the DBI drivers C<DBD::SQLite>, C<DBD::mysql>, C<DBD::MariaDB>,
-C<DBD::Pg>, C<DBD::Firebird>, C<DBD::DB2>, C<DBD::Informix>, C<DBD::Oracle>, and C<DBD::ODBC>. Refer to
+C<DBD::Pg>, C<DBD::Firebird>, C<DBD::DB2>, C<DBD::Informix>, C<DBD::Oracle> and C<DBD::ODBC>. Refer to
 L<App::DBBrowser::DB> for guidance on writing a database plugin.
 
 =head1 NAVIGATION
@@ -88,16 +87,16 @@ L<App::DBBrowser::DB> for guidance on writing a database plugin.
 
 =item *
 
-Use the C<Arrow> keys (or C<h,j,k,l>) to move up and down, and to move right or left.
+Use the C<Arrow> keys (or C<h,j,k,l>) to move up and down and to move right or left.
 
 =item *
 
-Press the C<PageUp> key (or C<Ctrl-P>) to go to the previous page, and the C<PageDown> key (or C<Ctrl-N>) to go to the
+Press the C<PageUp> key (or C<Ctrl-P>) to go to the previous page and the C<PageDown> key (or C<Ctrl-N>) to go to the
 next page.
 
 =item *
 
-Press the C<Home> key (or C<Ctrl-A>) to jump to the beginning of the menu, and the C<End> key (or C<Ctrl-E>) to jump to
+Press the C<Home> key (or C<Ctrl-A>) to jump to the beginning of the menu and the C<End> key (or C<Ctrl-E>) to jump to
 the end of the menu.
 
 =back
@@ -106,8 +105,8 @@ When the I<mouse> option is enabled, you can use the left mouse key to navigate 
 
 To confirm a chosen menu item, use the C<Return> key.
 
-In some sub-menus, it is possible to select more than one item before pressing C<Return> (e.g., the input filters
-I<Choose Rows> and I<Choose Cols>); in such sub-menus, the list of items marked with the C<SpaceBar> is added to the
+In some submenus, it is possible to select more than one item before pressing C<Return> (e.g., the input filters
+I<Choose Rows> and I<Choose Cols>); in such submenus, the list of items marked with the C<SpaceBar> is added to the
 chosen items when C<Return> is pressed. If the mouse mode is enabled, you can use the right mouse key instead of the
 C<SpaceBar>. Pressing C<Ctrl-SpaceBar> inverts the made choices - for example, to select all but one, select the one
 with the C<SpaceBar> and then press C<Ctrl-SpaceBar>.
@@ -118,25 +117,25 @@ with the C<SpaceBar> and then press C<Ctrl-SpaceBar>.
 
 =item *
 
-Use C<BackSpace> or C<Strg-H> to delete the character behind the cursor, and C<Delete> to delete the character at the
+Use C<BackSpace> or C<Strg-H> to delete the character behind the cursor and C<Delete> to delete the character at the
 cursor.
 
 =item *
 
-Press C<Strg-U> to delete the text backward from the cursor to the beginning of the line, and C<Strg-K> to delete the
+Press C<Strg-U> to delete the text backward from the cursor to the beginning of the line and C<Strg-K> to delete the
 text from the cursor to the end of the line.
 
 =item *
 
-Use C<Right-Arrow> to move forward a character, and C<Left-Arrow> to move back a character.
+Use C<Right-Arrow> to move forward a character and C<Left-Arrow> to move back a character.
 
 =item *
 
-Press C<Page-Up> to move back 10 characters, and C<Page-Down> to move forward 10 characters.
+Press C<Page-Up> to move back 10 characters and C<Page-Down> to move forward 10 characters.
 
 =item *
 
-Use C<Home> or C<Strg-A> to move to the start of the line, and C<End> or C<Strg-E> to move to the end of the line.
+Use C<Home> or C<Strg-A> to move to the start of the line and C<End> or C<Strg-E> to move to the end of the line.
 
 =back
 
@@ -156,7 +155,7 @@ Tab characters (C<\t>) are replaced with a space.
 
 Vertical spaces (C<\v>) are squashed to two spaces.
 
-Control characters, code points of the surrogate ranges, and non-characters are removed.
+Control characters, code points of the surrogate ranges and non-characters are removed.
 
 See also the option group L</Output>.
 
@@ -223,7 +222,7 @@ DB Settings
 
 =back
 
-For I<Create Table>, I<Drop Table>, I<Create View>, and I<Drop View>, see L</WRITE ACCESS>.
+For I<Create Table>, I<Drop Table>, I<Create View> and I<Drop View>, see L</WRITE ACCESS>.
 
 These entries are available if enabled in L</Extensions>.
 
@@ -251,7 +250,7 @@ This entry is available if enabled in L</Extensions>.
 
 =head3 Union
 
-Combine the result from multiple C<SELECT> statements with C<Union>, C<Intersect>, and C<Except> (C<Firebird>: Union).
+Combine the result from multiple C<SELECT> statements with C<Union>, C<Intersect> and C<Except> (C<Firebird>: Union).
 
 This entry is available if enabled in L</Extensions>.
 
@@ -285,7 +284,7 @@ See L</WRITE ACCESS>. These entries are available if enabled in L</Extensions>.
 
 =head3 BACK
 
-If the user has set sub-statements, selecting C<BACK> will reset all changes made.
+If the user has set substatements, selecting C<BACK> will reset all changes made.
 
 If no changes have been made or if the changes have been reset, selecting C<BACK> will exit the SQL menu.
 
@@ -298,27 +297,33 @@ Select I<Print TABLE> to show the result of the formed statement on the screen.
 In a SQL submenu (e.g., C<WHERE>), the back arrow resets the subquery step by step. With no items left, the SQL submenu
 is left when the back arrow is chosen.
 
+Adding AGGREGATE functions or GROUP BY columns enables the I<aggregate mode>. In I<aggregate mode>, the available
+columns in the SELECT substatement are the added aggregate functions and the group-by columns, not the table columns.
+
 See also L</Extensions> and L</Operators>
 
 =head4 SELECT
 
-Choose the required columns for the C<SELECT> sub-statement.
+Choose the required columns for the C<SELECT> substatement.
 
 It is possible to add many columns at once by marking them with the C<SpaceBar> key. If columns are marked with the
 C<SpaceBar>, the highlighted column is not added to the chosen when C<Return> is pressed.
 
-If an I<AGGREGATE> function or a I<GROUP BY> column is selected, the available choices of this sub-statement are the
-selected aggregate functions and the selected group-by columns.
-
 =head4 AGGREGATE
 
 C<AVG>, C<COUNT>, C<COUNT(*)>, C<GROUP_CONCAT>, C<MAX>, C<MIN>, C<SUM>
+
+If the user has selected columns in the SELECT submenu: While in this submenu, the available columns are displayed in
+the SELECT substatement instead of the selected columns.
 
 =head4 DISTINCT
 
 =head4 WHERE
 
 =head4 GROUP BY
+
+If the user has selected columns in the SELECT submenu: While in this submenu, the available columns are displayed in
+the SELECT substatement instead of the selected columns.
 
 =head4 HAVING
 
@@ -337,12 +342,12 @@ Export the result of the chosen SQL statement to a C<CSV>-file. See options L<Ex
 I<Create/Drop Table/View> can be accessed by selecting the prompt-line in the L</Tables Menu> if the respective option
 is activated.
 
-Selecting the prompt line of the I<Create/Drop Table/View> sub-menu allows you to set the parse settings described in
+Selecting the prompt line of the I<Create/Drop Table/View> submenu allows you to set the parse settings described in
 L</Import data>.
 
 =head3 Create Table
 
-If the option I<Source type> is set to I<menu>, selecting I<Create Table> opens a sub-menu where you can choose the type
+If the option I<Source type> is set to I<menu>, selecting I<Create Table> opens a submenu where you can choose the type
 of the data source. If I<Source type> is set to I<plain> or I<file>, the set data source type is automatically used
 without displaying a menu.
 
@@ -394,14 +399,14 @@ Drop a view. The entire view is shown before the user confirms dropping it.
 
 =head2 Insert/Update/Delete
 
-I<Insert>, I<Update>, and I<Delete> can be accessed by selecting the prompt-line in the L</SQL Menu> if the respective
+I<Insert>, I<Update> and I<Delete> can be accessed by selecting the prompt-line in the L</SQL Menu> if the respective
 option is activated.
 
 I<Delete>, I<Update>, or I<Insert> may not be available with C<Join> and C<Union>/C<Intersect>/C<Except> statements.
 
 =head3 Insert
 
-If the option I<Source type> is set to I<menu>, selecting I<Insert> opens a sub-menu where one can choose the type of
+If the option I<Source type> is set to I<menu>, selecting I<Insert> opens a submenu where one can choose the type of
 the data source. If I<Source type> is set to I<plain> or I<file>, the set data source type is used without showing a
 menu.
 
@@ -438,18 +443,18 @@ Supported file formats: text files and file formats supported by L<Spreadsheet::
 different parser modules for the different file formats - see L<Spreadsheet::Read/SEE-ALSO>. The parser modules are not
 installed automatically. It is up to the user to install the required parser modules.
 
-Selecting I<From File> opens the I<Source directory> sub-menu where one can choose the directory which should be
+Selecting I<From File> opens the I<Source directory> submenu where one can choose the directory which should be
 searched for files.
 
-If the L<Directory history> is set to C<1>, the I<Source directory> sub-menu is skipped, and the directory is chosen
+If the L<Directory history> is set to C<1>, the I<Source directory> submenu is skipped and the directory is chosen
 automatically.
 
-After a directory has been chosen, a sub-menu is opened where one can choose the source file.
+After a directory has been chosen, a submenu is opened where one can choose the source file.
 
-If the previous sub-menu I<Source directory> is not shown due to the settings described before, it is possible to change
-the source directory in this sub-menu by selecting I<Change dir>.
+If the previous submenu I<Source directory> is not shown due to the settings described before, it is possible to change
+the source directory in this submenu by selecting I<Change dir>.
 
-Selecting the prompt line of the I<Files> sub-menu (I<Choose a File:>) allows one to set the parse settings described in
+Selecting the prompt line of the I<Files> submenu (I<Choose a File:>) allows one to set the parse settings described in
 L</Import data>.
 
 =back
@@ -662,7 +667,7 @@ If stored statements are available, it is also possible to select one of those s
 
 Previously entered queries and the last statements printed with I<Print TABLE> are stored temporarily.
 
-Statements can be saved permanently in the sub-menu, which opens by selecting the prompt line in the I<Subquery> menu
+Statements can be saved permanently in the submenu, which opens by selecting the prompt line in the I<Subquery> menu
 (I<Choose:>).
 
 =item Cte
@@ -679,7 +684,7 @@ If stored statements are available, it is also possible to select one of those s
 
 Previously entered queries and the last statements printed with I<Print TABLE> are stored temporarily.
 
-Statements can be saved permanently in the sub-menu, which opens by selecting the prompt line in the I<CTE> menu
+Statements can be saved permanently in the submenu, which opens by selecting the prompt line in the I<CTE> menu
 (I<Choose:>).
 
 Certain uses of CTEs are not supported.
@@ -735,15 +740,15 @@ available extensions.
 
 Extended Values
 
-If enabled, then - in addition to constants - subqueries, functions, and more (see the following list) are available for
-the right side of operators. Places where extended values are available: C<SET> in update, C<WHEN>, C<THEN>, and C<ELSE>
+If enabled, then - in addition to constants - subqueries, functions and more (see the following list) are available for
+the right side of operators. Places where extended values are available: C<SET> in update, C<WHEN>, C<THEN> and C<ELSE>
 in case expressions, and C<WHERE> and C<HAVING>.
 
 =item
 
 Extended Arguments
 
-If enabled, subqueries, functions, and more (see the following list) are available for entering arguments in addition to
+If enabled, subqueries, functions and more (see the following list) are available for entering arguments in addition to
 constants in the scalar and window functions.
 
 This option can also be enabled later in the functions menu by selecting the prompt line.
@@ -766,7 +771,7 @@ subquery.
 The last subqueries entered in the subquery menu and the last statements printed with I<Print TABLE> are stored
 temporarily.
 
-A subquery can be saved permanently in the sub-menu, which opens by selecting the prompt line of a subquery menu
+A subquery can be saved permanently in the submenu, which opens by selecting the prompt line of a subquery menu
 (I<Choose SQ:>).
 
 Entries matching C</^\s*(?:SELECT|WITH)\s/i> are automatically enclosed in parentheses.
@@ -807,7 +812,7 @@ Available after the C<SET> in an C<UPDATE> statement.
 
 =item Parentheses
 
-C<WHERE>, C<WHEN>, and C<HAVING>: in the C<%%> menu are also available parentheses.
+C<WHERE>, C<WHEN> and C<HAVING>: in the C<%%> menu are also available parentheses.
 
 =item Column aliases
 
@@ -889,7 +894,7 @@ Non-unique columns in JOIN
 
 Derived table
 
-C<Postgres>, C<MySQL>, and C<MariaDB>: ensure that aliases for derived tables are enabled.
+C<Postgres>, C<MySQL> and C<MariaDB>: ensure that aliases for derived tables are enabled.
 
 =item
 
@@ -1149,13 +1154,13 @@ Automatically detects the separation character for CSV files.
 
 =head3 CSV Options in a
 
-Set C<sep_char>, C<quote_char>, C<escape_char>, C<eol>, and C<comment_str>. If left empty, default values are used. For
+Set C<sep_char>, C<quote_char>, C<escape_char>, C<eol> and C<comment_str>. If left empty, default values are used. For
 details on these options, refer to L<Text::CSV_XS>.
 
 =head3 CSV Options in b
 
 Set C<allow_loose_escapes>, C<allow_loose_quotes>, C<allow_whitespace>, C<blank_is_undef>, C<binary>, C<decode_utf8>,
-C<empty_is_undef>, and C<skip_empty_rows>. For meanings of these options, refer to L<Text::CSV_XS>.
+C<empty_is_undef> and C<skip_empty_rows>. For meanings of these options, refer to L<Text::CSV_XS>.
 
 =head3 Settings 'split'
 
@@ -1262,7 +1267,7 @@ If enabled, the table name will be used as the default file name.
 
 =head3 CSV Options Out a
 
-Set C<sep_char>, C<quote_char>, C<escape_char>, C<eol>, and C<undef_str>.
+Set C<sep_char>, C<quote_char>, C<escape_char>, C<eol> and C<undef_str>.
 
 If left empty, default values are used except for C<eol>, which is then set to C<$/> (input record separator).
 
@@ -1270,7 +1275,7 @@ For the meaning of the different options, see L<Text::CSV_XS>.
 
 =head3 CSV Options Out b
 
-Set C<always_quote>, C<binary>, C<escape_null>, C<quote_binary>, C<quote_empty>, and C<quote_space>.
+Set C<always_quote>, C<binary>, C<escape_null>, C<quote_binary>, C<quote_empty> and C<quote_space>.
 
 For the meaning of the different options, see L<Text::CSV_XS>.
 
@@ -1358,7 +1363,7 @@ emulate an ANSI console for the C<db-browser>.
 
 =head2 Permissions
 
-To browse the database, schema, table lists, and table content, the user must possess the necessary database privileges
+To browse the database, schema, table lists and table content, the user must possess the necessary database privileges
 for fetching the requested data.
 
 C<db-browser> expects an existing home directory with read and write permissions for the user of the C<db-browser>.
