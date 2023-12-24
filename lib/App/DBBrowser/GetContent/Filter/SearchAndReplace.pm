@@ -5,7 +5,8 @@ use warnings;
 use strict;
 use 5.014;
 
-use List::MoreUtils qw( any );
+use List::MoreUtils      qw( any );
+use String::Substitution qw( sub_modify gsub_modify );
 
 use Term::Choose       qw();
 use Term::Choose::Util qw();
@@ -23,6 +24,8 @@ sub new {
         d => $d
     };
     bless $sf, $class;
+    $sf->{i}{header} = '*** Saved s_&_r ***';
+    return $sf;
 }
 
 
@@ -40,17 +43,17 @@ sub search_and_replace {
     my $used_names = [];
     $sf->{s_back} = $back;
     my @bu;
-    my ( $hidden, $add ) = ( 'Your choice:', '  NEW' );
+    my ( $hidden, $add ) = ( 'Your choice:', '  * NEW *' );
     my $available = [ sort { $a cmp $b } keys %$saved  ];
 
     ADD_SEARCH_AND_REPLACE: while ( 1 ) {
-        my @tmp_info = ( '', $filter_str );
+        my @tmp_info = ( $filter_str );
         for my $sr_group ( @$all_sr_groups ) {
             for my $sr_single ( @$sr_group ) {
                 push @tmp_info, '  s/' . join( '/', @$sr_single ) . ';';
             }
         }
-        push @tmp_info, '';
+        push @tmp_info, '' if @$all_sr_groups;
         my @pre = ( $hidden, undef, $sf->{i}{_confirm}, $add );
         my $prefixed_available = [];
         for my $name ( @$available ) {
@@ -90,7 +93,14 @@ sub search_and_replace {
             if ( ! defined $col_idxs ) {
                 next ADD_SEARCH_AND_REPLACE;
             }
-            $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
+            if ( ! eval {
+                print 'Search and replace ... ' . "\r" if @$aoa * @$col_idxs > 50_000;
+                $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
+                1 }
+            ) {
+                $ax->print_error_message( $@ );
+                next ADD_SEARCH_AND_REPLACE;
+            }
             $sql->{insert_args} = $aoa;
             my $header_changed = 0;
             if ( $sf->{d}{stmt_types}[0] =~ /^Create_table\z/i ) {
@@ -130,7 +140,7 @@ sub search_and_replace {
             my $separator_key = ' ';
             my $skip_regex = qr/^\Q${separator_key}\E\z/;
             my $fields = [];
-            for my $nr ( 1 .. 7 ) {
+            for my $nr ( 1 .. 5 ) {
                 push @$fields,
                     [ $separator_key,       ],
                     [ $nr . ' Pattern',     ],
@@ -178,14 +188,6 @@ sub search_and_replace {
 }
 
 
-sub __filter_modifiers {
-    my ( $sf, $modifiers ) = @_;
-    $modifiers =~ s/[^geis]+//g;
-    $modifiers =~ tr/gis/gis/s; #;;
-    return $modifiers;
-}
-
-
 sub __get_col_idxs {
     my ( $sf, $sql, $tmp_info, $header, $all_sr_groups ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
@@ -204,39 +206,30 @@ sub __get_col_idxs {
     return $col_idxs;
 }
 
+
 sub __execute_substitutions {
     my ( $sf, $aoa, $col_idxs, $all_sr_groups ) = @_;
     my $c;
-    for my $row ( @$aoa ) { # modifies $aoa
+    for my $row ( @$aoa ) {
         for my $i ( @$col_idxs ) {
             for my $sr_group ( @$all_sr_groups ) {
                 for my $sr_single ( @$sr_group ) {
                     my ( $pattern, $replacement, $modifiers ) = @$sr_single;
                     my $regex = $modifiers =~ /i/ ? qr/(?i:${pattern})/ : qr/${pattern}/;
-                    my $replacement_code = sub { return $replacement };
-                    for ( grep { /^e\z/ } split( //, $modifiers ) ) {
+                    my $replacement_code = sub { $replacement };
+                    for ( grep { $_ eq 'e' } split( //, $modifiers ) ) {
                         my $recurse = $replacement_code;
-                        $replacement_code = sub { return eval $recurse->() }; # execute (e) substitution
+                        $replacement_code = sub { eval $recurse->() }; # execute (e) substitution
                     }
                     $c = 0;
                     if ( ! defined $row->[$i] ) {
                         next;
                     }
                     elsif ( $modifiers =~ /g/ ) {
-                        if ( $modifiers =~ /s/ ) { # s not documented
-                            $row->[$i] =~ s/$regex/$replacement_code->()/gse;
-                        }
-                        else {
-                            $row->[$i] =~ s/$regex/$replacement_code->()/ge;
-                        }
+                        gsub_modify( $row->[$i], $regex, $replacement_code );   # modifies $aoa
                     }
                     else {
-                        if ( $modifiers =~ /s/ ) { # s not documented
-                            $row->[$i] =~ s/$regex/$replacement_code->()/se;
-                        }
-                        else {
-                            $row->[$i] =~ s/$regex/$replacement_code->()/e;
-                        }
+                        sub_modify( $row->[$i], $regex, $replacement_code );    # modifies $aoa
                     }
                 }
             }
@@ -263,7 +256,7 @@ sub __history {
 
     HISTORY: while ( 1 ) {
         my $saved = $ax->read_json( $sf->{i}{f_search_and_replace} ) // {};
-        my $top = join "\n", 'Saved s_&_r', map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
+        my $top = join "\n", $sf->{i}{header}, map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
         my ( $add, $edit, $remove ) = ( '- Add ', '- Edit', '- Remove' );
         my $menu = [ undef, $add, $edit, $remove ];
         # Choose
@@ -341,7 +334,7 @@ sub __history {
                 my $saved = $ax->read_json( $sf->{i}{f_search_and_replace} ) // {};
                 my @pre = ( undef );
                 my $menu = [ @pre, map( '- ' . $_, sort { $a cmp $b } keys %$saved ) ];
-                my $top = "Saved s_&_r";
+                my $top = $sf->{i}{header};
                 # Choose
                 my $idx = $tc->choose(
                     $menu,
@@ -352,7 +345,7 @@ sub __history {
                     next HISTORY;
                 }
                 my $name = $menu->[$idx] =~ s/^- //r;
-                $top = join "\n", 'Saved s_&_r', map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
+                $top = join "\n", $sf->{i}{header}, map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
                 my $sr_group = delete $saved->{$name};
                 my $old_idx_edit = 0;
 
@@ -410,7 +403,7 @@ sub __history {
                         $name = $new_name;
                         $saved->{$name} = [ @$new_sr_group ];
                         $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
-                        $top = join "\n", 'Saved s_&_r', map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
+                        $top = join "\n", $sf->{i}{header}, map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
                         next CHOOSE_ENTRY;
                     }
                 }
@@ -418,7 +411,7 @@ sub __history {
         }
         elsif ( $choice eq $remove ) {
             my $list = [ sort { $a cmp $b } keys %$saved ];
-            my $info = 'Saved s_&_r';
+            my $info = $sf->{i}{header};
             # Choose
             my $idxs = $tu->choose_a_subset(
                 $list,
@@ -451,11 +444,19 @@ sub __history {
                     next REMOVE_ENTRY;
                 }
                 delete $saved->{$name};
-                $top = join "\n", 'Saved s_&_r', map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
+                $top = join "\n", $sf->{i}{header}, map( '  ' . $_, sort { $a cmp $b } keys %$saved ), ' ';
             }
             $ax->write_json( $sf->{i}{f_search_and_replace}, $saved );
         }
     }
+}
+
+
+sub __filter_modifiers {
+    my ( $sf, $modifiers ) = @_;
+    $modifiers =~ s/[^gei]+//g;
+    $modifiers =~ tr/gi/gi/s; #;;
+    return $modifiers;
 }
 
 

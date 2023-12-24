@@ -61,6 +61,7 @@ WriteMakefile(
         'Pod::Usage'              => 0,
         'Scalar::Util'            => 0,
         'Spreadsheet::Read'       => 0,
+        'String::Substitution'    => 0,
         'String::Unescape'        => 0,
         'SQL::Type::Guess'        => 0,
         'Term::Choose'            => '1.761',

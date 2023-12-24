@@ -177,6 +177,7 @@ sub aggregate {
             }
             if ( ! @{$sql->{group_by_cols}} ) {
                 $sql->{aggregate_mode} = 0;
+                $sql->{having_stmt} = '' if $sql->{having_stmt};
             }
             if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
                 $sql->{selected_cols} = [ @$bu_selected_cols ];
@@ -189,6 +190,7 @@ sub aggregate {
         if ( $aggr eq $sf->{i}{ok} ) {
             if ( ! @{$sql->{aggr_cols}} && ! @{$sql->{group_by_cols}} ) {
                 $sql->{aggregate_mode} = 0;
+                $sql->{having_stmt} = '' if $sql->{having_stmt};
             }
             if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
                 $sql->{selected_cols} = [ @$bu_selected_cols ];
@@ -300,6 +302,7 @@ sub group_by {
             }
             if ( ! @{$sql->{aggr_cols}} ) {
                 $sql->{aggregate_mode} = 0;
+                $sql->{having_stmt} = '' if $sql->{having_stmt};
             }
             if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
                 $sql->{selected_cols} = [ @$bu_selected_cols ];
@@ -315,6 +318,7 @@ sub group_by {
             push @{$sql->{group_by_cols}}, @{$menu}[@idx];
             if ( ! @{$sql->{aggr_cols}} && ! @{$sql->{group_by_cols}} ) {
                 $sql->{aggregate_mode} = 0;
+                $sql->{having_stmt} = '' if $sql->{having_stmt};
             }
             if ( $sql->{aggregate_mode} == $bu_aggregate_mode ) {
                 $sql->{selected_cols} = [ @$bu_selected_cols ];

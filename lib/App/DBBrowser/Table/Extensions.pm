@@ -152,8 +152,11 @@ sub __choose_extension {
     if ( $sql->{aggregate_mode} && $clause eq 'select' ) {
         $qt_cols = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
     }
-    elsif ( $sql->{aggregate_mode} && $clause =~ /^(?:having|order_by)\z/ ) {
+    elsif ( $sql->{aggregate_mode} && $clause eq 'having' ) {
         $qt_cols = [ map( '@' . $_, @{$sql->{aggr_cols}} ), @{$sf->{i}{avail_aggr}} ];
+    }
+    elsif ( $sql->{aggregate_mode} && $clause eq 'order_by' ) {
+        $qt_cols = [ @{$sql->{group_by_cols}}, map( '@' . $_, @{$sql->{aggr_cols}} ), @{$sf->{i}{avail_aggr}} ];
     }
     else {
         $qt_cols = [ @{$sql->{cols}} ];

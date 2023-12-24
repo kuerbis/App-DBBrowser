@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.014;
-our $VERSION = '2.400';
+our $VERSION = '2.401';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.400
+Version 2.401
 
 =head1 SYNOPSIS
 
@@ -528,7 +528,7 @@ row-group.
 
 In the replacement, the variable C<$c> can be used as a counter. C<$c> is set to C<0> before each C<s///>.
 
-Available modifiers: C<g>, C<i>, C<e>.
+Supported modifiers: C<g>, C<i> and C<e>.
 
 By selecting the prompt line (I<Your choice:>), one can save I<search & replace> instructions for later use.
 
