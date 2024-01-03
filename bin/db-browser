@@ -528,7 +528,7 @@ row-group.
 
 In the replacement, the variable C<$c> can be used as a counter. C<$c> is set to C<0> before each C<s///>.
 
-Supported modifiers: C<imnsxapge>.
+Supported modifiers: C<imnsxage>.
 
 By selecting the prompt line (I<Your choice:>), one can save I<search & replace> instructions for later use.
 
