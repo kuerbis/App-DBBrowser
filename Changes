@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.402  2024-01-03
+        - Updated input filter 'search & replace'.
+        - Update documentation.
+        - Term::TablePrint minimum version '0.162'.
+
 2.401  2023-12-24
         - Reset HAVING substatement when leaving the aggregate mode.
         - Use String::Substitution in the 'search & replace' input filter.

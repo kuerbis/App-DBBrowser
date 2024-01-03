@@ -68,7 +68,7 @@ WriteMakefile(
         'Term::Choose::Util'      => '0.140',
         'Term::Form'              => '0.554',
         'Term::Form::ReadLine'    => '0.554',
-        'Term::TablePrint'        => '0.160',
+        'Term::TablePrint'        => '0.162',
         'Text::CSV_XS'            => 0,
         %prereqs_os_specific,
     },

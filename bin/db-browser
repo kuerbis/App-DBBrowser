@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.014;
-our $VERSION = '2.401';
+our $VERSION = '2.402';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.401
+Version 2.402
 
 =head1 SYNOPSIS
 
@@ -440,7 +440,7 @@ Insert the data cell by cell.
 The data is read from a chosen file.
 
 Supported file formats: text files and file formats supported by L<Spreadsheet::Read>. C<Spreadsheet::Read> uses
-different parser modules for the different file formats - see L<Spreadsheet::Read/SEE-ALSO>. The parser modules are not
+different parser modules for the different file formats - see L<Spreadsheet::Read/DESCRIPTION>. The parser modules are not
 installed automatically. It is up to the user to install the required parser modules.
 
 Selecting I<From File> opens the I<Source directory> submenu where one can choose the directory which should be
@@ -528,13 +528,12 @@ row-group.
 
 In the replacement, the variable C<$c> can be used as a counter. C<$c> is set to C<0> before each C<s///>.
 
-Supported modifiers: C<g>, C<i> and C<e>.
+Supported modifiers: C<imnsxapge>.
 
 By selecting the prompt line (I<Your choice:>), one can save I<search & replace> instructions for later use.
 
 If a I<search & replace> has altered the first row of the input data, a menu entry named C<RESTORE header row> is
 offered.
-
 
 =item Split Table
 
@@ -1379,7 +1378,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2012-2023 Matthäus Kiem.
+Copyright 2012-2024 Matthäus Kiem.
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE
 IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.

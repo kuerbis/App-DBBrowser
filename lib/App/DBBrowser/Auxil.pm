@@ -524,6 +524,26 @@ sub read_json {
     ) {
         die "In '$file_fs':\n$@";
     }
+
+############################################################## 2.402  03.01.2024
+    if ( $file_fs eq ( $sf->{i}{f_search_and_replace} // '' ) ) {
+        my @keys = keys %$ref;
+        if ( ref( $ref->{$keys[0]}[0] ) eq 'ARRAY' ) {
+            my $tmp;
+            for my $key ( @keys ) {
+                my $gr = [];
+                for my $sr ( @{$ref->{$key}} ) {
+                    $sr = { pattern => $sr->[0], replacement => $sr->[1], modifiers => $sr->[2] };
+                    push @$gr, $sr;
+                }
+                $tmp->{$key} = $gr;
+            }
+            $sf->write_json( $sf->{i}{f_search_and_replace}, $tmp );
+            return $tmp;
+        }
+    }
+##############################################################
+
     return $ref;
 }
 
