@@ -231,7 +231,7 @@ sub __execute_substitutions {
                 $replacement_code = sub { eval $recurse->() }; # execute (e) substitution
             }
             #$modifiers =~ tr/imnsxadlup//dc         if length $modifiers;
-            $modifiers =~ tr/imnsxa//dc            if length $modifiers;
+            $modifiers =~ tr/imnsxa//dc             if length $modifiers;
             $pattern = "(?${modifiers}:{$pattern})" if length $modifiers;
 
             for my $row ( @$aoa ) {

@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.403  2024-01-25
+        - Update documentation.
+        - Term::Choose minimum version '1.763'.
+
 2.402  2024-01-03
         - Updated input filter 'search & replace'.
         - Update documentation.

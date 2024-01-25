@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.014;
-our $VERSION = '2.402';
+our $VERSION = '2.403';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.402
+Version 2.403
 
 =head1 SYNOPSIS
 
@@ -351,7 +351,7 @@ If the option I<Source type> is set to I<menu>, selecting I<Create Table> opens 
 of the data source. If I<Source type> is set to I<plain> or I<file>, the set data source type is automatically used
 without displaying a menu.
 
-For the meaning of the different data source types, see L<Source type>.
+For the meaning of the different data source types, see L<Data source>.
 
 If the data has been read from a file, you can apply different input filters (See L<Input filters>).
 
@@ -412,8 +412,6 @@ menu.
 
 For the meaning of the different data source types, see L<Source type>.
 
-After the data has been read, the user can apply different input filters (See L<Input filters>).
-
 If the first column of a table is an auto-increment column, the C<INSERT INTO> statement is built without this first
 column. This feature is available if supported by the database plugin.
 
@@ -456,6 +454,8 @@ the source directory in this submenu by selecting I<Change dir>.
 
 Selecting the prompt line of the I<Files> submenu (I<Choose a File:>) allows one to set the parse settings described in
 L</Import data>.
+
+After the data has been read, the user can apply different input filters (See L<Input filters>).
 
 =back
 
@@ -511,20 +511,20 @@ row-group.
      Item | length/width/height             Item | length | width | height
     ------|---------------------            -----|--------|-------|------
       423 |            40/30/25              423 |     40 |    30 |    25
-    ------|---------------------              64 |     80 |    60 |    30
-       64 |            80/60/30              705 |     50 |    50 |    40
-    ------|---------------------
-      705 |            50/50/40
+    ------|---------------------            -----|--------|-------|------
+       64 |            80/60/30               64 |     80 |    60 |    30
+    ------|---------------------            -----|--------|-------|------
+      705 |            50/50/40              705 |     50 |    50 |    40
 
 =item Search & Replace
 
      y  | factor                            y  | factor
     ----|---------                          ---|-------
      62 | 8,975.1                           62 | 8975.1
-    ----|---------                          63 | 9745.8
-     63 | 9,745.8                           64 | 9818.2
-    ----|---------
-     64 | 9,818.2
+    ----|---------                          ---|-------
+     63 | 9,745.8                           63 | 9745.8
+    ----|---------                          ---|-------
+     64 | 9,818.2                           64 | 9818.2
 
 In the replacement, the variable C<$c> can be used as a counter. C<$c> is set to C<0> before each C<s///>.
 
@@ -540,9 +540,13 @@ offered.
      y  | factor  | y  | factor             y  | factor
     ----|---------|----|---------           ---|--------
      62 | 8,975.1 | 64 | 9,986.5            62 | 8,975.1
-    ----|---------|----|---------           63 | 9,745.8
-     63 | 9,745.8 | 65 | 9,782.7            y  | factor
+    ----|---------|----|---------           ---|--------
+     63 | 9,745.8 | 65 | 9,782.7            63 | 9,745.8
+                                            ---|--------
+                                            y  | factor
+                                            ---|--------
                                             64 | 9,818.2
+                                            ---|--------
                                             65 | 9,986.5
 
 =item Merge Rows
@@ -550,8 +554,8 @@ offered.
      Month | Average | Average              Month | Average MinTemp | Average MaxTemp
     -------|---------|---------             ------|-----------------|----------------
            | MinTemp | MaxTemp              Jan   |               9 |              22
-    -------|---------|---------             Feb   |              10 |              23
-     Jan   |       9 |      22
+    -------|---------|---------             ------|-----------------|----------------
+     Jan   |       9 |      22              Feb   |              10 |              23
     -------|---------|---------
      Feb   |      10 |      23
 
@@ -562,10 +566,10 @@ I<Merge Rows> can be used to edit a row by selecting only one row.
      Item | length | width | height          Item | length/width/height
     ------|--------|-------|--------         -----|-------------------
       423 |     40 |    30 |     25           423 | 40/30/25
-    ------|--------|-------|--------           64 | 80/60/30
-       64 |     80 |    60 |     30           705 | 50/50/40
-    ------|--------|-------|--------
-      705 |     50 |    50 |     40
+    ------|--------|-------|--------         -----|-------------------
+       64 |     80 |    60 |     30            64 | 80/60/30
+    ------|--------|-------|--------         -----|-------------------
+      705 |     50 |    50 |     40           705 | 50/50/40
 
 I<Join Columns> can be used to edit a column by selecting only one column.
 
@@ -584,8 +588,10 @@ Transpose columns to rows.
      Year | 2000 | 2001 | 2002              Year | Max | Min
     ------|------|------|------             -----|-----|----
      Max  |   14 |   22 |   17              2000 |  14 |  11
-    ------|------|------|------             2001 |  22 |  10
-     Min  |   11 |   10 |    9              2002 |  17 |   9
+    ------|------|------|------             -----|-----|----
+     Min  |   11 |   10 |    9              2001 |  22 |  10
+                                            -----|-----|----
+                                            2002 |  17 |   9
 
 =item Empty to NULL
 
