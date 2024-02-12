@@ -275,47 +275,6 @@ sub __execute_substitutions {
         }
     }
 }
-sub _______________________________execute_substitutions {
-    my ( $sf, $aoa, $col_idxs, $all_sr_groups ) = @_;
-    my $c;
-    for my $sr_group ( @$all_sr_groups ) {
-        for my $sr_single ( @$sr_group ) {
-            my ( $pattern, $replacement_str, $modifiers ) = @$sr_single{qw(pattern replacement modifiers)};
-            my $global = $modifiers =~ tr/g//;
-            my $count_e = $modifiers =~ tr/e//;
-            my $replacement;
-            if ( $count_e ) {
-                my $replacement_code = sub { $replacement_str };
-                for ( 1 .. $count_e ) {
-                    my $recurse = $replacement_code;
-                    $replacement_code = sub { eval $recurse->() }; # execute (e) substitution
-                }
-                $replacement = $replacement_code;
-            }
-            else {
-                # with no `e`: the replacement has to be passed as a string
-                $replacement = $replacement_str;
-            }
-            $modifiers =~ tr/imnsxa//dc if length $modifiers; # tr/imnsxadlup//dc
-            $pattern = "(?${modifiers}:{$pattern})" if length $modifiers;
-
-            for my $row ( @$aoa ) {
-                for my $i ( @$col_idxs ) {
-                    $c = 0;
-                    if ( ! defined $row->[$i] ) {
-                        next;
-                    }
-                    elsif ( $global ) {
-                        gsub_modify( $row->[$i], $pattern, $replacement );   # modifies $aoa
-                    }
-                    else {
-                        sub_modify( $row->[$i], $pattern, $replacement );    # modifies $aoa
-                    }
-                }
-            }
-        }
-    }
-}
 
 
 sub _stringified_sr_group {
