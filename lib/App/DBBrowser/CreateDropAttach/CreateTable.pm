@@ -453,9 +453,7 @@ sub __edit_column_types {
     }
     my $read_only = []; ##
     if ( $sf->{auto_increment} ) {
-        my $qt_pk_ai_column_name = $ax->quote_column( $sql->{ct_column_definitions}[0] );
-        my $pk_ai_constraint = $sf->__primary_key_autoincrement_constraint();
-        unshift @$fields, [ $qt_pk_ai_column_name, $pk_ai_constraint ];
+        unshift @$fields, [ $sql->{ct_column_definitions}[0], $sf->__primary_key_autoincrement_constraint() ];
         $read_only = [ 0 ];
     }
     if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/ ) {
@@ -473,13 +471,13 @@ sub __edit_column_types {
     if ( $constraint_rows ) {
         push @$fields, [ $skip ];
         for my $i ( 0 .. $constraint_rows - 1 ) {
-            push @$fields, [ 'Constraint', defined $sql->{ct_table_constraints}[$i] ? $sql->{ct_table_constraints}[$i] : '' ];
+            push @$fields, [ 'Constraint', $sql->{ct_table_constraints}[$i] // '' ];
         }
     }
     if ( $tbl_option_rows ) {
         push @$fields, [ $skip ];
         for my $i ( 0 .. $tbl_option_rows - 1 ) {
-            push @$fields, [ 'Tbl Option', defined $sql->{ct_table_options}[$i] ? $sql->{ct_table_options}[$i] : '' ];
+            push @$fields, [ 'Tbl Option', $sql->{ct_table_options}[$i] // '' ];
         }
     }
     my $info = $ax->get_sql_info( $sql );
