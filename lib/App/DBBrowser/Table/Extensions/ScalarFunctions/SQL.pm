@@ -4,7 +4,7 @@ App::DBBrowser::Table::Extensions::ScalarFunctions::SQL;
 use warnings;
 use strict;
 use 5.014;
-
+            my $firebird_major_version = 3; # ### 
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -63,12 +63,32 @@ sub function_with_col {
         return $sf->function_with_col_and_arg( 'EXTRACT', $col, $func );
     }
     elsif ( $func =~ /^UNIX_TIMESTAMP\z/i ) {
-        return "UNIXEPOCH($col,'utc','subsec')"                                         if $driver eq 'SQLite'; # sqlite 3.42.0
-        return "EXTRACT(EPOCH FROM ${col}::timestamp with time zone)"                   if $driver eq 'Pg';
-        return "UNIX_TIMESTAMP($col)"                                                   if $driver =~ /^(?:mysql|MariaDB)\z/;
-        return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001"     if $driver eq 'Firebird';
-        return "TRUNC(($col - date '1970-01-01') * 86400)"                              if $driver eq 'Oracle';
-        return "EXTRACT(EPOCH FROM $col)";                                              # Pg DB2
+        if ( $driver eq 'SQLite' ) {
+            return "UNIXEPOCH($col,'utc','subsec')"; # subsec: sqlite 3.42.0
+        }
+        elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+            return "UNIX_TIMESTAMP($col)";
+        }
+        elsif ( $driver eq 'Pg' ) {
+            return "EXTRACT(EPOCH FROM ${col}::timestamp with time zone)";
+        }
+        elsif ( $driver eq 'Firebird' ) {
+            if ( $firebird_major_version >= 4 ) {
+                return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00 UTC',$col)";
+            }
+            else {
+                return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00',$col)"; # no timezone
+                #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001";
+            }
+        }
+        elsif ( $driver eq 'DB2' ) {
+            return "EXTRACT(EPOCH FROM $col)"; # no timezone
+        }
+        elsif ( $driver eq 'Oracle' ) {
+            return "TRUNC((CAST(FROM_TZ(CAST($col AS TIMESTAMP),SESSIONTIMEZONE) AT TIME ZONE 'UTC' AS DATE) - DATE '1970-01-01') * 86400)"; # DATE
+            #return "TRUNC((CAST($col AT TIME ZONE 'UTC' AS DATE) - DATE '1970-01-01') * 86400)"; # TIMESTAMP WITH TIME ZONE
+            #return "TRUNC(($col - date '1970-01-01') * 86400)"; # no timezone
+        }
     }
     else {
         return "$func($col)";
@@ -258,13 +278,34 @@ sub coalesce {
 sub epoch_to_date {
     my ( $sf, $col, $interval ) = @_;
     my $driver = $sf->{i}{driver};
-    return "DATE($col/$interval,'unixepoch','localtime')"                                  if $driver eq 'SQLite';
-    return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')"                                      if $driver =~ /^(?:mysql|MariaDB)\z/;
-    return "TO_TIMESTAMP(${col}::bigint/$interval)::date"                                  if $driver eq 'Pg';
-    return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')"           if $driver eq 'Firebird';
-    return "TIMESTAMP('1970-01-01') + ($col/$interval) SECONDS"                            if $driver eq 'DB2';
-    return "TO_CHAR(DBINFO('utc_to_datetime',$col/$interval),'%Y-%m-%d')"                  if $driver eq 'Informix';
-    return "TO_DATE('1970-01-01','YYYY-MM-DD') + NUMTODSINTERVAL($col/$interval,'SECOND')" if $driver eq 'Oracle';
+    if ( $driver eq 'SQLite' ) {
+        return "DATE($col/$interval,'unixepoch','localtime')";
+    }
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+        return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')";
+    }
+    elsif ( $driver eq 'Pg' ) {
+        return "TO_TIMESTAMP(${col}::bigint/$interval)::date";
+        #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval) at time zone 'UTC','yyyy-mm-dd')"; # without timezone
+    }
+    elsif ( $driver eq 'Firebird' ) {
+        if ( $firebird_major_version >= 4 ) {
+            return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')"; # ### 
+        }
+        else {
+            return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')";
+        }
+    }
+    elsif ( $driver eq 'DB2' ) {
+        return "TIMESTAMP('1970-01-01') + ($col/$interval) SECONDS";
+    }
+    elsif ( $driver eq 'Informix' ) {
+        return "TO_CHAR(DBINFO('utc_to_datetime',$col/$interval),'%Y-%m-%d')";
+    }
+    elsif ( $driver eq 'Oracle' ) {
+        return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD')";
+        #return "TO_DATE('1970-01-01','YYYY-MM-DD') + NUMTODSINTERVAL($col/$interval,'SECOND')"; # no timezone
+    }
 }
 
 
@@ -276,7 +317,7 @@ sub epoch_to_datetime {
             return "DATETIME($col,'unixepoch','localtime')";
         }
         else {
-            return "STRFTIME('%Y-%m-%d %H:%M:%f',$col/$interval.0, 'unixepoch','localtime')";
+            return "DATETIME($col/$interval.0,'unixepoch','localtime','subsec')";
         }
     }
     elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
@@ -293,26 +334,47 @@ sub epoch_to_datetime {
     }
     elsif ( $driver eq 'Pg' ) {
         if ( $interval == 1 ) {
-            return "TO_TIMESTAMP(${col}::bigint)::timestamp"
+            #return "TO_TIMESTAMP(${col}::bigint)::timestamptz"; # with tz-offset
+            return "TO_TIMESTAMP(${col}::bigint)::timestamp";
+            #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint) at time zone 'UTC','yyyy-mm-dd hh24:mi:ss')"; # without timezone
         }
-        elsif ( $interval == 1_000 ) {
-            return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC','yyyy-mm-dd hh24:mi:ss.ff3')";
-        }
+        #elsif ( $interval == 1_000 ) { # ### 
+        #    return "TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp";
+        #    #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone current_setting('timezone'),'yyyy-mm-dd hh24:mi:ss.ff3')";
+        #    #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC','yyyy-mm-dd hh24:mi:ss.ff3')"; # without timezone
+        #}
         else {
-            return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC','yyyy-mm-dd hh24:mi:ss.ff6')";
+            return "TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp";
+            #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone current_setting('timezone'),'yyyy-mm-dd hh24:mi:ss.ff6')";
+            #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0) at time zone 'UTC','yyyy-mm-dd hh24:mi:ss.ff6')"; # without timezone
         }
     }
     elsif ( $driver eq 'Firebird' ) {
-        if ( $interval == 1 ) {
-            return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 19)";
-        }
-        elsif ( $interval == 1_000 ) {
-            $interval /= 1_000;
-            return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 23)";
+        if ( $firebird_major_version >= 4 ) {
+            if ( $interval == 1 ) {
+                return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 19)"; # ### 
+            }
+            elsif ( $interval == 1_000 ) {
+                $interval /= 1_000;
+                return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 23)"; # ### 
+            }
+            else {
+                $interval /= 1_000;                        # don't remove the ".0"
+                return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24))"; # ### 
+            }
         }
         else {
-            $interval /= 1_000;                        # don't remove the ".0"
-            return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24))";
+            if ( $interval == 1 ) {
+                return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 19)";
+            }
+            elsif ( $interval == 1_000 ) {
+                $interval /= 1_000;
+                return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24)) FROM 1 FOR 23)";
+            }
+            else {
+                $interval /= 1_000;                        # don't remove the ".0"
+                return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01 00:00:00') AS VARCHAR(24))";
+            }
         }
     }
     elsif ( $driver eq 'DB2' ) {
@@ -331,13 +393,17 @@ sub epoch_to_datetime {
     }
     elsif ( $driver eq 'Oracle' ) {
         if ( $interval == 1 ) {
-            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col,'SECOND'),'YYYY-MM-DD HH24:MI:SS')";
+            return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS')";
+            #return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + NUMTODSINTERVAL($col,'SECOND')) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS')"
+            #return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col,'SECOND'),'YYYY-MM-DD HH24:MI:SS')"; # no timezone
         }
         elsif ( $interval == 1_000 ) {
-            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF3')";
+            return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS.FF3')";
+            #return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF3')"; # no timezone
         }
         else {
-            return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF6')";
+            return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS.FF6')";
+            #return "TO_CHAR(TO_TIMESTAMP('19700101000000','YYYYMMDDHH24MISS')+NUMTODSINTERVAL($col/$interval,'SECOND'),'YYYY-MM-DD HH24:MI:SS.FF6')"; # no timezone
         }
     }
 }

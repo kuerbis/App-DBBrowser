@@ -459,7 +459,8 @@ sub __edit_column_types {
     if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/ ) {
         for my $field ( @$fields ) {
             if ( defined $field->[1] && $field->[1] eq 'DATETIME' ) {
-                $field->[1] = 'TIMESTAMP'                 if $sf->{i}{driver} =~ /^(?:Pg|Firebird|Oracle)\z/;
+                $field->[1] = 'TIMESTAMP'                 if $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/;
+                $field->[1] = 'DATE'                      if $sf->{i}{driver} eq 'Oracle';
                 $field->[1] = 'DATETIME YEAR TO FRACTION' if $sf->{i}{driver} eq 'Informix';
                 # Informix: DATETIME largest_qualifier TO smallest_qualifier
             }

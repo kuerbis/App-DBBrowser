@@ -1,5 +1,10 @@
 Revision history for App-DBBrowser
 
+
+2.408_01  2024-03-21
+        - Epoch_to_DateTime: bugfix and updates.
+        - New: Unix_Timestamp.
+
 2.407  2024-03-11
         - Bugfix: auto-increment primary key quoted twice.
 

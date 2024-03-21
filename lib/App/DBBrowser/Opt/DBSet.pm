@@ -121,7 +121,7 @@ sub database_setting {
             if ( $group eq 'reset_db_dummy_str' ) {
                 my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
                 my @databases;
-                for my $key ( keys %$db_opt ) {
+                for my $key ( keys %$db_opt ) { # name # ### 
                     push @databases, $key if $key ne $plugin;
                 }
                 if ( ! @databases ) {

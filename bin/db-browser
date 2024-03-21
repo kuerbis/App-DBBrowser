@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 use 5.014;
-our $VERSION = '2.407';
-
+our $VERSION = '2.408_01';
+$SIG{__WARN__} = sub { die @_ }; # ### 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
 use App::DBBrowser;
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.407
+Version 2.408_01
 
 =head1 SYNOPSIS
 
@@ -900,7 +900,7 @@ Non-unique columns in JOIN
 
 Derived table
 
-C<Postgres>, C<MySQL> and C<MariaDB>: ensure that aliases for derived tables are enabled.
+C<PostgreSQL>, C<MySQL> and C<MariaDB>: ensure that aliases for derived tables are enabled.
 
 =item
 

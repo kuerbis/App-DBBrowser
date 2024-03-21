@@ -229,8 +229,8 @@ sub col_function {
     my $second       = 'SECOND';
     my $day_of_week  = 'DAYOFWEEK';
     my $day_of_year  = 'DAYOFYEAR';
-    my $unix_ts      = 'UNIX_TIMESTAMP';
-    $functions{date} = [ sort( $dateadd, $epoch_to_d, $epoch_to_dt, $extract, $now, $year, $quarter, $month, $week, $day, $hour, $minute, $second, $day_of_week, $day_of_year ) ]; # , $unix_ts # ###
+    my $unix_ts      = 'UNIX_TIMESTAMP'; # ### 
+    $functions{date} = [ sort( $dateadd, $epoch_to_d, $epoch_to_dt, $extract, $now, $year, $quarter, $month, $week, $day, $hour, $minute, $second, $day_of_week, $day_of_year, $unix_ts ) ]; #  # ### $unix_ts # ### 
     if ( $sf->{i}{driver} eq 'Informix' ) {
         $functions{date} = [ grep { ! /^(?:$week|$day_of_year|$unix_ts)\z/ } @{$functions{date}} ];
     }
