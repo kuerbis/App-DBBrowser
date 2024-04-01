@@ -29,7 +29,7 @@ sub new {
     $sf->{window_func} = 'win()';
     $sf->{case} = 'case';
     $sf->{math} = 'math';
-    $sf->{col} = 'col';
+    $sf->{col} = 'column';
     $sf->{null} = 'NULL';
     $sf->{close_in} = ')end';
     $sf->{par_open} = '(';

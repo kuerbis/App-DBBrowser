@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.408_02  2024-04-01
+        - New: to_xxx scalar functions.
+        - Refactored ScalarFunctions.
+        - If chosen a deleted directory: warn and remove it from history.
+
 2.408_01  2024-03-21
         - Epoch_to_DateTime: bugfix and updates.
         - New: Unix_Timestamp.

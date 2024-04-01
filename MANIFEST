@@ -35,6 +35,7 @@ lib/App/DBBrowser/Table/Extensions/Case.pm
 lib/App/DBBrowser/Table/Extensions/ColumnAliases.pm
 lib/App/DBBrowser/Table/Extensions/Maths.pm
 lib/App/DBBrowser/Table/Extensions/ScalarFunctions.pm
+lib/App/DBBrowser/Table/Extensions/ScalarFunctions/EpochToDate.pm
 lib/App/DBBrowser/Table/Extensions/ScalarFunctions/SQL.pm
 lib/App/DBBrowser/Table/Extensions/WindowFunctions.pm
 lib/App/DBBrowser/Table/InsertUpdateDelete.pm

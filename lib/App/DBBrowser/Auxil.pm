@@ -55,6 +55,16 @@ sub quote_constant {
 }
 
 
+sub unquote_constant { # ### 
+    my ( $sf, $constant ) = @_;
+    return if ! defined $constant;
+    my $tmp = $sf->{d}{dbh}->quote( 'a' );
+    my $qc = quotemeta( substr( $tmp, 0, 1 ) );
+    $constant =~ s/$qc(?=(?:$qc$qc)*(?:[^$qc]|\z))//g;
+    return $constant;
+}
+
+
 sub get_stmt {
     my ( $sf, $sql, $stmt_type, $used_for ) = @_;
     my $in = ' ' x $sf->{o}{G}{base_indent};

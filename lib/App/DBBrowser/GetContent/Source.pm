@@ -10,7 +10,7 @@ use Encode                qw( encode decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 
-use List::MoreUtils qw( uniq );
+use List::MoreUtils qw( uniq firstidx ); # ### 
 use Encode::Locale  qw();
 
 use Term::Choose           qw();
@@ -161,7 +161,14 @@ sub from_col_by_col {
 
 sub __files_in_dir {
     my ( $sf, $dir ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     if ( ! defined $dir ) {
+        return [];
+    }
+    if ( ! -d $dir ) { # ### 
+        my $message = "Directory '$dir' does not exist.\nThe entry will be removed from history.";
+        $ax->print_error_message( $message );
+        $sf->__remove_from_history( $dir );
         return [];
     }
     my $dir_fs = realpath encode( 'locale_fs', $dir );
@@ -208,6 +215,18 @@ sub __add_to_history {
     if ( @dirs > $sf->{o}{insert}{history_dirs} ) {
         $#dirs = $sf->{o}{insert}{history_dirs} - 1;
     }
+    $h_ref->{dirs} = \@dirs;
+    $ax->write_json( $sf->{i}{f_dir_history}, $h_ref );
+}
+
+
+sub __remove_from_history { # ### 
+    my ( $sf, $dir ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
+    my @dirs = @{$h_ref->{dirs}//[]};
+    my $idx = firstidx { $_ eq $dir } @dirs;
+    splice( @dirs, $idx, 1 );
     $h_ref->{dirs} = \@dirs;
     $ax->write_json( $sf->{i}{f_dir_history}, $h_ref );
 }
