@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.408_03  2024-04-05
+        - Quote numbers if the data type is not numeric.
+        - Refactoring.
+
 2.408_02  2024-04-01
         - New: to_xxx scalar functions.
         - Refactored ScalarFunctions.

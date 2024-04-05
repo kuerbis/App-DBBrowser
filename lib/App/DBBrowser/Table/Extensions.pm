@@ -201,8 +201,14 @@ sub __choose_extension {
                 return if @$extensions = 1;
                 next EXTENSION;
             }
-            if ( $opt->{caller} eq 'argument' ) {
-                return $value;
+            #if ( $opt->{caller} eq 'argument' ) { # ###
+            #    return $value;
+            #}
+            #else {
+            #    return $ax->quote_constant( $value );
+            #}
+            if ( $opt->{quote_numeric} ) {
+                return $sf->{d}{dbh}->quote( $value );
             }
             else {
                 return $ax->quote_constant( $value );

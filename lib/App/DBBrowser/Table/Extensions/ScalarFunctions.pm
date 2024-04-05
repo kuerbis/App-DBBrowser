@@ -217,7 +217,6 @@ sub col_function {
     my $rx_only_func        = join( '|', $now, $rand );
     my $rx_multi_col_func   = join( '|', $concat, $coalesce );
     my $rx_to_format_func   = join( '|', $to_char, $to_date, $to_timestamp, $to_timestamp_tz, $to_number, $strftime, $date_format, $format, $str_to_date );
-    my $rx_locate_substring = join( '|', $position, $instr, $locate );
 
     my $hidden = 'Scalar functions:';
     my $info = $ax->get_sql_info( $sql );
@@ -285,10 +284,10 @@ sub col_function {
             my $func = $menu->[$idx_func] =~ s/^-\s//r;
             push @{$r_data->{nested_func}}, $func;
             my $function_stmt;
-            if ( $func =~ /^$rx_only_func\z/ ) {
+            if ( $func =~ /^(?:$rx_only_func)\z/ ) {
                 $function_stmt =  $sf->__func_with_no_col( $func );
             }
-            elsif ( $func =~ /^$rx_multi_col_func\z/ ) {
+            elsif ( $func =~ /^(?:$rx_multi_col_func)\z/ ) {
                 my $chosen_cols = $sf->__choose_columns( $sql, $clause, $qt_cols, $info, $r_data );
                 if ( ! defined $chosen_cols ) {
                     if ( @{$r_data->{nested_func}} == 1 ) {
@@ -503,9 +502,13 @@ sub __func_with_one_col {
 
     for my $arg_data ( @$args_data ) {
         # Readline
-        my $arg = $ext->argument( $sql, $clause, { info => $info, history => $arg_data->{history}, prompt => $arg_data->{prompt} } );
+        my $arg = $ext->argument(
+            $sql, $clause,
+            { info => $info, history => $arg_data->{history}, prompt => $arg_data->{prompt},
+              quote_numeric => $arg_data->{quote} }
+        );
         #last if ! defined $arg; ##
-        if ( ! length $arg ) {
+        if ( ! length $arg || $arg eq "''" ) { ##
             if ( $func eq $replace && @$args == 1 ) {
                 # replacement_string: an empty string is a valid argument
                 $arg = '';
@@ -523,9 +526,6 @@ sub __func_with_one_col {
                 return $function_stmt;
             }
         }
-        if ( $arg_data->{quote} ) {
-            $arg = $sf->{d}{dbh}->quote( $arg );
-        }
         push @$args, $arg;
         $info =~ s/\Q$tail\E\z/,${arg}${tail}/;
     }
@@ -541,11 +541,10 @@ sub __func_Concat {
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $history = [ '-', ' ', '_', ',', '/', '=', '+' ];
     # Readline
-    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ' } );
+    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ', quote_numeric => 1 } );
     if ( ! defined $sep ) {
         return;
     }
-    $sep = $sf->{d}{dbh}->quote( $sep );
     my $function_stmt = $fsql->concatenate( $chosen_cols, $sep );
     return $function_stmt;
 }

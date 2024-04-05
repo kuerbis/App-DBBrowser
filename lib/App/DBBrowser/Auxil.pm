@@ -44,27 +44,6 @@ sub __stmt_fold {
 }
 
 
-sub quote_constant {
-    my ( $sf, $value ) = @_;
-    if ( looks_like_number $value ) {
-        return $value;
-    }
-    else {
-        return $sf->{d}{dbh}->quote( $value );
-    }
-}
-
-
-sub unquote_constant { # ### 
-    my ( $sf, $constant ) = @_;
-    return if ! defined $constant;
-    my $tmp = $sf->{d}{dbh}->quote( 'a' );
-    my $qc = quotemeta( substr( $tmp, 0, 1 ) );
-    $constant =~ s/$qc(?=(?:$qc$qc)*(?:[^$qc]|\z))//g;
-    return $constant;
-}
-
-
 sub get_stmt {
     my ( $sf, $sql, $stmt_type, $used_for ) = @_;
     my $in = ' ' x $sf->{o}{G}{base_indent};
@@ -253,6 +232,7 @@ sub info_format_insert_args {
     return $tmp;
 }
 
+
 sub __prepare_table_row {
     my ( $sf, $row, $indent, $term_w ) = @_;
     my $list_sep = ', ';
@@ -322,18 +302,19 @@ sub get_sql_info {
 
 
 sub alias {
-    # Aliases:
-    #   JOIN: mandatory
+    # Aliases mandatory:
     #
-    #   Subqueries in FROM (Derived Table, UNION):
-    #                       mandatory: mysql, MariaDB, Pg
-    #                       optional: SQLite, Firebird, DB2, Informix, Oracle
+    # JOIN talbes
+    # Derived Tables: mysql, MariaDB, Pg
+    # UNION special columns ? # ### 
     #
-    #   Columns: optional (SQ, functions)
-
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
     my $prompt = 'as ';
     my $alias;
+    # 0 = NO
+    # 1 = AUTO
+    # 2 = ASK
+    # 3 = ASK/AUTO
     if ( $sf->{o}{alias}{$type} == 0 ) {
         return;
     }
@@ -448,6 +429,27 @@ sub unquote_identifier {
 }
 
 
+sub quote_constant {
+    my ( $sf, $value ) = @_;
+    if ( looks_like_number $value ) {
+        return $value;
+    }
+    else {
+        return $sf->{d}{dbh}->quote( $value );
+    }
+}
+
+
+sub unquote_constant {
+    my ( $sf, $constant ) = @_;
+    return if ! defined $constant;
+    my $tmp = $sf->{d}{dbh}->quote( 'a' );
+    my $qc = quotemeta( substr( $tmp, 0, 1 ) );
+    $constant =~ s/$qc(?=(?:$qc$qc)*(?:[^$qc]|\z))//g;
+    return $constant;
+}
+
+
 sub clone_data {
     my ( $sf, $data ) = @_;
     require Storable;
@@ -503,29 +505,67 @@ sub sql_limit {
 }
 
 
-sub column_names {
+sub column_names_and_types {
     my ( $sf, $qt_table, $ctes ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
-    my $columns;
+    my $column_names;
+    my $column_types;
     if ( ! eval {
         my $stmt = '';
         if ( defined $ctes && @$ctes ) {
             $stmt = "WITH " . join ', ', map { sprintf '%s AS (%s)', $_->{name}, $_->{query} } @$ctes;
             $stmt .= ' ';
         }
-
         $stmt .= "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 );
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
-        if ( $sf->{i}{driver} ne 'SQLite' ) {
-            $sth->execute();
+        if ( $sf->{i}{driver} eq 'SQLite' ) {
+            $column_names = [ @{$sth->{NAME}} ];
+            for my $type ( @{$sth->{TYPE}} ) {
+                if ( ! $type || $type =~ /INT|DOUBLE|REAL|NUM|FLOAT|DEC|BOOL|BIT|MONEY/i ) {
+                    push @$column_types, 2;
+                }
+                else {
+                    push @$column_types, 1;
+                }
+            }
         }
-        $columns = [ @{$sth->{NAME}} ];
+        else {
+            $sth->execute();
+            $column_names = [ @{$sth->{NAME}} ];
+            $column_types = [ @{$sth->{TYPE}} ];
+        }
         1 }
     ) {
         $sf->print_error_message( $@ );
     }
-    return $columns;
+    return $column_names, $column_types;
+}
+
+
+sub major_server_version {
+    my ( $sf ) = @_;
+    my $driver = $sf->{i}{driver};
+    my $major_server_version;
+    if ( $driver eq 'Pg' ) {
+        eval {
+            my ( $pg_version ) = $sf->{d}{dbh}->selectrow_array( "SELECT version()" );
+            ( $major_server_version ) = $pg_version =~ /^\S+\s+(\d+)\./;
+        };
+    }
+    elsif ( $driver eq 'Firebird' ) {
+        eval {
+            my ( $firebird_version ) = $sf->{d}{dbh}->selectrow_array( "SELECT RDB\$GET_CONTEXT('SYSTEM', 'ENGINE_VERSION') FROM RDB\$DATABASE" );
+            ( $major_server_version  ) = $firebird_version =~ /^(\d+)\./;
+        };
+    }
+    elsif ( $driver eq 'Oracle' ) {
+        eval {
+            my $ora_server_version = $sf->{d}{dbh}->func( 'ora_server_version' );
+            $major_server_version = $ora_server_version->[0];
+      };
+    }
+    return $major_server_version // 1;
 }
 
 

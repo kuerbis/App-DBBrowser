@@ -240,9 +240,9 @@ sub get_content {
                             if ( ! $parse_ok ) {
                                 next FILE;
                             }
-                            if ( ! @{$sql->{insert_args}} ) {
+                            if ( ! @{$sql->{insert_args}} || ! @{$sql->{insert_args}[0]} ) {
                                 $tc->choose(
-                                    [ 'empty file!' ],
+                                    [ 'Empty File!' ],
                                     { prompt => 'Press ENTER' }
                                 );
                                 close $fh;
@@ -255,7 +255,11 @@ sub get_content {
                                 if ( ! $ok ) {
                                     next FILE;
                                 }
-                                if ( ! @{$sql->{insert_args}} ) { #
+                                if ( ! @{$sql->{insert_args}} || ! @{$sql->{insert_args}[0]} ) {
+                                    $tc->choose(
+                                        [ 'Empty Sheet!' ],
+                                        { prompt => 'Press ENTER' }
+                                    );
                                     next SHEET if $source->{saved_book};
                                     next FILE;
                                 }

@@ -195,10 +195,11 @@ sub function_with_one_col {
             return "EXTRACT(EPOCH FROM ${col}::timestamp with time zone)";
         }
         elsif ( $driver eq 'Firebird' ) {
-            my $firebird_major_version = 3; # ### 
+            #my $firebird_major_version = $ax->major_server_version();
+            my $firebird_major_version = 3; # ###
             return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00 UTC',$col)" if $firebird_major_version >= 4;
             return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00',$col)"; # no timezone
-            #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001"; # ### 
+            #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001"; # ###
         }
         elsif ( $driver eq 'DB2' ) {
             return "EXTRACT(EPOCH FROM $col)"; # no timezone
@@ -248,6 +249,7 @@ sub coalesce {
 
 sub epoch_to_date {
     my ( $sf, $col, $interval ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
     if ( $driver eq 'SQLite' ) {
         return "DATE($col/$interval,'unixepoch','localtime')";
@@ -260,12 +262,15 @@ sub epoch_to_date {
         #return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval) at time zone 'UTC','yyyy-mm-dd')"; # without timezone
     }
     elsif ( $driver eq 'Firebird' ) {
-        my $firebird_major_version = 3; # ### 
+        #my $firebird_major_version = $ax->major_server_version();
+        my $firebird_major_version = 3; # ###
         if ( $firebird_major_version >= 4 ) {
-            return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01 UTC') AT LOCAL";
+            #return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01 UTC') AT LOCAL";
+            return "CAST(DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01 UTC') AT LOCAL AS VARCHAR(10))";
         }
         else {
-            return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')";
+            #   return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01')";
+            return "CAST(DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01') AS VARCHAR(10))";
         }
     }
     elsif ( $driver eq 'DB2' ) {
@@ -283,13 +288,15 @@ sub epoch_to_date {
 
 sub epoch_to_timestamp {
     my ( $sf, $col, $interval ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
     if ( $driver eq 'Pg' ) {
         return "TO_TIMESTAMP(${col}::bigint)::timestamptz"              if $interval == 1;
         return "TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamptz";
     }
     elsif ( $driver eq 'Firebird' ) {
-        my $firebird_major_version = 3; # ### 
+        #my $firebird_major_version = $ax->major_server_version();
+        my $firebird_major_version = 3; # ###
         if ( $firebird_major_version >= 4 ) {
             return "DATEADD(SECOND,$col,TIMESTAMP '1970-01-01 UTC') AT LOCAL"                                 if $interval == 1;
             return "DATEADD(MILLISECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL"            if $interval == 1_000;
@@ -312,12 +319,13 @@ sub epoch_to_timestamp {
 
 sub epoch_to_datetime {
     my ( $sf, $col, $interval ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
     if ( $driver eq 'SQLite' ) {
         return "DATETIME($col,'unixepoch','localtime')"                       if $interval == 1;
         return "DATETIME($col/$interval.0,'unixepoch','localtime','subsec')";
     }
-    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {   # DATE_FORMAT and STR_TO_DATE # ### 
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {   # DATE_FORMAT and STR_TO_DATE ##
         # mysql: FROM_UNIXTIME doesn't work with negative timestamps
         return "FROM_UNIXTIME($col)"             if $interval == 1;
         return "FROM_UNIXTIME($col * 0.001)"     if $interval == 1_000;
@@ -344,7 +352,8 @@ sub epoch_to_datetime {
         #}
     }
     elsif ( $driver eq 'Firebird' ) {
-        my $firebird_major_version = 3; # ### 
+        #my $firebird_major_version = $ax->major_server_version();
+        my $firebird_major_version = 3; # ###
         if ( $firebird_major_version >= 4 ) {
             return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL AS VARCHAR(24)) FROM 1 FOR 19)"      if $interval == 1;
             return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL AS VARCHAR(24)) FROM 1 FOR 23)" if $interval == 1_000;
@@ -358,12 +367,12 @@ sub epoch_to_datetime {
             return "CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT)/$interval.0,TIMESTAMP '1970-01-01') AS VARCHAR(24))";
         }
     }
-    elsif ( $driver eq 'DB2' ) { # to_date and to_char # ### 
+    elsif ( $driver eq 'DB2' ) { # TO_DATE and TO_CHAR ##
         return "TIMESTAMP('1970-01-01 00:00:00',0) + $col SECONDS"              if $interval == 1;
         return "TIMESTAMP('1970-01-01 00:00:00',3) + ($col/$interval) SECONDS"  if $interval == 1_000;
         return "TIMESTAMP('1970-01-01 00:00:00',6) + ($col/$interval) SECONDS";
     }
-    elsif ( $driver eq 'Informix' ) { # to_char # ### 
+    elsif ( $driver eq 'Informix' ) { # TO_CHAR ##
         return "DBINFO('utc_to_datetime',$col)"            if $interval == 1;
         return "DBINFO('utc_to_datetime',$col/$interval)";
     }

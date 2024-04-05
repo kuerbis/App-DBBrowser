@@ -10,7 +10,7 @@ use Encode                qw( encode decode );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 
-use List::MoreUtils qw( uniq firstidx ); # ### 
+use List::MoreUtils qw( uniq firstidx );
 use Encode::Locale  qw();
 
 use Term::Choose           qw();
@@ -165,7 +165,7 @@ sub __files_in_dir {
     if ( ! defined $dir ) {
         return [];
     }
-    if ( ! -d $dir ) { # ### 
+    if ( ! -d $dir ) {
         my $message = "Directory '$dir' does not exist.\nThe entry will be removed from history.";
         $ax->print_error_message( $message );
         $sf->__remove_from_history( $dir );
@@ -220,7 +220,7 @@ sub __add_to_history {
 }
 
 
-sub __remove_from_history { # ### 
+sub __remove_from_history {
     my ( $sf, $dir ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $h_ref = $ax->read_json( $sf->{i}{f_dir_history} ) // {};
