@@ -59,7 +59,7 @@ sub from_col_by_col {
     COL_BY_COL: while( 1 ) {
         my $aoa = [];
         my $col_names;
-        if ( $stmt_type eq 'Create_table' ) {
+        if ( $stmt_type eq 'Create_Table' ) {
             my $col_count;
             my $info = 'CREATE TABLE';
 
@@ -103,7 +103,7 @@ sub from_col_by_col {
             );
             $ax->print_sql_info( $info );
             if ( ! defined $choice ) {
-                if ( $stmt_type eq 'Create_table' && @$aoa == 1 ) {
+                if ( $stmt_type eq 'Create_Table' && @$aoa == 1 ) {
                     next COL_BY_COL;
                 }
                 elsif ( $stmt_type eq 'Insert' && @$aoa == 0 ) {
@@ -117,7 +117,7 @@ sub from_col_by_col {
             }
             elsif ( $choice eq $sf->{i}{ok} ) {
                 if ( ! @$aoa ) {
-                    if ( $stmt_type eq 'Create_table' ) {
+                    if ( $stmt_type eq 'Create_Table' ) {
                         next COL_BY_COL;
                     }
                     elsif ( $stmt_type eq 'Insert' ) {

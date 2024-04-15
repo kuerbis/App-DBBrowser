@@ -1,6 +1,9 @@
 Revision history for App-DBBrowser
 
 
+2.408_04  2024-04-15
+        - New input filter: convert_datetime.
+
 2.408_03  2024-04-05
         - Quote numbers if the data type is not numeric.
         - Refactoring.

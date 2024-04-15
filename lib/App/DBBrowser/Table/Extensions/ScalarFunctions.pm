@@ -94,56 +94,39 @@ sub __format_history {
     if ( $driver eq 'SQLite' ) {
         return [ '%Y-%m-%d %H:%M:%f', '%Y-%m-%d %H:%M:%S' ] if $func eq $strftime;
     }
-    elsif ( $driver =~ /^(?:mysql|MariaDB')\z/ ) {
-        return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %H:%i:%S' ] if $func eq $date_format;
-        return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %H:%i:%S' ] if $func eq $str_to_date;
-        return [                                                ] if $func eq $format;
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+        return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %h:%i:%S %p' ] if $func eq $date_format;
+        return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %h:%i:%S %p' ] if $func eq $str_to_date;
+        return [                                                   ] if $func eq $format;
     }
     elsif ( $driver eq 'Pg' ) {
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH24:MI:SS TZ OF' ] if $func eq $to_char; # TZ and OF only in to_char
-        return [ 'YYYY-MM-DD'                                                          ] if $func eq $to_date;
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH24:MI:SS'       ] if $func eq $to_timestamp;
-        return [                                                                       ] if $func eq $to_number;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH:MI:SS AM TZ OF' ] if $func eq $to_char; # TZ and OF only in to_char
+        return [ 'YYYY-MM-DD'                                                           ] if $func eq $to_date;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH:MI:SS AM'       ] if $func eq $to_timestamp;
+        return [                                                                        ] if $func eq $to_number;
     }
     elsif ( $driver eq 'DB2' ) {
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF12', 'Dy DD Mon YYYY HH24:MI:SS' ] if $func eq $to_char;
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF12', 'Dy DD Mon YYYY HH24:MI:SS' ] if $func eq $to_date;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF6', 'Dy DD Mon YYYY HH:MI:SS AM' ] if $func eq $to_char;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF6', 'Dy DD Mon YYYY HH:MI:SS AM' ] if $func eq $to_date;
         return [                                                           ] if $func eq $to_number;
     }
     elsif ( $driver eq 'Informix' ) {
-        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%M:%S' ] if $func eq $to_char;
-        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%M:%S' ] if $func eq $to_date;
-        return [                                                 ] if $func eq $to_number;
+        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%I:%S %p' ] if $func eq $to_char;
+        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%I:%S %p' ] if $func eq $to_date;
+        return [                                                    ] if $func eq $to_number;
     }
     elsif ( $driver eq 'Oracle' ) {
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF9TZH:TZM', 'Dy DD Mon YYYY HH24:MI:SSXFF TZR TZD' ] if $func eq $to_char;
-        return [ 'YYYY-MM-DD HH24:MI:SS'           , 'Dy DD Mon YYYY HH24:MI:SS'            ] if $func eq $to_date; # not in the DATE format: FF, TZD, TZH, TZM, and TZR.  Max length 22
-        return [ 'YYYY-MM-DD HH24:MI:SS.FF'        , 'Dy DD Mon YYYY HH24:MI:SS'            ] if $func eq $to_timestamp;
-        return [ 'YYYY-MM-DD HH24:MI:SS.FFTZH:TZM' , 'Dy DD Mon YYYY HH24:MI:SS TZD'        ] if $func eq $to_timestamp_tz;
-        return [                                                                            ] if $func eq $to_number;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF9TZH:TZM', 'Dy DD Mon YYYY HH:MI:SSXFF AM TZR TZD' ] if $func eq $to_char;
+        return [ 'YYYY-MM-DD HH24:MI:SS'           , 'Dy DD Mon YYYY HH:MI:SS AM'            ] if $func eq $to_date; # not in the DATE format: FF, TZD, TZH, TZM, and TZR.  Max length 22
+        return [ 'YYYY-MM-DD HH24:MI:SS.FF'        , 'Dy DD Mon YYYY HH:MI:SS AM'            ] if $func eq $to_timestamp;
+        return [ 'YYYY-MM-DD HH24:MI:SS.FFTZH:TZM' , 'Dy DD Mon YYYY HH:MI:SS AM TZD'        ] if $func eq $to_timestamp_tz;
+        return [                                                                             ] if $func eq $to_number;
     }
 }
 
 
-sub col_function {
-    my ( $sf, $sql, $clause, $qt_cols, $r_data ) = @_;
-    if ( ! defined $r_data->{nested_func} ) {
-        # reset recursion data other than nested_func
-        # at the first call of col_function
-        $r_data = { nested_func => [] };
-    }
-    my $parent;
-    if ( ref $r_data->{nested_func}[0] eq 'ARRAY' ) {
-        # because called from a multi-col function
-        $parent = shift @{$r_data->{nested_func}};
-        $parent = $parent->[0];
-        # $r_data->{nested_func} is now empty
-    }
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $driver = $sf->{i}{driver};
-    my $index = { SQLite => 0, mysql => 1, MariaDB => 2, Pg => 3, Firebird => 4, DB2 => 5, Informix => 6, Oracle => 7 };
+sub __available_functions {
+    my ( $sf, $type ) = @_;
     my $functions = {
        string => {
             $char_length        => [  000000 , 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix',  000000  ],
@@ -166,7 +149,8 @@ sub col_function {
             $substring          => [  000000 ,  00000 ,  0000000 ,  00 , 'Firebird',  000 ,  00000000 ,  000000  ], # mysql, MariaDB, Pg, DB2, Informix
             $substr             => [ 'SQLite', 'mysql', 'MariaDB', 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ],
             $trim               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
-            $upper              => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ], },
+            $upper              => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
+        },
         numeric => {
             $abs                => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $ceil               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
@@ -180,7 +164,8 @@ sub col_function {
             $sign               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $sqrt               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $truncate           => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 , 'DB2',  00000000 ,  000000  ],
-            $trunc              => [ 'SQLite',  00000 ,  0000000 , 'Pg', 'Firebird',  000 , 'Informix', 'Oracle' ], },
+            $trunc              => [ 'SQLite',  00000 ,  0000000 , 'Pg', 'Firebird',  000 , 'Informix', 'Oracle' ],
+        },
         date => {
             $dateadd            => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $epoch_to_date      => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
@@ -198,7 +183,8 @@ sub col_function {
             $second             => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $dayofweek          => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $dayofyear          => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
-            $unix_timestamp     => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ], },
+            $unix_timestamp     => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
+        },
         to => {
             $cast               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $to_char            => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ], # MariaDB
@@ -209,21 +195,48 @@ sub col_function {
             $strftime           => [ 'SQLite',  00000 ,  0000000 ,  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
             $date_format        => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
             $format             => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
-            $str_to_date        => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ], },
+            $str_to_date        => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
+        },
         other => {
-            $coalesce           => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ], },
+            $coalesce           => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
+        },
     };
+    my $driver = $sf->{i}{driver};
+    my $index = { SQLite => 0, mysql => 1, MariaDB => 2, Pg => 3, Firebird => 4, DB2 => 5, Informix => 6, Oracle => 7 };
+    my $avail_functions = [];
+    for my $func ( sort keys %{$functions->{$type}} ) {
+        push @$avail_functions, $func if $functions->{$type}{$func}[ $index->{$driver} ];
+    }
+    return $avail_functions;
+}
 
+
+sub col_function {
+    my ( $sf, $sql, $clause, $qt_cols, $r_data ) = @_;
+    if ( ! defined $r_data->{nested_func} ) {
+        # reset recursion data other than nested_func
+        # at the first call of col_function
+        $r_data = { nested_func => [] };
+    }
+    my $parent;
+    if ( ref $r_data->{nested_func}[0] eq 'ARRAY' ) {
+        # because called from a multi-col function
+        $parent = shift @{$r_data->{nested_func}};
+        $parent = $parent->[0];
+        # $r_data->{nested_func} is now empty
+    }
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $driver = $sf->{i}{driver};
     my $rx_only_func        = join( '|', $now, $rand );
     my $rx_multi_col_func   = join( '|', $concat, $coalesce );
     my $rx_to_format_func   = join( '|', $to_char, $to_date, $to_timestamp, $to_timestamp_tz, $to_number, $strftime, $date_format, $format, $str_to_date );
-
     my $hidden = 'Scalar functions:';
     my $info = $ax->get_sql_info( $sql );
     my $old_idx_cat = 1;
 
     CATEGORY: while( 1 ) {
-
         my $tmp_info = $info;
         if ( length $parent ) {
             # $parent only available at the first recursion after parent
@@ -259,13 +272,8 @@ sub col_function {
         FUNCTION: while( 1 ) {
             my $type = lc( $choice =~ s/^-\s//r );
             @pre = ( undef );
-            my @avail_functions;
-            for my $func ( sort keys  %{$functions->{$type}} ) {
-                if ( $functions->{$type}{$func}[ $index->{$driver} ] ) {
-                    push @avail_functions, $func;
-                }
-            }
-            $menu = [ @pre, map { '- ' . $_ } @avail_functions ];
+            my $avail_functions = $sf->__available_functions( $type );
+            $menu = [ @pre, map { '- ' . $_ } @$avail_functions ];
             # Choose
             my $idx_func = $tc->choose(
                 $menu,
@@ -288,7 +296,7 @@ sub col_function {
                 $function_stmt =  $sf->__func_with_no_col( $func );
             }
             elsif ( $func =~ /^(?:$rx_multi_col_func)\z/ ) {
-                my $chosen_cols = $sf->__choose_columns( $sql, $clause, $qt_cols, $info, $r_data );
+                my $chosen_cols = $sf->__choose_columns( $sql, $clause, $info, $qt_cols, $r_data );
                 if ( ! defined $chosen_cols ) {
                     if ( @{$r_data->{nested_func}} == 1 ) {
                         $r_data->{nested_func} = [];
@@ -298,14 +306,14 @@ sub col_function {
                     return;
                 }
                 if ( $func eq $concat ) {
-                    $function_stmt = $sf->__func_Concat( $sql, $clause, $chosen_cols, $func, $info );
+                    $function_stmt = $sf->__func_Concat( $sql, $clause, $info, $func, $chosen_cols );
                 }
                 elsif ( $func eq $coalesce ) {
-                    $function_stmt = $sf->__func_Coalesce( $sql, $chosen_cols, $func );
+                    $function_stmt = $sf->__func_Coalesce( $sql, $func, $chosen_cols );
                 }
             }
             else {
-                my $chosen_col = $sf->__choose_a_column( $sql, $clause, $qt_cols, $info, $r_data );
+                my $chosen_col = $sf->__choose_a_column( $sql, $clause, $info, $qt_cols, $r_data );
                 if ( ! defined $chosen_col ) {
                     if ( @{$r_data->{nested_func}} == 1 ) {
                         $r_data->{nested_func} = [];
@@ -472,7 +480,7 @@ sub col_function {
                         push @$args_data, { prompt => 'nls_parameter: ', quote => 1 }                                   if $func =~ /^TO_/;
                         push @$args_data, { prompt => 'Column type: ', history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ] } if $func eq $unix_timestamp;
                     }
-                    $function_stmt = $sf->__func_with_one_col( $sql, $clause, $chosen_col, $func, $info, $args_data );
+                    $function_stmt = $sf->__func_with_one_col( $sql, $clause, $info, $func, $chosen_col, $args_data );
                 }
             }
             if ( ! $function_stmt ) {
@@ -493,7 +501,7 @@ sub __func_with_no_col {
 
 
 sub __func_with_one_col {
-    my ( $sf, $sql, $clause, $chosen_col, $func, $info, $args_data ) = @_;
+    my ( $sf, $sql, $clause, $info, $func, $chosen_col, $args_data ) = @_;
     my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tail = ',?)';
@@ -535,7 +543,7 @@ sub __func_with_one_col {
 
 
 sub __func_Concat {
-    my ( $sf, $sql, $clause, $chosen_cols, $func, $info ) = @_;
+    my ( $sf, $sql, $clause, $info, $func, $chosen_cols ) = @_;
     my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
@@ -551,7 +559,7 @@ sub __func_Concat {
 
 
 sub __func_Coalesce {
-    my ( $sf, $sql, $chosen_cols, $func ) = @_;
+    my ( $sf, $sql, $func, $chosen_cols ) = @_;
     my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $function_stmt = $fsql->coalesce( $chosen_cols );
     return $function_stmt;
@@ -559,7 +567,7 @@ sub __func_Coalesce {
 
 
 sub __choose_columns {
-    my ( $sf, $sql, $clause, $qt_cols, $info, $r_data ) = @_;
+    my ( $sf, $sql, $clause, $info, $qt_cols, $r_data ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -639,7 +647,7 @@ sub __choose_columns {
 
 
 sub __choose_a_column {
-    my ( $sf, $sql, $clause, $qt_cols, $info, $r_data ) = @_;
+    my ( $sf, $sql, $clause, $info, $qt_cols, $r_data ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     $info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '?' );
     my @pre = ( undef, $sf->{i}{menu_addition} );

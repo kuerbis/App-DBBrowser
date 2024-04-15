@@ -41,7 +41,7 @@ sub create_view {
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $sql = {};
     $ax->reset_sql( $sql );
-    $sf->{d}{stmt_types} = [ 'Create_view' ];
+    $sf->{d}{stmt_types} = [ 'Create_View' ];
 
     SELECT_STMT: while ( 1 ) {
         $sql->{table} = '';
@@ -106,7 +106,7 @@ sub create_table {
     my $source = {};
 
     GET_CONTENT: while ( 1 ) {
-        $sf->{d}{stmt_types} = [ 'Create_table', 'Insert' ];
+        $sf->{d}{stmt_types} = [ 'Create_Table', 'Insert' ];
         # first use of {stmt_types} in get_content/from_col_by_col
         my $ok = $gc->get_content( $sql, $source, $goto_filter );
         if ( ! $ok ) {
@@ -137,7 +137,7 @@ sub create_table {
                     next GET_TABLE_NAME;
                 }
                 if ( ! @{$sql->{insert_args}} ) {
-                    $sf->{d}{stmt_types} = [ 'Create_table' ];
+                    $sf->{d}{stmt_types} = [ 'Create_Table' ];
                 }
                 $count_table_name_loop = 0;
 
@@ -534,7 +534,7 @@ sub __create {
     if ( $create_table_ok eq $no ) {
         return 0;
     }
-    my $stmt = $ax->get_stmt( $sql, 'Create_' . $type, 'prepare' );
+    my $stmt = $ax->get_stmt( $sql, 'Create_' . ucfirst( $type ), 'prepare' );
     # don't reset `$sql->{ct_column_definitions}` and `$sf->{d}{stmt_types}`:
     #    to get a consistent print_sql_info output in CommitSQL
     #    to avoid another confirmation prompt in CommitSQL

@@ -68,20 +68,20 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{case_stmt}, $indent0 );
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{when_stmt}, $indent0 ) if $sql->{when_stmt};
     }
-    elsif ( $stmt_type eq 'Drop_table' ) {
+    elsif ( $stmt_type eq 'Drop_Table' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "DROP TABLE $qt_table", $indent0 ) );
     }
-    elsif ( $stmt_type eq 'Drop_view' ) {
+    elsif ( $stmt_type eq 'Drop_View' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "DROP VIEW $qt_table", $indent0 ) );
     }
-    elsif ( $stmt_type eq 'Create_table' ) {
+    elsif ( $stmt_type eq 'Create_Table' ) {
         my $stmt = sprintf "CREATE TABLE $qt_table (%s)", join ', ', @{$sql->{ct_column_definitions}}, @{$sql->{ct_table_constraints}};
         if ( @{$sql->{ct_table_options}} ) {
             $stmt .= ' ' . join ', ', @{$sql->{ct_table_options}};
         }
         @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
     }
-    elsif ( $stmt_type eq 'Create_view' ) {
+    elsif ( $stmt_type eq 'Create_View' ) {
         @tmp = ( $sf->__stmt_fold( $used_for, "CREATE VIEW $qt_table", $indent0 ) );
         push @tmp, $sf->__stmt_fold( $used_for, "AS " . $sql->{view_select_stmt}, $indent1 );
     }
@@ -112,18 +112,29 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1 ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Insert' ) {
-        my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_col_names}};
+        my $columns = join ', ', map { $_ // '' } @{$sql->{insert_col_names}}; # ### 
+        my $placeholders = join ', ', ( '?' ) x @{$sql->{insert_col_names}};
+        my $stmt = "INSERT INTO $sql->{table} ($columns) VALUES($placeholders)";
         @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
-        if ( $used_for eq 'prepare' ) {
-            push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_col_names}} );
-        }
-        else {
-            push @tmp, $sf->__stmt_fold( $used_for, "VALUES(", $indent1 );
+        if ( $used_for eq 'print' ) {
             my $arg_rows = $sf->info_format_insert_args( $sql, $in x 2 );
             push @tmp, @$arg_rows;
-            push @tmp, $sf->__stmt_fold( $used_for, ")", $indent1 );
         }
     }
+    #elsif ( $stmt_type eq 'Insert' ) {
+    #    my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_col_names}};
+    #    @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
+    #    if ( $used_for eq 'prepare' ) {
+    #        push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_col_names}} );
+    #    }
+    #    else {
+    #        push @tmp, $sf->__stmt_fold( $used_for, "VALUES(", $indent1 );
+    #        my $arg_rows = $sf->info_format_insert_args( $sql, $in x 2 );
+    #        push @tmp, @$arg_rows;
+    #        push @tmp, $sf->__stmt_fold( $used_for, ")", $indent1 );
+    #    }
+    #}
+    
     elsif ( $stmt_type eq 'Join' ) {
         my $select_from;
         if ( $used_for eq 'prepare' ) {
@@ -185,7 +196,7 @@ sub info_format_insert_args {
         return [];
     }
     my $col_count = 0; ##
-    if ( $sf->{d}{stmt_types}[0] && $sf->{d}{stmt_types}[0] eq 'Create_table' ) {
+    if ( $sf->{d}{stmt_types}[0] && $sf->{d}{stmt_types}[0] eq 'Create_Table' ) {
         $col_count = @{$sql->{insert_args}[0]//[]};
         #$col_count = @{$sql->{ct_column_definitions//[]}};
         $col_count += 1 + $sf->{o}{create}{table_constraint_rows} if $sf->{o}{create}{table_constraint_rows};
@@ -509,8 +520,8 @@ sub column_names_and_types {
     my ( $sf, $qt_table, $ctes ) = @_;
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
-    my $column_names;
-    my $column_types;
+    my $column_names = [];
+    my $column_types = [];
     if ( ! eval {
         my $stmt = '';
         if ( defined $ctes && @$ctes ) {
@@ -520,15 +531,9 @@ sub column_names_and_types {
         $stmt .= "SELECT * FROM " . $qt_table . $sf->sql_limit( 0 );
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
         if ( $sf->{i}{driver} eq 'SQLite' ) {
+            my $rx_numeric = 'INT|DOUBLE|REAL|NUM|FLOAT|DEC|BOOL|BIT|MONEY';
             $column_names = [ @{$sth->{NAME}} ];
-            for my $type ( @{$sth->{TYPE}} ) {
-                if ( ! $type || $type =~ /INT|DOUBLE|REAL|NUM|FLOAT|DEC|BOOL|BIT|MONEY/i ) {
-                    push @$column_types, 2;
-                }
-                else {
-                    push @$column_types, 1;
-                }
-            }
+            $column_types = [ map { ! $_ || $_ =~ /$rx_numeric/i ? 2 : 1 } @{$sth->{TYPE}} ];
         }
         else {
             $sth->execute();
@@ -538,6 +543,7 @@ sub column_names_and_types {
         1 }
     ) {
         $sf->print_error_message( $@ );
+        return;
     }
     return $column_names, $column_types;
 }

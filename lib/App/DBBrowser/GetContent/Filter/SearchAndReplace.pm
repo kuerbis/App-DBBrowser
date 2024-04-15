@@ -29,7 +29,7 @@ sub new {
 
 
 sub search_and_replace {
-    my ( $sf, $sql, $bu_insert_args, $filter_str, $back  ) = @_;
+    my ( $sf, $sql, $bu_insert_args, $filter_str  ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -40,7 +40,6 @@ sub search_and_replace {
     my $saved = $ax->read_json( $sf->{i}{f_search_and_replace} ) // {};
     my $all_sr_groups = [];
     my $used_names = [];
-    $sf->{s_back} = $back;
     my @bu;
     my ( $hidden, $add ) = ( 'Your choice:', '  * NEW *' );
     my $available = [ sort { $a cmp $b } keys %$saved  ];
@@ -86,7 +85,8 @@ sub search_and_replace {
             if ( ! @$all_sr_groups ) {
                 return;
             }
-            my $col_idxs = $sf->__get_col_idxs( $sql, \@tmp_info, $header, $all_sr_groups );
+            $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+            my $col_idxs = $sf->__choose_column_indexes( $header, $info, 'Apply to: ' );
             if ( ! defined $col_idxs ) {
                 next ADD_SEARCH_AND_REPLACE;
             }
@@ -100,7 +100,7 @@ sub search_and_replace {
             }
             $sql->{insert_args} = $aoa;
             my $header_changed = 0;
-            if ( $sf->{d}{stmt_types}[0] =~ /^Create_table\z/i ) {
+            if ( $sf->{d}{stmt_types}[0] eq 'Create_Table' ) {
                 for my $i ( @$col_idxs ) {
                     if ( ! defined $sql->{insert_args}[0][$i] ) {
                         next;
@@ -115,11 +115,11 @@ sub search_and_replace {
                 my ( $yes, $no ) = ( 'Yes', 'No' );
                 my $menu = [ undef, $yes, $no ];
                 my @tmp_info_addition = ( 'Header: ' . join( ', ', map { $_ // '' } @{$sql->{insert_args}[0]} ), ' ' );
-                my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info, @tmp_info_addition ) );
+                $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info, @tmp_info_addition ) );
                 # Choose
                 my $idx = $tc->choose(
                     $menu,
-                    { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', index => 1, undef => $sf->{s_back} }
+                    { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', index => 1, undef => $sf->{i}{s_back} }
                 );
                 if ( ! defined $idx || ! defined $menu->[$idx] ) {
                     $sql->{insert_args} = [ map { [ @$_ ] } @{$bu_insert_args} ];
@@ -147,7 +147,7 @@ sub search_and_replace {
             my $back = $sf->{i}{back} . '   ';
 
             SUBSTITUTION: while ( 1 ) {
-                my $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+                $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
                 # Fill_form
                 my $form = $tf->fill_form(
                     $fields,
@@ -199,23 +199,22 @@ sub __from_form_to_sr_group_data {
 }
 
 
-sub __get_col_idxs {
-    my ( $sf, $sql, $tmp_info, $header, $all_sr_groups ) = @_;
+sub __choose_column_indexes {
+    my ( $sf, $columns, $info, $prompt ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $info = $cf->__get_filter_info( $sql, join( "\n", @$tmp_info ) );
+    my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} ); # ### 
     # Choose
     my $col_idxs = $tu->choose_a_subset(
-        $header,
-        { cs_label => 'Apply to: ', info => $info, layout => 0, all_by_default => 1, index => 1,
-        confirm => $sf->{i}{ok}, back => $sf->{s_back} }
+        $columns,
+        { cs_label => $prompt, info => $info, layout => 0, all_by_default => 1, index => 1, keep_chosen => 0 }
     );
-    $cf->__print_busy_string();
+    $cf->__print_busy_string(); # ### 
     if ( ! defined $col_idxs ) {
         return;
     }
     return $col_idxs;
 }
+
 
 sub __execute_substitutions {
     my ( $sf, $aoa, $col_idxs, $all_sr_groups ) = @_;
@@ -336,7 +335,6 @@ sub __saved_search_and_replace {
 
 sub __add_saved {
     my ( $sf, $saved ) = @_;
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $separator_key = ' ';

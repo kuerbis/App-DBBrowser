@@ -133,7 +133,8 @@ sub database_setting {
                 }
                 my $db_to_reset = $tu->choose_a_subset(
                     [ sort @databases ],
-                    { cs_label => 'DB settings to reset: ', layout => 2, cs_separator => "\n", cs_begin => "\n", prompt => "\nChoose:" }
+                    { cs_label => 'DB settings to reset: ', layout => 2, cs_separator => "\n", cs_begin => "\n",
+                      prompt => "\nChoose:", confirm => $sf->{i}{confirm}, back => $sf->{i}{back} }
                 );
                 if ( ! $db_to_reset->[0] ) {
                     next GROUP;

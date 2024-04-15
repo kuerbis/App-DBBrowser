@@ -216,7 +216,7 @@ sub __choose_table_columns {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $idx = @$data;
     my @bu;
-    my ( $column_names, undef ) = $ax->column_names_and_types( $qt_table, $sql->{ctes} );
+    ( my $column_names, undef ) = $ax->column_names_and_types( $qt_table, $sql->{ctes} );
     if ( ! defined $column_names ) {
         return;
     }

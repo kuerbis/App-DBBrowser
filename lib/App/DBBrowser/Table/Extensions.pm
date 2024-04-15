@@ -67,7 +67,6 @@ sub column {
             $extensions = [ grep { ! /^\Q$sf->{window_func}\E\z/ } @$extensions ];
         }
     }
-    $opt->{caller} = 'column';
     return $sf->__choose_extension( $sql, $clause, $r_data, $extensions, $opt );
 }
 
@@ -101,7 +100,6 @@ sub value {
             $extensions = [ $sf->{const} ];
         }
     }
-    $opt->{caller} = 'value';
     return $sf->__choose_extension( $sql, $clause, $r_data, $extensions, $opt );
 }
 
@@ -116,7 +114,6 @@ sub argument {
     else {
         $extensions = [ $sf->{const} ];
     }
-    $opt->{caller} = 'argument';
     return $sf->__choose_extension( $sql, $clause, {}, $extensions, $opt );
 }
 
@@ -201,12 +198,6 @@ sub __choose_extension {
                 return if @$extensions = 1;
                 next EXTENSION;
             }
-            #if ( $opt->{caller} eq 'argument' ) { # ###
-            #    return $value;
-            #}
-            #else {
-            #    return $ax->quote_constant( $value );
-            #}
             if ( $opt->{quote_numeric} ) {
                 return $sf->{d}{dbh}->quote( $value );
             }

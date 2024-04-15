@@ -96,7 +96,7 @@ sub get_databases {
         elsif ( $choice eq $change ) {
             my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
             #my $info = 'Curr: ' . join( ', ', @$dirs ); #
-            my $new_dirs = $tu->choose_directories();
+            my $new_dirs = $tu->choose_directories( { confirm => $sf->{i}{_confirm}, back => $sf->{i}{_back} } );
             if ( ! @{$new_dirs//[]} ) {
                 next;
             }

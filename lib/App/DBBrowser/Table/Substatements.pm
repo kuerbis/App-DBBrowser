@@ -498,7 +498,10 @@ sub limit_offset {
             }
             my $info = $ax->get_sql_info( $sql );
             # Choose_a_number
-            my $limit = $tu->choose_a_number( $digits, { info => $info, cs_label => $limit . ': ' } );
+            my $limit = $tu->choose_a_number(
+                $digits,
+                { info => $info, cs_label => $limit . ': ', confirm => $sf->{i}{confirm}, back => $sf->{i}{back} }
+            );
             if ( ! defined $limit ) {
                 ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @bu};
                 next LIMIT;
@@ -514,7 +517,10 @@ sub limit_offset {
             $sql->{offset_stmt} = "OFFSET";
             my $info = $ax->get_sql_info( $sql );
             # Choose_a_number
-            my $offset = $tu->choose_a_number( $digits, { info => $info, cs_label => $offset . ': ' } );
+            my $offset = $tu->choose_a_number(
+                $digits,
+                { info => $info, cs_label => $offset . ': ', confirm => $sf->{i}{confirm}, back => $sf->{i}{back} }
+            );
             if ( ! defined $offset ) {
                 ( $sql->{limit_stmt}, $sql->{offset_stmt} ) = @{pop @bu};
                 next LIMIT;

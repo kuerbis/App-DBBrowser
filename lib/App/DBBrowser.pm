@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.408_03';
+our $VERSION = '2.408_04';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -37,9 +37,9 @@ sub new {
     my ( $class ) = @_;
     my $info = {
         tc_default    => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => '<<', prompt => 'Your choice:' },
+        tcu_default   => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, confirm => '-OK-', back => '<<' },
         tf_default    => { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6, auto_up => 1 },
         tr_default    => { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] },
-        tcu_default   => { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6 }, ##
         lyt_h         => { order => 0, alignment => 2 },
         lyt_v         => { undef => '  BACK', layout => 2 },
         dots          => '...',
@@ -51,6 +51,7 @@ sub new {
         _continue     => '  CONTINUE',
         _confirm      => '  CONFIRM',
         _reset        => '  RESET',
+        s_back        => '<<',
         ok            => '-OK-',
         menu_addition => '%%',
         info_thsd_sep => ',',
@@ -545,7 +546,9 @@ sub run {
                             my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
                             $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
                             my $alias = $ax->alias( $sql, 'table', $qt_table, 't1' );
-                            $qt_table .= " " . $ax->quote_alias( $alias );
+                            if ( length $alias ) {
+                                $qt_table .= " " . $ax->quote_alias( $alias );
+                            }
                             1 }
                         ) {
                             $ax->print_error_message( $@ );
@@ -553,6 +556,9 @@ sub run {
                         }
                     }
                     my ( $column_names, $column_types ) = $ax->column_names_and_types( $qt_table, $ctes );
+                    if ( ! defined $column_names ) {
+                        next TABLE;
+                    }
                     if ( $sf->{d}{table_origin} ne 'join' ) {
                         $qt_columns = $ax->quote_cols( $column_names );
                     }
@@ -633,7 +639,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.408_03
+Version 2.408_04
 
 =head1 DESCRIPTION
 
