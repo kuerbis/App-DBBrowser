@@ -156,7 +156,7 @@ sub __choose_extension {
         $qt_cols = [ @{$sql->{group_by_cols}}, map( '@' . $_, @{$sql->{aggr_cols}} ), @{$sf->{i}{avail_aggr}} ];
     }
     else {
-        $qt_cols = [ @{$sql->{cols}} ];
+        $qt_cols = [ @{$sql->{columns}} ];
     }
     my $old_idx = 0;
 
@@ -198,11 +198,11 @@ sub __choose_extension {
                 return if @$extensions = 1;
                 next EXTENSION;
             }
-            if ( $opt->{quote_numeric} ) {
-                return $sf->{d}{dbh}->quote( $value );
+            if ( $opt->{is_numeric} ) {
+                return $ax->quote_constant( $value );
             }
             else {
-                return $ax->quote_constant( $value );
+                return $sf->{d}{dbh}->quote( $value );
             }
         }
         elsif ( $extension eq $sf->{subquery} ) {

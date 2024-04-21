@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.408_05  2024-04-21
+        - sqlite_busy_timeout.
+        - Bugfix limit, offset.
+
 2.408_04  2024-04-15
         - New input filter: convert_datetime.
 

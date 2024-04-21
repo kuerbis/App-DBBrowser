@@ -99,9 +99,9 @@ sub read_and_add_value {
     my ( $sf, $sql, $clause, $stmt, $qt_col, $operator ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $quote_numeric;
-    if ( length $sql->{data_types}{$qt_col} && ( $sql->{data_types}{$qt_col} < 2 || $sql->{data_types}{$qt_col} > 8 ) ) {
-        $quote_numeric = 1;
+    my $is_numeric;
+    if ( ! length $sql->{data_types}{$qt_col} || ( $sql->{data_types}{$qt_col} >= 2 && $sql->{data_types}{$qt_col} <= 8 ) ) {
+        $is_numeric = 1;
     }
     if ( $operator =~ /^IS\s(?:NOT\s)?NULL\z/ ) {
         return 1;
@@ -113,7 +113,7 @@ sub read_and_add_value {
 
         IN: while ( 1 ) {
             # Readline
-            my $value = $ext->value( $sql, $clause, {}, $operator, { quote_numeric => $quote_numeric } );
+            my $value = $ext->value( $sql, $clause, {}, $operator, { is_numeric => $is_numeric } );
             if ( ! defined $value ) {
                 if ( @bu ) {
                     $sql->{$stmt} = pop @bu;
@@ -142,13 +142,13 @@ sub read_and_add_value {
     }
     elsif ( $operator =~ /^(?:NOT\s)?BETWEEN\z/ ) {
         # Readline
-        my $value_1 = $ext->value( $sql, $clause, {}, $operator, { quote_numeric => $quote_numeric } );
+        my $value_1 = $ext->value( $sql, $clause, {}, $operator, { is_numeric => $is_numeric } );
         if ( ! defined $value_1 ) {
             return;
         }
         $sql->{$stmt} .= ' ' . $value_1 . ' AND';
         # Readline
-        my $value_2 = $ext->value( $sql, $clause, {}, $operator, { quote_numeric => $quote_numeric } );
+        my $value_2 = $ext->value( $sql, $clause, {}, $operator, { is_numeric => $is_numeric } );
         if ( ! defined $value_2 ) {
             return;
         }
@@ -157,7 +157,7 @@ sub read_and_add_value {
     }
     elsif ( $operator =~ /REGEXP(_i)?\z/ ) {
         # Readline
-        my $value = $ext->value( $sql, $clause, {}, $operator, { quote_numeric => 1 } );
+        my $value = $ext->value( $sql, $clause, {}, $operator, { is_numeric => 0 } );
         if ( ! defined $value ) {
             return;
         }
@@ -178,7 +178,7 @@ sub read_and_add_value {
     }
     else {
         # Readline
-        my $value = $ext->value( $sql, $clause, {}, $operator, { quote_numeric => $quote_numeric } );
+        my $value = $ext->value( $sql, $clause, {}, $operator, { is_numeric => $is_numeric } );
         if ( ! defined $value ) {
             return;
         }

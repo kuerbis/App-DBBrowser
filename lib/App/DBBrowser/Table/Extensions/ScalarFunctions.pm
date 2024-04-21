@@ -111,8 +111,8 @@ sub __format_history {
         return [                                                           ] if $func eq $to_number;
     }
     elsif ( $driver eq 'Informix' ) {
-        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%I:%S %p' ] if $func eq $to_char;
-        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %H:%I:%S %p' ] if $func eq $to_date;
+        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %I:%M:%S %p' ] if $func eq $to_char;
+        return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %I:%M:%S %p' ] if $func eq $to_date;
         return [                                                    ] if $func eq $to_number;
     }
     elsif ( $driver eq 'Oracle' ) {
@@ -121,6 +121,9 @@ sub __format_history {
         return [ 'YYYY-MM-DD HH24:MI:SS.FF'        , 'Dy DD Mon YYYY HH:MI:SS AM'            ] if $func eq $to_timestamp;
         return [ 'YYYY-MM-DD HH24:MI:SS.FFTZH:TZM' , 'Dy DD Mon YYYY HH:MI:SS AM TZD'        ] if $func eq $to_timestamp_tz;
         return [                                                                             ] if $func eq $to_number;
+    }
+    else {
+        return [];
     }
 }
 
@@ -186,7 +189,6 @@ sub __available_functions {
             $unix_timestamp     => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
         },
         to => {
-            $cast               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $to_char            => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ], # MariaDB
             $to_date            => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ], # MariaDB
             $to_timestamp       => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 ,  000 ,  00000000 , 'Oracle' ], # DB2
@@ -198,14 +200,23 @@ sub __available_functions {
             $str_to_date        => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
         },
         other => {
+            $cast               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $coalesce           => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
         },
     };
     my $driver = $sf->{i}{driver};
-    my $index = { SQLite => 0, mysql => 1, MariaDB => 2, Pg => 3, Firebird => 4, DB2 => 5, Informix => 6, Oracle => 7 };
+    my $index = {
+        SQLite => 0, mysql => 1, MariaDB => 2, Pg => 3, Firebird => 4, DB2 => 5, Informix => 6, Oracle => 7
+    };
     my $avail_functions = [];
     for my $func ( sort keys %{$functions->{$type}} ) {
-        push @$avail_functions, $func if $functions->{$type}{$func}[ $index->{$driver} ];
+        if ( ! exists $index->{$driver} ) {
+            # return all functions
+            push @$avail_functions, $func;
+        }
+        elsif ( $functions->{$type}{$func}[$index->{$driver}] ) {
+            push @$avail_functions, $func;
+        }
     }
     return $avail_functions;
 }
@@ -246,7 +257,13 @@ sub col_function {
             $tmp_info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '?' );
         }
         my @pre = ( $hidden, undef );
-        my $menu = [ @pre, '- String', '- Numeric', '- Date', '- To', '- Other' ];
+        my $menu;
+        if ( $driver eq 'Firebird' ) {
+            $menu = [ @pre, '- String', '- Numeric', '- Date', '- Other' ];
+        }
+        else {
+            $menu = [ @pre, '- String', '- Numeric', '- Date', '- To', '- Other' ];
+        }
         # Choose
         my $idx_cat = $tc->choose(
             $menu,
@@ -330,155 +347,118 @@ sub col_function {
                     my $args_data = [];
                     if ( $func eq $cast ) {
                         $args_data = [
-                            { prompt => 'Data type: ', history => [ sort qw(VARCHAR CHAR TEXT INT DECIMAL DATE DATETIME TIME TIMESTAMP) ] },
+                            { prompt => 'Data type: ', history => [ sort qw(VARCHAR CHAR TEXT INT DECIMAL DATE DATETIME TIME TIMESTAMP) ], unquote => 1 },
                         ];
                     }
                     elsif ( $func =~ /^(?:$rx_to_format_func)\z/ ) {
                         $args_data = [
-                            { prompt => 'Format: ', history => $sf->__format_history( $func ), quote => 1 },
+                            { prompt => 'Format: ', history => $sf->__format_history( $func ) },
                         ];
                         if ( $func eq $strftime ) {
-                            push @$args_data, { prompt => 'Modifiers: ', history => [] };
+                            push @$args_data, { prompt => 'Modifiers: ', history => [], unquote => 1 };
                         }
                         if ( $func eq $format ) {
-                            push @$args_data, { prompt => 'Locale: ', history => [], quote => 1 };
+                            push @$args_data, { prompt => 'Locale: ', history => [] };
                         }
                     }
-                    #elsif ( $func eq $to_char ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $to_date ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $to_timestamp ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $to_timestamp_tz ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $to_number ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $strftime ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #        { prompt => 'Modifiers: ', history => [] },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $date_format ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $format ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #        { prompt => 'Locale: ', history => [], quote => 1 },
-                    #    ];
-                    #}
-                    #elsif ( $func eq $str_to_date ) {
-                    #    $args_data = [
-                    #        { prompt => 'Format: ', history => [], quote => 1 },
-                    #    ];
-                    #}
                     elsif ( $func eq $extract ) {
                         $args_data = [
-                            { prompt => 'Field: ', history => [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND DAYOFWEEK DAYOFYEAR) ] },
+                            { prompt => 'Field: ', history => [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND DAYOFWEEK DAYOFYEAR) ], unquote => 1 },
                         ];
                     }
                     elsif ( $func =~ /^(?:$round|$trunc|$truncate)\z/ ) {
                         $args_data = [
-                            { prompt => 'Decimal places: ' },
+                            { prompt => 'Decimal places: ', is_numeric => 1 },
                         ];
                     }
                     elsif ( $func =~ /^(?:$position|$instr|$locate)\z/ ) {
                         $args_data = [
-                            { prompt => 'Substring: ', quote => 1 },
+                            { prompt => 'Substring: ' },
                         ];
                         if ( $func eq $instr ) {
-                            push @$args_data, { prompt => 'Start: ' }, { prompt => 'Count: ' }
+                            push @$args_data, { prompt => 'Start: ', is_numeric => 1 }, { prompt => 'Count: ', is_numeric => 1 };
                         }
                         if ( $func eq $locate ) {
-                            push @$args_data, { prompt => 'Start: ' };
+                            push @$args_data, { prompt => 'Start: ', is_numeric => 1 };
                         }
                     }
                     elsif ( $func =~ /^(?:$left|$right)\z/ ) {
                         $args_data = [
-                            { prompt => 'Length: ' },
+                            { prompt => 'Length: ', is_numeric => 1 },
                         ];
                     }
                     elsif ( $func eq $mod ) {
                         $args_data = [
-                            { prompt => 'Divider: ' },
+                            { prompt => 'Divider: ', is_numeric => 1 },
                         ];
                     }
                     elsif ( $func eq $power ) {
                         $args_data = [
-                            { prompt => 'Exponent: ' },
+                            { prompt => 'Exponent: ', is_numeric => 1 },
                         ];
                     }
                     elsif ( $func eq $replace ) {
                         $args_data = [
-                            { prompt => 'From string: ', quote => 1 },
-                            { prompt => 'To string: ', quote => 1 },
+                            { prompt => 'From string: ' },
+                            { prompt => 'To string: ' },
                         ];
                     }
                     elsif ( $func =~ /^(?:$substr|$substring)\z/ ) {
                         $args_data = [
-                            { prompt => 'StartPos: ' },
-                            { prompt => 'Length: ' },
+                            { prompt => 'StartPos: ', is_numeric => 1 },
+                            { prompt => 'Length: ', is_numeric => 1 },
                         ];
                     }
                     elsif ( $func =~ /^(?:$lpad|$rpad)\z/ ) {
                         $args_data = [
-                            { prompt => 'Length: ' },
-                            { prompt => 'Fill: ', quote => 1 },
+                            { prompt => 'Length: ', is_numeric => 1 },
+                            { prompt => 'Fill: ' },
                         ];
                     }
                     elsif ( $func eq $trim ) {
                         $args_data = [
-                            { prompt => 'Where: ', history => [ qw(BOTH LEADING TRAILING) ] },
-                            { prompt => 'What: ', quote => 1 },
+                            { prompt => 'Where: ', history => [ qw(BOTH LEADING TRAILING) ], unquote => 1 },
+                            { prompt => 'What: ' },
                         ];
                     }
                     elsif ( $func eq $dateadd ) {
                         $args_data = [
-                            { prompt => 'Amount: ' },
-                            { prompt => 'Unit: ', history => [ qw(YEAR MONTH DAY HOUR MINUTE SECOND) ] },
+                            { prompt => 'Amount: ', is_numeric => 1 },
+                            { prompt => 'Unit: ', history => [ qw(YEAR MONTH DAY HOUR MINUTE SECOND) ], unquote => 1 },
                         ];
                     }
                     else {
                         $args_data = [];
                     }
                     if ( $driver eq 'SQLite' ) {
-                        $args_data = [ { prompt => 'What: ', quote => 1 } ]      if $func eq $trim;
-                        $args_data = [ { prompt => 'Substring: ', quote => 1 } ] if $func eq $instr;
+                        $args_data = [ { prompt => 'What: ' } ]      if $func eq $trim;
+                        $args_data = [ { prompt => 'Substring: ' } ] if $func eq $instr;
                     }
                     elsif ( $driver eq 'Firebird' ) {
-                        push @$args_data, { prompt => 'Start: ' } if $func eq $position;
+                        push @$args_data, { prompt => 'Start: ', is_numeric => 1 } if $func eq $position;
                     }
                     elsif ( $driver eq 'DB2' ) {
-                        push @$args_data, { prompt => 'Locale: ', quote => 1 } if $func eq $to_char;
-                        push @$args_data, { prompt => 'Decimals: ' }, { prompt => 'Locale: ', quote => 1 } if $func eq $to_date;
+                        if ( $func eq $to_char ) {
+                            push @$args_data, { prompt => 'Locale: ' };
+                        }
+                        elsif ( $func eq $to_date ) {
+                            push @$args_data, { prompt => 'Decimals: ', is_numeric => 1 }, { prompt => 'Locale: ' };
+                        }
                         # string units: $position, $instr, $locate, $left, $right, $length, $substring, $upper, $lower
                         # $round datetime: locale
                     }
                     elsif ( $driver eq 'Informix' ) {
-                        $args_data->{history} = [ grep { ! /^(?:WEEK|DAYOFYEAR)\z/ } @{$args_data->{history}} ] if $func eq $extract;
+                        if ( $func eq $extract ) {
+                            $args_data->{history} = [ grep { ! /^(?:WEEK|DAYOFYEAR)\z/ } @{$args_data->{history}} ];
+                        }
                     }
                     elsif ( $driver eq 'Oracle' ) {
-                        push @$args_data, { prompt => 'nls_parameter: ', quote => 1 }                                   if $func =~ /^TO_/;
-                        push @$args_data, { prompt => 'Column type: ', history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ] } if $func eq $unix_timestamp;
+                        if ( $func =~ /^TO_/ ) {
+                            push @$args_data, { prompt => 'nls_parameter: ' };
+                        }
+                        elsif ( $func eq $unix_timestamp ) {
+                            push @$args_data, { prompt => 'Column type: ', history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ], unquote => 1 };
+                        }
                     }
                     $function_stmt = $sf->__func_with_one_col( $sql, $clause, $info, $func, $chosen_col, $args_data );
                 }
@@ -502,6 +482,7 @@ sub __func_with_no_col {
 
 sub __func_with_one_col {
     my ( $sf, $sql, $clause, $info, $func, $chosen_col, $args_data ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $fsql = App::DBBrowser::Table::Extensions::ScalarFunctions::SQL->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tail = ',?)';
@@ -513,7 +494,7 @@ sub __func_with_one_col {
         my $arg = $ext->argument(
             $sql, $clause,
             { info => $info, history => $arg_data->{history}, prompt => $arg_data->{prompt},
-              quote_numeric => $arg_data->{quote} }
+              is_numeric => $arg_data->{is_numeric} }
         );
         #last if ! defined $arg; ##
         if ( ! length $arg || $arg eq "''" ) { ##
@@ -525,7 +506,7 @@ sub __func_with_one_col {
                 # substring: an empty string is a valid argument
                 $arg = '';
             }
-            elsif ( $func eq $trim || $func eq $to_date ) {
+            elsif ( $func eq $trim ) {
                 # an unset argument does not close the function
                 next;
             }
@@ -533,6 +514,9 @@ sub __func_with_one_col {
                 my $function_stmt = $fsql->function_with_one_col( $func, $chosen_col, $args );
                 return $function_stmt;
             }
+        }
+        if ( $arg_data->{unquote} ) {
+            $arg = $ax->unquote_constant( $arg );
         }
         push @$args, $arg;
         $info =~ s/\Q$tail\E\z/,${arg}${tail}/;
@@ -549,7 +533,7 @@ sub __func_Concat {
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $history = [ '-', ' ', '_', ',', '/', '=', '+' ];
     # Readline
-    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ', quote_numeric => 1 } );
+    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ', quote_value => 1 } );
     if ( ! defined $sep ) {
         return;
     }

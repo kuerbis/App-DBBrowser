@@ -196,10 +196,10 @@ sub function_with_one_col {
         }
         elsif ( $driver eq 'Firebird' ) {
             #my $firebird_major_version = $ax->major_server_version();
-            my $firebird_major_version = 3; # ###
+            my $firebird_major_version = 3; ##
             return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00 UTC',$col)" if $firebird_major_version >= 4;
             return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00',$col)"; # no timezone
-            #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001"; # ###
+            #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001";   # * 0.001 doesn't work in version 4 ##
         }
         elsif ( $driver eq 'DB2' ) {
             return "EXTRACT(EPOCH FROM $col)"; # no timezone
@@ -263,7 +263,7 @@ sub epoch_to_date {
     }
     elsif ( $driver eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
-        my $firebird_major_version = 3; # ###
+        my $firebird_major_version = 3; ##
         if ( $firebird_major_version >= 4 ) {
             #return "DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01 UTC') AT LOCAL";
             return "CAST(DATEADD(CAST($col AS BIGINT)/$interval SECOND TO DATE '1970-01-01 UTC') AT LOCAL AS VARCHAR(10))";
@@ -296,7 +296,7 @@ sub epoch_to_timestamp {
     }
     elsif ( $driver eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
-        my $firebird_major_version = 3; # ###
+        my $firebird_major_version = 3; ##
         if ( $firebird_major_version >= 4 ) {
             return "DATEADD(SECOND,$col,TIMESTAMP '1970-01-01 UTC') AT LOCAL"                                 if $interval == 1;
             return "DATEADD(MILLISECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL"            if $interval == 1_000;
@@ -353,7 +353,7 @@ sub epoch_to_datetime {
     }
     elsif ( $driver eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
-        my $firebird_major_version = 3; # ###
+        my $firebird_major_version = 3; ##
         if ( $firebird_major_version >= 4 ) {
             return "SUBSTRING(CAST(DATEADD(SECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL AS VARCHAR(24)) FROM 1 FOR 19)"      if $interval == 1;
             return "SUBSTRING(CAST(DATEADD(MILLISECOND,CAST($col AS BIGINT),TIMESTAMP '1970-01-01 UTC') AT LOCAL AS VARCHAR(24)) FROM 1 FOR 23)" if $interval == 1_000;

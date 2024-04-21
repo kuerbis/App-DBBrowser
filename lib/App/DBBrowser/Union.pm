@@ -258,17 +258,14 @@ sub __choose_table_columns {
         }
         elsif ( $choices[0] eq $sf->{i}{menu_addition} ) {
             my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $sql->{cols} = [ @$qt_columns  ];
+            $sql->{columns} = [ @$qt_columns  ];
             my $complex_col = $ext->column( $sql, 'Union' );
-            $sql->{cols} = [];
+            $sql->{columns} = [];
             if ( ! defined $complex_col ) {
                 next COLUMNS;
             }
             my $default = 'col_' . ( @{$data->[$idx]{chosen_qt_cols}} + 1 );
-            
-            #my $alias = $ax->alias( $sql, 'select_complex_col', $complex_col, $default );
-            my $alias = $ax->alias( $sql, 'join_columns', $complex_col, $default ); # ### 
-            
+            my $alias = $ax->alias( $sql, 'select_complex_col', $complex_col, $default );
             push @bu, $ax->clone_data( $data->[$idx] );
             push @{$data->[$idx]{chosen_qt_cols}}, $complex_col;
             $data->[$idx]{qt_alias}{$complex_col} = $ax->quote_alias( $alias );
@@ -373,7 +370,7 @@ sub __add_where_stmt {
     my $tmp_sql = {};
     $ax->reset_sql( $tmp_sql );
     $tmp_sql->{table} = $qt_table;
-    $tmp_sql->{cols} = $qt_columns;           # 'cols' required in WHERE
+    $tmp_sql->{columns} = $qt_columns;           # 'cols' required in WHERE
     $tmp_sql->{selected_cols} = $qt_columns;  # 'selected_cols' required in SELECT
     my $ret = $sb->where( $tmp_sql );
     $sf->{d}{stmt_types} = $bu_stmt_types;

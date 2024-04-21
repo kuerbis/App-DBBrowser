@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.014;
-our $VERSION = '2.408_04';
+our $VERSION = '2.408_05';
 $SIG{__WARN__} = sub { die @_ }; # ### 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.408_04
+Version 2.408_05
 
 =head1 SYNOPSIS
 

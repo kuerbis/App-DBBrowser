@@ -112,7 +112,7 @@ sub get_stmt {
         push @tmp, $sf->__stmt_fold( $used_for, $sql->{where_stmt}, $indent1 ) if $sql->{where_stmt};
     }
     elsif ( $stmt_type eq 'Insert' ) {
-        my $columns = join ', ', map { $_ // '' } @{$sql->{insert_col_names}}; # ### 
+        my $columns = join ', ', map { $_ // '' } @{$sql->{insert_col_names}};
         my $placeholders = join ', ', ( '?' ) x @{$sql->{insert_col_names}};
         my $stmt = "INSERT INTO $sql->{table} ($columns) VALUES($placeholders)";
         @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
@@ -121,20 +121,6 @@ sub get_stmt {
             push @tmp, @$arg_rows;
         }
     }
-    #elsif ( $stmt_type eq 'Insert' ) {
-    #    my $stmt = sprintf "INSERT INTO $sql->{table} (%s)", join ', ', map { $_ // '' } @{$sql->{insert_col_names}};
-    #    @tmp = ( $sf->__stmt_fold( $used_for, $stmt, $indent0 ) );
-    #    if ( $used_for eq 'prepare' ) {
-    #        push @tmp, sprintf " VALUES(%s)", join( ', ', ( '?' ) x @{$sql->{insert_col_names}} );
-    #    }
-    #    else {
-    #        push @tmp, $sf->__stmt_fold( $used_for, "VALUES(", $indent1 );
-    #        my $arg_rows = $sf->info_format_insert_args( $sql, $in x 2 );
-    #        push @tmp, @$arg_rows;
-    #        push @tmp, $sf->__stmt_fold( $used_for, ")", $indent1 );
-    #    }
-    #}
-    
     elsif ( $stmt_type eq 'Join' ) {
         my $select_from;
         if ( $used_for eq 'prepare' ) {
@@ -265,7 +251,7 @@ sub __select_cols {
         @cols = ( @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} );
     }
     elsif ( keys %{$sql->{alias}} ) {
-        @cols = @{$sql->{cols}};
+        @cols = @{$sql->{columns}};
         # use column names and not * if columns have aliases
     }
     if ( ! @cols ) {
@@ -314,10 +300,8 @@ sub get_sql_info {
 
 sub alias {
     # Aliases mandatory:
-    #
     # JOIN talbes
     # Derived Tables: mysql, MariaDB, Pg
-    # UNION special columns ? # ### 
     #
     my ( $sf, $sql, $type, $identifier, $default ) = @_;
     my $prompt = 'as ';
@@ -454,9 +438,14 @@ sub quote_constant {
 sub unquote_constant {
     my ( $sf, $constant ) = @_;
     return if ! defined $constant;
-    my $tmp = $sf->{d}{dbh}->quote( 'a' );
-    my $qc = quotemeta( substr( $tmp, 0, 1 ) );
-    $constant =~ s/$qc(?=(?:$qc$qc)*(?:[^$qc]|\z))//g;
+    $constant =~ s/^'|'\z//g;
+    if ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+        $constant =~ s/\\(.)/$1/g;
+    }
+    else {
+        $constant =~ s/''/'/g;
+        #$constant =~ s/'(?=(?:'')*(?:[^']|\z))//g;
+    }
     return $constant;
 }
 
@@ -470,13 +459,16 @@ sub clone_data {
 
 sub reset_sql {
     my ( $sf, $sql ) = @_;
-    my $backup = {};
-    for my $y ( qw( db schema table cols ) ) {
-        $backup->{$y} = $sql->{$y} if exists $sql->{$y};
-    }
+    # preserve base data: table name, column names and data types:
+    my $backup = {
+        table => $sql->{table} // '',
+        columns => $sql->{columns} // [],
+        data_types => $sql->{data_types} // {},
+    };
+    # reset/initialize:
     delete @{$sql}{ keys %$sql }; # not "$sql = {}" so $sql is still pointing to the outer $sql
     my @string = qw( distinct_stmt set_stmt where_stmt group_by_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
-    my @array  = qw( cols group_by_cols aggr_cols selected_cols set_args
+    my @array  = qw( group_by_cols aggr_cols selected_cols set_args
                      ctes
                      ct_column_definitions ct_table_constraints ct_table_options
                      insert_col_names insert_args );

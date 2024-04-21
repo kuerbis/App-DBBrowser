@@ -29,7 +29,7 @@ sub new {
 
 
 sub search_and_replace {
-    my ( $sf, $sql, $bu_insert_args, $filter_str  ) = @_;
+    my ( $sf, $sql, $bu_insert_args, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -91,7 +91,8 @@ sub search_and_replace {
                 next ADD_SEARCH_AND_REPLACE;
             }
             if ( ! eval {
-                print 'Search and replace ... ' . "\r" if @$aoa * @$col_idxs > 50_000;
+                my $working = @$aoa * @$col_idxs > 50_000 ? 'Search and replace ... ' : undef;
+                $cf->__print_busy_string( $working );
                 $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
                 1 }
             ) {
@@ -202,13 +203,11 @@ sub __from_form_to_sr_group_data {
 sub __choose_column_indexes {
     my ( $sf, $columns, $info, $prompt ) = @_;
     my $tu = Term::Choose::Util->new( $sf->{i}{tcu_default} );
-    my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} ); # ### 
     # Choose
     my $col_idxs = $tu->choose_a_subset(
         $columns,
         { cs_label => $prompt, info => $info, layout => 0, all_by_default => 1, index => 1, keep_chosen => 0 }
     );
-    $cf->__print_busy_string(); # ### 
     if ( ! defined $col_idxs ) {
         return;
     }
