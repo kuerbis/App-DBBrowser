@@ -29,7 +29,7 @@ sub new {
 
 
 sub search_and_replace {
-    my ( $sf, $sql, $bu_insert_args, $filter_str ) = @_;
+    my ( $sf, $sql, $bu_insert_args, $filter_str, $general_threshold ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -43,6 +43,7 @@ sub search_and_replace {
     my @bu;
     my ( $hidden, $add ) = ( 'Your choice:', '  * NEW *' );
     my $available = [ sort { $a cmp $b } keys %$saved  ];
+    my $old_idx = 1;
 
     ADD_SEARCH_AND_REPLACE: while ( 1 ) {
         my @tmp_info = ( $filter_str );
@@ -65,7 +66,7 @@ sub search_and_replace {
         # Choose
         my $idx = $tc->choose(
             $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', default => 1, index => 1, undef => $sf->{i}{_back} }
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', default => $old_idx, index => 1, undef => $sf->{i}{_back} }
         );
         if ( ! defined $idx || ! defined $menu->[$idx] ) {
             if ( @bu ) {
@@ -73,6 +74,13 @@ sub search_and_replace {
                 next ADD_SEARCH_AND_REPLACE;
             }
             return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx = 1;
+                next ADD_SEARCH_AND_REPLACE;
+            }
+            $old_idx = $idx;
         }
         my $choice = $menu->[$idx];
         if ( $choice eq $hidden ) {
@@ -91,9 +99,7 @@ sub search_and_replace {
                 next ADD_SEARCH_AND_REPLACE;
             }
             if ( ! eval {
-                my $working = @$aoa * @$col_idxs > 50_000 ? 'Search and replace ... ' : undef;
-                $cf->__print_busy_string( $working );
-                $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
+                $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups, $general_threshold ); # modifies $aoa
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -123,6 +129,9 @@ sub search_and_replace {
                     { %{$sf->{i}{lyt_v}}, info => $info, prompt => 'Restore header?', index => 1, undef => $sf->{i}{s_back} }
                 );
                 if ( ! defined $idx || ! defined $menu->[$idx] ) {
+                    if ( @$aoa * @$col_idxs > 500_000 ) {
+                        $cf->__print_busy_string( 'Working ...' );
+                    }
                     $sql->{insert_args} = [ map { [ @$_ ] } @{$bu_insert_args} ];
                     return;
                 }
@@ -217,7 +226,27 @@ sub __choose_column_indexes {
 
 sub __execute_substitutions {
     my ( $sf, $aoa, $col_idxs, $all_sr_groups ) = @_;
+    my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $busy_string = 'Search and replace: ';
+    my $col_count = @$col_idxs;
+    my $cell_count = @$aoa * $col_count;
+    my $threshold_busy = 25_000;
+    if ( $cell_count > $threshold_busy ) {
+        $cf->__print_busy_string( $busy_string . '...' );
+    }
+    my $threshold_progress = 500_000;
+    my ( $show_progress, $step, $total, $fmt );
+    if ( $cell_count > $threshold_progress ) {
+        $show_progress = $cell_count > ( $threshold_progress * 3 ) ? 2 : 1;
+        $step = 10_000;
+        $total = int $cell_count / $step;
+        $fmt = $busy_string . $total . '/%' . length( $total ) . 'd';
+    }
+    else {
+        $show_progress = 0;
+    }
     my $c;
+
     for my $sr_group ( @$all_sr_groups ) {
         for my $sr_single ( @$sr_group ) {
             my ( $pattern, $replacement_str, $modifiers ) = @$sr_single{qw(pattern replacement modifiers)};
@@ -239,34 +268,43 @@ sub __execute_substitutions {
             $modifiers =~ tr/imnsxa//dc             if length $modifiers; # tr/imnsxadlup//dc
             $pattern = "(?${modifiers}:${pattern})" if length $modifiers;
             if ( $count_e || $replacement_str =~ tr/$// ) {
-                for my $row ( @$aoa ) {
-                    for my $i ( @$col_idxs ) {
+                for my $row ( 0 .. $#$aoa ) {
+                    for my $col ( @$col_idxs ) {
                         $c = 0;
-                        if ( ! defined $row->[$i] ) {
+                        if ( ! defined $aoa->[$row][$col] ) {
                             next;
                         }
                         elsif ( $global ) {
-                            gsub_modify( $row->[$i], $pattern, $replacement );   # modifies $aoa
+                            gsub_modify( $aoa->[$row][$col], $pattern, $replacement );   # modifies $aoa
                         }
                         else {
-                            sub_modify( $row->[$i], $pattern, $replacement );    # modifies $aoa
+                            sub_modify( $aoa->[$row][$col], $pattern, $replacement );    # modifies $aoa
                         }
+                    }
+                    if ( $show_progress && ! ( $row * $col_count % $step ) ) {
+                        $cf->__print_busy_string( sprintf $fmt, $row * $col_count / $step );
                     }
                 }
             }
             else {
-                for my $row ( @$aoa ) {
-                    for my $i ( @$col_idxs ) {
+                if ( $show_progress == 1 ) {
+                    $cf->__print_busy_string( $busy_string . '...' );
+                }
+                for my $row ( 0 .. $#$aoa ) {
+                    for my $col ( @$col_idxs ) {
                         $c = 0;
-                        if ( ! defined $row->[$i] ) {
+                        if ( ! defined $aoa->[$row][$col] ) {
                             next;
                         }
                         elsif ( $global ) {
-                            $row->[$i] =~ s/$pattern/$replacement/g;   # modifies $aoa
+                            $aoa->[$row][$col] =~ s/$pattern/$replacement/g;   # modifies $aoa
                         }
                         else {
-                            $row->[$i] =~ s/$pattern/$replacement/;    # modifies $aoa
+                            $aoa->[$row][$col] =~ s/$pattern/$replacement/;    # modifies $aoa
                         }
+                    }
+                    if ( $show_progress == 2 && ! ( $row * $col_count % $step ) ) {
+                        $cf->__print_busy_string( sprintf $fmt, $row * $col_count / $step );
                     }
                 }
             }

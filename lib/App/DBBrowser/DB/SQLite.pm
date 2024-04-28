@@ -40,7 +40,7 @@ sub get_db_driver {
 sub read_attributes {
     my ( $sf ) = @_;
     return [
-        { name => 'sqlite_busy_timeout', default => 3000 }, # ### 
+        { name => 'sqlite_busy_timeout', default => 30000 },
     ];
 }
 

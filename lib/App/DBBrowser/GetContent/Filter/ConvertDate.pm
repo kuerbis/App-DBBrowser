@@ -34,8 +34,19 @@ sub convert_date {
     my $cf = App::DBBrowser::GetContent::Filter->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $rx_locale_dependent = "\%[aAbBhcpPxX]";
     my $aoa = $sql->{insert_args};
-    my $total = @$aoa;
-    my $working = $total > 20_000 ? 'Convert datetime ... ' : undef;
+    my $row_count = @$aoa;
+    my $busy_text = 'Convert datetime: ';
+    my $threshold_busy = 5_000;
+    my $threshold_progress = 100_000;
+    my ( $working, $fmt, $step );
+    if ( $row_count > $threshold_busy ) {
+        $working = $busy_text . '...';
+        if ( $row_count > $threshold_progress ) {
+            $step = 1_000;
+            my $total = int $row_count / $step;
+            $fmt = $busy_text . $total . '/%' . length( $total ) . 'd';
+        }
+    }
     my $is_empty =  $cf->__search_empty_cols( $aoa );
     my $header = $cf->__prepare_header( $aoa, $is_empty );
 
@@ -66,6 +77,8 @@ sub convert_date {
                 }
                 $row_idx_begin = 1 if $choice eq $yes;
             }
+            my $count_error_in = 0;
+            my $default_pattern_in;
 
             IN: while ( 1 ) {
                 my @in_info = @col_info;
@@ -74,12 +87,13 @@ sub convert_date {
                 # Readline
                 my $pattern_in = $tr->readline(
                     $prompt_patter_in,
-                    { info => $info, history => [ '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%N%z', '%a %d %b %Y %I:%M:%S %P', '%d.%m.%Y %H:%M:%S', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S' ] }
+                    { info => $info, default => $default_pattern_in, history => $sf->__pattern_history( 'in' ) }
                 );
                 if ( ! length $pattern_in ) {
                     next SKIP_HEADER if $sf->{d}{stmt_types}[0] eq 'Create_Table';
                     next COL;
                 }
+                $default_pattern_in = $count_error_in > 1 ? '' : $pattern_in;
                 push @in_info, $prompt_patter_in . $pattern_in;
                 my $formatter_args = { pattern => $pattern_in };
                 if ( $pattern_in =~ /$rx_locale_dependent/ ) {
@@ -97,9 +111,8 @@ sub convert_date {
                 }
                 my $formatter = DateTime::Format::Strptime->new( %$formatter_args, on_error  => 'undef' );
 
-                OUT: while ( 1 ) {
-                    my @tmp_info = @in_info;
-                    $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+                TYPE: while ( 1 ) {
+                    $info = $cf->__get_filter_info( $sql, join( "\n", @in_info ) );
                     my ( $format, $epoch ) = ( '- DateTime', '- Epoch' );
                     # Choose
                     my $choice = $tc->choose(
@@ -107,102 +120,121 @@ sub convert_date {
                         { %{$sf->{i}{lyt_v}}, prompt => 'To: ', undef => $sf->{i}{s_back}, info => $info }
                     );
                     if ( ! defined $choice ) {
+                        ++$count_error_in;
                         next IN;
                     }
-                    if ( $choice eq $epoch ) {
-                        $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
-                        my ( $seconds, $milliseconds, $microseconds, $fract ) = ( '- Seconds', '- Milliseconds', '- Microseconds', '- Seconds.Fract' );
-                        my $menu = [ @pre, $seconds, $milliseconds, $microseconds, $fract ];
-                        # Choose
-                        my $epoch_type = $tc->choose(
-                            $menu,
-                            { %{$sf->{i}{lyt_v}}, undef => $sf->{i}{s_back}, info => $info }
-                        );
-                        if ( ! defined $epoch_type ) {
-                            next OUT;
-                        }
-                        $cf->__print_busy_string( $working );
-                        if ( ! eval {
-                            for my $row ( $row_idx_begin .. $#$aoa ) {
-                                next if ! defined $aoa->[$row][$col_idx];
-                                my $dt = $formatter->parse_datetime( $aoa->[$row][$col_idx] );
-                                if ( ! defined $dt ) {
-                                    for my $row ( 1 .. $row ) {
-                                        $aoa->[$row][$col_idx] = $bu_insert_args->[$row][$col_idx];
-                                    }
-                                    my $message = $sf->__error_messagte_parse_datetime( $formatter, $row, $aoa->[$row][$col_idx] );
-                                    die $message;
-                                }
-                                if ( $epoch_type eq $seconds ) {
-                                    $aoa->[$row][$col_idx] = $dt->epoch();
-                                }
-                                elsif ( $epoch_type eq $milliseconds ) {
-                                    $aoa->[$row][$col_idx] = int( $dt->hires_epoch() * 1_000 );
-                                }
-                                elsif ( $epoch_type eq $microseconds ) {
-                                    $aoa->[$row][$col_idx] = int( $dt->hires_epoch() * 1_000_000 );
-                                }
-                                else {
-                                    $aoa->[$row][$col_idx] = $dt->hires_epoch();
-                                }
-                            }
-                            1 }
-                        ) {
-                            $ax->print_error_message( $@ );
-                            next OUT;
-                        }
-                    }
-                    else {
-                        $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
-                        my $prompt_patter_out = 'Pattern out: ';
-                        # Readline
-                        my $pattern_out = $tr->readline(
-                            $prompt_patter_out,
-                            { info => $info, history => [ '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%6N%z',
-                              $sf->{i}{driver} eq 'Oracle' ? '%d-%b-%y %I.%M.%S.%6N %p %Z' : '%a %d %b %y %I:%M:%S.%6N %p %Z' ] }
-                        );
-                        if ( ! length $pattern_out ) {
-                            next IN;
-                        }
-                        my $locale_out;
-                        if ( $pattern_out =~ /$rx_locale_dependent/ ) {
-                            push @tmp_info, $prompt_patter_out . $pattern_out;
+                    my $count_error_out = 0;
+                    my $default_pattern_out;
+
+                    OUT: while ( 1 ) {
+                        my @tmp_info = @in_info;
+                        if ( $choice eq $epoch ) {
                             $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
-                            my $prompt_locale_out = 'Locale out: ';
-                            # ReadLine
-                            $locale_out = $tr->readline(
-                                $prompt_locale_out,
-                                { info => $info, history => [] }
+                            my ( $seconds, $milliseconds, $microseconds, $fract ) = ( '- Seconds', '- Milliseconds', '- Microseconds', '- Seconds.Fract' );
+                            my $menu = [ @pre, $seconds, $milliseconds, $microseconds, $fract ];
+                            # Choose
+                            my $epoch_type = $tc->choose(
+                                $menu,
+                                { %{$sf->{i}{lyt_v}}, undef => $sf->{i}{s_back}, info => $info }
                             );
-                            if ( length $locale_out ) {
-                                push @tmp_info, $prompt_locale_out . $locale_out;
+                            if ( ! defined $epoch_type ) {
+                                next TYPE;
                             }
-                        }
-                        $cf->__print_busy_string( $working );
-                        if ( ! eval {
-                            for my $row ( $row_idx_begin .. $#$aoa ) {
-                                next if ! defined $aoa->[$row][$col_idx];
-                                my $dt = $formatter->parse_datetime( $aoa->[$row][$col_idx] );
-                                if ( ! defined $dt ) {
-                                    for my $row ( 1 .. $row ) {
-                                        $aoa->[$row][$col_idx] = $bu_insert_args->[$row][$col_idx];
+                            $cf->__print_busy_string( $working );
+                            if ( ! eval {
+                                for my $row ( $row_idx_begin .. $#$aoa ) {
+                                    next if ! defined $aoa->[$row][$col_idx];
+                                    my $dt = $formatter->parse_datetime( $aoa->[$row][$col_idx] );
+                                    if ( ! defined $dt ) {
+                                        for my $row ( 1 .. $row ) {
+                                            $aoa->[$row][$col_idx] = $bu_insert_args->[$row][$col_idx];
+                                        }
+                                        my $message = $sf->__error_messagte_parse_datetime( $formatter, $row, $aoa->[$row][$col_idx] );
+                                        die $message;
                                     }
-                                    my $message = $sf->__error_messagte_parse_datetime( $formatter, $row, $aoa->[$row][$col_idx] );
-                                    die $message;
+                                    if ( $epoch_type eq $seconds ) {
+                                        $aoa->[$row][$col_idx] = $dt->epoch();
+                                    }
+                                    elsif ( $epoch_type eq $milliseconds ) {
+                                        $aoa->[$row][$col_idx] = int( $dt->hires_epoch() * 1_000 );
+                                    }
+                                    elsif ( $epoch_type eq $microseconds ) {
+                                        $aoa->[$row][$col_idx] = int( $dt->hires_epoch() * 1_000_000 );
+                                    }
+                                    else {
+                                        $aoa->[$row][$col_idx] = $dt->hires_epoch();
+                                    }
+                                    if ( $fmt && ! ( $row % $step ) ) {
+                                        $cf->__print_busy_string( sprintf $fmt, $row / $step );
+                                    }
                                 }
-                                if ( length $locale_out ) {
-                                    $dt->set_locale( $locale_out );
-                                }
-                                $aoa->[$row][$col_idx] = $dt->strftime( $pattern_out );
+                                1 }
+                            ) {
+                                $ax->print_error_message( $@ );
+                                ++$count_error_in;
+                                next IN;
                             }
-                            1 }
-                        ) {
-                            $ax->print_error_message( $@ );
-                            next OUT;
                         }
+                        else {
+                            $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+                            my $prompt_patter_out = 'Pattern out: ';
+                            # Readline
+                            my $pattern_out = $tr->readline(
+                                $prompt_patter_out,
+                                { info => $info, default => $default_pattern_out, history => $sf->__pattern_history( 'out' ) }
+                            );
+                            if ( ! length $pattern_out ) {
+                                next TYPE;
+                            }
+                            $default_pattern_out = $count_error_out > 1 ? '' : $pattern_out;
+                            my $locale_out;
+                            if ( $pattern_out =~ /$rx_locale_dependent/ ) {
+                                push @tmp_info, $prompt_patter_out . $pattern_out;
+                                $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
+                                my $prompt_locale_out = 'Locale out: ';
+                                # ReadLine
+                                $locale_out = $tr->readline(
+                                    $prompt_locale_out,
+                                    { info => $info, history => [] }
+                                );
+                                if ( length $locale_out ) {
+                                    push @tmp_info, $prompt_locale_out . $locale_out;
+                                }
+                            }
+                            $cf->__print_busy_string( $working );
+                            if ( ! eval {
+                                for my $row ( $row_idx_begin .. $#$aoa ) {
+                                    next if ! defined $aoa->[$row][$col_idx];
+                                    my $dt = $formatter->parse_datetime( $aoa->[$row][$col_idx] );
+                                    if ( ! defined $dt ) {
+                                        for my $row ( 1 .. $row ) {
+                                            $aoa->[$row][$col_idx] = $bu_insert_args->[$row][$col_idx];
+                                        }
+                                        my $message = $sf->__error_messagte_parse_datetime( $formatter, $row, $aoa->[$row][$col_idx] );
+                                        die $message;
+                                    }
+                                    if ( length $locale_out ) {
+                                        $dt->set_locale( $locale_out );
+                                    }
+                                    $aoa->[$row][$col_idx] = $dt->strftime( $pattern_out );
+                                    if ( $fmt && ! ( $row % $step ) ) {
+                                        $cf->__print_busy_string( sprintf $fmt, $row / $step );
+                                    }
+                                }
+                                1 }
+                            ) {
+                                $ax->print_error_message( $@ );
+                                if ( $@ =~ /^Pattern:/ ) {
+                                    ++$count_error_in;
+                                    next IN;
+                                }
+                                ++$count_error_out;
+                                next OUT;
+                            }
+                        }
+                        $sql->{insert_args} = $aoa;
+                        return;
                     }
-                    $sql->{insert_args} = $aoa;
-                    return;
                 }
             }
         }
@@ -213,9 +245,34 @@ sub convert_date {
 sub __error_messagte_parse_datetime {
     my ( $sf, $formatter, $row, $string ) = @_;
     my $message = 'Pattern: ' . $formatter->pattern() . ', ' . $formatter->locale();
-    $message .= "\nRow $row: $string";
-    $message .= "\n" . $formatter->errmsg();
+    $message .= "\nRow: $row";
+    $message .= "\nString: $string";
+    $message .= "\n\n" . $formatter->errmsg();
     return $message;
+}
+
+
+sub __pattern_history {
+    my ( $sf, $in_out ) = @_;
+    if ( $in_out eq 'in' ) {
+        my $in = [
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d %H:%M:%S.%N%z',
+            '%a %d %b %Y %I:%M:%S %P',
+            '%d.%m.%Y %H:%M:%S',
+            '%d/%m/%Y %H:%M:%S',
+            '%m/%d/%Y %H:%M:%S'
+        ];
+        return $in;
+    }
+    else {
+        my $out = [
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d %H:%M:%S.%6N%z',
+            $sf->{i}{driver} eq 'Oracle' ? '%d-%b-%y %I.%M.%S.%6N %p %Z' : '%a %d %b %Y %I:%M:%S.%6N %p %Z'
+        ];
+        return $out;
+    }
 }
 
 

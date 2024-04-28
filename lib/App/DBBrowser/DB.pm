@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.014;
 
-our $VERSION = '2.408_05';
+our $VERSION = '2.409';
 
 #use bytes; # required
 use Scalar::Util qw( looks_like_number );
@@ -71,18 +71,8 @@ sub get_db_handle {
         );
         $dbh->sqlite_create_function( 'trunc', -1, sub {
                 my ( $number, $places ) = @_;
-                if ( ! looks_like_number( $number ) ) {
-                    return $number;
-                }
-                #my $nu = $number  . '';
-                #return int( $nu * 10 ** $places ) / 10 ** $places; # ### 
-                elsif ( ! $places ) {
-                    return 0 + ( $number =~ /^([-+]?[0-9]+)/ )[0];
-                }
-                elsif ( $number =~ /^([-+]?[0-9]+\.[0-9]{1,$places})/ ) {
-                    return 0 + $1;
-                }
-                return $number;
+                return $number if ! looks_like_number( $number );
+                return int( $number * 10 ** $places ) / 10 ** $places;
             }
         );
         $dbh->sqlite_create_function( 'octet_length', 1, sub {
@@ -324,7 +314,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.408_05
+Version 2.409
 
 =head1 DESCRIPTION
 

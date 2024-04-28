@@ -69,10 +69,10 @@ my $to_date            = 'TO_DATE';
 my $to_number          = 'TO_NUMBER';
 my $to_timestamp       = 'TO_TIMESTAMP';
 my $to_timestamp_tz    = 'TO_TIMESTAMP_TZ';
+my $to_epoch           = 'TO_EPOCH';
 my $trim               = 'TRIM';
 my $truncate           = 'TRUNCATE';
 my $trunc              = 'TRUNC';
-my $unix_timestamp     = 'UNIX_TIMESTAMP';
 my $upper              = 'UPPER';
 my $week               = 'WEEK';
 my $year               = 'YEAR';
@@ -171,9 +171,6 @@ sub __available_functions {
         },
         date => {
             $dateadd            => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
-            $epoch_to_date      => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
-            $epoch_to_datetime  => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
-            $epoch_to_timestamp => [  000000 ,  00000 ,  0000000 , 'Pg', 'Firebird',  000 ,  00000000 , 'Oracle' ],
             $extract            => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $now                => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $year               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
@@ -186,14 +183,18 @@ sub __available_functions {
             $second             => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $dayofweek          => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
             $dayofyear          => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
-            $unix_timestamp     => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
+
         },
         to => {
+            $epoch_to_date      => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
+            $epoch_to_datetime  => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2', 'Informix', 'Oracle' ],
+            $epoch_to_timestamp => [  000000 ,  00000 ,  0000000 , 'Pg', 'Firebird',  000 ,  00000000 , 'Oracle' ],
             $to_char            => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ], # MariaDB
             $to_date            => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ], # MariaDB
             $to_timestamp       => [  000000 ,  00000 ,  0000000 , 'Pg',  00000000 ,  000 ,  00000000 , 'Oracle' ], # DB2
             $to_timestamp_tz    => [  000000 ,  00000 ,  0000000 ,  00 ,  00000000 ,  000 ,  00000000 , 'Oracle' ],
             $to_number          => [  000000 ,  00000 , 'MariaDB', 'Pg',  00000000 , 'DB2', 'Informix', 'Oracle' ],
+            $to_epoch           => [ 'SQLite', 'mysql', 'MariaDB', 'Pg', 'Firebird', 'DB2',  00000000 , 'Oracle' ],
             $strftime           => [ 'SQLite',  00000 ,  0000000 ,  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
             $date_format        => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
             $format             => [  000000 , 'mysql', 'MariaDB',  00 ,  00000000 ,  000 ,  00000000 ,  000000  ],
@@ -257,13 +258,7 @@ sub col_function {
             $tmp_info .= "\n" . $sf->__nested_func_info( $r_data->{nested_func}, '?' );
         }
         my @pre = ( $hidden, undef );
-        my $menu;
-        if ( $driver eq 'Firebird' ) {
-            $menu = [ @pre, '- String', '- Numeric', '- Date', '- Other' ];
-        }
-        else {
-            $menu = [ @pre, '- String', '- Numeric', '- Date', '- To', '- Other' ];
-        }
+        my $menu = [ @pre, '- String', '- Numeric', '- Date', '- To', '- Other' ];
         # Choose
         my $idx_cat = $tc->choose(
             $menu,
@@ -456,7 +451,7 @@ sub col_function {
                         if ( $func =~ /^TO_/ ) {
                             push @$args_data, { prompt => 'nls_parameter: ' };
                         }
-                        elsif ( $func eq $unix_timestamp ) {
+                        elsif ( $func eq $to_epoch ) {
                             push @$args_data, { prompt => 'Column type: ', history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ], unquote => 1 };
                         }
                     }
@@ -533,7 +528,7 @@ sub __func_Concat {
     $info .= "\n" . 'Concat(' . join( ',', @$chosen_cols ) . ')';
     my $history = [ '-', ' ', '_', ',', '/', '=', '+' ];
     # Readline
-    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ', quote_value => 1 } );
+    my $sep = $ext->argument( $sql, $clause, { info => $info, history => $history, prompt => 'Separator: ' } );
     if ( ! defined $sep ) {
         return;
     }
