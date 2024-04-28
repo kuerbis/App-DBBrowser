@@ -184,7 +184,7 @@ sub function_with_one_col {
             return "TRIM($tmp FROM $col)";
         }
     }
-    elsif ( $func eq 'TO_UNIX_TIME' ) {
+    elsif ( $func eq 'TO_EPOCH' ) {
         if ( $driver eq 'SQLite' ) {
             return "UNIXEPOCH($col,'utc','subsec')"; # subsec: sqlite 3.42.0
         }

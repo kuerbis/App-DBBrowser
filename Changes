@@ -2,8 +2,9 @@ Revision history for App-DBBrowser
 
 
 2.409  2024-04-28
-        - SQLite plugin: set the busy timeout.
-        - SQLite: renamed and refactored the user defined scalar function 'truncate'.
+        - SQLite plugin: new option to set the busy timeout.
+        - SQLite: Renamed and modified the user defined scalar function 'truncate'.
+                  Now 'trunc' treats any value that looks like a number as a number.
         - Bugfix in the limit/offset submenu.
         - New input filter 'convert datetime'.
         - Quote entered numbers if the data type is not numeric and no placeholders are used.

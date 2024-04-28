@@ -29,7 +29,7 @@ sub new {
 
 
 sub search_and_replace {
-    my ( $sf, $sql, $bu_insert_args, $filter_str, $general_threshold ) = @_;
+    my ( $sf, $sql, $bu_insert_args, $filter_str ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -99,7 +99,7 @@ sub search_and_replace {
                 next ADD_SEARCH_AND_REPLACE;
             }
             if ( ! eval {
-                $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups, $general_threshold ); # modifies $aoa
+                $sf->__execute_substitutions( $aoa, $col_idxs, $all_sr_groups ); # modifies $aoa
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -238,7 +238,7 @@ sub __execute_substitutions {
     my ( $show_progress, $step, $total, $fmt );
     if ( $cell_count > $threshold_progress ) {
         $show_progress = $cell_count > ( $threshold_progress * 3 ) ? 2 : 1;
-        $step = 10_000;
+        $step = 1_000;
         $total = int $cell_count / $step;
         $fmt = $busy_string . $total . '/%' . length( $total ) . 'd';
     }

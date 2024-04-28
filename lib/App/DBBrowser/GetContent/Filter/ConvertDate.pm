@@ -177,10 +177,10 @@ sub convert_date {
                         }
                         else {
                             $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
-                            my $prompt_patter_out = 'Pattern out: ';
+                            my $prompt_pattern_out = 'Pattern out: ';
                             # Readline
                             my $pattern_out = $tr->readline(
-                                $prompt_patter_out,
+                                $prompt_pattern_out,
                                 { info => $info, default => $default_pattern_out, history => $sf->__pattern_history( 'out' ) }
                             );
                             if ( ! length $pattern_out ) {
@@ -189,7 +189,7 @@ sub convert_date {
                             $default_pattern_out = $count_error_out > 1 ? '' : $pattern_out;
                             my $locale_out;
                             if ( $pattern_out =~ /$rx_locale_dependent/ ) {
-                                push @tmp_info, $prompt_patter_out . $pattern_out;
+                                push @tmp_info, $prompt_pattern_out . $pattern_out;
                                 $info = $cf->__get_filter_info( $sql, join( "\n", @tmp_info ) );
                                 my $prompt_locale_out = 'Locale out: ';
                                 # ReadLine
