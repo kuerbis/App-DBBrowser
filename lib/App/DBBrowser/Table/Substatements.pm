@@ -247,9 +247,13 @@ sub set {
             return 1;
         }
         push @bu, $sql->{$stmt};
-        my $col_sep = @bu == 1 ? ' ' : ', ';
         my $op = '=';
-        $sql->{$stmt} .= $col_sep . $qt_col . ' ' . $op;
+        if ( @bu == 1 ) {
+            $sql->{$stmt} .= ' ' . $qt_col . ' ' . $op;
+        }
+        else {
+            $sql->{$stmt} .= ', ' . $qt_col . ' ' . $op;
+        }
         my $ok = $so->read_and_add_value( $sql, $clause, $stmt, $qt_col, $op );
         if ( !  $ok ) {
             $sql->{$stmt} = pop @bu;
