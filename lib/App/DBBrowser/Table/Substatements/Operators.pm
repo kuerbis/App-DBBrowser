@@ -30,7 +30,10 @@ sub choose_and_add_operator {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @operators = @{$sf->{o}{G}{operators}};
-    if ( $sf->{i}{driver} =~ /(?:Firebird|Informix)\z/ ) {
+    if ( $sf->{i}{driver} eq 'SQLite' ) {
+        @operators = grep { ! /^(?:ANY|ALL)\z/ } @operators;
+    }
+    elsif ( $sf->{i}{driver} =~ /(?:Firebird|Informix)\z/ ) {
         @operators = uniq map { s/(?<=REGEXP)_i\z//; $_ } @operators;
     }
     my $bu_stmt = $sql->{$stmt};
@@ -59,14 +62,16 @@ sub choose_and_add_operator {
         if ( $operator =~ /REGEXP(_i)?\z/ ) {
             $sql->{$stmt} =~ s/ (?: (?<=\() | \s ) \Q$qt_col\E \z //x;
             my $do_not_match_regexp = $operator =~ /^NOT/ ? 1 : 0;
-            my $case_sensitive      = $operator =~ /REGEXP_i\z/ ? 0 : 1;
+            my $case_sensitive = $operator =~ /REGEXP_i\z/ ? 0 : 1;
             my $regex_op;
             if ( ! eval {
                 $regex_op = $sf->_regexp( $qt_col, $do_not_match_regexp, $case_sensitive );
                 1 }
             ) {
                 $ax->print_error_message( $@ );
-                next OPERATOR;
+                $sql->{$stmt} = $bu_stmt;
+                next OPERATOR if @operators > 1;
+                return;
             }
             $regex_op =~ s/^\s// if $sql->{$stmt} =~ /\(\z/;
             $sql->{$stmt} .= $regex_op;
@@ -83,7 +88,8 @@ sub choose_and_add_operator {
             );
             $ax->print_sql_info( $info );
             if ( ! defined $operator ) {
-                next OPERATOR;
+                next OPERATOR if @operators > 1;
+                return;
             }
             $sql->{$stmt} .= ' ' . $operator;
         }
@@ -91,7 +97,15 @@ sub choose_and_add_operator {
             $sql->{$stmt} .= ' ' . $operator;
         }
         $ax->print_sql_info( $ax->get_sql_info( $sql ) );
-        return $operator;
+        my $ok = $sf->read_and_add_value( $sql, $clause, $stmt, $qt_col, $operator );
+        if ( $ok ) {
+            return 1;
+        }
+        else {
+            $sql->{$stmt} = $bu_stmt;
+            next OPERATOR if @operators > 1;
+            return;
+        }
     }
 }
 

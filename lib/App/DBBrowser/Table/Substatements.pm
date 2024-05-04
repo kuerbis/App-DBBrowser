@@ -255,7 +255,7 @@ sub set {
             $sql->{$stmt} .= ', ' . $qt_col . ' ' . $op;
         }
         my $ok = $so->read_and_add_value( $sql, $clause, $stmt, $qt_col, $op );
-        if ( !  $ok ) {
+        if ( ! $ok ) {
             $sql->{$stmt} = pop @bu;
             next COL;
         }
@@ -648,20 +648,10 @@ sub __add_condition {
         else {
             $sql->{$stmt} .= $AND_OR . ' ' . $qt_col;
         }
-
-        OPERATOR: while ( 1 ) {
-            my $bu_op = $sql->{$stmt};
-            my $operator = $so->choose_and_add_operator( $sql, $clause, $stmt, $qt_col );
-            if ( ! defined $operator ) {
-                $sql->{$stmt} = pop @bu;
-                next COL;
-            }
-            my $ok = $so->read_and_add_value( $sql, $clause, $stmt, $qt_col, $operator );
-            if ( ! $ok ) {
-                $sql->{$stmt} = $bu_op;
-                next OPERATOR;
-            }
-            last OPERATOR;
+        my $ok = $so->choose_and_add_operator( $sql, $clause, $stmt, $qt_col );
+        if ( ! $ok ) {
+            $sql->{$stmt} = pop @bu;
+            next COL;
         }
     }
 }
