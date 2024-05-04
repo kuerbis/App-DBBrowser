@@ -648,7 +648,7 @@ sub __add_condition {
         else {
             $sql->{$stmt} .= $AND_OR . ' ' . $qt_col;
         }
-        my $ok = $so->choose_and_add_operator( $sql, $clause, $stmt, $qt_col );
+        my $ok = $so->add_operator_and_value( $sql, $clause, $stmt, $qt_col );
         if ( ! $ok ) {
             $sql->{$stmt} = pop @bu;
             next COL;

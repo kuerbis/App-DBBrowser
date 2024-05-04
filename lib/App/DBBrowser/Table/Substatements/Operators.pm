@@ -25,7 +25,7 @@ sub new {
 }
 
 
-sub choose_and_add_operator {
+sub add_operator_and_value {
     my ( $sf, $sql, $clause, $stmt, $qt_col ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
