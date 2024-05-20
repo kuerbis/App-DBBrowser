@@ -278,7 +278,7 @@ Select from the available ctes.
 
 =item Reset
 
-Remove ctes that are not used directly or indirectly.
+Removes ctes. In Join and Union: ctes that are used directly or indirectly are retained when I<Reset> pressed.
 
 Don't use the I<Reset> button when in a CTE special tables such as subqueries or functions are joined with an implicit
 join.
