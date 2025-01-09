@@ -145,7 +145,7 @@ sub __choose_extension {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $qt_cols; # cols without aliases in functions ...
+    my $qt_cols; # in functions cols are used without aliases
     if ( $clause eq 'on' ) {
         $qt_cols = [ @{$sql->{cols_join_condition}} ];
     }

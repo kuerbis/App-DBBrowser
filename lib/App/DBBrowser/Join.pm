@@ -320,8 +320,8 @@ sub __add_join_condition {
         push @{$aliases_hash->{$ref->[0]}}, $ref->[1];
     }
     my $cols_join_condition = [];
-    for my $used_table ( uniq @{$data->{used_tables}} ) {           # self join: same table name more than once
-        for my $table_alias ( @{$aliases_hash->{$used_table}} ) {   # self join: a table has or than one alias
+    for my $used_table ( uniq @{$data->{used_tables}} ) {           # self join: a table name is used more than once
+        for my $table_alias ( @{$aliases_hash->{$used_table}} ) {   # self join: a table has more than one alias
             for my $col ( @{$data->{col_names}{$used_table}} ) {
                 push @$cols_join_condition, $ax->quote_column( $table_alias, $col );
             }
