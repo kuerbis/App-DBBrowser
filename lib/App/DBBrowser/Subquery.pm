@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Subqueries;
+App::DBBrowser::Subquery;
 
 use warnings;
 use strict;
@@ -7,7 +7,7 @@ use 5.014;
 
 use File::Spec::Functions qw( catfile );
 
-use List::MoreUtils qw( any firstidx );
+use List::MoreUtils qw( any );
 
 use Term::Choose           qw();
 use Term::Choose::LineFold qw( line_fold );
@@ -15,6 +15,10 @@ use Term::Choose::Util     qw( get_term_width );
 use Term::Form::ReadLine   qw();
 
 use App::DBBrowser::Auxil;
+
+my $pf_saved_subqueries = '- ';
+my $pf_subquery_history = '  ';
+my $pf_print_history    = '| ';
 
 
 sub new {
@@ -25,6 +29,146 @@ sub new {
         d => $d
     };
     bless $sf, $class;
+}
+
+
+sub subquery_as_main_table {
+    my ( $sf ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    $sf->{d}{stmt_types} = [ 'Select' ];
+    my $sql = { table => '()' };
+    $ax->reset_sql( $sql );
+    $ax->print_sql_info( $ax->get_sql_info( $sql ) ); ##
+    my $subquery = $sf->subquery( $sql );
+    if ( ! defined $subquery ) {
+        return;
+    }
+    my $qt_table = $subquery;
+    # Oracle: key word "AS" not supported in Table aliases
+    my $qt_alias = $ax->table_alias( $sql, 'derived_table', $qt_table );
+    $qt_table .= " " . $qt_alias;
+    return $qt_table;
+}
+
+
+sub subquery {
+    my ( $sf, $sql ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
+
+    CHOOSE_QUERY: while ( 1 ) {
+        $sf->{from_build_SQ} = 0;
+        my $selected_stmt = $sf->__choose_query( $sql, 'subquery' );
+        if ( ! defined $selected_stmt ) {
+            return;
+        }
+        if ( $sf->{from_build_SQ} ) { ##
+            $sf->{from_build_SQ} = 0;
+            return "($selected_stmt)";
+        }
+        my $prompt = 'Query: ';
+        my $info = $ax->get_sql_info( $sql );
+        # Readline
+        my $stmt = $tr->readline(
+            #'Query: ',
+            $prompt,
+            { default => $selected_stmt, show_context => 1, info => $info }
+        );
+        $ax->print_sql_info( $info );
+        if ( ! length $stmt ) {
+            next CHOOSE_QUERY;
+        }
+        unshift @{$sf->{d}{subquery_history}}, $stmt;
+        if ( $stmt =~ /^\s*(?:SELECT|WITH)\s/i ) {
+            # A statement entered with readline could have a WITH clause.
+            return "($stmt)";
+        }
+        else {
+            return $stmt;
+        }
+    }
+}
+
+
+sub __choose_query {
+    my ( $sf, $sql, $caller ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
+    my $edit_sq_history_file = 'Choose:';
+    my ( $readline, $build_SQ ) = ( 'Readline', 'SQL Menu' ); ##
+    my @pre = ( $edit_sq_history_file, undef, $build_SQ, $readline );
+    my $old_idx = 1;
+
+    SUBQUERY: while ( 1 ) {
+        my @queries = $sf->__get_queries( $saved_subqueries, $subquery_history, $print_history );
+        my $menu = [ @pre, @queries ];
+        my $info = $ax->get_sql_info( $sql );
+        # Choose
+        my $idx = $tc->choose(
+            $menu,
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', index => 1, default => $old_idx, undef => '<=' }
+        );
+        $ax->print_sql_info( $info );
+        if ( ! defined $idx || ! defined $menu->[$idx] ) {
+            return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx = 1;
+                next SUBQUERY;
+            }
+            $old_idx = $idx;
+        }
+        my $selected_stmt;
+        if ( $menu->[$idx] eq $edit_sq_history_file ) {
+            if ( $sf->__edit_sq_history_file() ) {
+                ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
+                @queries = $sf->__get_queries( $saved_subqueries, $subquery_history, $print_history );
+                $menu = [ @pre, @queries ];
+            }
+            next SUBQUERY;
+        }
+        elsif ( $menu->[$idx] eq $readline ) {
+            $selected_stmt = '';
+        }
+        elsif ( $menu->[$idx] eq $build_SQ ) {
+            # Don't backup $sf->{d}{default_table_alias_count}
+            my $bu_stmt_types = [ @{$sf->{d}{stmt_types}} ];
+            my $bu_table_origin = $sf->{d}{table_origin};
+            my $bu_main_info = $sf->{d}{main_info};
+            if ( $caller eq 'cte' ) {
+                $sf->{d}{main_info} = '';
+                # Don't show ctes twice.
+                # is not nested
+            }
+            else {
+                $sf->{d}{main_info} = $ax->get_sql_info( $sql );
+            }
+            $sf->{d}{nested_subqueries}++;
+            my $stmt = $sf->__build_SQ( $caller );
+            $sf->{d}{nested_subqueries}--;
+            $sf->{d}{stmt_types} = $bu_stmt_types;
+            $sf->{d}{table_origin} = $bu_table_origin;
+            $sf->{d}{main_info} = $bu_main_info;
+            if ( ! defined $stmt ) {
+                next SUBQUERY;
+            }
+            $sf->{from_build_SQ} = 1;
+            $selected_stmt = $ax->normalize_space_in_stmt( $stmt );
+        }
+        else {
+            $idx -= @pre;
+            if ( $idx < @$saved_subqueries ) {
+                $selected_stmt = $saved_subqueries->[$idx]{stmt};
+            }
+            else {
+                $idx -= @$saved_subqueries;
+                $selected_stmt = ( @$subquery_history, @$print_history )[$idx];
+            }
+        }
+        return $selected_stmt;
+    }
 }
 
 
@@ -82,286 +226,10 @@ sub __get_history {
 sub __get_queries {
     my ( $sf, $saved_subqueries, $subquery_history, $print_history ) = @_;
     my @queries;
-    push @queries, map {  '- ' . $_->{name}  } @$saved_subqueries;
-    push @queries, map {  '  ' . $_          } @$subquery_history;
-    push @queries, map {  '| ' . $_          } @$print_history;
+    push @queries, map { $pf_saved_subqueries . $_->{name} } @$saved_subqueries;
+    push @queries, map { $pf_subquery_history . $_         } @$subquery_history;
+    push @queries, map { $pf_print_history    . $_         } @$print_history;
     return @queries;
-}
-
-
-sub __choose_query {
-    my ( $sf, $sql ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
-    my $edit_sq_history_file = 'Choose:';
-    my $readline = 'Read-Line';
-    my @pre = ( $edit_sq_history_file, undef, $readline );
-    my $old_idx = 1;
-
-    SUBQUERY: while ( 1 ) {
-        my @queries = $sf->__get_queries( $saved_subqueries, $subquery_history, $print_history );
-        my $menu = [ @pre, @queries ];
-        my $info = $ax->get_sql_info( $sql );
-        # Choose
-        my $idx = $tc->choose(
-            $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, prompt => '', index => 1, default => $old_idx, undef => '<=' }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $idx || ! defined $menu->[$idx] ) {
-            return;
-        }
-        if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $old_idx = 1;
-                next SUBQUERY;
-            }
-            $old_idx = $idx;
-        }
-        my ( $readline_history, $selected_stmt );
-        if ( $menu->[$idx] eq $edit_sq_history_file ) {
-            if ( $sf->__edit_sq_history_file() ) {
-                ( $saved_subqueries, $subquery_history, $print_history ) = $sf->__get_history();
-                @queries = $sf->__get_queries( $saved_subqueries, $subquery_history, $print_history );
-                $menu = [ @pre, @queries ];
-            }
-            next SUBQUERY;
-        }
-        elsif ( $menu->[$idx] eq $readline ) {
-            $selected_stmt = '';
-            if ( @{$sql->{group_by_cols}} || @{$sql->{aggr_cols}} ) {
-                $readline_history = [ @{$sql->{group_by_cols}}, @{$sql->{aggr_cols}} ];
-            }
-            else {
-                $readline_history = [ @{$sql->{columns}} ];
-            }
-        }
-        else {
-            $idx -= @pre;
-            if ( $idx < @$saved_subqueries ) {
-                $selected_stmt = $saved_subqueries->[$idx]{stmt};
-                $readline_history = [];
-            }
-            else {
-                $idx -= @$saved_subqueries;
-                $selected_stmt = ( @$subquery_history, @$print_history )[$idx];
-                $readline_history = [];
-            }
-        }
-        return $selected_stmt, $readline_history;
-    }
-}
-
-
-sub __prepare_and_add_cte {
-    my ( $sf, $sql ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-
-    CHOOSE_QUERY: while ( 1 ) {
-        my ( $selected_stmt, $readline_history ) = $sf->__choose_query( $sql );
-        if ( ! defined $selected_stmt ) {
-            return;
-        }
-        my $count_query_loop;
-
-        QUERY: while ( 1 ) {
-            my $info = $ax->get_sql_info( $sql );
-            # Readline
-            my $query = $tr->readline(
-                'Query: ',
-                { default => $selected_stmt, show_context => 1, info => $info, history => $readline_history }
-            );
-            $ax->print_sql_info( $info );
-            if ( ! length $query ) {
-                next CHOOSE_QUERY;
-            }
-            $info .= "\n". 'Query: ' . $query;
-            my $default_name;
-
-            NAME: while ( 1 ) {
-                # Readline
-                my $full_cte_name = $tr->readline(
-                    'Name : ',
-                    { default => $default_name, show_context => 1, info => $info, history => [ 'cte1' .. 'cte9' ] }
-                );
-                $ax->print_sql_info( $info );
-                if ( ! length $full_cte_name ) {
-                    next CHOOSE_QUERY if ++$count_query_loop > 1;
-                    next QUERY;
-                }
-                my $rx_quoted_identifier = $ax->regex_quoted_identifier();
-                my $cte_name = $full_cte_name =~ s/^ \s* (?:RECURSIVE\s+)? ( $rx_quoted_identifier | [^\s(]+ ) \s* (?:\(.+)? \z/$1/rix;
-                my $cte = {
-                    full_name => $full_cte_name,
-                    query => $query,
-                    name => $cte_name,
-                };
-                $default_name = length $default_name ? '' : $full_cte_name;
-                my @table_names = keys %{$sf->{d}{tables_info}};
-                my @cte_names = map { $_->{name} } @{$sql->{ctes}};
-                if ( any { $_ eq $cte_name } @table_names, @cte_names ) {
-                    my $type = ( firstidx { $_ eq $cte_name } @table_names ) > -1 ? 'table' : 'cte';
-                    my $prompt = "A $type '$cte_name' already exists.";
-                    # Choose
-                    $tc->choose(
-                        [ 'Press ENTER' ],
-                        { %{$sf->{i}{lyt_h}}, info => $info, prompt => $prompt }
-                    );
-                    $ax->print_sql_info( $info );
-                    next NAME;
-                }
-                else {
-
-                    if ( $cte->{full_name} =~ s/^\s*RECURSIVE\s+//i ) {
-                        $cte->{is_recursive} = 1;
-                    }
-                    push @{$sql->{ctes}}, $cte;
-                    unshift @{$sf->{d}{subquery_history}}, $query;
-                    return $cte_name;
-                }
-            }
-        }
-    }
-}
-
-
-sub choose_cte {
-    my ( $sf, $sql ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my ( $new_cte, $reset_unused ) = ( '  New CTE', '  Reset' );
-    my @pre = ( undef );
-    my $old_idx = 0;
-
-    CHOOSE_CTE: while ( 1 ) {
-        my @avail_ctes = map { '- ' . $_->{name} } @{$sql->{ctes}};
-        my $menu = [ @pre, @avail_ctes, $new_cte, $reset_unused ];
-        my $info = $ax->get_sql_info( $sql );
-        # Choose
-        my $idx = $tc->choose(
-            $menu,
-            { %{$sf->{i}{lyt_v}}, info => $info, index => 1, undef => '  <=', default => $old_idx }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! defined $idx || $idx == 0 ) {
-            return;
-        }
-        if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $old_idx == $idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $old_idx = 0;
-                next CHOOSE_CTE;
-            }
-            $old_idx = $idx;
-        }
-        if ( $menu->[$idx] eq $new_cte ) {
-            $sf->__prepare_and_add_cte( $sql );
-            $sf->{d}{cte_history} = [ @{$sql->{ctes}} ];
-            $old_idx++;
-        }
-        elsif ( $menu->[$idx] eq $reset_unused ) {
-            my $stmt_type = $sf->{d}{stmt_types}[0];
-            my $bu_ctes = [ @{$sql->{ctes}} ];
-            $sql->{ctes} = [];
-            my $stmt = $ax->get_stmt( $sql, $stmt_type, 'prepare' );
-            $sql->{ctes} = $bu_ctes;
-            if ( $stmt_type eq 'Join' ) {
-                $stmt = "SELECT * FROM " . $stmt;
-            }
-            $sf->__reset_unused_ctes( $sql, $stmt );
-            $sf->{d}{cte_history} = [ @{$sql->{ctes}} ];
-        }
-        else {
-            $idx -= @pre;
-            my $cte_name = $sql->{ctes}[$idx]{name};
-            return $cte_name;
-        }
-    }
-}
-
-
-sub __table_names_in_query {
-    my ( $sf, $stmt ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $rx_quoted_literal = $ax->regex_quoted_literal();
-    my $rx_quoted_identifier = $ax->regex_quoted_identifier();
-    my $rx_sql_elem = qr/ (?: $rx_quoted_identifier | [^',\s]+ ) /x;
-    $rx_sql_elem = qr/ $rx_sql_elem (?: \. $rx_sql_elem ){0,2} /x;
-    my $rx_split_stmt = qr/ ( $rx_quoted_literal | $rx_sql_elem | \s*,\s* ) \s+ /x;
-    my $tables = [];
-    my $implicit_join;
-    my @token = grep { length } split $rx_split_stmt, $stmt;
-
-    while ( @token ) {
-        my $t = shift @token;
-        if( $t =~ /^JOIN\z/i ) {
-            if ( @token ) {
-                push @$tables, shift @token;
-            }
-        }
-        elsif ( $t =~ /^FROM\z/i || $implicit_join ) {
-            if ( @token ) {
-                push @$tables, shift @token;
-            }
-            if ( defined $token[1] && $token[1] eq ',' ) {
-                shift @token;
-            }
-            elsif ( defined $token[2] && $token[2] eq ',' && $token[0] =~ /^AS\z/i ) {
-                shift @token;
-                shift @token;
-            }
-            $implicit_join = defined $token[0] && $token[0] eq ',' ? 1 : 0;
-        }
-    }
-    return $tables;
-}
-
-
-sub __reset_unused_ctes {
-    my ( $sf, $sql, $stmt ) = @_;
-    my $all_tables_used_in_stmts = $sf->__table_names_in_query( $stmt );
-
-    CTE: for my $cte ( reverse @{$sql->{ctes}} ) {
-        if ( any { $_ eq $cte->{name} } @$all_tables_used_in_stmts ) {
-            my $tables_in_cte = $sf->__table_names_in_query( $cte->{query} );
-            push @$all_tables_used_in_stmts, @$tables_in_cte;
-            $cte->{keep} = 1;
-        }
-    }
-    $sql->{ctes} = [ grep { delete $_->{keep} } @{$sql->{ctes}} ];
-}
-
-
-sub subquery {
-    my ( $sf, $sql ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
-
-    CHOOSE_QUERY: while ( 1 ) {
-        my ( $selected_stmt, $readline_history ) = $sf->__choose_query( $sql );
-        if ( ! defined $selected_stmt ) {
-            return;
-        }
-        my $info = $ax->get_sql_info( $sql );
-        # Readline
-        my $stmt = $tr->readline(
-            'Query: ',
-            { default => $selected_stmt, show_context => 1, info => $info, history => $readline_history }
-        );
-        $ax->print_sql_info( $info );
-        if ( ! length $stmt ) {
-            next CHOOSE_QUERY;
-        }
-        unshift @{$sf->{d}{subquery_history}}, $stmt;
-        if ( $stmt =~ /^\s*(?:SELECT|WITH)\s/i ) {
-            return "(" . $stmt . ")";
-        }
-        else {
-            return $stmt;
-        }
-    }
 }
 
 
@@ -437,7 +305,7 @@ sub __add_subqueries {
     my $tr = Term::Form::ReadLine->new( $sf->{i}{tr_default} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my ( $subquery_history, $print_history ) = $sf->__session_history();
-    my $readline = '  Read-Line';
+    my $readline = '  Read-Line'; ##
     my @pre = ( undef, $sf->{i}{_confirm}, $readline );
     my @bu;
     my $added_sq = [];
@@ -453,13 +321,13 @@ sub __add_subqueries {
         if ( @$added_sq ) {
             push @tmp_info, map( line_fold(
                 $_->{name}, get_term_width(),
-                { init_tab => '| ', subseq_tab => '    ', join => 1 }
+                { init_tab => $pf_saved_subqueries, subseq_tab => '    ', join => 1 }
             ), @$added_sq ); #
         }
         push @tmp_info, ' ';
         my $menu = [ @pre ];
-        push @$menu, map {  '- ' . $_ } @$subquery_history;
-        push @$menu, map {  '  ' . $_ } @$print_history;
+        push @$menu, map { $pf_subquery_history . $_ } @$subquery_history;
+        push @$menu, map { $pf_print_history    . $_ } @$print_history;
         my $info = join( "\n", @tmp_info );
         # Choose
         my $idx = $tc->choose(
@@ -520,7 +388,7 @@ sub __edit_subqueries {
     my @pre = ( undef );
     my $info = $sf->{d}{db_string};
     my $prompt = 'Edit Subquery:';
-    my $menu = [ @pre, map { '- ' . $_->{name} } @$saved_subqueries ];
+    my $menu = [ @pre, map { $pf_saved_subqueries . $_->{name} } @$saved_subqueries ];
     # Choose
     my $idx = $tc->choose(
         $menu,
@@ -579,7 +447,7 @@ sub __remove_subqueries {
         my $info = $sf->{d}{db_string};
         my $prompt = 'Remove subquery:';
         my @pre = ( undef );
-        my $menu = [ @pre, map { '- ' . $_->{name} } @$saved_subqueries ];
+        my $menu = [ @pre, map { $pf_saved_subqueries . $_->{name} } @$saved_subqueries ];
         my $idx = $tc->choose(
             $menu,
             { info => $info, prompt => $prompt, undef => '  <=', layout => 2, index => 1, default => $old_idx  }
@@ -620,7 +488,67 @@ sub __remove_subqueries {
 }
 
 
+sub __build_SQ {
+    my ( $sf, $caller ) = @_;
+    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $user_table_keys  = $sf->{d}{user_table_keys};
+    my $sys_table_keys   = $sf->{d}{sys_table_keys};
+    my $pf = '- ';
+    my $old_idx_tbl = 0;
 
+    TABLE: while ( 1 ) {
+        my ( $from_join, $from_union, $from_subquery, $from_cte ) = ( '  Join', '  Union', '  Subquery', '  Cte' ); ##
+        my $table;
+        my @pre = ( undef );
+        my $menu_table;
+        if ( $sf->{o}{G}{metadata} ) {
+            my $sys_prefix = $sf->{d}{is_system_schema} ? $pf : '  ';
+            $menu_table = [ @pre, map( $pf . $_, @$user_table_keys ), map( $sys_prefix . $_, @$sys_table_keys ) ];
+        }
+        else {
+            $menu_table = [ @pre, map( $pf . $_, @$user_table_keys ) ];
+        }
+        push @$menu_table, $from_subquery if $sf->{o}{enable}{m_derived};
+        push @$menu_table, $from_cte      if $sf->{o}{enable}{m_cte};
+        push @$menu_table, $from_join     if $sf->{o}{enable}{join};
+        push @$menu_table, $from_union    if $sf->{o}{enable}{union};
+        my $info = $sf->{d}{main_info};
+        my $prompt = 'Build the ' . ( $caller eq 'cte' ? 'CTE statement:' : 'subquery:' );
+        # Choose
+        my $idx_tbl = $tc->choose(
+            $menu_table,
+            { %{$sf->{i}{lyt_v}}, info => $info, prompt => $prompt, index => 1, default => $old_idx_tbl, undef => '<=' }
+        );
+        if ( defined $idx_tbl ) {
+            $table = $menu_table->[$idx_tbl];
+        }
+        if ( ! defined $table ) {
+            return;
+        }
+        if ( $sf->{o}{G}{menu_memory} ) {
+            if ( $old_idx_tbl == $idx_tbl && ! $ENV{TC_RESET_AUTO_UP} ) {
+                $old_idx_tbl = 0;
+                next TABLE;
+            }
+            $old_idx_tbl = $idx_tbl;
+        }
+        require App::DBBrowser::From; ##
+        my $fr = App::DBBrowser::From->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        my $sql = $fr->from_sql( $table =~ s/[-\ ]\ //r );
+        if ( ! defined $sql ) {
+            next TABLE;
+        }
+        $ax->print_sql_info( $ax->get_sql_info( $sql ) ); ##
+        require App::DBBrowser::Table; ##
+        my $tbl = App::DBBrowser::Table->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        my $statement = $tbl->browse_the_table( $sql, 1 );
+        if ( ! defined $statement ) {
+            next TABLE;
+        }
+        return $statement;
+    }
+}
 
 
 1;

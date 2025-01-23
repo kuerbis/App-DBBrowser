@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Union;
+App::DBBrowser::From::Union;
 
 use warnings;
 use strict;
@@ -10,7 +10,8 @@ use List::MoreUtils qw( any );
 use Term::Choose qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::Subqueries;
+use App::DBBrowser::From::Cte;
+use App::DBBrowser::Subquery;
 use App::DBBrowser::Table::Extensions;
 use App::DBBrowser::Table::Substatements;
 
@@ -41,18 +42,17 @@ sub union_tables {
     my $used_tables = [];
     my $sql = {};
     $ax->reset_sql( $sql );
-    $sql->{ctes} = [ @{$sf->{d}{cte_history}} ];
     my $old_idx_tbl = 0;
 
     TABLE: while ( 1 ) {
-        my $enough_tables = '  Enough TABLES';
-        my $derived_table = '  Derived';
-        my $cte_table     = '  Cte';
-        my $where         = '  Where';
-        my $parentheses   = '  Parentheses';
+        my $enough_tables  = '  Enough TABLES';
+        my $subquery_table = '  Subquery';
+        my $cte_table      = '  Cte';
+        my $where          = '  Where';
+        my $parentheses    = '  Parentheses';
         my @pre = ( undef, $enough_tables );
         my @post;
-        push @post, $derived_table if $sf->{o}{enable}{u_derived};
+        push @post, $subquery_table if $sf->{o}{enable}{u_derived};
         push @post, $cte_table     if $sf->{o}{enable}{u_cte};
         push @post, $where         if $sf->{o}{enable}{u_where};
         push @post, $parentheses   if $sf->{o}{enable}{u_parentheses} && $sf->{i}{driver} !~ /^(?:SQLite|Firebird)\z/;
@@ -99,22 +99,26 @@ sub union_tables {
             next TABLE;
         }
 
-        elsif ( $table eq $derived_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        elsif ( $table eq $subquery_table ) {
+            my $sq = App::DBBrowser::Subquery->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
             $table = $sq->subquery( $sql );
             if ( ! defined $table ) {
                 next TABLE;
             }
             $qt_table = $table;
-            my $default_alias = 'p' . ( @$used_tables + 1 ); ##
-            my $alias = $ax->alias( $sql, 'derived_table', $qt_table, $default_alias );
-            $qt_table .= " " . $ax->quote_alias( $alias );
+            my $default_alias = 'p' . ( @$used_tables + 1 );
+            my $bu_table_aliases = $ax->clone_data( $sf->{d}{table_aliases} ); ##
+            my $qt_alias = $ax->table_alias( $sql, 'derived_table', $qt_table, $default_alias );
+            $sf->{d}{table_aliases} = $bu_table_aliases;
+            if ( length $qt_alias ) {
+                $qt_table .= " " . $qt_alias;
+            }
         }
         elsif ( $table eq $cte_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            my $sq = App::DBBrowser::From::Cte->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
-            $table = $sq->choose_cte( $sql );
+            $table = $sq->cte( $sql );
             if ( ! defined $table ) {
                 next TABLE;
             }
@@ -122,7 +126,7 @@ sub union_tables {
         }
         else {
             $table =~ s/^-\s//;
-            $qt_table = $ax->quote_table( $sf->{d}{tables_info}{$table} );
+            $qt_table = $ax->qq_table( $sf->{d}{tables_info}{$table} );
         }
         my $operator;
         if ( @$data ) {
@@ -139,9 +143,12 @@ sub union_tables {
     }
     $sql->{subselect_stmts} = $sf->__get_sub_select_stmts( $data );
     my $union_derived_table = $ax->get_stmt( $sql, 'Union', 'prepare' );
-    my $union_alias = $ax->alias( $sql, 'derived_table', '', 'u1' );
-    $union_derived_table .= " " . $ax->quote_alias( $union_alias );
-    return $union_derived_table, $sql->{ctes};
+    delete $sql->{subselect_stmts};
+    my $qt_union_alias = $ax->table_alias( $sql, 'derived_table', $union_derived_table );
+    if ( length $qt_union_alias ) {
+        $union_derived_table .= " " . $qt_union_alias;
+    }
+    return $union_derived_table;
 }
 
 
@@ -185,7 +192,7 @@ sub __choose_table_columns {
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $idx = @$data;
     my @bu;
-    ( my $column_names, undef ) = $ax->column_names_and_types( $qt_table, $sql->{ctes} );
+    ( my $column_names, undef ) = $ax->column_names_and_types( $qt_table );
     if ( ! defined $column_names ) {
         return;
     }
@@ -241,10 +248,10 @@ sub __choose_table_columns {
             }
             else {
                 my $default = 'col_' . ( @{$data->[$idx]{chosen_qt_cols}} + 1 );
-                my $alias = $ax->alias( $sql, 'complex_cols_select', $complex_col, $default );
+                my $qt_alias = $ax->alias( $sql, 'complex_cols_select', $complex_col, $default );
                 push @bu, $ax->clone_data( $data->[$idx] );
                 push @{$data->[$idx]{chosen_qt_cols}}, $complex_col;
-                $data->[$idx]{qt_alias}{$complex_col} = $ax->quote_alias( $alias );
+                $data->[$idx]{qt_alias}{$complex_col} = $qt_alias;
             }
         }
         else {

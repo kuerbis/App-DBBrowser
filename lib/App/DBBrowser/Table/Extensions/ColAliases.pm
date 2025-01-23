@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Table::Extensions::ColumnAliases;
+App::DBBrowser::Table::Extensions::ColAliases;
 
 use warnings;
 use strict;

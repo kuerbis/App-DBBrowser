@@ -1,5 +1,5 @@
 package # hide from PAUSE
-App::DBBrowser::Join;
+App::DBBrowser::From::Join;
 
 use warnings;
 use strict;
@@ -12,8 +12,14 @@ use Term::Form::ReadLine qw();
 use Term::TablePrint     qw();
 
 use App::DBBrowser::Auxil;
-use App::DBBrowser::Subqueries;
+use App::DBBrowser::From::Cte;
+use App::DBBrowser::Subquery;
 use App::DBBrowser::Table::Substatements;
+
+
+my $join_info      = '  Info';
+my $subquery_table = '  Subquery';
+my $cte_table      = '  Cte';
 
 sub new {
     my ( $class, $info, $options, $d ) = @_;
@@ -31,16 +37,13 @@ sub new {
     else {
         $sf->{join_types} = [ 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'CROSS JOIN' ];
     }
-    $sf->{d}{stmt_types} = [ 'Join' ];
-    $sf->{join_info} = '  Info';
-    $sf->{derived_table} = '  Derived';
-    $sf->{cte_table} = '  Cte';
     bless $sf, $class;
 }
 
 
 sub join_tables {
     my ( $sf ) = @_;
+    $sf->{d}{stmt_types} = [ 'Join' ];
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tables;
@@ -56,18 +59,14 @@ sub join_tables {
     MASTER: while ( 1 ) {
         $sql = {};
         $ax->reset_sql( $sql );
-        $sql->{ctes} = [ @{$sf->{d}{cte_history}} ];
         $data = {
             used_tables => [],
             aliases => [],
             default_alias => 'a',
         };
-        my $join_info = $sf->{join_info};
-        my $derived_table = $sf->{derived_table};
-        my $cte_table = $sf->{cte_table};
         my @choices = map { "- $_" } @$tables;
-        push @choices, $derived_table if $sf->{o}{enable}{j_derived};
-        push @choices, $cte_table     if $sf->{o}{enable}{j_cte};
+        push @choices, $subquery_table if $sf->{o}{enable}{j_derived};
+        push @choices, $cte_table      if $sf->{o}{enable}{j_cte};
         push @choices, $join_info;
         my @pre = ( undef );
         my $menu = [ @pre, @choices ];
@@ -94,8 +93,8 @@ sub join_tables {
             next MASTER;
         }
         my $qt_master;
-        if ( $master eq $derived_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        if ( $master eq $subquery_table ) {
+            my $sq = App::DBBrowser::Subquery->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $master = $sq->subquery( $sql );
             if ( ! defined $master ) {
                 next MASTER;
@@ -103,8 +102,8 @@ sub join_tables {
             $qt_master = $master;
         }
         elsif ( $master eq $cte_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $master = $sq->choose_cte( $sql );
+            my $sq = App::DBBrowser::From::Cte->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $master = $sq->cte( $sql );
             if ( ! defined $master ) {
                 next MASTER;
             }
@@ -112,15 +111,15 @@ sub join_tables {
         }
         else {
             $master =~ s/^-\s//;
-            $qt_master = $ax->quote_table( $sf->{d}{tables_info}{$master} );
+            $qt_master = $ax->qq_table( $sf->{d}{tables_info}{$master} );
         }
         push @{$data->{used_tables}}, $master;
         $data->{default_alias} = 'a';
         # Alias
-        my $master_alias = $ax->alias( $sql, 'tables_in_join', $qt_master, $data->{default_alias} );
-        push @{$data->{aliases}}, [ $master, $master_alias ];
-        push @{$sql->{join_data}}, { table => $qt_master . " " . $ax->quote_alias( $master_alias ) };
-        ( $data->{col_names}{$master}, undef ) = $ax->column_names_and_types( $qt_master . " " . $ax->quote_alias( $master_alias ), $sql->{ctes} );
+        my $qt_master_alias = $ax->table_alias( $sql, 'tables_in_join', $qt_master, $data->{default_alias} );
+        push @{$data->{aliases}}, [ $master, $ax->unquote_identifier( $qt_master_alias ) ];
+        push @{$sql->{join_data}}, { table => $qt_master . " " . $qt_master_alias };
+        ( $data->{col_names}{$master}, undef ) = $ax->column_names_and_types( $qt_master . " " . $qt_master_alias );
         if ( ! defined $data->{col_names}{$master} ) {
             next MASTER;
         }
@@ -194,15 +193,14 @@ sub join_tables {
     for my $table ( @{$data->{used_tables}} ) {
         for my $table_alias ( @{$aliases_hash->{$table}} ) {
             for my $col ( @{$data->{col_names}{$table}} ) {
-                my $col_qt = $ax->quote_column( $table_alias, $col );
-                #my $col_qt = $ax->quote_column( $qualified_column_names ? ( $table_alias, $col ) : ( $col ) ); ##
+                my $col_qt = $ax->qualified_identifier( $ax->quote_alias( $table_alias ), $ax->quote_column( $col ) );
                 if ( any { $_ eq $col_qt } @$qt_columns ) {
                     next;
                 }
                 if ( $sf->{o}{alias}{join_columns} && $col_names{lc $col} > 1 ) {
-                    my $alias = $ax->alias( $sql, 'join_columns', $col_qt, $table_alias . '_' . $col );
-                    if ( $alias ) {
-                        $qt_aliases->{$col_qt} = $ax->quote_alias( $alias );
+                    my $qt_alias = $ax->alias( $sql, 'join_columns', $col_qt, $table_alias . '_' . $col );
+                    if ( length $qt_alias ) {
+                        $qt_aliases->{$col_qt} = $qt_alias;
                     }
                 }
                 push @$qt_columns, $col_qt;
@@ -210,8 +208,7 @@ sub join_tables {
         }
     }
     my $qt_table = $ax->get_stmt( $sql, 'Join', 'prepare' );
-    my $ctes = $sql->{ctes};
-    return $qt_table, $qt_columns, $qt_aliases, $ctes;
+    return $qt_table, $qt_columns, $qt_aliases;
 }
 
 
@@ -219,11 +216,8 @@ sub __add_slave_with_join_condition {
     my ( $sf, $sql, $data, $tables ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $join_info = $sf->{join_info};
-    my $derived_table = $sf->{derived_table};
-    my $cte_table = $sf->{cte_table};
     my @choices = map { '- '. $_ } @$tables;
-    push @choices, $derived_table if $sf->{o}{enable}{j_derived};
+    push @choices, $subquery_table if $sf->{o}{enable}{j_derived};
     push @choices, $cte_table     if $sf->{o}{enable}{j_cte};
     push @choices, $join_info;
     my $old_idx_slave = 0;
@@ -257,8 +251,8 @@ sub __add_slave_with_join_condition {
         my $slave = $menu->[$idx_slave];
         my $bu_data = $ax->clone_data( $data );
         my $qt_slave;
-        if ( $slave eq $derived_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
+        if ( $slave eq $subquery_table ) {
+            my $sq = App::DBBrowser::Subquery->new( $sf->{i}, $sf->{o}, $sf->{d} );
             $slave = $sq->subquery( $sql );
             if ( ! defined $slave ) {
                 next SLAVE;
@@ -266,8 +260,8 @@ sub __add_slave_with_join_condition {
             $qt_slave = $slave;
         }
         elsif ( $slave eq $cte_table ) {
-            my $sq = App::DBBrowser::Subqueries->new( $sf->{i}, $sf->{o}, $sf->{d} );
-            $slave = $sq->choose_cte( $sql );
+            my $sq = App::DBBrowser::From::Cte->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $slave = $sq->cte( $sql );
             if ( ! defined $slave ) {
                 next SLAVE;
             }
@@ -275,14 +269,14 @@ sub __add_slave_with_join_condition {
         }
         else {
             $slave =~ s/^-\s//;
-            $qt_slave = $ax->quote_table( $sf->{d}{tables_info}{$slave} );
+            $qt_slave = $ax->qq_table( $sf->{d}{tables_info}{$slave} );
         }
         push @{$data->{used_tables}}, $slave;
         # Alias
-        my $slave_alias = $ax->alias( $sql, 'tables_in_join', $qt_slave, ++$data->{default_alias} );
-        $sql->{join_data}[-1]{table} = $qt_slave . " " . $ax->quote_alias( $slave_alias );
-        push @{$data->{aliases}}, [ $slave, $slave_alias ];
-        ( $data->{col_names}{$slave}, undef ) = $ax->column_names_and_types( $qt_slave . " " . $ax->quote_alias( $slave_alias ), $sql->{ctes} );
+        my $qt_slave_alias = $ax->table_alias( $sql, 'tables_in_join', $qt_slave, ++$data->{default_alias} );
+        $sql->{join_data}[-1]{table} = $qt_slave . " " . $qt_slave_alias;
+        push @{$data->{aliases}}, [ $slave, $ax->unquote_identifier( $qt_slave_alias ) ];
+        ( $data->{col_names}{$slave}, undef ) = $ax->column_names_and_types( $qt_slave . " " . $qt_slave_alias );
         if ( ! defined $data->{col_names}{$slave} ) {
             $sf->__reset_to_backuped_join_data( $sql, $data, $bu_data );
             next SLAVE;
@@ -323,7 +317,10 @@ sub __add_join_condition {
     for my $used_table ( uniq @{$data->{used_tables}} ) {           # self join: a table name is used more than once
         for my $table_alias ( @{$aliases_hash->{$used_table}} ) {   # self join: a table has more than one alias
             for my $col ( @{$data->{col_names}{$used_table}} ) {
-                push @$cols_join_condition, $ax->quote_column( $table_alias, $col );
+                push @$cols_join_condition, $ax->qualified_identifier(
+                    $ax->quote_alias( $table_alias ),
+                    $ax->quote_column( $col )
+                );
             }
         }
     }
