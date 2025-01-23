@@ -424,7 +424,7 @@ sub run {
 
                 TABLE: while ( 1 ) {
 
-                    my ( $from_join, $from_union, $from_subquery, $from_cte ) = ( '  Join', '  Union', '  Subquery', '  Cte' );
+                    my ( $from_join, $from_union, $from_subquery, $from_cte ) = ( '  Join', '  Union', '  Subquery', '  Cte' ); ##
                     my $hidden = $db_string;
                     my $table;
                     if ( $sf->{redo_table} ) {

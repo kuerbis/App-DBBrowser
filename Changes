@@ -6,6 +6,7 @@ Revision history for App-DBBrowser
         - A new way to create subqueries: build the subquery using the sql menu.
         - Update input filter Range_Rows
         - Added the exists and not exists operator.
+        - Udate and delete statement: do not remove the table alias.
 
 2.421  2025-01-09
         - Update join condition.

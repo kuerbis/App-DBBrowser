@@ -72,7 +72,7 @@ sub __stmt_fold {
 sub __cte_stmts {
     my ( $sf, $used_for, $indent1 ) = @_;
     #if ( ! @{$sf->{d}{cte_history}//[]} ) {
-    #    return '';
+    #    return wantarray ? () : '';
     #}
     my $ctes = $sf->{d}{cte_history};
     my $with = "WITH";

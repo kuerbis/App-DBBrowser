@@ -55,7 +55,7 @@ sub browse_the_table {
     );
     my @choices = ( $print_table, $select, $aggregate, $distinct, $where, $group_by, $having, $order_by, $limit, $export );
     my @pre = ( $hidden, undef );
-    my ( $return_statement, $hidden_print ) = ( 'Return the subquery', 'Your choice:' ); # doc hidden_print
+    my ( $return_statement, $hidden_print ) = ( 'Return the subquery', 'Your choice:' );
     if ( $build_SQ ) {
         $choices[0] = $return_statement;
         @pre = ( $hidden_print, undef );
