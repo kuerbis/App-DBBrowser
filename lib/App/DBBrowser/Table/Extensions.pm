@@ -75,9 +75,9 @@ sub column {
             $extensions = [ grep { ! /^\Q$e_window_func\E\z/ } @$extensions ];
         }
     }
-    my $last_idx = $#$r_data;
+    #my $last_idx = $#$r_data;
     my $ext_column = $sf->__choose_extension( $sql, $clause, $r_data, 'column', $extensions, $opt );
-    die if $#$r_data != $last_idx;
+    #die if $#$r_data != $last_idx;
     return $ext_column;
 }
 
@@ -112,9 +112,9 @@ sub value {
             $extensions = [ $e_const ];
         }
     }
-    my $last_idx = $#$r_data;
+    #my $last_idx = $#$r_data;
     my $ext_value = $sf->__choose_extension( $sql, $clause, $r_data, 'value', $extensions, $opt );
-    die if $#$r_data != $last_idx;
+    #die if $#$r_data != $last_idx;
     return $ext_value;
 }
 
@@ -130,9 +130,9 @@ sub argument {
     else {
         $extensions = [ $e_const ];
     }
-    my $last_idx = $#$r_data;
+    #my $last_idx = $#$r_data;
     my $ext_argument = $sf->__choose_extension( $sql, $clause, $r_data, 'argument', $extensions, $opt );
-    die if $#$r_data != $last_idx;
+    #die if $#$r_data != $last_idx;
     return $ext_argument;
 }
 
