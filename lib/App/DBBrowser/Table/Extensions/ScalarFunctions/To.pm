@@ -197,7 +197,7 @@ sub function_to_epoch {
     }
     elsif ( $driver eq 'Oracle' ) {
         my $args_data = [
-            { prompt => 'Column type: ', unquote => 1, history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ], history_only => 1 }
+            { prompt => 'Column type: ', unquote => 1, history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ], history_only => 1 } ##
         ];
         my ( $column_type ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
         $column_type = uc $column_type;
