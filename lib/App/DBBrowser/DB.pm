@@ -200,7 +200,9 @@ sub tables_info { # not documented
     my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
     my $driver = $sf->get_db_driver();
     if ( $sf->{Plugin}->can( 'tables_info' ) ) {
-        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
+        #return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
+        my ( $tables_info, $user_table_keys, $sys_table_keys ) = $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema ); # ###
+        return $tables_info, $user_table_keys, $sys_table_keys;
     }
     my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {
@@ -370,164 +372,7 @@ Returns the database handle.
 
 C<db-browser> expects a C<DBI> database handle with the attribute I<RaiseError> activated.
 
-=head2 Optional methods
-
-=head4 get_schemas( $dbh, $database )
-
-C<$dbh> is the database handle returned by the method C<db_hanlde>.
-
-If the driver is C<SQLite>, a third argument is passed to C<get_schemas>; if the database has attached databases, the
-third argument is true, otherwise it is false.
-
-Returns the user schemas as an array reference and the system schemas as an array reference (if any).
-
-If the option I<System data> is true, user schemas and system schemas are used, otherwise only the user schemas are used.
-
-=begin comment
-
-=head3 DB configuration methods
-
-If the following methods are available, the C<db-browser> user can configure the different database settings in the
-options menu.
-
-If the database driver is C<SQLite>, only C<set_attributes> is used.
-
-=head4 read_login_data()
-
-Returns a reference to an array of hashes. The hashes have one or two key-value pairs:
-
-    { name => 'string', secret => true/false }
-
-C<name> holds the field name for example like "user" or "host".
-
-If C<secret> is true, the user input should not be echoed to the terminal. Also the data is not stored in the plugin
-configuration file if C<secret> is true.
-
-An example C<read_login_data> method:
-
-    sub read_login_data {
-        my ( $self ) = @_;
-        return [
-            { name => 'host', secret => 0 },
-            { name => 'port', secret => 0 },
-            { name => 'user', secret => 0 },
-            { name => 'pass', secret => 1 },
-        ];
-    }
-
-The information returned by the method C<read_login_data> is used to build the I<DB Settings> menu entry I<Fields> and
-I<Login Data>.
-
-=head4 env_variables()
-
-Returns a reference to an array of environment variables.
-
-An example C<env_variables> method:
-
-    sub env_variables {
-        my ( $self ) = @_;
-        return [ qw( DBI_HOST DBI_PORT DBI_USER DBI_PASS ) ];
-    }
-
-See the option I<ENV Variables> in I<DB Settings>.
-
-=head4 set_attributes()
-
-Returns a reference to an array of hashes. The hashes have two or three key-value pairs:
-
-    { name => 'string', default => index, values => [ value_1, value_2, value_3, ... ] }
-
-The value of C<name> is the name of the database connection attribute.
-
-C<values> holds the available values for that attribute as an array reference.
-
-The C<values> array entry of the index position C<default> is used as the default value.
-
-Example from the plugin C<App::DBBrowser::DB::SQLite>:
-
-    sub set_attributes {
-        my ( $self ) = @_;
-        return [
-            { name => 'sqlite_unicode',             default => 1, values => [ 0, 1 ] },
-            { name => 'sqlite_see_if_its_a_number', default => 1, values => [ 0, 1 ] },
-        ];
-    }
-
-The information returned by the method C<set_attributes> is used to build the menu entry I<Set Attributes> in
-L<db-browser/OPTIONS>.
-
-=head4 read_attributes()
-
-Returns a reference to an array of hashes. The hashes have one to two key-value pairs:
-
-    { name => 'string', prompt => 'string' }
-
-The value of C<name> is the name of the database connection attribute.
-
-The value of C<default> is used as the default value. The C<default> entry is optional.
-
-Example from the plugin C<App::DBBrowser::DB::Firebird>:
-
-    sub read_attributes {
-        my ( $sf ) = @_;
-        return [
-            { name => 'ib_dialect',                   },
-            { name => 'ib_role',                      },
-            { name => 'ib_charset', default => 'UTF8' },
-        ];
-    }
-
-The information returned by the method C<read_attributes> is used to build the menu entry I<Read Attributes> in
-L<db-browser/OPTIONS>.
-
-The I<DB Options> can be accessd with the module C<App::DBBrowser::Opt::DBGet> as shown here in an example
-for a C<mysql> database:
-
-    use App::DBBrowser::Opt::DBGet;
-
-    my $db_opt_get = App::DBBrowser::Opt::DBGet->new( $info, $opt );
-
-    my $login_data  = $db_opt_get->login_data( $db );
-    my $env_var_yes = $db_opt_get->enabled_env_vars( $db );
-    my $attributes  = $db_opt_get->attributes( $db );
-
-If C<$db> is defined, the settings for C<$db> are returned else the global plugin settings are returned.
-
-The available C<$login_data> keys are the result of the I<Fields>* settings, the C<name> values are the result of the
-I<Login Data>* settings:
-
-    $login_data:
-    {
-        host => { name => 'localhost', secret => 0 },
-        user => { name => 'user_name', secret => 0 },
-        pass => { name => undef,       secret => 1 },
-    }
-
-
-The result of the I<ENV Variables>* settings:
-
-    $env_var_yes:
-    {
-        DBI_HOST => 1,
-        DBI_PORT => 1,
-        DBI_USER => 0,
-        DBI_PASS => 0,
-    }
-
-The result of the I<Attributes>* settings:
-
-    $attributes:
-    {
-        mysql_enable_utf8        => 0,
-        mysql_enable_utf8mb4     => 1,
-        mysql_bind_type_guessing => 1,
-    }
-
-* OPTIONS/DB Options/DB Settings/$plugin
-
-=end comment
-
-=head1 EXAMPLE
+=head3 EXAMPLE
 
     package App::DBBrowser::DB::MyPlugin;
     use strict;
@@ -558,6 +403,65 @@ The result of the I<Attributes>* settings:
     }
 
     1;
+
+=head2 Optional methods
+
+=head4 get_schemas( $dbh, $database )
+
+C<$dbh> is the database handle returned by the method C<db_hanlde>.
+
+If the driver is C<SQLite>, a third argument is passed to C<get_schemas>; if the database has attached databases, the
+third argument is true, otherwise it is false.
+
+Returns the user schemas as an array reference and the system schemas as an array reference (if any).
+
+If the option I<System data> is true, user schemas and system schemas are used, otherwise only the user schemas are used.
+
+=head4 tables_info( $dbh, $schema, $is_system_schema )
+
+C<$dbh> is the database handle and C<$schema> is the schema name. If C<is_system_schema> is true, then the schema is a
+system schema.
+
+Returns three values:
+
+The first value is a hash reference where the keys are the table keys (table names), and the values are array references
+containing the following elements: table category, table schema, table name, and table type.
+
+The second value is an array reference containing the list of user table keys.
+
+The third value is an array reference containing the list of system table keys.
+
+=head4 EXAMPLE
+
+    sub tables_info {
+        my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
+        my $sth = $dbh->table_info( undef, $schema, '%', '' );
+        my $table_cat   = 'TABLE_CAT';
+        my $table_schem = 'TABLE_SCHEM';
+        my $table_name  = 'TABLE_NAME';
+        my $table_type  = 'TABLE_TYPE';
+        my @fields = ( $table_cat, $table_schem, $table_name, $table_type );
+        my $info_tables = $sth->fetchall_arrayref( { map { $_ => 1 } @fields } );
+        my ( @user_table_keys, @sys_table_keys );
+        my $tables_info = {};
+
+        for my $info_table ( @$info_tables ) {
+            my $table_key = $info_table->{$table_name};
+            if ( $is_system_schema ) {
+                push @sys_table_keys, $table_key;
+            }
+            else {
+                if ( $info_table->{$table_type} =~ /^SYSTEM/ ) {
+                    push @sys_table_keys, $table_key;
+                }
+                else {
+                    push @user_table_keys, $table_key;
+                }
+            }
+            $tables_info->{$table_key} = [ @{$info_table}{@fields} ];
+        }
+        return $tables_info, [ sort @user_table_keys ], [ sort @sys_table_keys ];
+    }
 
 =head1 AUTHOR
 

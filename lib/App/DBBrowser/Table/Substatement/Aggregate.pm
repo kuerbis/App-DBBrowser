@@ -150,8 +150,9 @@ sub __op_group_concat {
     my ( $sf, $sql, $clause, $col, $prepared_aggr, $r_data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $driver = $sf->{i}{driver};
     my $is_distinct = $prepared_aggr =~ /DISTINCT\s\z/;
-    if ( $sf->{i}{driver} eq 'Pg' ) {
+    if ( $driver eq 'Pg' ) {
         $prepared_aggr .= $ax->pg_column_to_text( $sql, $col );
     }
     else {
@@ -159,11 +160,11 @@ sub __op_group_concat {
     }
     my $sep = ',';
     my $order_by_stmt;
-    if (      $sf->{i}{driver} =~ /^(?:mysql|MariaDB|Pg)\z/
-         || ( $sf->{i}{driver} =~ /^(?:DB2|Oracle)\z/ && ! $is_distinct )
+    if (      $driver =~ /^(?:mysql|MariaDB|Pg)\z/
+         || ( $driver =~ /^(?:DB2|Oracle)\z/ && ! $is_distinct )
     ) {
         my $read = ':Read';
-        if ( $sf->{i}{driver} eq 'Pg' && $is_distinct ) {
+        if ( $driver eq 'Pg' && $is_distinct ) {
             $col = $ax->pg_column_to_text( $sql, $col );
         }
         my @choices = (
@@ -203,7 +204,7 @@ sub __op_group_concat {
             $order_by_stmt = "ORDER BY " . $choice;
         }
     }
-    if ( $sf->{i}{driver} eq 'SQLite' ) {
+    if ( $driver eq 'SQLite' ) {
         if ( $is_distinct ) {
             # https://sqlite.org/forum/info/221c2926f5e6f155
             # SQLite: GROUP_CONCAT with DISTINCT and custom seperator does not work
@@ -214,7 +215,7 @@ sub __op_group_concat {
             $prepared_aggr .= ",'$sep')";
         }
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         if ( $order_by_stmt ) {
             $prepared_aggr .= " $order_by_stmt SEPARATOR '$sep')";
         }
@@ -222,7 +223,7 @@ sub __op_group_concat {
             $prepared_aggr .= " SEPARATOR '$sep')";
         }
     }
-    elsif ( $sf->{i}{driver} eq 'Pg' ) {
+    elsif ( $driver eq 'Pg' ) {
         # Pg, STRING_AGG:
         # separator mandatory
         # expects text type as argument
@@ -234,10 +235,10 @@ sub __op_group_concat {
             $prepared_aggr .= ",'$sep')";
         }
     }
-    elsif ( $sf->{i}{driver} eq 'Firebird' ) {
+    elsif ( $driver eq 'Firebird' ) {
         $prepared_aggr .= ",'$sep')";
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:DB2|Oracle)\z/ ) {
+    elsif ( $driver =~ /^(?:DB2|Oracle)\z/ ) {
         # No order with distinct
         # DB2 codes: error code -214 - error caused by:
         # DISTINCT is specified in the SELECT clause, and a column name or sort-key-expression in the
