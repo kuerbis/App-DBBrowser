@@ -85,6 +85,12 @@ sub __add_date_subtract_date {
         return "$col - $amount * INTERVAL '1 $unit'" if $func eq 'DATE_SUBTRACT';
         return "$col + $amount * INTERVAL '1 $unit'";
     }
+
+    if ( $driver eq 'DuckDB' ) {
+        return "DATE_ADD($col,INTERVAL '-$amount' $unit)" if $func eq 'DATE_SUBTRACT';
+        return "DATE_ADD($col,INTERVAL $amount $unit)";
+    }
+
     if ( $driver eq 'DB2' ) {
         return "ADD_${unit}S($col,-$amount)" if $func eq 'DATE_SUBTRACT';
         return "ADD_${unit}S($col,$amount)";
@@ -118,7 +124,7 @@ sub function_date_trunc {
     if ( ! defined $col ) {
         return;
     }
-    my $history = [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND MILLISECONDS MICROSECONDS DECADE CENTURY MILLENNIUM) ];
+    my $history = [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND MILLISECONDS MICROSECONDS DECADE CENTURY MILLENNIUM) ]; ##
     my $args_data = [
         { prompt => 'Field: ', unquote => 0, history => $history },
     ];
@@ -143,10 +149,12 @@ sub function_date_part {
         return;
     }
     my $history;
-    if ( $driver eq 'Pg' ) {
+    if ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
         $history = [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND MILLISECONDS MICROSECONDS EPOCH JULIAN
                         DOW DOY TIMEZONE TIMEZONE_HOUR TIMEZONE_MINUTE ISODOW ISOYEAR DECADE CENTURY MILLENNIUM) ];
+        push @$history, qw(YEARWEEK ERA) if $driver eq 'DuckDB';
     }
+
     my $args_data = [
         { prompt => 'Field: ', unquote => 0, history => $history },
     ];
@@ -176,9 +184,10 @@ sub function_extract {
                         DAY_SECOND DAY_MICROSECOND HOUR_MINUTE HOUR_SECOND HOUR_MICROSECOND MINUTE_SECOND
                         MINUTE_MICROSECOND SECOND_MICROSECOND) ];
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
         $history = [ qw(YEAR QUARTER MONTH WEEK DAY HOUR MINUTE SECOND MILLISECONDS MICROSECONDS EPOCH JULIAN
                         DOW DOY TIMEZONE TIMEZONE_HOUR TIMEZONE_MINUTE ISODOW ISOYEAR DECADE CENTURY MILLENNIUM) ];
+        push @$history, qw(YEARWEEK ERA) if $driver eq 'DuckDB';
     }
     elsif ( $driver eq 'Firebird' ) {
         $history = [ qw(YEAR QUARTER MONTH WEEK DAY WEEKDAY YEARDAY HOUR MINUTE SECOND MILLISECOND) ]; # 4.0: TIMEZONE_HOUR TIMEZONE_MINUTE
@@ -246,19 +255,30 @@ sub function_time {
     return $sf->__sqlite_date_functions( $sql, $clause, $func, $cols, $r_data );
 }
 
+
 sub function_datetime {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
     return $sf->__sqlite_date_functions( $sql, $clause, $func, $cols, $r_data );
 }
 
-sub function_julianday {
-    my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
-    return $sf->__sqlite_date_functions( $sql, $clause, $func, $cols, $r_data );
-}
 
-sub function_unixepoch {
+sub function_julian_day {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
-    return $sf->__sqlite_date_functions( $sql, $clause, $func, $cols, $r_data );
+    my $driver = $sf->{i}{driver};
+    if ( $driver eq 'SQLite' ) {
+        return $sf->__sqlite_date_functions( $sql, $clause, 'JULIANDAY', $cols, $r_data );
+    }
+    my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
+    if ( ! defined $col ) {
+        return;
+    }
+    elsif ( $driver eq 'DuckDB' ) {
+        return "JULIAN($col)";
+    }
+    else {
+        return "JULIAN_DAY($col)";
+    }
 }
 
 
@@ -314,6 +334,11 @@ sub function_datediff {
             { prompt => 'Unit: ', unquote => 1, history => [ qw(YEAR MONTH WEEK DAY HOUR MINUTE SECOND MILLISECOND) ] }
         ];
     }
+    elsif ( $driver eq 'DuckDB' ) {
+        $args_data = [
+            { prompt => 'Unit: ', unquote => 0, history => [ qw(YEAR QUARTER MONTH DAY HOUR MINUTE SECOND MILLISECOND MICROSECOND CENTURY DECADE MILLENNIUM) ] }
+        ];
+    }
     else {
         $args_data = [
             { prompt => 'Unit: ', unquote => 1, history => [ qw(YEAR MONTH DAY HOUR MINUTE SECOND) ], history_only => 1 }
@@ -367,6 +392,10 @@ sub function_datediff {
         return $minute_diff                                                                                                                         if $unit eq 'MINUTE';
         return "TRUNC(($minute_diff) * 60 + (DATE_PART('SECOND',$end_date) - DATE_PART('SECOND',$start_date)))"                                     if $unit eq 'SECOND';
     }
+    elsif ( $driver eq 'DuckDB' ) {
+        return "DATE_DIFF($unit,$start_date,$end_date)";
+    }
+
     elsif ( $driver eq 'Firebird' ) {
         return "DATEDIFF($unit,$start_date,$end_date)";
     }

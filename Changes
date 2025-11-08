@@ -1,10 +1,13 @@
 Revision history for App-DBBrowser
 
 
-2.437_01  2025-00-00
-        - Make App::DBBrowser::DB::tables_info overwritable.
+2.437_02  2025-00-00
+        - Added 'tables_info' to the plugin documentation.
         - Removed comment from the App::DBBrowser::DB POD.
         - Bugfix in App::DBBrowser::Opt::Set::set_options.
+        - Bugfixes in format functions.
+        - Code adjustments for DuckDB.
+        - Refactoring scalar functions.
 
 2.436  2025-10-24
         - Skip unnecessary step when extended values/arguments are disabled.

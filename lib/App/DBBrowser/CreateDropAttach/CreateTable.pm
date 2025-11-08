@@ -357,7 +357,7 @@ sub __autoincrement_column {
 
 
 sub __primary_key_autoincrement_constraint {
-    # provide "primary_key_autoincrement_constraint" only if also "first_col_is_autoincrement" is available
+    # provide "primary_key_autoincrement_constraint" only if also "first_col_is_autoincrement" in InsertUpdateDelete.pm is available
     my ( $sf ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
@@ -431,6 +431,7 @@ sub __edit_column_types {
     my ( $sf, $sql, $data_types ) = @_;
     my $tf = Term::Form->new( $sf->{i}{tf_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $driver = $sf->{i}{driver};
     my $fields;
     if ( ! %$data_types && $sf->{o}{create}{data_type_guessing} ) {
         $ax->print_sql_info( $ax->get_sql_info( $sql ), 'Column data types: guessing ... ' );
@@ -459,12 +460,12 @@ sub __edit_column_types {
         unshift @$fields, [ $sql->{ct_column_definitions}[0], $sf->__primary_key_autoincrement_constraint() ];
         $read_only = [ 0 ];
     }
-    if ( $sf->{i}{driver} =~ /^(?:Pg|Firebird|Informix|Oracle)\z/ ) {
+    if ( $driver =~ /^(?:Pg|DuckDB|Firebird|Informix|Oracle)\z/ ) {
         for my $field ( @$fields ) {
             if ( defined $field->[1] && $field->[1] eq 'DATETIME' ) {
-                $field->[1] = 'TIMESTAMP'                 if $sf->{i}{driver} =~ /^(?:Pg|Firebird)\z/;
-                $field->[1] = 'DATE'                      if $sf->{i}{driver} eq 'Oracle';
-                $field->[1] = 'DATETIME YEAR TO FRACTION' if $sf->{i}{driver} eq 'Informix';
+                $field->[1] = 'TIMESTAMP'                 if $driver =~ /^(?:Pg|DuckDB|Firebird)\z/;
+                $field->[1] = 'DATE'                      if $driver eq 'Oracle';
+                $field->[1] = 'DATETIME YEAR TO FRACTION' if $driver eq 'Informix';
                 # Informix: DATETIME largest_qualifier TO smallest_qualifier
             }
         }

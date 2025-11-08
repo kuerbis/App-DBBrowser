@@ -453,7 +453,7 @@ sub __add_frame_clause {
     my $ext = App::DBBrowser::Table::Extensions->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @frame_clause_modes = ( 'ROWS', 'RANGE' );
-    if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
+    if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|DuckDB|Oracle)\z/ ) {
         push @frame_clause_modes, 'GROUPS';
     }
     if ( ! length $win_data->{$frame_mode} ) {
@@ -492,7 +492,7 @@ sub __add_frame_clause {
             my @pre = ( undef, $confirm );
             my ( $frame_start, $frame_end, $frame_exclusion ) = ( '- Add Frame start', '- Add Frame end', '- Add Frame exclusion' );
             my $menu = [ @pre, $frame_start, $frame_end ];
-            if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|Oracle)\z/ ) {
+            if ( $sf->{i}{driver} =~ /^(?:SQLite|Pg|DuckDB|Oracle)\z/ ) {
                 push @$menu, $frame_exclusion;
             }
             $r_data->[-1] = [ 'win', $sf->__get_win_func_stmt( $win_data, $frame_mode ) ];

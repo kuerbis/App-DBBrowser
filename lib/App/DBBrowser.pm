@@ -201,7 +201,7 @@ sub run {
             next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
             last PLUGIN;
         }
-        $prefix = $driver =~ /^(?:SQLite|Firebird)\z/ ? '' : '- ';
+        $prefix = $driver =~ /^(?:SQLite|DuckDB|Firebird)\z/ ? '' : '- ';
         if ( $sf->{o}{G}{metadata} ) {
             if ( $prefix ) {
                 @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
@@ -308,7 +308,7 @@ sub run {
                     my $attached_db = $h_ref->{$db} // {};
                     if ( %$attached_db ) {
                         for my $key ( sort keys %$attached_db ) {
-                            my $stmt = sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $attached_db->{$key} ), $dbh->quote( $key );
+                            my $stmt = sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $attached_db->{$key} ), $dbh->quote( $key ); ##
                             $dbh->do( $stmt );
                         }
                         $sf->{d}{db_attached} = 1;

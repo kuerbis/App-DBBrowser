@@ -351,7 +351,7 @@ sub get_sql_info {
 
 sub sql_limit {
     my ( $sf, $rows ) = @_;
-    if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg)\z/ ) {
+    if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg|DuckDB)\z/ ) {
         return " LIMIT $rows";
     }
     elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {

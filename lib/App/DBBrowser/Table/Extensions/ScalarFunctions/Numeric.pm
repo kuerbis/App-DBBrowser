@@ -21,7 +21,7 @@ sub new {
 sub function_rand {
     my ( $sf ) = @_;
     my $driver = $sf->{i}{driver};
-    return "RANDOM()"          if $driver =~ /^(?:SQLite|Pg)\z/;
+    return "RANDOM()"          if $driver =~ /^(?:SQLite|Pg|DuckDB)\z/;
     return "DBMS_RANDOM.VALUE" if $driver eq 'Oracle';
     return "RAND()";
 }
@@ -52,6 +52,9 @@ sub __round_trunc_truncate {
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
     if ( ! defined $col ) {
         return;
+    }
+    if ( $driver eq 'DuckDB' && $func eq 'TRUNC' ) {
+        return "$func($col)";
     }
     my $args_data = [
         { prompt => 'Decimal places: ', is_numeric => 1 }

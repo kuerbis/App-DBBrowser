@@ -200,9 +200,7 @@ sub tables_info { # not documented
     my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
     my $driver = $sf->get_db_driver();
     if ( $sf->{Plugin}->can( 'tables_info' ) ) {
-        #return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
-        my ( $tables_info, $user_table_keys, $sys_table_keys ) = $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema ); # ###
-        return $tables_info, $user_table_keys, $sys_table_keys;
+        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
     }
     my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {

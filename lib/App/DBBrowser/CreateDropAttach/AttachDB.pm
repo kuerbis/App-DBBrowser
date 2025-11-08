@@ -108,7 +108,7 @@ sub attach_db {
 
 sub __attach_stmt {
     my ( $dbh, $db, $alias ) = @_;
-    return sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $db ), $dbh->quote( $alias );
+    return sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $db ), $dbh->quote( $alias ); ##
 }
 
 

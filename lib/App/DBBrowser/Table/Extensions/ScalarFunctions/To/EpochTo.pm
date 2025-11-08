@@ -228,7 +228,7 @@ sub __stmt_epoch_to_date {
     elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         return "FROM_UNIXTIME($col/$interval,'%Y-%m-%d')";
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) { ##
         return "TO_TIMESTAMP(${col}::bigint/$interval)::date";
     }
     elsif ( $driver eq 'Firebird' ) {
@@ -259,7 +259,7 @@ sub __stmt_epoch_to_timestamp {
     my ( $sf, $col, $interval ) = @_;
     #my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
-    if ( $driver eq 'Pg' ) {
+    if ( $driver =~ /^(?:Pg|DuckDB)\z/ ) { ##
         return "TO_TIMESTAMP(${col}::bigint)::timestamptz"              if $interval == 1;
         return "TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamptz";
     }
@@ -305,6 +305,16 @@ sub __stmt_epoch_to_datetime {
         return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp,'yyyy-mm-dd hh24:mi:ss.ff3')" if $interval == 1_000;
         return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp,'yyyy-mm-dd hh24:mi:ss.ff6')";
     }
+
+
+    elsif ( $driver eq 'DuckDB' ) {
+        return "TO_TIMESTAMP($col)::timestamp"                                            if $interval == 1;
+        return "STRFTIME(TO_TIMESTAMP($col/$interval)::timestamp,'%Y-%m-%d %H:%M:%S.%g')" if $interval == 1_000;
+        return "TO_TIMESTAMP($col/$interval)::timestamp";
+    }
+
+
+
     elsif ( $driver eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
         my $firebird_major_version = 3; ##

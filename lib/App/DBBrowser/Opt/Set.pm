@@ -138,8 +138,7 @@ sub _options {
 sub set_options {
     my ( $sf, $arg_group ) = @_;
     if ( ! $sf->{o} || ! %{$sf->{o}} ) {
-        #my $opt_get = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} ); # ###
-        my $opt_get = App::DBBrowser::Opt::Get->new( $sf->{i}, $sf->{o} ); # ###
+        my $opt_get = App::DBBrowser::Opt::Get->new( $sf->{i}, $sf->{o} );
         $sf->{o} = $opt_get->read_config_files();
     }
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );

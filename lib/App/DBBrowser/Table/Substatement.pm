@@ -500,7 +500,7 @@ sub offset {
 
 sub __limit_and_offset_variables {
     my ( $sf ) = @_;
-    my $use_limit = $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg|Informix)\z/ ? 1 : 0;
+    my $use_limit = $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg|DuckDB|Informix)\z/ ? 1 : 0;
     my $max_digits = 7;
     return $use_limit, $max_digits;
 }

@@ -29,7 +29,7 @@ sub __group_concat {
     if ( $driver =~ /^(?:SQLite|mysql|MariaDB)\z/ ) {
         $group_concat = "GROUP_CONCAT";
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
         $group_concat = "STRING_AGG";
     }
     elsif ( $driver eq 'Firebird' ) {
@@ -160,14 +160,14 @@ sub __op_group_concat {
     }
     my $sep = ',';
     my $order_by_stmt;
-    if (      $driver =~ /^(?:mysql|MariaDB|Pg)\z/
+    if (      $driver =~ /^(?:mysql|MariaDB|Pg|DuckDB)\z/
          || ( $driver =~ /^(?:DB2|Oracle)\z/ && ! $is_distinct )
     ) {
         my $read = ':Read';
         if ( $driver eq 'Pg' && $is_distinct ) {
             $col = $ax->pg_column_to_text( $sql, $col );
         }
-        my @choices = (
+        my @choices = ( ##
             "$col ASC",
             "$col DESC",
             $read,
@@ -223,11 +223,11 @@ sub __op_group_concat {
             $prepared_aggr .= " SEPARATOR '$sep')";
         }
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
         # Pg, STRING_AGG:
-        # separator mandatory
-        # expects text type as argument
-        # with DISTINCT the STRING_AGG col and the ORDER BY col must be identical
+        # - separator mandatory
+        # - expects text type as argument
+        # - with DISTINCT the STRING_AGG col and the ORDER BY col must be identical
         if ( $order_by_stmt ) {
             $prepared_aggr .= ",'$sep' $order_by_stmt)";
         }

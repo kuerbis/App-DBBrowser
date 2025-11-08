@@ -107,6 +107,9 @@ sub __rpad_lpad {
     if ( ! defined $length ) {
         return;
     }
+    if ( $driver eq 'DuckDB' ) {
+        $fill = length $fill ? $fill : "' '";
+    }
     if ( $driver eq 'SQLite' ) {
         $fill = defined $fill ? $ax->unquote_constant( $fill ) : ' ';
         $fill = $sf->{d}{dbh}->quote( $fill x $length );
@@ -174,9 +177,6 @@ sub function_instr {
     my ( $substring, $start, $count ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
     if ( ! defined $substring ) {
         return;
-    }
-    if ( $driver eq 'SQLite' ) {
-        return "INSTR($col,$substring)";
     }
     return "INSTR($col,$substring)"                if ! defined $start;
     return "INSTR($col,$substring,$start)"         if ! defined $count;
