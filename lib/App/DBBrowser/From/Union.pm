@@ -128,7 +128,7 @@ sub __add_table {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my @pre = ( undef );
-    my ( $from_subquery, $from_cte, $from_file ) = ( '  Subquery', '  Cte' );
+    my ( $from_subquery, $from_cte ) = ( '  Subquery', '  Cte' );
     my @post;
     push @post, $from_subquery if $sf->{o}{enable}{u_derived};
     push @post, $from_cte      if $sf->{o}{enable}{u_cte};

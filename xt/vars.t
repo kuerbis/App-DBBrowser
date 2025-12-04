@@ -5,8 +5,7 @@ use warnings;
 my @modules;
 
 BEGIN {
-    my @modules = qw(
-        bin/db-browser
+    @modules = qw(
         lib/App/DBBrowser.pm
         lib/App/DBBrowser/Auxil.pm
         lib/App/DBBrowser/CreateDropAttach.pm
@@ -32,7 +31,7 @@ BEGIN {
         lib/App/DBBrowser/GetContent.pm
         lib/App/DBBrowser/GetContent/Filter.pm
         lib/App/DBBrowser/GetContent/Filter/ConvertDate.pm
-        lib/App/DBBrowser/GetContent/Filter/SearchAndReplace.pm
+
         lib/App/DBBrowser/GetContent/Parse.pm
         lib/App/DBBrowser/GetContent/Source.pm
         lib/App/DBBrowser/Options.pm

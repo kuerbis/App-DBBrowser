@@ -43,7 +43,6 @@ sub __config_global {
 sub __config_plugins {
     my ( $sf ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $op_mn = App::DBBrowser::Options::Menus->new( $sf->{i}, $sf->{o} );
     my $chosen_plugins = $sf->{o}{G}{plugins};
     my $config_old_idx = 0;
@@ -191,8 +190,6 @@ sub __config_db {
 
 sub set_options {
     my ( $sf ) = @_;
-    my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
-    my $op_mn = App::DBBrowser::Options::Menus->new( $sf->{i}, $sf->{o} );
     my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
     $sf->{o} = $op_rw->read_config_file();
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
@@ -361,7 +358,7 @@ sub config_groups {
                 $changed += $op_mn->group_create_table( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_output' ) {
-                $changed += $op_mn->group_output( $info, $lo, $section, $sub_group, $driver );
+                $changed += $op_mn->group_output( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_import' ) {
                 $changed += $op_mn->group_import( $info, $lo, $section, $sub_group );
@@ -373,7 +370,7 @@ sub config_groups {
                 $changed += $op_mn->group_misc( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_global' ) {
-                $changed += $op_mn->group_global( $info, $lo, $section, $sub_group, $driver );
+                $changed += $op_mn->group_global( $info, $lo, $section, $sub_group );
             }
             else {
                 die "Unknown group $group";

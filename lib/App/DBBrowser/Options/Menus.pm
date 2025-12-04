@@ -444,7 +444,7 @@ sub group_create_table {
 
 
 sub group_output {
-    my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
+    my ( $sf, $info, $lo, $section, $sub_group ) = @_;
     my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_binary_filter' ) {
         my $prompt = 'How to print arbitrary binray data';

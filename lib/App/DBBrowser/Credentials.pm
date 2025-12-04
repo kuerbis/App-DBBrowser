@@ -19,7 +19,7 @@ sub new {
 
 
 sub get_login {
-    my ( $sf, $key, $show_sofar, $settings ) = @_;
+    my ( $sf, $key, $show_sofar ) = @_;
     if ( ! $sf->{o}{connect_data}{"${key}_required"} ) {
         return;
     }

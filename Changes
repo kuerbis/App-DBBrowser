@@ -11,6 +11,7 @@ Revision history for App-DBBrowser
         - DB2: decode only text columns.
         - Update options menus.
         - Unifying options.
+        - Bugfix quoting attached databases.
         - Bugfixes documentation.
         - Update plugins.
         - Table names and column names are not quoted by default.

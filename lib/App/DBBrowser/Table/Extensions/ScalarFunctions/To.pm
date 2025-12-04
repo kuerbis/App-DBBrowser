@@ -71,7 +71,7 @@ sub function_str_to_date {
 }
 
 sub __format_function {
-    my ( $sf, $sql, $clause, $func, $cols, $r_data, $add_args_data ) = @_;
+    my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
     my $driver = $sf->{i}{driver};
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
