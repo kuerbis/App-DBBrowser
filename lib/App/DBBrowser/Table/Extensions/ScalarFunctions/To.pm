@@ -70,7 +70,7 @@ sub function_str_to_date {
     return $sf->__format_function( $sql, $clause, $func, $cols, $r_data );
 }
 
-sub __format_function { ##
+sub __format_function {
     my ( $sf, $sql, $clause, $func, $cols, $r_data, $add_args_data ) = @_;
     my $driver = $sf->{i}{driver};
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -90,7 +90,7 @@ sub __format_function { ##
     if ( $driver eq 'Oracle' ) {
         push @$args_data, { prompt => 'nls_parameter: ' };
     }
-    elsif ( $driver eq 'DB2' ) { ##
+    elsif ( $driver eq 'DB2' ) {
         push @$args_data, { prompt => 'Locale: ' }                                              if $func eq 'TO_CHAR';
         push @$args_data, { prompt => 'Decimals: ', is_numeric => 1 }, { prompt => 'Locale: ' } if $func eq 'TO_DATE'
     }
@@ -177,9 +177,12 @@ sub function_to_epoch {
     elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         return "UNIX_TIMESTAMP($col)";
     }
-    #elsif ( $driver eq 'Pg' ) {
-    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) { # ###
+    elsif ( $driver eq 'Pg' ) {
         return "EXTRACT(EPOCH FROM ${col}::timestamp with time zone)";
+    }
+    elsif ( $driver eq 'DuckDB' ) { ##
+        return "EPOCH(${col}::timestamp with time zone)";
+        #return "EPOCH($col)";
     }
     elsif ( $driver eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();

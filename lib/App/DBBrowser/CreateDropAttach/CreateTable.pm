@@ -18,7 +18,8 @@ use Term::Form::ReadLine qw();
 
 use App::DBBrowser::Auxil;
 use App::DBBrowser::GetContent;
-use App::DBBrowser::Opt::Set;
+use App::DBBrowser::Options;
+use App::DBBrowser::Options::ReadWrite;
 use App::DBBrowser::From::Subquery;
 use App::DBBrowser::Table::CommitWriteSQL;
 
@@ -311,8 +312,10 @@ sub __get_column_names {
         }
         my $header_row;
         if ( $menu->[$idx] eq $hidden ) {
-            my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-            $opt_set->set_options( 'create' );
+            my $op = App::DBBrowser::Options->new( $sf->{i}, $sf->{o} );
+            my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
+            $op->config_groups( [ { name => 'group_create_table', text => "- Create Table" } ], $sf->{i}{plugin} );
+            $op_rw->read_config_file( $sf->{i}{driver}, $sf->{i}{plugin} );
             next;
         }
         elsif ( $menu->[$idx] eq $first_row ) {
@@ -362,7 +365,7 @@ sub __primary_key_autoincrement_constraint {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $driver = $sf->{i}{driver};
     if ( $driver eq 'SQLite' ) {
-        return "INTEGER PRIMARY KEY";
+        return "INTEGER PRIMARY KEY NOT NULL";
     }
     if ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
         return "INT NOT NULL AUTO_INCREMENT PRIMARY KEY";

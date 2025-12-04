@@ -1,13 +1,20 @@
 Revision history for App-DBBrowser
 
 
-2.437_02  2025-00-00
+2.437_03  2025-12-04
         - Added 'tables_info' to the plugin documentation.
         - Removed comment from the App::DBBrowser::DB POD.
         - Bugfix in App::DBBrowser::Opt::Set::set_options.
         - Bugfixes in format functions.
         - Code adjustments for DuckDB.
         - Refactoring scalar functions.
+        - DB2: decode only text columns.
+        - Update options menus.
+        - Unifying options.
+        - Bugfixes documentation.
+        - Update plugins.
+        - Table names and column names are not quoted by default.
+        - Saved subqueries: saved at plugin level instead at driver level.
 
 2.436  2025-10-24
         - Skip unnecessary step when extended values/arguments are disabled.

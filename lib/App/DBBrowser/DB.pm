@@ -5,15 +5,16 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.436';
+our $VERSION = '2.437_03';
 
-#use bytes; # required
+use Encode       qw( decode );
+#use bytes;      # required
 use Scalar::Util qw( looks_like_number );
 
 
 sub new {
     my ( $class, $info, $opt ) = @_;
-    my $db_module = $info->{plugin};
+    my $db_module = "App::DBBrowser::DB::$info->{plugin}";
     eval "require $db_module" or die $@;
     my $plugin = $db_module->new( $info, $opt );
     bless { Plugin => $plugin }, $class;
@@ -95,25 +96,14 @@ sub get_databases {
 
 
 sub get_schemas {
-    my ( $sf, $dbh, $db, $is_system_db, $has_attached_db ) = @_;
+    my ( $sf, $dbh, $db, $is_system_db ) = @_;
     my ( $user_schemas, $sys_schemas );
     my $driver = $dbh->{Driver}{Name}; #
     if ( $sf->{Plugin}->can( 'get_schemas' ) ) {
-        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db, $has_attached_db );
+        ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db );
     }
     else {
-        if ( $driver eq 'SQLite' ) {
-            if ( $has_attached_db ) {
-                # If a SQLite database has databases attached, set $schema to `undef`.
-                # If $schema is `undef`, `$dbh->table_info( undef, $schema, '%', '' )` returns all schemas - main, temp and
-                # aliases of attached databases with its tables.
-                $user_schemas = [ undef ];
-            }
-            else {
-                $user_schemas = [ 'main' ];
-            }
-        }
-        elsif( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+        if( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
             # MySQL 8.0 Reference Manual / MySQL Glossary / Schema:
             # In MySQL, physically, a schema is synonymous with a database.
             # You can substitute the keyword SCHEMA instead of DATABASE in MySQL SQL syntax,
@@ -123,6 +113,7 @@ sub get_schemas {
             $user_schemas = [];
         }
         elsif ( $driver eq 'Oracle' ) {
+            # To separate system schemas from the user schemas.
             my ( $tmp_user_schemas, $tmp_sys_schemas ) = ( [], [] );
             for my $sch ( $dbh->selectall_array( "SELECT USERNAME, ORACLE_MAINTAINED FROM ALL_USERS" ) ) {
                 if ( $sch->[1] =~ /^N/i ) {
@@ -176,6 +167,10 @@ sub get_schemas {
                     push @$user_schemas, $schema;
                 }
             }
+            if ( $driver eq 'DuckDB' ) {
+                $user_schemas = [ map { decode( 'UTF-8', $_ ) } @$user_schemas ];
+                $sys_schemas  = [ map { decode( 'UTF-8', $_ ) } @$sys_schemas  ];
+            }
         }
     }
     $user_schemas //= [];
@@ -196,11 +191,11 @@ sub get_schemas {
 }
 
 
-sub tables_info { # not documented
-    my ( $sf, $dbh, $schema, $is_system_schema ) = @_;
+sub tables_info {
+    my ( $sf, $dbh, $schema, $is_system_schema, $db_attached ) = @_;
     my $driver = $sf->get_db_driver();
     if ( $sf->{Plugin}->can( 'tables_info' ) ) {
-        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema );
+        return $sf->{Plugin}->tables_info( $dbh, $schema, $is_system_schema, $db_attached );
     }
     my ( $table_cat, $table_schem, $table_name, $table_type );
     if ( $driver eq 'Pg' ) {
@@ -244,31 +239,41 @@ sub tables_info { # not documented
     my $info_tables = $sth->fetchall_arrayref( { map { $_ => 1 } @keys } );
     my ( @user_table_keys, @sys_table_keys );
     my $tables_info = {};
+
     for my $info_table ( @$info_tables ) {
         if ( $driver =~ /^(?:Informix|Sybase)\z/ && defined $schema && $schema ne $info_table->{$table_schem} ) {
             # Informix: `table_info` returns everything.
             next;
         }
-        if ( $driver eq 'SQLite' && $info_table->{$table_type} =~ /^(?:INDEX|TRIGGER)\z/ ) {
-            next;
+        if ( $driver eq 'SQLite') {
+            if ( $info_table->{$table_type} =~ /^(?:INDEX|TRIGGER)\z/ ) {
+                next;
+            }
+            if ( $info_table->{$table_name} eq 'sqlite_temp_master' ) {
+                next; # no temp tables
+            }
         }
         if ( $driver eq 'Oracle' && $info_table->{$table_type} eq 'SEQUENCE' ) {
             next;
         }
+        if ( $driver eq 'DuckDB' ) {
+            $info_table->{$_} = decode( 'UTF-8', $info_table->{$_} ) for $table_schem, $table_name;
+        }
+        my $table_key;
         # The table name in $table_key is used in the tables-menu but not in SQL code.
         # To get the table names for SQL code it is used the 'quote_table' routine in Auxil.pm.
-        my $table_key;
-        if ( $driver eq 'SQLite' && ! defined $schema ) {
-            # attached databases, schema is undef
-            if ( $info_table->{$table_name} eq 'sqlite_temp_master' ) {
-                next; # no temp tables
+        if ( $db_attached ) {
+            if ( $driver eq 'SQLite' ) {
+                if ( $info_table->{$table_schem} =~ /^main\z/i ) {
+                    $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
+                    # \x{001f} keeps the main tables on top of the tables menu.
+                }
+                else {
+                    $table_key = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
+                }
             }
-            if ( $info_table->{$table_schem} =~ /^main\z/i ) {
-                $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
-                # \x{001f} keeps the main tables on top of the tables menu.
-            }
-            else {
-                $table_key = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
+            elsif ( $driver eq 'DuckDB' ) {
+                $table_key = sprintf "[%s] %s", $info_table->{$table_cat}, $info_table->{$table_name};
             }
         }
         else {
@@ -292,12 +297,6 @@ sub tables_info { # not documented
 
 
 
-# Sybase untested
-
-# Sysbase:
-#   SET quoted_identifier ON
-
-
 
 
 1;
@@ -315,7 +314,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.436
+Version 2.437_03
 
 =head1 DESCRIPTION
 
@@ -323,7 +322,7 @@ A database plugin provides the database specific methods. C<App::DBBrowser> cons
 C</^App::DBBrowser::DB::[^:']+\z/> and which is located in one of the C<@INC> directories, as a database plugin.
 
 The user can add an installed database plugin to the available plugins in the options menu (C<db-browser -h>) by
-selecting I<Plugins>.
+selecting I<Select plugins>.
 
 A suitable database plugin provides the methods mentioned in this documentation.
 
@@ -404,12 +403,10 @@ C<db-browser> expects a C<DBI> database handle with the attribute I<RaiseError> 
 
 =head2 Optional methods
 
-=head4 get_schemas( $dbh, $database )
+=head4 get_schemas( $dbh, $database, $is_system_db )
 
-C<$dbh> is the database handle returned by the method C<db_hanlde>.
-
-If the driver is C<SQLite>, a third argument is passed to C<get_schemas>; if the database has attached databases, the
-third argument is true, otherwise it is false.
+C<$dbh> is the database handle returned by the method C<db_hanlde> and C<$database> is the database name. If
+C<is_system_db> is true, then the database is a system database.
 
 Returns the user schemas as an array reference and the system schemas as an array reference (if any).
 

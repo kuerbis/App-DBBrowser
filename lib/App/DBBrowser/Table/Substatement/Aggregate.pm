@@ -167,11 +167,7 @@ sub __op_group_concat {
         if ( $driver eq 'Pg' && $is_distinct ) {
             $col = $ax->pg_column_to_text( $sql, $col );
         }
-        my @choices = ( ##
-            "$col ASC",
-            "$col DESC",
-            $read,
-        );
+        my @choices = ( "ASC", "DESC", $read );
         my $menu = [ undef, @choices ];
         my $info = $sf->__prepared_aggr_info( $sql, $clause, $prepared_aggr, $r_data );
         # Choose
@@ -201,7 +197,7 @@ sub __op_group_concat {
             }
         }
         else {
-            $order_by_stmt = "ORDER BY " . $choice;
+            $order_by_stmt = "ORDER BY $col $choice";
         }
     }
     if ( $driver eq 'SQLite' ) {

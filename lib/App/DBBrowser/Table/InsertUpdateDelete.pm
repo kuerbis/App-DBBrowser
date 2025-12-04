@@ -201,7 +201,7 @@ sub __first_column_is_autoincrement { ##
     my $nq_table = $sf->{d}{tables_info}{$sf->{d}{table_key}}[2];
     my $driver = $sf->{i}{driver};
     if ( $driver eq 'SQLite' ) {
-        if ( ! defined $schema ) {
+        if ( $sf->{d}{db_attached} ) {
             # return if a table is from an attached database
             my $main = 'main';
             my $qt_main = $dbh->quote_identifier( $main );

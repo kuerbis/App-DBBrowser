@@ -5,6 +5,7 @@ use warnings;
 use strict;
 use 5.016;
 
+use Encode       qw( decode );
 use Scalar::Util qw( looks_like_number );
 #use Storable     qw();  # required
 
@@ -365,6 +366,7 @@ sub sql_limit {
 
 sub column_names_and_types {
     my ( $sf, $table ) = @_;
+    my $driver = $sf->{i}{driver};
     # without `LIMIT 0` slower with big tables: mysql, MariaDB and Pg
     # no difference with SQLite, Firebird, DB2 and Informix
     my $column_names = [];
@@ -383,7 +385,7 @@ sub column_names_and_types {
         }
         #$stmt .= "SELECT * FROM " . $table . $sf->sql_limit( 0 );
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
-        if ( $sf->{i}{driver} eq 'SQLite' ) {
+        if ( $driver eq 'SQLite' ) {
             $column_names = [ @{$sth->{NAME}} ];
             if ( $sf->{d}{dbh}{sqlite_see_if_its_a_number} ) {
                 $column_types = [];
@@ -392,6 +394,11 @@ sub column_names_and_types {
                 my $rx_numeric = 'INTEGER|INT$|DOUBLE|REAL|NUM|FLOAT|DEC|BOOL|BIT|MONEY';
                 $column_types = [ map { ! $_ || $_ =~ /$rx_numeric/i ? 2 : 1 } @{$sth->{TYPE}} ];
             }
+        }
+        elsif ( $driver eq 'DuckDB' ) {
+            $sth->execute();
+            $column_names = [ map { decode('UTF-8', $_) } @{$sth->{NAME}} ];
+            $column_types = [ @{$sth->{TYPE}} ];
         }
         else {
             $sth->execute();
@@ -519,13 +526,18 @@ sub __quote_identifiers {
 
 sub qq_table {
     my ( $sf, $table_info ) = @_;
+    # 0 = catalog, 1 = schema, 2 = table_name, 3 = table_type
     my @idx;
-    if ( $sf->{o}{G}{qualified_table_name} || ( $sf->{d}{db_attached} && ! defined $sf->{d}{schema} ) ) {
+    if ( $sf->{d}{db_attached} ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
         # name.
+        #@idx = ( 0, 1, 2 ); # both
+        @idx = ( 1, 2 ) if $sf->{i}{driver} eq 'SQLite';
+        @idx = ( 0, 2 ) if $sf->{i}{driver} eq 'DuckDB';
+    }
+    elsif ( $sf->{o}{G}{qualified_table_name} ) {
         @idx = ( 1, 2 );
-        # 0 = catalog, 1 = schema, 2 = table_name, 3 = table_type
     }
     else {
         @idx = ( 2 );
@@ -703,10 +715,10 @@ sub print_error_message {
 
 sub write_json {
     my ( $sf, $file_fs, $ref ) = @_;
-    if ( ! defined $ref ) {
-        open my $fh, '>', $file_fs or die "$file_fs: $!";
-        print $fh;
-        close $fh;
+    if ( ! defined $ref ) { ##
+        #open my $fh, '>', $file_fs or die "$file_fs: $!";
+        #print $fh;
+        #close $fh;
         return;
     }
     my $json = JSON::MaybeXS->new->utf8->pretty->canonical->encode( $ref );
@@ -718,7 +730,7 @@ sub write_json {
 
 sub read_json {
     my ( $sf, $file_fs ) = @_;
-    if ( ! defined $file_fs || ! -e $file_fs ) {
+    if ( ! defined $file_fs || ! -f $file_fs ) {
         return;
     }
     open my $fh, '<', $file_fs or die "$file_fs: $!";

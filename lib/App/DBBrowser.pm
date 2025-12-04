@@ -1,10 +1,10 @@
 package App::DBBrowser;
-
+#$SIG{__WARN__} = sub { die @_ };
 use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.436';
+our $VERSION = '2.437_03';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -21,14 +21,15 @@ use App::DBBrowser::Auxil;
 #use App::DBBrowser::CreateDropAttach;  # required
 use App::DBBrowser::DB;
 #use App::DBBrowser::From               # required
-use App::DBBrowser::Opt::Get;
-#use App::DBBrowser::Opt::Set;          # required
+#use App::DBBrowser::Options;           # required
+use App::DBBrowser::Options::Defaults;
+use App::DBBrowser::Options::ReadWrite;
 #use App::DBBrowser::Table;             # required
 
 
 BEGIN {
     decode_argv(); # not at the end of the BEGIN block if less than perl 5.16
-    1;
+#    1; # ###
 }
 
 
@@ -51,12 +52,13 @@ sub new {
         menu_addition => '%%',
         info_thsd_sep => ',',
     };
-    $info->{tc_default}  = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => $info->{s_back}, prompt => 'Your choice:' },
-    $info->{tcu_default} = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, confirm => $info->{ok}, back => $info->{s_back} },
-    $info->{tf_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6, auto_up => 1, skip_items => qr/^\s*\z/ },
-    $info->{tr_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] },
-    $info->{lyt_h}       = { order => 0, alignment => 2 },
-    $info->{lyt_v}       = { undef => $info->{_back}, layout => 2 },
+    $info->{tc_default}  = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => $info->{s_back}, prompt => 'Your choice:' };
+    $info->{tcu_default} = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, confirm => $info->{ok}, back => $info->{s_back} };
+    $info->{tf_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6, auto_up => 1, skip_items => qr/^\s*\z/ };
+    $info->{tr_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] };
+    $info->{lyt_h}       = { order => 0, alignment => 2 };
+    $info->{lyt_v}       = { undef => $info->{_back}, layout => 2 };
+    #$info->{rdbms_types} = [ qw( other SQLite mysql MariaDB Pg Firebird DB2 Informix Oracle DuckDB ) ];
     return bless { i => $info }, $class;
 }
 
@@ -69,6 +71,7 @@ sub __init {
         print "'db-browser' requires a home directory\n";
         exit;
     }
+    $sf->{i}{home_dir} = $home;
     my $config_home;
     if ( which( 'xdg-user-dir' ) ) {
         $config_home = File::HomeDir::FreeDesktop->my_config();
@@ -78,56 +81,47 @@ sub __init {
     }
     my $app_dir = catdir( $config_home // $home, 'db_browser' );
     mkdir $app_dir or die $! if ! -d $app_dir;
-    $sf->{i}{home_dir} = $home;
-    $sf->{i}{app_dir}  = $app_dir;
-    $sf->{i}{f_settings}           = catfile $app_dir, 'general_settings.json';
-    $sf->{i}{conf_file_fmt}        = catfile $app_dir, 'config_%s.json';
+    $sf->{i}{app_dir} = $app_dir;
     $sf->{i}{f_attached_db}        = catfile $app_dir, 'attached_DB.json';
     $sf->{i}{f_dir_history}        = catfile $app_dir, 'dir_history.json';
     $sf->{i}{f_subqueries}         = catfile $app_dir, 'subqueries.json';
     $sf->{i}{f_search_and_replace} = catfile $app_dir, 'search_and_replace.json';
+    $sf->{i}{f_global_settings}    = catfile $app_dir, 'global_settins.json';
+    my $db_cache_dir = catdir( $app_dir, 'cache_database_names' );
+    mkdir $db_cache_dir or die $! if ! -d $db_cache_dir;
+    $sf->{i}{db_cache_file_fmt} = catfile $db_cache_dir, 'databases_%s.json';
+    my $plugin_config_dir = catdir( $app_dir, 'config_plugins' );
+    mkdir $plugin_config_dir or die $! if ! -d $plugin_config_dir;
+    $sf->{i}{plugin_config_file_fmt} = catfile $plugin_config_dir, 'config_%s.json';      # ###
+    $sf->{i}{db_config_file_fmt}     = catfile $plugin_config_dir, 'config_%s_DBs.json';  # ###
 }
 
 
 sub __options {
     my ( $sf ) = @_;
     if ( ! eval {
-        my $opt_get = App::DBBrowser::Opt::Get->new( $sf->{i}, {} );
-        $sf->{o} = $opt_get->read_config_files();
         my $help;
         GetOptions (
             'h|?|help' => \$help,
             's|search' => \$sf->{i}{search},
         );
         if ( $help ) {
-            if ( $sf->{o}{table}{mouse} ) {
-                $sf->{i}{tc_default}{mouse}  = $sf->{o}{table}{mouse};
-                $sf->{i}{tcu_default}{mouse} = $sf->{o}{table}{mouse};
-            }
             print clear_screen();
-            require App::DBBrowser::Opt::Set;
-            my $opt_set = App::DBBrowser::Opt::Set->new( $sf->{i}, $sf->{o} );
-            my $opt = $opt_set->set_options();
-            if ( defined $opt ) {
-                $sf->{o} = $opt;
-            }
+            require App::DBBrowser::Options;
+            my $op = App::DBBrowser::Options->new( $sf->{i}, $sf->{o} );
+            $op->set_options();
         }
         1 }
     ) {
         my $ax = App::DBBrowser::Auxil->new( $sf->{i}, {}, {} );
         $ax->print_error_message( $@ );
-        if ( ! defined $sf->{o} ) {
-            return;
-        }
         while ( $ARGV[0] && $ARGV[0] =~ /^-/ ) {
             my $arg = shift @ARGV;
             last if $arg eq '--';
         }
     }
-    if ( $sf->{o}{table}{mouse} ) {
-        $sf->{i}{tc_default}{mouse}  = $sf->{o}{table}{mouse};
-        $sf->{i}{tcu_default}{mouse} = $sf->{o}{table}{mouse};
-    }
+    my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, {} );
+    $sf->{o} = $op_rw->read_config_file();
 }
 
 
@@ -140,17 +134,18 @@ sub run {
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $skipped_menus = 0;
     my $old_idx_plugin = 0;
+    my $available_plugins = $sf->{o}{G}{plugins};
 
     PLUGIN: while ( 1 ) {
 
         my $plugin;
-        if ( @{$sf->{o}{G}{plugins}} == 1 ) {
+        if ( @$available_plugins == 1 ) {
             $skipped_menus++;
-            $plugin = $sf->{o}{G}{plugins}[0];
+            $plugin = $available_plugins->[0];
             print clear_screen();
         }
         else {
-            my $menu_plugins = [ undef, map( "- $_", @{$sf->{o}{G}{plugins}} ) ];
+            my $menu_plugins = [ undef, map( "- $_", @$available_plugins ) ];
             # Choose
             my $idx_plugin = $tc->choose(
                 $menu_plugins,
@@ -172,36 +167,43 @@ sub run {
             }
             $plugin =~ s/^[-\ ]\s//;
         }
-        $plugin = 'App::DBBrowser::DB::' . $plugin;
         $sf->{i}{plugin} = $plugin;
-        my $plui;
+
+        my $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
         my $driver;
         if ( ! eval {
-            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );
             $driver = $sf->{i}{driver} = $plui->get_db_driver();
             #die "No database driver!" if ! $driver;
             1 }
         ) {
             $ax->print_error_message( $@ );
-            next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            next PLUGIN if @$available_plugins > 1;
             last PLUGIN;
         }
+        my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
+        $op_rw->read_config_file( $driver, $plugin );
+        #if ( $driver eq 'ODBC' ) {
+        #    $sf->{i}{sql_type} = $sf->{i}{rdbms_types}[$sf->{o}{G}{odbc_to_rdbms}];
+        #}
+        #else {
+        #    $sf->{i}{sql_type} = $driver;
+        #}
 
         # DATABASES
 
         my @databases;
-        my $prefix;
         my ( $user_dbs, $sys_dbs ) = ( [], [] );
+        $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated options
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
             1 }
         ) {
             $ax->print_error_message( $@ );
             $sf->{i}{login_error} = 1;
-            next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            next PLUGIN if @$available_plugins > 1;
             last PLUGIN;
         }
-        $prefix = $driver =~ /^(?:SQLite|DuckDB|Firebird)\z/ ? '' : '- ';
+        my $prefix = $driver =~ /^(?:SQLite|DuckDB|Firebird)\z/ ? '' : '- ';
         if ( $sf->{o}{G}{metadata} ) {
             if ( $prefix ) {
                 @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
@@ -220,8 +222,8 @@ sub run {
         }
         $sf->{i}{search} = 0 if $sf->{i}{search};
         if ( ! @databases ) {
-            $ax->print_error_message( "$plugin: no databases found\n" );
-            next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+            $ax->print_error_message( "$plugin: no databases found\n" ); ##
+            next PLUGIN if @$available_plugins > 1;
             last PLUGIN;
         }
         my $old_idx_db = 0;
@@ -261,7 +263,7 @@ sub run {
                     $db = $menu_db->[$idx_db];
                 }
                 if ( ! defined $db ) {
-                    next PLUGIN if @{$sf->{o}{G}{plugins}} > 1;
+                    next PLUGIN if @$available_plugins > 1;
                     last PLUGIN;
                 }
                 if ( $sf->{o}{G}{menu_memory} ) {
@@ -281,6 +283,8 @@ sub run {
                 user_dbs => $user_dbs,
                 sys_dbs => $sys_dbs,
             };
+            $op_rw->read_config_file( $driver, $plugin, $db );
+            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated options
 
             # DB-HANDLE
 
@@ -297,18 +301,20 @@ sub run {
                 # remove database from @databases
                 $sf->{i}{login_error} = 1;
                 $dbh->disconnect() if defined $dbh && $dbh->{Active};
-                next DATABASE if @databases              > 1;
-                next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
+                next DATABASE if @databases          > 1;
+                next PLUGIN   if @$available_plugins > 1;
                 last PLUGIN;
             }
             $sf->{d}{dbh} = $dbh;
-            if ( $driver eq 'SQLite' && -s $sf->{i}{f_attached_db} ) {
+            if ( $driver =~ /^(?:SQLite|DuckDB)\z/ && -f $sf->{i}{f_attached_db} ) {
                 if ( ! eval {
+                    require App::DBBrowser::CreateDropAttach::AttachDB;
+                    my $att = App::DBBrowser::CreateDropAttach::AttachDB->new( $sf->{i}, $sf->{o}, $sf->{d} );
                     my $h_ref = $ax->read_json( $sf->{i}{f_attached_db} ) // {};
-                    my $attached_db = $h_ref->{$db} // {};
+                    my $attached_db = $h_ref->{$plugin}{$db} // {};
                     if ( %$attached_db ) {
-                        for my $key ( sort keys %$attached_db ) {
-                            my $stmt = sprintf "ATTACH DATABASE %s AS %s", $dbh->quote_identifier( $attached_db->{$key} ), $dbh->quote( $key ); ##
+                        for my $alias ( sort keys %$attached_db ) {
+                            my $stmt = $att->attach_stmt( $dbh, $attached_db->{$alias}, $alias );
                             $dbh->do( $stmt );
                         }
                         $sf->{d}{db_attached} = 1;
@@ -317,8 +323,8 @@ sub run {
                 ) {
                     $ax->print_error_message( $@ );
                     $dbh->disconnect() if defined $dbh && $dbh->{Active};
-                    next DATABASE if @databases              > 1;
-                    next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
+                    next DATABASE if @databases          > 1;
+                    next PLUGIN   if @$available_plugins > 1;
                     last PLUGIN;
                 }
             }
@@ -328,13 +334,13 @@ sub run {
             my @schemas;
             my ( $user_schemas, $sys_schemas ) = ( [], [] );
             if ( ! eval {
-                ( $user_schemas, $sys_schemas ) = $plui->get_schemas( $dbh, $db, $is_system_db, $sf->{d}{db_attached} );
+                ( $user_schemas, $sys_schemas ) = $plui->get_schemas( $dbh, $db, $is_system_db );
                 1 }
             ) {
                 $ax->print_error_message( $@ );
                 $dbh->disconnect();
-                next DATABASE if @databases              > 1;
-                next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
+                next DATABASE if @databases          > 1;
+                next PLUGIN   if @$available_plugins > 1;
                 last PLUGIN;
             }
             my $undef_str = '';
@@ -377,8 +383,8 @@ sub run {
                     }
                     if ( ! defined $schema ) {
                         $dbh->disconnect();
-                        next DATABASE if @databases              > 1;
-                        next PLUGIN   if @{$sf->{o}{G}{plugins}} > 1;
+                        next DATABASE if @databases          > 1;
+                        next PLUGIN   if @$available_plugins > 1;
                         last PLUGIN;
                     }
                     if ( $sf->{o}{G}{menu_memory} ) {
@@ -404,14 +410,14 @@ sub run {
 
                 my ( $tables_info, $user_table_keys, $sys_table_keys );
                 if ( ! eval {
-                    ( $tables_info, $user_table_keys, $sys_table_keys ) = $plui->tables_info( $dbh, $schema, $is_system_schema );
+                    ( $tables_info, $user_table_keys, $sys_table_keys ) = $plui->tables_info( $dbh, $schema, $is_system_schema, $sf->{d}{db_attached} );
                     1 }
                 ) {
                     $ax->print_error_message( $@ );
-                    next SCHEMA    if @schemas                > 1;
+                    next SCHEMA    if @schemas            > 1;
                     $dbh->disconnect();
-                    next DATABASE  if @databases              > 1;
-                    next PLUGIN    if @{$sf->{o}{G}{plugins}} > 1;
+                    next DATABASE  if @databases          > 1;
+                    next PLUGIN    if @$available_plugins > 1;
                     last PLUGIN;
                 }
                 $sf->{d}{tables_info} = $tables_info;
@@ -453,10 +459,10 @@ sub run {
                         }
                         if ( ! defined $table_key ) {
                             $sf->{d}{cte_history} = [];
-                            next SCHEMA         if @schemas                > 1;
+                            next SCHEMA         if @schemas            > 1;
                             $dbh->disconnect();
-                            next DATABASE       if @databases              > 1;
-                            next PLUGIN         if @{$sf->{o}{G}{plugins}} > 1;
+                            next DATABASE       if @databases          > 1;
+                            next PLUGIN         if @$available_plugins > 1;
                             last PLUGIN;
                         }
                         if ( $sf->{o}{G}{menu_memory} ) {
@@ -482,7 +488,7 @@ sub run {
                             next SCHEMA;
                         }
                         elsif ( $ret == 2 ) {
-                            # attached/dedached databases and therefore recall `get_schemas` to get the new schemas
+                            # attached/dedached databases and therefore redo attache database stmts
                             $sf->{redo_db} = $db;
                             $sf->{redo_is_system_db} = $is_system_db;
                             $sf->{redo_table} = $table_key; # stay in the $hidden submenu
@@ -535,7 +541,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.436
+Version 2.437_03
 
 =head1 DESCRIPTION
 
