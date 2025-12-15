@@ -352,10 +352,11 @@ sub get_sql_info {
 
 sub sql_limit {
     my ( $sf, $rows ) = @_;
-    if ( $sf->{i}{driver} =~ /^(?:SQLite|mysql|MariaDB|Pg|DuckDB)\z/ ) {
+    my $driver = $sf->{i}{driver}; # Use driver so that dbms remains optional.
+    if ( $driver =~ /^(?:SQLite|mysql|MariaDB|Pg|DuckDB)\z/ ) {
         return " LIMIT $rows";
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+    elsif ( $driver =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
         return " FETCH NEXT $rows ROWS ONLY"
     }
     else {
@@ -526,15 +527,20 @@ sub __quote_identifiers {
 
 sub qq_table {
     my ( $sf, $table_info ) = @_;
+    my $dbms = $sf->{i}{dbms};
     # 0 = catalog, 1 = schema, 2 = table_name, 3 = table_type
     my @idx;
     if ( $sf->{d}{db_attached} ) {
         # If a SQLite database has databases attached, the fully qualified table name is used in SQL code regardless of
         # the setting of the option 'qualified_table_name' because attached databases could have tables with the same
         # name.
+        if ( $dbms eq 'SQLite' ) {
+            @idx = ( 1, 2 );
+        }
+        elsif ( $dbms eq 'DuckDB' ) {
+            @idx = ( 0, 2 );
+        }
         #@idx = ( 0, 1, 2 ); # both
-        @idx = ( 1, 2 ) if $sf->{i}{driver} eq 'SQLite';
-        @idx = ( 0, 2 ) if $sf->{i}{driver} eq 'DuckDB';
     }
     elsif ( $sf->{o}{G}{qualified_table_name} ) {
         @idx = ( 1, 2 );
@@ -612,7 +618,7 @@ sub unquote_constant {
     return if ! defined $constant;
     if ( $constant =~ /^'(.*)'\z/ ) {
         $constant = $1;
-        if ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+        if ( $sf->{i}{dbms} =~ /^(?:mysql|MariaDB)\z/ ) {
             $constant =~ s/\\(.)/$1/g;
         }
         else {
@@ -626,7 +632,7 @@ sub unquote_constant {
 
 sub regex_quoted_literal {
     my ( $sf ) = @_;
-    if ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    if ( $sf->{i}{dbms} =~ /^(?:mysql|MariaDB)\z/ ) {
         return qr/(?<!')'(?:[^\\']|\\'|\\\\)*'(?!')/;
     }
     else {
@@ -659,27 +665,29 @@ sub normalize_space_in_stmt {
 
 sub major_server_version {
     my ( $sf ) = @_;
-    my $driver = $sf->{i}{driver};
+    my $dbms = $sf->{i}{dbms};
+    my $dbh = $sf->{d}{dbh};
     my $major_server_version;
-    if ( $driver eq 'Pg' ) {
+    if ( $dbms eq 'Firebird' ) {
         eval {
-            my ( $pg_version ) = $sf->{d}{dbh}->selectrow_array( "SELECT version()" );
-            ( $major_server_version ) = $pg_version =~ /^\S+\s+(\d+)\./;
-        };
-    }
-    elsif ( $driver eq 'Firebird' ) {
-        eval {
-            my ( $firebird_version ) = $sf->{d}{dbh}->selectrow_array( "SELECT RDB\$GET_CONTEXT('SYSTEM', 'ENGINE_VERSION') FROM RDB\$DATABASE" );
+            my ( $firebird_version ) = $dbh->selectrow_array( "SELECT RDB\$GET_CONTEXT('SYSTEM', 'ENGINE_VERSION') FROM RDB\$DATABASE" );
             ( $major_server_version  ) = $firebird_version =~ /^(\d+)\./;
         };
+        return $major_server_version // 3;
     }
-    elsif ( $driver eq 'Oracle' ) {
-        eval {
-            my $ora_server_version = $sf->{d}{dbh}->func( 'ora_server_version' );
-            $major_server_version = $ora_server_version->[0];
-      };
+    else {
+        my $database_version  = $dbh->get_info( 18 ); ##
+        ( $major_server_version ) = $database_version =~ /^v?(\d+)\D/i;
+        if ( $dbms eq 'Pg' ) {
+            return $major_server_version // 10;
+        }
+        elsif ( $dbms eq 'Oracle' ) {
+            return $major_server_version // 12;
+        }
+        elsif ( $dbms eq 'MSSQL' ) { # ###
+            return $major_server_version // 16;
+        }
     }
-    return $major_server_version // 1;
 }
 
 

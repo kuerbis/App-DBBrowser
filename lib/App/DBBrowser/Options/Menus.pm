@@ -44,7 +44,8 @@ sub groups {
     }
     else {
         $groups = [
-            { name => 'group_global', text => "" },
+            { name => 'group_select_plugins', text => "- Select plugins" },
+            { name => 'group_global',         text => "- Global settings" },
         ];
     }
     return $groups;
@@ -126,14 +127,16 @@ sub sub_groups {
             { name => '_file_encoding_out', text => "- File encoding out",  section => 'export'  },
         ],
         group_misc => [
-            { name => '_search',        text => "- Search",       section => 'table' },
-            { name => '_warnings',      text => "- Warnings",     section => 'G'     },
-            { name => 'progress_bar',   text => "- Progress bar", section => 'table' },
+            { name => '_search',      text => "- Search",       section => 'table' },
+            { name => '_warnings',    text => "- Warnings",     section => 'G'     },
+            { name => 'progress_bar', text => "- Progress bar", section => 'table' },
         ],
         group_global => [
-            { name => 'plugins',        text => "- Select plugins", section => 'G'     },
-            { name => '_menu_memory',   text => "- Menu memory",    section => 'G'     },
-            { name => '_mouse',         text => "- Mouse mode",     section => 'table' },
+            { name => '_menu_memory', text => "- Menu memory", section => 'G'     },
+            { name => '_mouse',       text => "- Mouse mode",  section => 'table' },
+        ],
+        group_select_plugins => [
+            { name => 'plugins', text => "- Select plugins", section => 'G' },
         ],
     };
     if ( $driver eq 'DB2' ) {
@@ -188,7 +191,7 @@ sub group_connect {
         #];
         push @$sub_menu_set_attributes,
             #[ 'sqlite_string_mode',         "- sqlite_string_mode",    $sqlite_string_mode_values ],
-            [ 'sqlite_string_mode',         "- sqlite_string_mode",         [ 0, 1, undef, undef, 4, 5, 6 ] ],
+            [ 'sqlite_string_mode',         "- sqlite_string_mode",         [ 0, 1, undef, undef, 4, 5, 6 ] ], # undef not seen by the user
             [ 'sqlite_see_if_its_a_number', "- sqlite_see_if_its_a_number", [ $no, $yes ] ];
     }
     elsif ( $driver eq 'mysql' ) {
@@ -239,8 +242,9 @@ sub group_connect {
             { name => 'odbc_batch_size', text => "- odbc_batch_size" };
         push @$sub_menu_set_attributes,
             [ 'odbc_utf8_on',                   "- odbc_utf8_on",                   [ $no, $yes ] ],
-            [ 'odbc_ignore_named_placeholders', "- odbc_ignore_named_placeholders", [ $no, $yes ] ];
-            #[ 'odbc_array_operations',         "- odbc_array_operations",          [ $no, $yes ] ]
+            [ 'odbc_ignore_named_placeholders', "- odbc_ignore_named_placeholders", [ $no, $yes ] ],
+            #[ 'odbc_array_operations',          "- odbc_array_operations",          [ $no, $yes ] ];
+            [ 'odbc_to_rdbms',                  "- rdbms",                  $sf->{i}{rdbms_types} ];
     }
     elsif ( $driver eq 'DuckDB' ) {
         $sub_menu_required_fields = [];
@@ -270,7 +274,7 @@ sub group_connect {
     else {
         die "connect: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0; # ###
 }
 
 
@@ -330,7 +334,7 @@ sub group_extensions {
     else {
         die "extensions: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
@@ -398,20 +402,17 @@ sub group_sql_settings {
         if ( $driver eq 'Pg' ) {
             push @$sub_menu, [ 'pg_autocast', "- Pg: Convert to 'text' automatically when required.", [ $no, $yes ] ];
         }
-        #if ( $driver eq 'ODBC' ) {
-        #    push @$sub_menu, [ 'odbc_to_rdbms', "- RDBMS", $sf->{i}{rdbms_types} ];
-        #}
         $sf->__settings_menu_wrap( $info, $lo, $section, $sub_menu, $prompt );
     }
     else {
         die "sql_settings: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
 sub group_create_table {
-    my ( $sf, $info, $lo, $section, $sub_group ) = @_;
+    my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
     my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_enable_ct_opt' ) {
         my $prompt = 'Activate options';
@@ -419,6 +420,13 @@ sub group_create_table {
             [ 'option_ai_column_enabled', "- Offer auto increment column", [ $no, $yes ] ],
             [ 'data_type_guessing',       "- Data type guessing",          [ $no, $yes ] ],
         ];
+
+        if ( $driver eq 'ODBC' ) { # ###
+            push @$sub_menu,
+                [ 'encode_for_data_type_guessing',  "- MSSQL: Encode for data type guessing",  [ $no, $yes ] ],
+                [ 'decimal_precision_includes_dot', "- MSSQL: Decimal precision includes dot", [ $no, $yes ] ];
+        }
+
         $sf->__settings_menu_wrap( $info, $lo, $section, $sub_menu, $prompt );
     }
     elsif ( $sub_group eq '_add_ct_fields' ) {
@@ -439,7 +447,7 @@ sub group_create_table {
     else {
         die "create_table: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
@@ -527,7 +535,7 @@ sub group_output {
     else {
         die "output: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
@@ -630,7 +638,7 @@ sub group_import {
     else {
         die "import: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
@@ -682,7 +690,7 @@ sub group_export {
     else {
         die "export: unknown sub_group $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
@@ -714,27 +722,14 @@ sub group_misc {
     else {
         die "misc: unknown sub_group: $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
 }
 
 
 sub group_global {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
     my ( $no, $yes ) = ( 'NO', 'YES' );
-    if ( $sub_group eq 'plugins' ) {
-        my %installed_plugins;
-
-        for my $dir ( @INC ) {
-            my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
-            map { $installed_plugins{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
-        }
-        my $avail_plugins = [ sort keys %installed_plugins ];
-        my $prompt = 'Select plugins';
-
-        $info = undef;
-        $sf->__choose_a_subset_wrap( $info, $lo, $section, $sub_group, $avail_plugins, $prompt );
-    }
-    elsif ( $sub_group eq '_menu_memory' ) {
+    if ( $sub_group eq '_menu_memory' ) {
         my $prompt = 'Your choice: ';
         my $sub_menu = [
             [ 'menu_memory', "- Menu memory", [ $no, $yes ] ],
@@ -751,7 +746,28 @@ sub group_global {
     else {
         die "global: unknown sub_group: $sub_group";
     }
-    return $sf->{write_config} // 0;
+    return; # $sf->{write_config} // 0;
+}
+
+
+sub group_select_plugins {
+    my ( $sf, $info, $lo, $section, $sub_group ) = @_;
+    if ( $sub_group eq 'plugins' ) {
+        my %installed_plugins;
+
+        for my $dir ( @INC ) {
+            my $glob_pattern = catfile $dir, 'App', 'DBBrowser', 'DB', '*.pm';
+            map { $installed_plugins{( fileparse $_, '.pm' )[0]}++ } glob $glob_pattern;
+        }
+        my $avail_plugins = [ sort keys %installed_plugins ];
+        my $prompt = 'Select plugins';
+      #  $info = undef;
+        $sf->__choose_a_subset_wrap( $info, $lo, $section, $sub_group, $avail_plugins, $prompt );
+    }
+    else {
+        die "global: unknown sub_group: $sub_group";
+    }
+    return; # $sf->{write_config} // 0;
 }
 
 

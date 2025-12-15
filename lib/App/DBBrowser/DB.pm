@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_03';
+our $VERSION = '2.437_04';
 
 use Encode       qw( decode );
 #use bytes;      # required
@@ -99,20 +99,24 @@ sub get_schemas {
     my ( $sf, $dbh, $db, $is_system_db ) = @_;
     my ( $user_schemas, $sys_schemas );
     my $driver = $dbh->{Driver}{Name}; #
+    my $dbms = $sf->{Plugin}{i}{dbms};
     if ( $sf->{Plugin}->can( 'get_schemas' ) ) {
         ( $user_schemas, $sys_schemas ) = $sf->{Plugin}->get_schemas( $dbh, $db, $is_system_db );
     }
     else {
-        if( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+        if ( $dbms eq 'SQLite' ) {
+            $user_schemas = [];
+        }
+        elsif( $dbms =~ /^(?:mysql|MariaDB)\z/ ) {
             # MySQL 8.0 Reference Manual / MySQL Glossary / Schema:
             # In MySQL, physically, a schema is synonymous with a database.
             # You can substitute the keyword SCHEMA instead of DATABASE in MySQL SQL syntax,
             $user_schemas = [ $db ];
         }
-        elsif ( $driver eq 'Firebird' ) {
+        elsif ( $dbms eq 'Firebird' ) {
             $user_schemas = [];
         }
-        elsif ( $driver eq 'Oracle' ) {
+        elsif ( $dbms eq 'Oracle' ) {
             # To separate system schemas from the user schemas.
             my ( $tmp_user_schemas, $tmp_sys_schemas ) = ( [], [] );
             for my $sch ( $dbh->selectall_array( "SELECT USERNAME, ORACLE_MAINTAINED FROM ALL_USERS" ) ) {
@@ -141,16 +145,6 @@ sub get_schemas {
             else {
                 $table_schem = 'TABLE_SCHEM';
             }
-            my $regex_sys;
-            if ( $driver eq 'Pg' ) {
-                $regex_sys = qr/^(?:pg_|information_schema$)/i;
-            }
-            elsif ( $driver eq 'DB2' ) {
-                $regex_sys = qr/^(?:SYS|SQLJ$|NULLID$)/i;
-            }
-            elsif ( $driver eq 'Informix' ) {
-                $regex_sys = qr/^informix\z/i;
-            }
             my $sth;
             if ( $driver eq 'ODBC' ) {
                 $sth = $dbh->table_info( undef, '%', undef, undef );
@@ -159,6 +153,20 @@ sub get_schemas {
                 $sth = $dbh->table_info( undef, '%', '', '' );
             }
             my $info = $sth->fetchall_hashref( $table_schem );
+            my $regex_sys;
+            if ( $dbms eq 'Pg' ) {
+                $regex_sys = qr/^(?:pg_|information_schema$)/i;
+            }
+            elsif ( $dbms eq 'DB2' ) {
+                $regex_sys = qr/^(?:SYS|SQLJ$|NULLID$)/i;
+            }
+            elsif ( $dbms eq 'Informix' ) {
+                $regex_sys = qr/^informix\z/i;
+            }
+            elsif ( $dbms eq 'MSSQL' ) {
+                $regex_sys = qr/^(?:sys|information_schema)\z/i;
+            }
+
             for my $schema ( sort keys %$info ) {
                 if ( defined $regex_sys && $schema =~ $regex_sys ) {
                     push @$sys_schemas, $schema;
@@ -179,7 +187,7 @@ sub get_schemas {
         return [], [ @$user_schemas, @$sys_schemas ];
     }
     else {
-        if ( $driver eq 'Pg' && ! @$user_schemas ) {
+        if ( $dbms eq 'Pg' && ! @$user_schemas ) {
             # 5.9.2. The Public Schema
             # In the previous sections we created tables without specifying any schema names. By default such tables
             # (and other objects) are automatically put into a schema named “public”. Every new database contains such a schema.
@@ -237,15 +245,24 @@ sub tables_info {
         $sth = $dbh->table_info( undef, $schema, '%', '' );
     }
     my $info_tables = $sth->fetchall_arrayref( { map { $_ => 1 } @keys } );
+    my $dbms = $sf->{Plugin}{i}{dbms};
+    my $db_odbc;
+    if ( $driver eq 'ODBC' && $dbms eq 'MariaDB' ) {
+    #if ( $driver eq 'ODBC' ) {
+        $db_odbc = $dbh->get_info( 16 ); ##
+    }
     my ( @user_table_keys, @sys_table_keys );
     my $tables_info = {};
 
     for my $info_table ( @$info_tables ) {
         if ( $driver =~ /^(?:Informix|Sybase)\z/ && defined $schema && $schema ne $info_table->{$table_schem} ) {
-            # Informix: `table_info` returns everything.
+            # `table_info` returns everything.
             next;
         }
-        if ( $driver eq 'SQLite') {
+        if ( length $db_odbc && $db_odbc ne $info_table->{$table_cat} ) {
+            next;
+        }
+        if ( $dbms eq 'SQLite') {
             if ( $info_table->{$table_type} =~ /^(?:INDEX|TRIGGER)\z/ ) {
                 next;
             }
@@ -253,7 +270,7 @@ sub tables_info {
                 next; # no temp tables
             }
         }
-        if ( $driver eq 'Oracle' && $info_table->{$table_type} eq 'SEQUENCE' ) {
+        if ( $dbms eq 'Oracle' && $info_table->{$table_type} eq 'SEQUENCE' ) {
             next;
         }
         if ( $driver eq 'DuckDB' ) {
@@ -263,7 +280,7 @@ sub tables_info {
         # The table name in $table_key is used in the tables-menu but not in SQL code.
         # To get the table names for SQL code it is used the 'quote_table' routine in Auxil.pm.
         if ( $db_attached ) {
-            if ( $driver eq 'SQLite' ) {
+            if ( $dbms eq 'SQLite' ) {
                 if ( $info_table->{$table_schem} =~ /^main\z/i ) {
                     $table_key = sprintf "[%s] %s", "\x{001f}" . $info_table->{$table_schem}, $info_table->{$table_name};
                     # \x{001f} keeps the main tables on top of the tables menu.
@@ -272,7 +289,7 @@ sub tables_info {
                     $table_key = sprintf "[%s] %s", $info_table->{$table_schem}, $info_table->{$table_name};
                 }
             }
-            elsif ( $driver eq 'DuckDB' ) {
+            elsif ( $dbms eq 'DuckDB' ) {
                 $table_key = sprintf "[%s] %s", $info_table->{$table_cat}, $info_table->{$table_name};
             }
         }
@@ -282,13 +299,14 @@ sub tables_info {
         if ( $is_system_schema ) {
             push @sys_table_keys, $table_key;
         }
+        elsif ( $dbms eq 'SQLite' && $info_table->{$table_name} =~ /^sqlite_/i ) {
+            push @sys_table_keys, $table_key;
+        }
+        elsif ( $info_table->{$table_type} =~ /^SYSTEM/i ) {
+            push @sys_table_keys, $table_key;
+        }
         else {
-            if ( $info_table->{$table_type} =~ /^SYSTEM/ || ( $driver eq 'SQLite' && $info_table->{$table_name} =~ /^sqlite_/ ) ) {
-                push @sys_table_keys, $table_key;
-            }
-            else {
-                push @user_table_keys, $table_key;
-            }
+            push @user_table_keys, $table_key;
         }
         $tables_info->{$table_key} = [ @{$info_table}{@keys} ];
     }
@@ -314,7 +332,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.437_03
+Version 2.437_04
 
 =head1 DESCRIPTION
 

@@ -38,7 +38,7 @@ sub create_drop_or_attach {
         push @entries, $drop_table   if $sf->{o}{enable}{drop_table};
         push @entries, $create_view  if $sf->{o}{enable}{create_view};
         push @entries, $drop_view    if $sf->{o}{enable}{drop_view};
-        if ( $sf->{i}{driver} =~ /^(?:SQLite|DuckDB)\z/ ) {
+        if ( $sf->{i}{dbms} =~ /^(?:SQLite|DuckDB)\z/ ) {
             push @entries, $attach_databases;
             push @entries, $detach_databases;
         }

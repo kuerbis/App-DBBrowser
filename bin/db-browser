@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.016;
-our $VERSION = '2.437_03';
+our $VERSION = '2.437_04';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.437_03
+Version 2.437_04
 
 =head1 SYNOPSIS
 
@@ -61,7 +61,8 @@ documentation - see L</OPTIONS>.
 
 If C<db-browser> is called without arguments, the user can choose from the databases offered by the database plugin.
 
-If C<db-browser> is called with arguments, those arguments are used as the available databases.
+If C<db-browser> is called with arguments, those arguments are treated as the list of available databases (or as
+available ODBC data sources when using the DBD::ODBC driver).
 
 =head2 SQLite/Firebird
 
@@ -674,11 +675,13 @@ Change the parse settings and reparse the data with the new settings.
 
 =back
 
-=head1 GLOBAL
+=head1 GLOABL SETTINGS
 
-=head3 Select plugins
+=head2 Select plugins
 
 Choose the required database plugins.
+
+=head2 Gloabl settings
 
 =head3 Menu Memory
 
@@ -718,6 +721,9 @@ to the database.
 =item Attributes
 
 For the meaning of these driver-specific attributes, refer to the appropriate driver documentation.
+
+With ODBC there is a special option which allows one to set the target database type and its corresponding SQL dialect.
+For information on how to configure this at the database level, see above.
 
 =back
 

@@ -30,10 +30,11 @@ sub new {
 
 sub __available_joins {
     my ( $sf ) = @_;
-    if ( $sf->{i}{driver} eq 'SQLite' ) {
+    my $dbms = $sf->{i}{dbms};
+    if ( $dbms eq 'SQLite' ) {
         return [ 'INNER JOIN', 'LEFT JOIN', 'CROSS JOIN' ];
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:mysql|MariaDB)\z/ ) {
         return [ 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'CROSS JOIN' ];
     }
     else {

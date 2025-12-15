@@ -39,8 +39,7 @@ sub __config_global {
     $op_rw->read_config_file();
 }
 
-
-sub __config_plugins {
+sub ___________________________config_plugins { # ###
     my ( $sf ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $op_mn = App::DBBrowser::Options::Menus->new( $sf->{i}, $sf->{o} );
@@ -72,19 +71,65 @@ sub __config_plugins {
     }
 }
 
+sub __config_plugins {
+    my ( $sf ) = @_;
+    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $op_mn = App::DBBrowser::Options::Menus->new( $sf->{i}, $sf->{o} );
+    my $chosen_plugins = $sf->{o}{G}{plugins};
+    my $config_old_idx = 0;
+
+    CONFIG_PLUGIN: while ( 1 ) {
+        if ( @$chosen_plugins == 1 ) {
+            my $plugin = $chosen_plugins->[0];
+            my $groups = $op_mn->groups( $plugin );
+            $sf->config_groups( $groups, $plugin );
+            last CONFIG_PLUGIN;
+        }
+        else {
+            my @pre = ( undef );
+            my $menu = [ @pre, map { '- ' . $_ } @$chosen_plugins ];
+            my $prompt = 'Configure Plugins';
+            # Choose
+            my $config_idx = $tc->choose(
+                $menu,
+                { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $config_old_idx, undef => $sf->{i}{_back} }
+            );
+            if ( ! $config_idx ) {
+                return;
+            }
+            if ( $sf->{o}{G}{menu_memory} ) {
+                if ( $config_old_idx == $config_idx && ! $ENV{TC_RESET_AUTO_UP} ) {
+                    $config_old_idx = 0;
+                    next CONFIG_PLUGIN;
+                }
+                $config_old_idx = $config_idx;
+            }
+            my $plugin = $menu->[$config_idx] =~ s/^-\s//r;
+            my $groups = $op_mn->groups( $plugin );
+            $sf->config_groups( $groups, $plugin );
+        }
+    }
+}
+
 
 sub __config_db {
-    my ( $sf, $plugin ) = @_;
+    my ( $sf, $lo, $plugin ) = @_;
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $plugin_full_name = "App::DBBrowser::DB::$plugin";
     eval "require $plugin_full_name" or die $@;
     my $plui = $plugin_full_name->new(  $sf->{i}, $sf->{o} );
     my $driver = $plui->get_db_driver();
+
+    $sf->{o}{connect_data} = $lo->{connect_data};
+    $sf->{o}{connect_attr} = $lo->{connect_attr};
     my $bu_plugin = $sf->{i}{plugin};
     $sf->{i}{plugin} = $plugin;
     my ( $user_dbs, $sys_dbs ) = $plui->get_databases();
     $sf->{i}{plugin} = $bu_plugin;
+    $sf->{o}{connect_data} = {};
+    $sf->{o}{connect_attr} = {};
+
     my $prefix = $driver =~ /^(?:SQLite|DuckDB|Firebird)\z/ ? '' : '- ';
     my @databases = ( map( $prefix . $_, @$user_dbs ), map( '  ' . $_, @$sys_dbs ) );
     my $set_old_idx = 0;
@@ -193,7 +238,7 @@ sub set_options {
     my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
     $sf->{o} = $op_rw->read_config_file();
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $choose_plugins = '- Global';
+    my $choose_plugins = '- Global settings'; # ###
     my $config_plugins = '- Options';
     my $app_info       = '- App info';
     my $help           = '- Help';
@@ -266,11 +311,12 @@ sub config_groups {
         unshift @pre, $hidden;
     }
     else {
-        $info = 'Global Settings';
-        $prompt = $info;
+        #$info = 'Configure:';
+        #$prompt = $info;
+        $prompt = 'Your choice:';
     }
     my $grp_old_idx = $cursor_first_pos;
-    my $changed = 0;
+    #my $changed = 0; # ###
 
     GROUP: while( 1 ) {
         my ( $group, $group_prompt );
@@ -286,9 +332,9 @@ sub config_groups {
                 { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $grp_old_idx, undef => '  <=' }
             );
             if ( ! defined $grp_idx || ! defined $menu->[$grp_idx] ) {
-                if ( $changed ) {
+                #if ( $changed ) {
                     $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                }
+                #}
                 return;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
@@ -299,7 +345,7 @@ sub config_groups {
                 $grp_old_idx = $grp_idx;
             }
             if ( $menu->[$grp_idx] eq $hidden ) {
-                $sf->__config_db( $plugin );
+                $sf->__config_db( $lo, $plugin );
                 next GROUP;
             }
             $group = $groups->[$grp_idx-@pre]{name};
@@ -328,9 +374,9 @@ sub config_groups {
                 );
                 if ( ! $sub_group_idx ) {
                     if ( @$groups == 1 ) {
-                        if ( $changed ) {
+                        #if ( $changed ) {
                             $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                        }
+                        #}
                         return;
                     }
                     next GROUP;
@@ -346,40 +392,55 @@ sub config_groups {
                 $sub_group = $sub_groups->[$sub_group_idx-@pre]{name};
             }
             if ( $group eq 'group_connect' ) {
-                $changed += $op_mn->group_connect( $info, $lo, $section, $sub_group, $driver );
+                #$changed +=
+                $op_mn->group_connect( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_extensions' ) {
-                $changed += $op_mn->group_extensions( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_extensions( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_sql_settings' ) {
-                $changed += $op_mn->group_sql_settings( $info, $lo, $section, $sub_group, $driver );
+                #$changed +=
+                $op_mn->group_sql_settings( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_create_table' ) {
-                $changed += $op_mn->group_create_table( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_create_table( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_output' ) {
-                $changed += $op_mn->group_output( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_output( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_import' ) {
-                $changed += $op_mn->group_import( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_import( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_export' ) {
-                $changed += $op_mn->group_export( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_export( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_misc' ) {
-                $changed += $op_mn->group_misc( $info, $lo, $section, $sub_group, $driver );
+                #$changed +=
+                $op_mn->group_misc( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_global' ) {
-                $changed += $op_mn->group_global( $info, $lo, $section, $sub_group );
+                #$changed +=
+                $op_mn->group_global( $info, $lo, $section, $sub_group );
             }
+
+            elsif ( $group eq 'group_select_plugins' ) { # ###
+                #$changed +=
+                $op_mn->group_select_plugins( $info, $lo, $section, $sub_group );
+            }
+
             else {
                 die "Unknown group $group";
             }
             if ( @$sub_groups == 1 ) {
                 if ( @$groups == 1 ) {
-                    if ( $changed ) {
+                    #if ( $changed ) {
                         $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                    }
+                    #}
                     return;
                 }
                 else {

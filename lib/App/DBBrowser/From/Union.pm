@@ -25,13 +25,14 @@ sub new {
 
 sub __valid_operators {
     my ( $sf ) = @_;
+    my $dbms = $sf->{i}{dbms};
     # Precedence:
     # INTERSECT has priority over UNION or EXCEPT.
     # EXCEPT and UNION are evaluated Left to Right
-    if ( $sf->{i}{driver} eq 'Firebird' ) {
+    if ( $dbms eq 'Firebird' ) {
         return [ 'Union', 'UNION ALL' ];
     }
-    elsif ( $sf->{i}{driver} =~ /^(?:SQLite|Informix)\z/ ) {
+    elsif ( $dbms =~ /^(?:SQLite|Informix)\z/ ) {
         return [ 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT' ];
     }
     else {
@@ -51,7 +52,7 @@ sub union_tables {
     my $parentheses = '  Parentheses';
     my @post;
     push @post, $modify if $sf->{o}{enable}{u_edit_stmt};
-    push @post, $parentheses if $sf->{o}{enable}{u_parentheses} && $sf->{i}{driver} !~ /^(?:SQLite|Firebird)\z/;
+    push @post, $parentheses if $sf->{o}{enable}{u_parentheses} && $sf->{i}{dbms} !~ /^(?:SQLite|Firebird)\z/;
     my $set_operators = $sf->__valid_operators();
     $set_operators = [ map { '- ' . $_ } map { s/\b(.)/uc $1/ger } map { lc } @$set_operators ];
     my $menu = [ @pre, @$set_operators, @post ];

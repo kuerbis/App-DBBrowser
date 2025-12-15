@@ -20,9 +20,9 @@ sub new {
 
 sub function_rand {
     my ( $sf ) = @_;
-    my $driver = $sf->{i}{driver};
-    return "RANDOM()"          if $driver =~ /^(?:SQLite|Pg|DuckDB)\z/;
-    return "DBMS_RANDOM.VALUE" if $driver eq 'Oracle';
+    my $dbms = $sf->{i}{dbms};
+    return "RANDOM()"          if $dbms =~ /^(?:SQLite|Pg|DuckDB)\z/;
+    return "DBMS_RANDOM.VALUE" if $dbms eq 'Oracle';
     return "RAND()";
 }
 
@@ -47,13 +47,13 @@ sub function_truncate {
 
 sub __round_trunc_truncate {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
-    my $driver = $sf->{i}{driver};
+    my $dbms = $sf->{i}{dbms};
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
     if ( ! defined $col ) {
         return;
     }
-    if ( $driver eq 'DuckDB' && $func eq 'TRUNC' ) {
+    if ( $dbms eq 'DuckDB' && $func eq 'TRUNC' ) {
         return "$func($col)";
     }
     my $args_data = [
@@ -61,9 +61,11 @@ sub __round_trunc_truncate {
     ];
     my ( $places ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
     if ( ! defined $places ) {
-        return if $func eq 'TRUNCATE' && $driver =~ /^(?:mysql|MariaDB)\z/;
+        return if $func eq 'TRUNCATE' && $dbms =~ /^(?:mysql|MariaDB)\z/;
+        return if $dbms eq 'MSSQL';
         return "$func($col)";
     }
+    return "ROUND($col,$places,1)" if $func eq 'TRUNCATE' && $dbms eq 'MSSQL';
     return "$func($col,$places)";
 }
 
@@ -71,6 +73,7 @@ sub __round_trunc_truncate {
 sub function_mod {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $dbms = $sf->{i}{dbms};
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
     if ( ! defined $col ) {
         return;
@@ -80,6 +83,7 @@ sub function_mod {
     ];
     my ( $divider ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
     return if ! defined $divider;
+    return "($col % $divider)" if $dbms eq 'MSSQL'; # ###
     return "MOD($col,$divider)";
 }
 

@@ -24,18 +24,18 @@ sub new {
 
 sub __group_concat {
     my ( $sf ) = @_;
-    my $driver = $sf->{i}{driver};
+    my $dbms = $sf->{i}{dbms};
     my $group_concat = '';
-    if ( $driver =~ /^(?:SQLite|mysql|MariaDB)\z/ ) {
+    if ( $dbms =~ /^(?:SQLite|mysql|MariaDB)\z/ ) {
         $group_concat = "GROUP_CONCAT";
     }
-    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:Pg|DuckDB|MSSQL)\z/ ) {
         $group_concat = "STRING_AGG";
     }
-    elsif ( $driver eq 'Firebird' ) {
+    elsif ( $dbms eq 'Firebird' ) {
         $group_concat = "LIST";
     }
-    elsif ( $driver =~ /^(?:DB2|Oracle)\z/ ) {
+    elsif ( $dbms =~ /^(?:DB2|Oracle)\z/ ) {
         $group_concat = "LISTAGG";
     }
     return $group_concat;
@@ -57,6 +57,7 @@ sub get_prepared_aggr_func {
     my ( $sf, $sql, $clause, $aggr, $r_data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
+    my $dbms = $sf->{i}{dbms};
     $r_data //= [];
     push @$r_data, [ 'aggr' ];
     my $prepared_aggr;
@@ -71,7 +72,7 @@ sub get_prepared_aggr_func {
         }
         my $group_concat = $sf->__group_concat();
         $prepared_aggr = $aggr . "(";
-        if ( $aggr =~ /^(?:COUNT|$group_concat)\z/i ) {
+        if ( $aggr eq 'COUNT' || ( $aggr eq $group_concat && $dbms ne 'MSSQL' ) ) {
             my ( $all, $distinct ) = ( 'ALL', 'DISTINCT' );
             my $info = $sf->__prepared_aggr_info( $sql, $clause, $prepared_aggr, $r_data );
             # Choose
@@ -150,9 +151,9 @@ sub __op_group_concat {
     my ( $sf, $sql, $clause, $col, $prepared_aggr, $r_data ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $driver = $sf->{i}{driver};
+    my $dbms = $sf->{i}{dbms};
     my $is_distinct = $prepared_aggr =~ /DISTINCT\s\z/;
-    if ( $driver eq 'Pg' ) {
+    if ( $dbms eq 'Pg' ) {
         $prepared_aggr .= $ax->pg_column_to_text( $sql, $col );
     }
     else {
@@ -160,11 +161,11 @@ sub __op_group_concat {
     }
     my $sep = ',';
     my $order_by_stmt;
-    if (      $driver =~ /^(?:mysql|MariaDB|Pg|DuckDB)\z/
-         || ( $driver =~ /^(?:DB2|Oracle)\z/ && ! $is_distinct )
+    if (      $dbms =~ /^(?:mysql|MariaDB|Pg|DuckDB|MSSQL)\z/
+         || ( $dbms =~ /^(?:DB2|Oracle)\z/ && ! $is_distinct )
     ) {
         my $read = ':Read';
-        if ( $driver eq 'Pg' && $is_distinct ) {
+        if ( $dbms eq 'Pg' && $is_distinct ) {
             $col = $ax->pg_column_to_text( $sql, $col );
         }
         my @choices = ( "ASC", "DESC", $read );
@@ -200,7 +201,7 @@ sub __op_group_concat {
             $order_by_stmt = "ORDER BY $col $choice";
         }
     }
-    if ( $driver eq 'SQLite' ) {
+    if ( $dbms eq 'SQLite' ) {
         if ( $is_distinct ) {
             # https://sqlite.org/forum/info/221c2926f5e6f155
             # SQLite: GROUP_CONCAT with DISTINCT and custom seperator does not work
@@ -211,7 +212,7 @@ sub __op_group_concat {
             $prepared_aggr .= ",'$sep')";
         }
     }
-    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:mysql|MariaDB)\z/ ) {
         if ( $order_by_stmt ) {
             $prepared_aggr .= " $order_by_stmt SEPARATOR '$sep')";
         }
@@ -219,7 +220,7 @@ sub __op_group_concat {
             $prepared_aggr .= " SEPARATOR '$sep')";
         }
     }
-    elsif ( $driver =~ /^(?:Pg|DuckDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:Pg|DuckDB)\z/ ) {
         # Pg, STRING_AGG:
         # - separator mandatory
         # - expects text type as argument
@@ -231,10 +232,10 @@ sub __op_group_concat {
             $prepared_aggr .= ",'$sep')";
         }
     }
-    elsif ( $driver eq 'Firebird' ) {
+    elsif ( $dbms eq 'Firebird' ) {
         $prepared_aggr .= ",'$sep')";
     }
-    elsif ( $driver =~ /^(?:DB2|Oracle)\z/ ) {
+    elsif ( $dbms =~ /^(?:DB2|Oracle|MSSQL)\z/ ) {
         # No order with distinct
         # DB2 codes: error code -214 - error caused by:
         # DISTINCT is specified in the SELECT clause, and a column name or sort-key-expression in the

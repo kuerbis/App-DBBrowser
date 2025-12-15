@@ -72,13 +72,13 @@ sub function_str_to_date {
 
 sub __format_function {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
-    my $driver = $sf->{i}{driver};
+    my $dbms = $sf->{i}{dbms};
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
     if ( ! defined $col ) {
         return;
     }
-    if ( $driver eq 'DuckDB' && $func eq 'TO_TIMESTAMP' ) {
+    if ( $dbms eq 'DuckDB' && $func eq 'TO_TIMESTAMP' ) {
         return "$func($col)";
     }
     my $args_data = [
@@ -87,10 +87,10 @@ sub __format_function {
     if ( $func eq 'FORMAT' ) {
         push @$args_data, { prompt => 'Locale: ', history => [] };
     }
-    if ( $driver eq 'Oracle' ) {
+    if ( $dbms eq 'Oracle' ) {
         push @$args_data, { prompt => 'nls_parameter: ' };
     }
-    elsif ( $driver eq 'DB2' ) {
+    elsif ( $dbms eq 'DB2' ) {
         push @$args_data, { prompt => 'Locale: ' }                                              if $func eq 'TO_CHAR';
         push @$args_data, { prompt => 'Decimals: ', is_numeric => 1 }, { prompt => 'Locale: ' } if $func eq 'TO_DATE'
     }
@@ -98,7 +98,7 @@ sub __format_function {
     if ( ! defined $format ) {
         return;
     }
-    if ( $driver eq 'SQLite' ) {
+    if ( $dbms eq 'SQLite' ) {
         my $modifiers = $ga->sqlite_modifiers( $sql, $r_data );
         return "$func($format,$col,$modifiers)" if length $modifiers;
         return "$func($format,$col)";
@@ -111,18 +111,18 @@ sub __format_function {
 
 sub __format_history {
     my ( $sf, $func ) = @_;
-    my $driver = $sf->{i}{driver};
-    if ( $driver eq 'SQLite' ) {
+    my $dbms = $sf->{i}{dbms};
+    if ( $dbms eq 'SQLite' ) {
         return [ '%Y-%m-%d %H:%M:%f', '%Y-%m-%d %H:%M:%S' ] if $func eq 'STRFTIME';
         return [];
     }
-    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:mysql|MariaDB)\z/ ) {
         return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %h:%i:%S %p' ] if $func eq 'DATE_FORMAT';
         return [ '%Y-%m-%d %H:%i:%S.%f', '%a %d %b %Y %h:%i:%S %p' ] if $func eq 'STR_TO_DATE';
         return [                                                   ] if $func eq 'FORMAT';
         return [];
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $dbms eq 'Pg' ) {
         return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH:MI:SS AM TZ OF' ] if $func eq 'TO_CHAR'; # TZ and OF only in to_char
         return [ 'YYYY-MM-DD'                                                           ] if $func eq 'TO_DATE';
         return [ 'YYYY-MM-DD HH24:MI:SS.FF6TZH:TZM', 'Dy DD Mon YYYY HH:MI:SS AM'       ] if $func eq 'TO_TIMESTAMP';
@@ -130,25 +130,25 @@ sub __format_history {
         return [];
     }
 
-    elsif ( $driver eq 'DuckDB' ) { ##
+    elsif ( $dbms eq 'DuckDB' ) { ##
         return [ '%Y-%m-%d %H:%M:%f', '%Y-%m-%d %H:%M:%S'                               ] if $func eq 'STRFTIME';
         return [ '%Y-%m-%d %H:%M:%f', '%Y-%m-%d %H:%M:%S'                               ] if $func eq 'STRPTIME';
         return [];
     }
 
-    elsif ( $driver eq 'DB2' ) {
+    elsif ( $dbms eq 'DB2' ) {
         return [ 'YYYY-MM-DD HH24:MI:SS.FF6', 'Dy DD Mon YYYY HH:MI:SS AM' ] if $func eq 'TO_CHAR';
         return [ 'YYYY-MM-DD HH24:MI:SS.FF6', 'Dy DD Mon YYYY HH:MI:SS AM' ] if $func eq 'TO_DATE';
         return [                                                           ] if $func eq 'TO_NUMBER';
         return [];
     }
-    elsif ( $driver eq 'Informix' ) {
+    elsif ( $dbms eq 'Informix' ) {
         return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %I:%M:%S %p' ] if $func eq 'TO_CHAR';
         return [ '%Y-%m-%d %H:%M:%S.%F5', '%a %d %b %Y %I:%M:%S %p' ] if $func eq 'TO_DATE';
         return [                                                    ] if $func eq 'TO_NUMBER';
         return [];
     }
-    elsif ( $driver eq 'Oracle' ) {
+    elsif ( $dbms eq 'Oracle' ) {
         return [ 'YYYY-MM-DD HH24:MI:SS.FF9TZH:TZM', 'Dy DD Mon YYYY HH:MI:SSXFF AM TZR TZD' ] if $func eq 'TO_CHAR';
         return [ 'YYYY-MM-DD HH24:MI:SS'           , 'Dy DD Mon YYYY HH:MI:SS AM'            ] if $func eq 'TO_DATE'; # not in the DATE format: FF, TZD, TZH, TZM, and TZR.  Max length 22
         return [ 'YYYY-MM-DD HH24:MI:SS.FF'        , 'Dy DD Mon YYYY HH:MI:SS AM'            ] if $func eq 'TO_TIMESTAMP';
@@ -162,39 +162,57 @@ sub __format_history {
 }
 
 
-sub function_to_epoch {
+sub function_str {
     my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
-    #my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
-    my $driver = $sf->{i}{driver};
     my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
     if ( ! defined $col ) {
         return;
     }
-    if ( $driver eq 'SQLite' ) {
+    my $args_data = [
+        { prompt => 'Length: ', is_numeric => 1 },
+        { prompt => 'Decimal: ', is_numeric => 1 },
+    ];
+    my ( $length, $decimal ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
+    return "$func($col)"                   if ! length $length;
+    return "$func($col,$length)"           if ! length $decimal;
+    return "$func($col,$length,$decimal)";
+}
+
+
+sub function_to_epoch {
+    my ( $sf, $sql, $clause, $func, $cols, $r_data ) = @_;
+    #my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $dbms = $sf->{i}{dbms};
+    my $ga = App::DBBrowser::Table::Extensions::ScalarFunctions::GetArguments->new( $sf->{i}, $sf->{o}, $sf->{d} );
+    my $col = $ga->choose_a_column( $sql, $clause, $cols, $r_data );
+    if ( ! defined $col ) {
+        return;
+    }
+    if ( $dbms eq 'SQLite' ) {
         return "UNIXEPOCH($col,'utc','subsec')"; # subsec: sqlite 3.42.0
     }
-    elsif ( $driver =~ /^(?:mysql|MariaDB)\z/ ) {
+    elsif ( $dbms =~ /^(?:mysql|MariaDB)\z/ ) {
         return "UNIX_TIMESTAMP($col)";
     }
-    elsif ( $driver eq 'Pg' ) {
+    elsif ( $dbms eq 'Pg' ) {
         return "EXTRACT(EPOCH FROM ${col}::timestamp with time zone)";
     }
-    elsif ( $driver eq 'DuckDB' ) { ##
+    elsif ( $dbms eq 'DuckDB' ) { ##
         return "EPOCH(${col}::timestamp with time zone)";
         #return "EPOCH($col)";
     }
-    elsif ( $driver eq 'Firebird' ) {
+    elsif ( $dbms eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
         my $firebird_major_version = 3; ##
         return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00 UTC',$col)" if $firebird_major_version >= 4;
         return "DATEDIFF(SECOND,TIMESTAMP '1970-01-01 00:00:00',$col)"; # no timezone
         #return "DATEDIFF(MILLISECOND,TIMESTAMP '1970-01-01 00:00:00',$col) * 0.001";   # * 0.001 doesn't work in version 4 ##
     }
-    elsif ( $driver eq 'DB2' ) {
+    elsif ( $dbms eq 'DB2' ) {
         return "EXTRACT(EPOCH FROM $col)"; # no timezone
     }
-    elsif ( $driver eq 'Oracle' ) {
+    elsif ( $dbms eq 'Oracle' ) {
         my $args_data = [
             { prompt => 'Column type: ', unquote => 1, history => [ qw(DATE TIMESTAMP TIMESTAMP_TZ) ], history_only => 1 } ##
         ];
@@ -203,6 +221,9 @@ sub function_to_epoch {
         return "TRUNC((CAST($col AT TIME ZONE 'UTC' AS DATE) - DATE '1970-01-01') * 86400)"                                             if $column_type eq 'TIMESTAMP_TZ';
         return "TRUNC((CAST(FROM_TZ($col,SESSIONTIMEZONE) AT TIME ZONE 'UTC' AS DATE) - DATE '1970-01-01') * 86400)"                    if $column_type eq 'TIMESTAMP';
         return "TRUNC((CAST(FROM_TZ(CAST($col AS TIMESTAMP),SESSIONTIMEZONE) AT TIME ZONE 'UTC' AS DATE) - DATE '1970-01-01') * 86400)" if $column_type eq 'DATE';
+    }
+    elsif ( $dbms eq 'MSSQL' ) {
+        return "CAST(DATEDIFF(s,'1970-01-01 00:00:00',$col)AS BIGINT)";
     }
 }
 

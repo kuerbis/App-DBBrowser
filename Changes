@@ -1,6 +1,11 @@
 Revision history for App-DBBrowser
 
 
+2.437_04  2025-12-15
+        - Bugfix default value sqlite_string_mode.
+        - ODBC: new option to set the used SQL dialect.
+        - Code adjustments for MSSQL.
+
 2.437_03  2025-12-04
         - Added 'tables_info' to the plugin documentation.
         - Removed comment from the App::DBBrowser::DB POD.

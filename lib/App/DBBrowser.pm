@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_03';
+our $VERSION = '2.437_04';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -27,10 +27,7 @@ use App::DBBrowser::Options::ReadWrite;
 #use App::DBBrowser::Table;             # required
 
 
-BEGIN {
-    decode_argv(); # not at the end of the BEGIN block if less than perl 5.16
-#    1; # ###
-}
+BEGIN { decode_argv() }
 
 
 sub new {
@@ -52,13 +49,13 @@ sub new {
         menu_addition => '%%',
         info_thsd_sep => ',',
     };
-    $info->{tc_default}  = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, undef => $info->{s_back}, prompt => 'Your choice:' };
-    $info->{tcu_default} = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 6, confirm => $info->{ok}, back => $info->{s_back} };
-    $info->{tf_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, keep => 6, auto_up => 1, skip_items => qr/^\s*\z/ };
+    $info->{tc_default}  = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 8, undef => $info->{s_back}, prompt => 'Your choice:' }; ##
+    $info->{tcu_default} = { hide_cursor => 0, clear_screen => 1, page => 2, keep => 8, confirm => $info->{ok}, back => $info->{s_back} };
+    $info->{tf_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, keep => 8, auto_up => 1, skip_items => qr/^\s*\z/ };
     $info->{tr_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] };
     $info->{lyt_h}       = { order => 0, alignment => 2 };
     $info->{lyt_v}       = { undef => $info->{_back}, layout => 2 };
-    #$info->{rdbms_types} = [ qw( other SQLite mysql MariaDB Pg Firebird DB2 Informix Oracle DuckDB ) ];
+    $info->{rdbms_types} = [ qw( other DB2 DuckDB Firebird Informix MariaDB MSSQL mysql Oracle Pg SQLite ) ]; # ###
     return bless { i => $info }, $class;
 }
 
@@ -181,19 +178,15 @@ sub run {
             last PLUGIN;
         }
         my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
+        delete $sf->{o}{connect_data};
+        delete $sf->{o}{connect_attr};
         $op_rw->read_config_file( $driver, $plugin );
-        #if ( $driver eq 'ODBC' ) {
-        #    $sf->{i}{sql_type} = $sf->{i}{rdbms_types}[$sf->{o}{G}{odbc_to_rdbms}];
-        #}
-        #else {
-        #    $sf->{i}{sql_type} = $driver;
-        #}
 
         # DATABASES
 
         my @databases;
         my ( $user_dbs, $sys_dbs ) = ( [], [] );
-        $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated options
+        $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated info and options
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
             1 }
@@ -284,11 +277,17 @@ sub run {
                 sys_dbs => $sys_dbs,
             };
             $op_rw->read_config_file( $driver, $plugin, $db );
-            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated options
+            if ( $driver eq 'ODBC' ) {
+                $sf->{i}{dbms} = $sf->{i}{rdbms_types}[$sf->{o}{connect_attr}{odbc_to_rdbms} // 0 ]; ##
+            }
+            else {
+                $sf->{i}{dbms} = $driver;
+            }
 
             # DB-HANDLE
 
-            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
+            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options
+            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
             my $dbh;
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
@@ -306,7 +305,7 @@ sub run {
                 last PLUGIN;
             }
             $sf->{d}{dbh} = $dbh;
-            if ( $driver =~ /^(?:SQLite|DuckDB)\z/ && -f $sf->{i}{f_attached_db} ) {
+            if ( $sf->{i}{dbms} =~ /^(?:SQLite|DuckDB)\z/ && -f $sf->{i}{f_attached_db} ) {
                 if ( ! eval {
                     require App::DBBrowser::CreateDropAttach::AttachDB;
                     my $att = App::DBBrowser::CreateDropAttach::AttachDB->new( $sf->{i}, $sf->{o}, $sf->{d} );
@@ -541,7 +540,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.437_03
+Version 2.437_04
 
 =head1 DESCRIPTION
 

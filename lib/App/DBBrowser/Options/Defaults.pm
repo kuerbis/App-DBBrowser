@@ -43,7 +43,7 @@ sub defaults {
             file_find_warnings    => 0,
             warnings_table_print  => 1,
             metadata              => 0,
-            operators             => [ "REGEXP", "REGEXP_i", " = ", " != ", " < ", " > ", "IS NULL", "IS NOT NULL" ],
+            operators             => [ " = ", " != ", " < ", " > ", "REGEXP_i", "NOT REGEXP_i", "IS NULL", "IS NOT NULL", "IN", "NOT IN" ],
 
             qualified_table_name  => 0,
             quote_tables          => 0, # ###
@@ -52,7 +52,6 @@ sub defaults {
             limit_fetch_col_names => 1, ##
             edit_sql_menu_sq      => 0,
             pg_autocast           => 1,
-#            odbc_to_rdbms         => 0,
 
             db2_encoding          => 'utf8',
             duckdb_decode_db_out  => 0,
@@ -133,6 +132,10 @@ sub defaults {
             default_ai_column_name   => 'Id',
             option_ai_column_enabled => 0,
             data_type_guessing       => 1,
+
+            encode_for_data_type_guessing  => 0, # ###
+            decimal_precision_includes_dot => 0, # ###
+
             table_constraint_rows    => 0,
             table_option_rows        => 0,
             view_name_prefix         => '',
@@ -185,165 +188,69 @@ sub defaults {
             quote_empty  => 0,
             quote_space  => 1,
         },
+        connect_data => {
+            host_required => 1,
+            port_required => 1,
+            user_required => 1,
+            pass_required => 1,
+            host => '',
+            port => '',
+            user => '',
+            use_dbi_host => 0,
+            use_dbi_port => 0,
+            use_dbi_user => 0,
+            use_dbi_pass => 0,
+        },
+        connect_attr => {
+            ChopBlanks  => 0,
+            LongTruncOk => 0,
+            LongReadLen => 80,
+        },
     };
-    if ( $driver ) {
-        my $connect_defaults = {
-            SQLite => {
-                connect_data => {
-                },
-                connect_attr => {
-                    sqlite_see_if_its_a_number => 1,
-                    sqlite_string_mode         => 3,
-                    sqlite_busy_timeout        => 30000,
-                },
-            },
-            mysql => {
-                connect_data => {
-                    host_required => 1,
-                    port_required => 1,
-                    user_required => 1,
-                    pass_required => 1,
-                    host => '',
-                    port => '',
-                    user => '',
-                    use_dbi_host => 0,
-                    use_dbi_port => 0,
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    mysql_enable_utf8        => 0,
-                    mysql_enable_utf8mb4     => 1,
-                    mysql_bind_type_guessing => 1,
-                },
-            },
-            MariaDB => {
-                connect_data => {
-                    host_required => 1,
-                    port_required => 1,
-                    user_required => 1,
-                    pass_required => 1,
-                    host => '',
-                    port => '',
-                    user => '',
-                    use_dbi_host => 0,
-                    use_dbi_port => 0,
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    mariadb_bind_type_guessing => 1,
-                },
-            },
-            Pg => {
-                connect_data => {
-                    host_required => 1,
-                    port_required => 1,
-                    user_required => 1,
-                    pass_required => 1,
-                    host => '',
-                    port => '',
-                    user => '',
-                    use_dbi_host => 0,
-                    use_dbi_port => 0,
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    pg_enable_utf8 => -1,
-                },
-            },
-            Firebird => {
-                connect_data => {
-                    host_required => 1,
-                    port_required => 1,
-                    user_required => 1,
-                    pass_required => 1,
-                    host => '',
-                    port => '',
-                    user => '',
-                    use_dbi_host => 0,
-                    use_dbi_port => 0,
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    ib_enable_utf8 => 1,
-                    ib_dialect     => '',
-                    ib_role        => '',
-                    ib_charset     => 'UTF8',
-                },
-            },
-            DB2 => {
-                connect_data => {
-                    user_required => 1,
-                    pass_required => 1,
-                    user => '',
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                },
-            },
-            Informix => {
-                connect_data => {
-                    user_required => 1,
-                    pass_required => 1,
-                    user => '',
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    ix_EnableUTF8 => 1,
-                },
-            },
-            Oracle => {
-                connect_data => {
-                    host_required => 1,
-                    port_required => 1,
-                    user_required => 1,
-                    pass_required => 1,
-                    host => '',
-                    port => '',
-                    user => '',
-                    use_dbi_host => 0,
-                    use_dbi_port => 0,
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    ora_charset => 'AL32UTF8',
-                    AskIfSID    => 0,
-                },
-            },
-            ODBC => {
-                connect_data => {
-                    user_required => 1,
-                    pass_required => 1,
-                    user => '',
-                    use_dbi_user => 0,
-                    use_dbi_pass => 0,
-                },
-                connect_attr => {
-                    odbc_utf8_on                   => 0,
-                    odbc_ignore_named_placeholders => 0,
-                    #odbc_array_operations',       => 0,
-                    odbc_batch_size                => 10,
-                },
-            },
-            DuckDB => {
-                connect_data => {
-                },
-                connect_attr => {
-                    #duckdb_config => {},
-                },
-            },
-        };
-        $defaults->{connect_data} = $connect_defaults->{$driver}{connect_data};
-        $defaults->{connect_attr} = $connect_defaults->{$driver}{connect_attr};
-        $defaults->{connect_attr}{ChopBlanks} = 0;
-        $defaults->{connect_attr}{LongTruncOk} = 0;
-        $defaults->{connect_attr}{LongReadLen} = 80;
+    if ( $driver eq 'SQLite' ) {
+        #$defaults->{connect_data} = {};
+        $defaults->{connect_attr}{sqlite_see_if_its_a_number} = 1;
+        $defaults->{connect_attr}{sqlite_string_mode}         = 5;
+        $defaults->{connect_attr}{sqlite_busy_timeout}        = 30000;
+    }
+    elsif ( $driver eq 'mysql' ) {
+        $defaults->{connect_attr}{mysql_enable_utf8}        = 0;
+        $defaults->{connect_attr}{mysql_enable_utf8mb4}     = 1;
+        $defaults->{connect_attr}{mysql_bind_type_guessing} = 1;
+    }
+    elsif ( $driver eq 'MariaDB' ) {
+        $defaults->{connect_attr}{mariadb_bind_type_guessing} = 1;
+    }
+    elsif ( $driver eq 'Pg' ) {
+        $defaults->{connect_attr}{pg_enable_utf8} = -1;
+    }
+    elsif ( $driver eq 'Firebird' ) {
+        $defaults->{connect_attr}{ib_enable_utf8} = 1;
+        $defaults->{connect_attr}{ib_dialect}     = '';
+        $defaults->{connect_attr}{ib_role}        = '';
+        $defaults->{connect_attr}{ib_charset}     = 'UTF8';
+    }
+    elsif ( $driver eq 'Oracle' ) {
+        $defaults->{connect_attr}{ora_charset} = 'AL32UTF8';
+        $defaults->{connect_attr}{AskIfSID}    = 0;
+    }
+    elsif ( $driver eq 'DB2' ) {
+        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
+    }
+    elsif ( $driver eq 'Informix' ) {
+        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
+        $defaults->{connect_attr}{ix_EnableUTF8} = 1;
+    }
+    elsif ( $driver eq 'ODBC' ) {
+        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
+        $defaults->{connect_attr}{odbc_utf8_on}                   = 0;
+        $defaults->{connect_attr}{odbc_ignore_named_placeholders} = 0;
+       #$defaults->{connect_attr}{odbc_array_operations}          = 0;
+        $defaults->{connect_attr}{odbc_batch_size}                = 10;
+        $defaults->{connect_attr}{odbc_to_rdbms}                  = 0; # ###
+    }
+    elsif ( $driver eq 'DuckDB' ) {
+        #$defaults->{connect_data} = {};
     }
     return $defaults;
 }

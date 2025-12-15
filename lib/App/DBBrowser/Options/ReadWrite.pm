@@ -49,21 +49,13 @@ sub read_config_file {
         my $file_fs = sprintf( $sf->{i}{db_config_file_fmt}, $plugin );
         my $conf = $ax->read_json( $file_fs ) // {};
         if ( ! %{$conf->{$db}//{}} ) {
-            if ( ! defined wantarray ) {
-                # Don't overwrite plugin settings if there are no db settings.
-                return;
+            my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
+            $conf = $ax->read_json( $file_fs ) // {};
+            if ( ! %$conf ) {
+                $conf = $op_df->defaults( $driver );
             }
-            else {
-                my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
-                if ( -f $file_fs ) {
-                    $conf = $ax->read_json( $file_fs ) // {};
-                }
-                else {
-                    $conf = $op_df->defaults( $driver );
-                }
-                $lo->{connect_data} = $conf->{connect_data};
-                $lo->{connect_attr} = $conf->{connect_attr};
-            }
+            $lo->{connect_data} = $conf->{connect_data};
+            $lo->{connect_attr} = $conf->{connect_attr};
         }
         else {
             $lo = $conf->{$db};
