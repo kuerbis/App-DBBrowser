@@ -39,37 +39,6 @@ sub __config_global {
     $op_rw->read_config_file();
 }
 
-sub ___________________________config_plugins { # ###
-    my ( $sf ) = @_;
-    my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $op_mn = App::DBBrowser::Options::Menus->new( $sf->{i}, $sf->{o} );
-    my $chosen_plugins = $sf->{o}{G}{plugins};
-    my $config_old_idx = 0;
-
-    CONFIG_PLUGIN: while ( 1 ) {
-        my @pre = ( undef );
-        my $menu = [ @pre, map { '- ' . $_ } @$chosen_plugins ];
-        my $prompt = 'Configure Plugins';
-        # Choose
-        my $config_idx = $tc->choose(
-            $menu,
-            { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $config_old_idx, undef => $sf->{i}{_back} }
-        );
-        if ( ! $config_idx ) {
-            return;
-        }
-        if ( $sf->{o}{G}{menu_memory} ) {
-            if ( $config_old_idx == $config_idx && ! $ENV{TC_RESET_AUTO_UP} ) {
-                $config_old_idx = 0;
-                next CONFIG_PLUGIN;
-            }
-            $config_old_idx = $config_idx;
-        }
-        my $plugin = $menu->[$config_idx] =~ s/^-\s//r;
-        my $groups = $op_mn->groups( $plugin );
-        $sf->config_groups( $groups, $plugin );
-    }
-}
 
 sub __config_plugins {
     my ( $sf ) = @_;
