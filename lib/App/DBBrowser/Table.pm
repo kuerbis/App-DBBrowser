@@ -137,7 +137,9 @@ sub browse_the_table {
                 my $write = App::DBBrowser::Table::InsertUpdateDelete->new( $sf->{i}, $sf->{o}, $sf->{d} );
                 my $backup_sql = $ax->clone_data( $sql );
                 $write->table_write_access( $sql );
-                for my $key ( keys %$backup_sql ) { ##
+                # reset $sql else 'bu_where_stmt' from a delete/update could remain in $sql
+                $ax->reset_sql( $sql );
+                for my $key ( keys %$backup_sql ) {
                     $sql->{$key} = $backup_sql->{$key};
                 }
                 1 }

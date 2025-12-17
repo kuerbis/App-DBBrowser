@@ -9,8 +9,10 @@ use Encode       qw( decode );
 use Scalar::Util qw( looks_like_number );
 #use Storable     qw();  # required
 
-use JSON::MaybeXS   qw( decode_json );
-use List::MoreUtils qw( none uniq );
+
+use DBI::Const::GetInfoType;
+use JSON::MaybeXS            qw( decode_json );
+use List::MoreUtils          qw( none );
 
 use Term::Choose            qw();
 use Term::Choose::Constants qw( EXTRA_W );
@@ -38,8 +40,9 @@ sub reset_sql {
         columns => $sql->{columns} // [],
         data_types => $sql->{data_types} // {},
     };
-    # reset/initialize:
+    # reset:
     delete @{$sql}{ keys %$sql }; # not "$sql = {}" so $sql is still pointing to the outer $sql
+    # initialize:
     my @string = qw( distinct_stmt set_stmt where_stmt having_stmt order_by_stmt limit_stmt offset_stmt );
     my @array  = qw( group_by_cols selected_cols set_args order_by_cols
                      ct_column_definitions ct_table_constraints ct_table_options
@@ -378,7 +381,7 @@ sub column_names_and_types {
         if ( defined $ctes ) {
             $stmt = $ctes;
         }
-        if ( $sf->{o}{G}{limit_fetch_col_names} ) { ##
+        if ( $sf->{o}{G}{limit_fetch_col_names} ) { # ###
             $stmt .= "SELECT * FROM " . $table . $sf->sql_limit( 0 );
         }
         else {
@@ -676,7 +679,7 @@ sub major_server_version {
         return $major_server_version // 3;
     }
     else {
-        my $database_version  = $dbh->get_info( 18 ); ##
+        my $database_version  = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );
         ( $major_server_version ) = $database_version =~ /^v?(\d+)\D/i;
         if ( $dbms eq 'Pg' ) {
             return $major_server_version // 10;
@@ -684,7 +687,7 @@ sub major_server_version {
         elsif ( $dbms eq 'Oracle' ) {
             return $major_server_version // 12;
         }
-        elsif ( $dbms eq 'MSSQL' ) { # ###
+        elsif ( $dbms eq 'MSSQL' ) {
             return $major_server_version // 16;
         }
     }

@@ -4,15 +4,16 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_04';
+our $VERSION = '2.437_05';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
 use Getopt::Long          qw( GetOptions );
 
-use Encode::Locale qw( decode_argv );
-use File::HomeDir  qw();
-use File::Which    qw( which );
+use DBI::Const::GetInfoType;
+use Encode::Locale           qw( decode_argv );
+use File::HomeDir            qw();
+use File::Which              qw( which );
 
 use Term::Choose         qw();
 use Term::Choose::Screen qw( clear_screen );
@@ -55,7 +56,7 @@ sub new {
     $info->{tr_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] };
     $info->{lyt_h}       = { order => 0, alignment => 2 };
     $info->{lyt_v}       = { undef => $info->{_back}, layout => 2 };
-    $info->{rdbms_types} = [ qw( other DB2 DuckDB Firebird Informix MariaDB MSSQL mysql Oracle Pg SQLite ) ]; # ###
+    #$info->{rdbms_types} = [ qw( other DB2 DuckDB Firebird Informix MariaDB MSSQL mysql Oracle Pg SQLite ) ]; # ###
     return bless { i => $info }, $class;
 }
 
@@ -89,8 +90,8 @@ sub __init {
     $sf->{i}{db_cache_file_fmt} = catfile $db_cache_dir, 'databases_%s.json';
     my $plugin_config_dir = catdir( $app_dir, 'config_plugins' );
     mkdir $plugin_config_dir or die $! if ! -d $plugin_config_dir;
-    $sf->{i}{plugin_config_file_fmt} = catfile $plugin_config_dir, 'config_%s.json';      # ###
-    $sf->{i}{db_config_file_fmt}     = catfile $plugin_config_dir, 'config_%s_DBs.json';  # ###
+    $sf->{i}{plugin_config_file_fmt} = catfile $plugin_config_dir, 'config_%s.json';
+    $sf->{i}{db_config_file_fmt}     = catfile $plugin_config_dir, 'config_%s_Databases.json';  # ###
 }
 
 
@@ -181,12 +182,12 @@ sub run {
         delete $sf->{o}{connect_data};
         delete $sf->{o}{connect_attr};
         $op_rw->read_config_file( $driver, $plugin );
+        #$plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated info and options # ###
 
         # DATABASES
 
         my @databases;
         my ( $user_dbs, $sys_dbs ) = ( [], [] );
-        $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated info and options
         if ( ! eval {
             ( $user_dbs, $sys_dbs ) = $plui->get_databases();
             1 }
@@ -277,23 +278,23 @@ sub run {
                 sys_dbs => $sys_dbs,
             };
             $op_rw->read_config_file( $driver, $plugin, $db );
-            if ( $driver eq 'ODBC' ) {
-                $sf->{i}{dbms} = $sf->{i}{rdbms_types}[$sf->{o}{connect_attr}{odbc_to_rdbms} // 0 ]; ##
-            }
-            else {
-                $sf->{i}{dbms} = $driver;
-            }
+            #if ( $driver eq 'ODBC' ) {
+            #    $sf->{i}{dbms} = $sf->{i}{rdbms_types}[$sf->{o}{connect_attr}{odbc_to_rdbms} // 0 ]; ##
+            #}
+            #else {
+            #    $sf->{i}{dbms} = $driver;
+            #}
+            #$plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options # ###
+            #$ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
 
             # DB-HANDLE
 
-            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options
-            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
             my $dbh;
             if ( ! eval {
                 $dbh = $plui->get_db_handle( $db );
-                $sf->{d}{identifier_quote_char} = $dbh->get_info(29) // '"'; # SQL_IDENTIFIER_QUOTE_CHAR
-                #$sf->{d}{catalog_name_sep} = $dbh->get_info(41) // '.';  # SQL_CATALOG_NAME_SEPARATOR
-                #$sf->{d}{catalog_location} = $dbh->get_info(114) || 1;   # SQL_CATALOG_LOCATION
+                $sf->{d}{identifier_quote_char} = $dbh->get_info( $GetInfoType{SQL_IDENTIFIER_QUOTE_CHAR} ) // '"';
+                #$sf->{d}{catalog_name_sep}     = $dbh->get_info( $GetInfoType{SQL_CATALOG_NAME_SEPARATOR} ) // '.';
+                #$sf->{d}{catalog_location}     = $dbh->get_info( $GetInfoType{SQL_CATALOG_LOCATION} ) || 1;
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -305,6 +306,28 @@ sub run {
                 last PLUGIN;
             }
             $sf->{d}{dbh} = $dbh;
+            if ( $driver eq 'ODBC' ) {
+                my $dbms_name = $dbh->get_info( $GetInfoType{SQL_DBMS_NAME} );
+                if ( $dbms_name =~ /sql server/i ) {
+                    $sf->{i}{dbms} = 'MSSQL';
+                }
+                elsif ( $dbms_name =~ /postgresql/i ) {
+                    $sf->{i}{dbms} = 'Pg';
+                }
+                else {
+                    for my $type ( qw( Oracle DB2 Informix MariaDB mysql SQLite DuckDB Firebird ) ) {
+                        if ( $dbms_name =~ /$type/i ) {
+                            $sf->{i}{dbms} = $type;
+                            last;
+                        }
+                    }
+                }
+            }
+            else {
+                $sf->{i}{dbms} = $driver;
+            }
+#            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options # ###
+#            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
             if ( $sf->{i}{dbms} =~ /^(?:SQLite|DuckDB)\z/ && -f $sf->{i}{f_attached_db} ) {
                 if ( ! eval {
                     require App::DBBrowser::CreateDropAttach::AttachDB;
@@ -540,7 +563,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.437_04
+Version 2.437_05
 
 =head1 DESCRIPTION
 

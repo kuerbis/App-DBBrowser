@@ -7,7 +7,7 @@ use 5.016;
 
 use DBI qw();
 
-use App::DBBrowser::Auxil;
+use App::DBBrowser::Auxil; # ###
 use App::DBBrowser::Credentials;
 
 
@@ -31,8 +31,8 @@ sub get_db_handle {
     my ( $sf, $db ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $cred = App::DBBrowser::Credentials->new( $sf->{i}, $sf->{o} );
-    my $attr = $ax->clone_data( $sf->{o}{connect_attr} );
-    delete $attr->{odbc_to_rdbms};
+    my $attr = $ax->clone_data( $sf->{o}{connect_attr} ); # ###
+    delete $attr->{odbc_to_rdbms}; # ###
     my $dsn = "dbi:ODBC:DSN=$db";
     my $show_sofar = 'DSN '. $db;
     my $user = $cred->get_login( 'user', $show_sofar );
@@ -43,7 +43,7 @@ sub get_db_handle {
         RaiseError => 1,
         AutoCommit => 1,
         ShowErrorStatement => 1,
-        %{$attr//{}}, ##
+        %{$attr//{}}, ## # ###
     } );
     return $dbh;
 }

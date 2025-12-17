@@ -321,7 +321,7 @@ sub parse_with_Spreadsheet_Read {
             $book = Spreadsheet::Read::ReadData( $file_fs, cells => 0, attr => 0, rc => 1, strip => 0 );
             1 }
         ) {
-            die "Read::Spreadsheet: $@";
+            die "Spreadsheet::Read: $@"; # ###
         }
         if ( ! defined $book ) {
             $tc->choose(

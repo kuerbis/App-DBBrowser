@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_04';
+our $VERSION = '2.437_05';
 
 use Encode       qw( decode );
 #use bytes;      # required
@@ -249,6 +249,7 @@ sub tables_info {
     my $db_odbc;
     if ( $driver eq 'ODBC' && $dbms eq 'MariaDB' ) {
     #if ( $driver eq 'ODBC' ) {
+        # odbc: $db is data source name and not the database name
         $db_odbc = $dbh->get_info( 16 ); ##
     }
     my ( @user_table_keys, @sys_table_keys );
@@ -332,7 +333,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.437_04
+Version 2.437_05
 
 =head1 DESCRIPTION
 

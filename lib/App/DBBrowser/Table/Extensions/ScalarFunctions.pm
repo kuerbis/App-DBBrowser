@@ -165,8 +165,8 @@ sub __available_functions {
             $round              => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle', 'MSSQL' ],
             $sign               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle', 'MSSQL' ],
             $sqrt               => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle', 'MSSQL' ],
-            $truncate           => [  undef  , 'mysql', 'MariaDB',  undef,  undef  ,  undef    , 'DB2' ,  undef    ,  undef  , 'MSSQL' ],
-            $trunc              => [ 'SQLite',  undef ,  undef   , 'Pg'  , 'DuckDB', 'Firebird',  undef, 'Informix', 'Oracle',  undef  ], # DB2
+            $truncate           => [  undef  , 'mysql', 'MariaDB',  undef,  undef  ,  undef    , 'DB2' ,  undef    ,  undef  ,  undef  ],
+            $trunc              => [ 'SQLite',  undef ,  undef   , 'Pg'  , 'DuckDB', 'Firebird',  undef, 'Informix', 'Oracle', 'MSSQL' ], # DB2
         },
         date => {
             $age                => [  undef  ,  undef ,  undef   , 'Pg'  , 'DuckDB',  undef    , 'DB2' ,  undef    ,  undef  ,  undef  ],

@@ -65,7 +65,7 @@ sub __round_trunc_truncate {
         return if $dbms eq 'MSSQL';
         return "$func($col)";
     }
-    return "ROUND($col,$places,1)" if $func eq 'TRUNCATE' && $dbms eq 'MSSQL';
+    return "ROUND($col,$places,1)" if $func eq 'TRUNC' && $dbms eq 'MSSQL';
     return "$func($col,$places)";
 }
 

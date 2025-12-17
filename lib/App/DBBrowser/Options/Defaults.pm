@@ -247,7 +247,7 @@ sub defaults {
         $defaults->{connect_attr}{odbc_ignore_named_placeholders} = 0;
        #$defaults->{connect_attr}{odbc_array_operations}          = 0;
         $defaults->{connect_attr}{odbc_batch_size}                = 10;
-        $defaults->{connect_attr}{odbc_to_rdbms}                  = 0; # ###
+        #$defaults->{connect_attr}{odbc_to_rdbms}                  = 0; # ###
     }
     elsif ( $driver eq 'DuckDB' ) {
         #$defaults->{connect_data} = {};

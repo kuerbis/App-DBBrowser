@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.016;
-our $VERSION = '2.437_04';
+our $VERSION = '2.437_05';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.437_04
+Version 2.437_05
 
 =head1 SYNOPSIS
 
@@ -721,9 +721,6 @@ to the database.
 =item Attributes
 
 For the meaning of these driver-specific attributes, refer to the appropriate driver documentation.
-
-With ODBC there is a special option which allows one to set the target database type and its corresponding SQL dialect.
-For information on how to configure this at the database level, see above.
 
 =back
 

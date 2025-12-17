@@ -244,7 +244,7 @@ sub group_connect {
             [ 'odbc_utf8_on',                   "- odbc_utf8_on",                   [ $no, $yes ] ],
             [ 'odbc_ignore_named_placeholders', "- odbc_ignore_named_placeholders", [ $no, $yes ] ],
             #[ 'odbc_array_operations',          "- odbc_array_operations",          [ $no, $yes ] ];
-            [ 'odbc_to_rdbms',                  "- rdbms",                  $sf->{i}{rdbms_types} ];
+            #[ 'odbc_to_rdbms',                  "- target database type",   $sf->{i}{rdbms_types} ]; # ###
     }
     elsif ( $driver eq 'DuckDB' ) {
         $sub_menu_required_fields = [];
