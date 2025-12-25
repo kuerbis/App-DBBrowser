@@ -1,6 +1,5 @@
 package # hide from PAUSE
 App::DBBrowser::GetContent;
-#$SIG{__WARN__} = sub { die @_ };
 use warnings;
 use strict;
 use 5.016;

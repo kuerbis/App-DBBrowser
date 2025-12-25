@@ -366,6 +366,23 @@ sub sql_limit {
         return "";
     }
 }
+#sub sql_limit {
+#    my ( $sf, $rows ) = @_;
+#    my $dbms = $sf->{i}{dbms};
+#    if ( $dbms =~ /^(?:SQLite|mysql|MariaDB|Pg|DuckDB)\z/ ) {
+#        return " LIMIT $rows";
+#    }
+#    elsif ( $dbms =~ /^(?:Firebird|DB2|Oracle)\z/ ) {
+#        return " FETCH NEXT $rows ROWS ONLY"
+#    }
+#    elsif ( $dbms eq 'MSSQL' ) {
+#        return " OFFSET 0 ROWS FETCH NEXT $rows ROWS ONLY"
+#    }
+#    else {
+#        return "";
+#    }
+#}
+
 
 
 sub column_names_and_types {
@@ -381,13 +398,7 @@ sub column_names_and_types {
         if ( defined $ctes ) {
             $stmt = $ctes;
         }
-        if ( $sf->{o}{G}{limit_fetch_col_names} ) { # ###
-            $stmt .= "SELECT * FROM " . $table . $sf->sql_limit( 0 );
-        }
-        else {
-            $stmt .= "SELECT * FROM " . $table;
-        }
-        #$stmt .= "SELECT * FROM " . $table . $sf->sql_limit( 0 );
+        $stmt .= "SELECT * FROM " . $table . $sf->sql_limit( 0 );
         my $sth = $sf->{d}{dbh}->prepare( $stmt );
         if ( $driver eq 'SQLite' ) {
             $column_names = [ @{$sth->{NAME}} ];
@@ -399,11 +410,11 @@ sub column_names_and_types {
                 $column_types = [ map { ! $_ || $_ =~ /$rx_numeric/i ? 2 : 1 } @{$sth->{TYPE}} ];
             }
         }
-        elsif ( $driver eq 'DuckDB' ) {
-            $sth->execute();
-            $column_names = [ map { decode('UTF-8', $_) } @{$sth->{NAME}} ];
-            $column_types = [ @{$sth->{TYPE}} ];
-        }
+        #elsif ( $driver eq 'DuckDB' ) {
+        #    $sth->execute();
+        #    $column_names = [ map { decode('UTF-8', $_) } @{$sth->{NAME}} ];
+        #    $column_types = [ @{$sth->{TYPE}} ];
+        #}
         else {
             $sth->execute();
             $column_names = [ @{$sth->{NAME}} ];

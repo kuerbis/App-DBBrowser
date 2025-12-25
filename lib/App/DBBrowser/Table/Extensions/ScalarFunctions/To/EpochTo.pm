@@ -267,8 +267,8 @@ sub __stmt_epoch_to_timestamp {
     #my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $dbms = $sf->{i}{dbms};
     if ( $dbms =~ /^(?:Pg|DuckDB)\z/ ) { ##
-        return "TO_TIMESTAMP(${col}::bigint)::timestamptz"              if $interval == 1;
-        return "TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamptz";
+        return "TO_TIMESTAMP(${col}::bigint)"              if $interval == 1;
+        return "TO_TIMESTAMP(${col}::bigint/$interval.0)";
     }
     elsif ( $dbms eq 'Firebird' ) {
         #my $firebird_major_version = $ax->major_server_version();
@@ -290,14 +290,16 @@ sub __stmt_epoch_to_timestamp {
         return "(TIMESTAMP '1970-01-01 00:00:00 UTC' + $col * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE"            if $interval == 1;
         return "(TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE";
     }
-    elsif ( $dbms eq 'MSSQL' ) { # no timezone
-        return "DATEADD(s, $col,'1970-01-01 00:00:00')"                                                              if $interval == 1;
-        return "DATEADD(ms,$col%1000,DATEADD(s,$col/1000,CONVERT(datetime2(3),'1970-01-01 00:00:00.000')))"          if $interval == 1_000;
-        return "DATEADD(us,$col%1000000,DATEADD(s,$col/1000000,CONVERT(datetime2(6),'1970-01-01 00:00:00.000000')))" if $interval == 1_000_000;
-        #return "DATEADD(ns,$col%1000000000,DATEADD(s,$col/1000000000,CONVERT(datetime2(7),'1970-01-01 00:00:00.0000000')))"
+    elsif ( $dbms eq 'MSSQL' ) {
+        #return "DATEADD(s,$col,CAST('1970-01-01T00:00:00+00:00' AS datetimeoffset(0)))"             if $interval == 1;;
+        #return "DATEADD(s,$col/$interval.0,CAST('1970-01-01T00:00:00+00:00' AS datetimeoffset(3)))" if $interval == 1_000;
+        #return "DATEADD(s,$col/$interval.0,CAST('1970-01-01T00:00:00+00:00' AS datetimeoffset(6)))" if $interval == 1_000_000;
+        return "DATEADD(s,$col,'1970-01-01 00:00:00') AT TIME ZONE 'UTC'"                                                                    if $interval == 1;
+        return "DATEADD(ms,$col%$interval,DATEADD(s,$col/$interval,CONVERT(datetime2(3),'1970-01-01 00:00:00.000'))) AT TIME ZONE 'UTC'"     if $interval == 1_000;
+        return "DATEADD(mcs,$col%$interval,DATEADD(s,$col/$interval,CONVERT(datetime2(6),'1970-01-01 00:00:00.000000'))) AT TIME ZONE 'UTC'" if $interval == 1_000_000;
+        #return "DATEADD(ns,$col%1000000000,DATEADD(s,$col/1000000000,CONVERT(datetime2(7),'1970-01-01 00:00:00.0000000'))) AT TIME ZONE 'UTC'"
     }
 }
-
 
 
 sub __stmt_epoch_to_datetime {
@@ -319,7 +321,7 @@ sub __stmt_epoch_to_datetime {
         return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp,'yyyy-mm-dd hh24:mi:ss.ff3')" if $interval == 1_000;
         return "TO_CHAR(TO_TIMESTAMP(${col}::bigint/$interval.0)::timestamp,'yyyy-mm-dd hh24:mi:ss.ff6')";
     }
-    elsif ( $dbms eq 'DuckDB' ) { # ###
+    elsif ( $dbms eq 'DuckDB' ) {
         return "TO_TIMESTAMP($col)::timestamp"                                            if $interval == 1;
         return "STRFTIME(TO_TIMESTAMP($col/$interval)::timestamp,'%Y-%m-%d %H:%M:%S.%g')" if $interval == 1_000;
         return "TO_TIMESTAMP($col/$interval)::timestamp";
@@ -353,6 +355,12 @@ sub __stmt_epoch_to_datetime {
         return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS')"                if $interval == 1;
         return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS.FF3')"  if $interval == 1_000;
         return "TO_CHAR((TIMESTAMP '1970-01-01 00:00:00 UTC' + $col/$interval * INTERVAL '1' SECOND) AT TIME ZONE SESSIONTIMEZONE,'YYYY-MM-DD HH24:MI:SS.FF6')";
+    }
+    elsif ( $dbms eq 'MSSQL' ) {
+        return "CONVERT(VARCHAR(19),DATEADD(s,$col,'1970-01-01 00:00:00'),20)"            if $interval == 1;
+        return "CONVERT(VARCHAR(19),DATEADD(s,$col/$interval,'1970-01-01 00:00:00'),20)";
+        #return "FORMAT(DATEADD(SECOND,$col,'1970-01-01 00:00:00'),'yyyy-MM-dd HH:mm:ss')"            if $interval == 1; ##
+        #return "FORMAT(DATEADD(SECOND,$col/$interval,'1970-01-01 00:00:00'),'yyyy-MM-dd HH:mm:ss')";
     }
 }
 

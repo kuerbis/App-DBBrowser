@@ -91,7 +91,7 @@ sub sub_groups {
         group_create_table => [
             { name => '_enable_ct_opt',          text => "- Enable options",                     section => 'create' },
             { name => '_add_ct_fields',          text => "- Add form fields",                    section => 'create' },
-            { name => '_default_ai_column_name', text => "- Default auto increment column name", section => 'create' }, # ###
+            { name => '_default_ai_column_name', text => "- Default auto increment column name", section => 'create' }, ##
         ],
         group_output => [
             { name => '_binary_filter',    text => "- Binary filter",           section => 'table' },
@@ -244,7 +244,6 @@ sub group_connect {
             [ 'odbc_utf8_on',                   "- odbc_utf8_on",                   [ $no, $yes ] ],
             [ 'odbc_ignore_named_placeholders', "- odbc_ignore_named_placeholders", [ $no, $yes ] ],
             #[ 'odbc_array_operations',          "- odbc_array_operations",          [ $no, $yes ] ];
-            #[ 'odbc_to_rdbms',                  "- target database type",   $sf->{i}{rdbms_types} ]; # ###
     }
     elsif ( $driver eq 'DuckDB' ) {
         $sub_menu_required_fields = [];
@@ -274,7 +273,7 @@ sub group_connect {
     else {
         die "connect: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0; # ###
+    return;
 }
 
 
@@ -334,7 +333,7 @@ sub group_extensions {
     else {
         die "extensions: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -407,26 +406,20 @@ sub group_sql_settings {
     else {
         die "sql_settings: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
 sub group_create_table {
-    my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
+    my ( $sf, $info, $lo, $section, $sub_group ) = @_;
     my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_enable_ct_opt' ) {
         my $prompt = 'Activate options';
         my $sub_menu = [
-            [ 'option_ai_column_enabled', "- Offer auto increment column", [ $no, $yes ] ],
-            [ 'data_type_guessing',       "- Data type guessing",          [ $no, $yes ] ],
+            [ 'option_ai_column_enabled',       "- Offer auto increment column",   [ $no, $yes ] ],
+            [ 'data_type_guessing',             "- Data type guessing",            [ $no, $yes ] ],
+            [ 'encode_for_data_type_guessing',  "- Encode for data type guessing", [ $no, $yes ] ],
         ];
-
-        if ( $driver eq 'ODBC' ) { # ###
-            push @$sub_menu,
-                [ 'encode_for_data_type_guessing',  "- MSSQL: Encode for data type guessing",  [ $no, $yes ] ],
-                [ 'decimal_precision_includes_dot', "- MSSQL: Decimal precision includes dot", [ $no, $yes ] ];
-        }
-
         $sf->__settings_menu_wrap( $info, $lo, $section, $sub_menu, $prompt );
     }
     elsif ( $sub_group eq '_add_ct_fields' ) {
@@ -447,7 +440,7 @@ sub group_create_table {
     else {
         die "create_table: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -535,7 +528,7 @@ sub group_output {
     else {
         die "output: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -638,7 +631,7 @@ sub group_import {
     else {
         die "import: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -690,7 +683,7 @@ sub group_export {
     else {
         die "export: unknown sub_group $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -722,7 +715,7 @@ sub group_misc {
     else {
         die "misc: unknown sub_group: $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -746,7 +739,7 @@ sub group_global {
     else {
         die "global: unknown sub_group: $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -767,7 +760,7 @@ sub group_select_plugins {
     else {
         die "global: unknown sub_group: $sub_group";
     }
-    return; # $sf->{write_config} // 0;
+    return;
 }
 
 
@@ -779,8 +772,6 @@ sub __settings_menu_wrap {
         $sub_menu, $lo->{$section},
         { info => $info, prompt => $prompt, back => $sf->{i}{_back}, confirm => $sf->{i}{_confirm} }
     );
-    return if ! $changed;
-    $sf->{write_config}++;
 }
 
 
@@ -801,7 +792,6 @@ sub __choose_a_subset_wrap {
     return if ! defined $list;
     return if ! @$list;
     $lo->{$section}{$opt} = $list;
-    $sf->{write_config}++;
     return;
 }
 
@@ -820,7 +810,6 @@ sub __choose_a_number_wrap {
     );
     return if ! defined $choice;
     $lo->{$section}{$opt} = $choice;
-    $sf->{write_config}++;
     return;
 }
 
@@ -836,7 +825,6 @@ sub __choose_a_directory_wrap {
     );
     return if ! defined $choice;
     $lo->{$section}{$opt} = $choice;
-    $sf->{write_config}++;
     return;
 }
 
@@ -856,7 +844,6 @@ sub __group_readline {
         for my $i ( 0 .. $#$items ) {
             $lo->{$section}{$items->[$i]{name}} = $new_list->[$i][1];
         }
-        $sf->{write_config}++;
     }
 }
 

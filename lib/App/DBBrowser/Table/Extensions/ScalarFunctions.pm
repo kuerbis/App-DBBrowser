@@ -204,7 +204,7 @@ sub __available_functions {
         },
         to => {
             $epoch_to_date      => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle', 'MSSQL' ],
-            $epoch_to_datetime  => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle',  undef  ], ##
+            $epoch_to_datetime  => [ 'SQLite', 'mysql', 'MariaDB', 'Pg'  , 'DuckDB', 'Firebird', 'DB2' , 'Informix', 'Oracle', 'MSSQL' ], ##
             $epoch_to_timestamp => [  undef  ,  undef ,  undef   , 'Pg'  , 'DuckDB', 'Firebird',  undef,  undef    , 'Oracle', 'MSSQL' ],
             $to_char            => [  undef  ,  undef ,  undef   , 'Pg'  ,  undef  ,  undef    , 'DB2' , 'Informix', 'Oracle',  undef  ], # MariaDB
             $to_date            => [  undef  ,  undef ,  undef   , 'Pg'  ,  undef  ,  undef    , 'DB2' , 'Informix', 'Oracle',  undef  ], # MariaDB

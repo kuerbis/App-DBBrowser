@@ -185,14 +185,17 @@ sub detach_db {
             delete $h_ref->{$plugin}{$db};
             if ( ! %{$h_ref->{$plugin}} ) {
                 delete $h_ref->{$plugin};
-                if ( ! %$h_ref ) { # ###
-                    if ( -f $file_fs && ! eval { unlink $file_fs or die "unlink '$file_fs': $!" } ) {
-                        $ax->print_error_message( $@ );
-                    }
-                }
             }
         }
-        $ax->write_json( $file_fs, $h_ref );
+        if ( ! %$h_ref ) {
+            if ( -f $file_fs && ! eval { unlink $file_fs or die "unlink '$file_fs': $!" } ) {
+                $ax->print_error_message( $@ );
+                $ax->write_json( $file_fs, $h_ref ) if -f $file_fs;
+            }
+        }
+        else {
+            $ax->write_json( $file_fs, $h_ref );
+        }
         return 1;
     }
 }

@@ -1,10 +1,9 @@
 package App::DBBrowser;
-#$SIG{__WARN__} = sub { die @_ };
 use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_05';
+our $VERSION = '2.438';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -56,7 +55,6 @@ sub new {
     $info->{tr_default}  = { hide_cursor => 2, clear_screen => 1, page => 2, history => [ 0 .. 1000 ] };
     $info->{lyt_h}       = { order => 0, alignment => 2 };
     $info->{lyt_v}       = { undef => $info->{_back}, layout => 2 };
-    #$info->{rdbms_types} = [ qw( other DB2 DuckDB Firebird Informix MariaDB MSSQL mysql Oracle Pg SQLite ) ]; # ###
     return bless { i => $info }, $class;
 }
 
@@ -91,7 +89,7 @@ sub __init {
     my $plugin_config_dir = catdir( $app_dir, 'config_plugins' );
     mkdir $plugin_config_dir or die $! if ! -d $plugin_config_dir;
     $sf->{i}{plugin_config_file_fmt} = catfile $plugin_config_dir, 'config_%s.json';
-    $sf->{i}{db_config_file_fmt}     = catfile $plugin_config_dir, 'config_%s_Databases.json';  # ###
+    $sf->{i}{db_config_file_fmt}     = catfile $plugin_config_dir, 'config_%s_Databases.json';
 }
 
 
@@ -182,7 +180,6 @@ sub run {
         delete $sf->{o}{connect_data};
         delete $sf->{o}{connect_attr};
         $op_rw->read_config_file( $driver, $plugin );
-        #$plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} ); # with updated info and options # ###
 
         # DATABASES
 
@@ -278,14 +275,6 @@ sub run {
                 sys_dbs => $sys_dbs,
             };
             $op_rw->read_config_file( $driver, $plugin, $db );
-            #if ( $driver eq 'ODBC' ) {
-            #    $sf->{i}{dbms} = $sf->{i}{rdbms_types}[$sf->{o}{connect_attr}{odbc_to_rdbms} // 0 ]; ##
-            #}
-            #else {
-            #    $sf->{i}{dbms} = $driver;
-            #}
-            #$plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options # ###
-            #$ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
 
             # DB-HANDLE
 
@@ -326,8 +315,6 @@ sub run {
             else {
                 $sf->{i}{dbms} = $driver;
             }
-#            $plui = App::DBBrowser::DB->new( $sf->{i}, $sf->{o} );            # with updated info and options # ###
-#            $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} ); # with updated info and options
             if ( $sf->{i}{dbms} =~ /^(?:SQLite|DuckDB)\z/ && -f $sf->{i}{f_attached_db} ) {
                 if ( ! eval {
                     require App::DBBrowser::CreateDropAttach::AttachDB;
@@ -563,7 +550,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.437_05
+Version 2.438
 
 =head1 DESCRIPTION
 

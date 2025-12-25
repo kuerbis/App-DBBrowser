@@ -76,6 +76,9 @@ sub read_config_file {
         $sf->{i}{tc_default}{mouse} = $lo->{table}{mouse};
         $sf->{i}{tcu_default}{mouse} = $lo->{table}{mouse};
     }
+
+    delete $lo->{connect_attr}{odbc_to_rdbms}; # remove this
+
     if ( defined wantarray ) {
         return $lo;
     }

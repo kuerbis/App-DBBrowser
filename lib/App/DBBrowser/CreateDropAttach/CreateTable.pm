@@ -444,7 +444,7 @@ sub __edit_column_types {
         my $header = $sql->{insert_col_names}; #
         my $table  = $sql->{insert_args};
         my $encoding;
-        if ( $dbms eq 'MSSQL' && $sf->{o}{create}{encode_for_data_type_guessing} ) { # ###
+        if ( $sf->{o}{create}{encode_for_data_type_guessing} ) { # MSSQL DB2 Oracle
             $encoding = $source->{source_type} eq 'plain' ? 'locale' : $sf->{o}{insert}{file_encoding};
         }
         my @aoh;
@@ -485,15 +485,6 @@ sub __edit_column_types {
             }
         }
     }
-
-    if ( $dbms eq 'MSSQL' && $sf->{o}{create}{decimal_precision_includes_dot} ) { # ###
-        for my $field ( @$fields ) {
-            if ( defined $field->[1] && $field->[1] =~ /^DECIMAL\(([1-9][0-9]*),([1-9]+)\)\z/ ) {
-                $field->[1] = 'DECIMAL(' . ( $1 + 1 ) . ",$2)";
-            }
-        }
-    }
-
     my $constraint_rows = $sf->{o}{create}{table_constraint_rows};
     my $tbl_option_rows = $sf->{o}{create}{table_option_rows};
     my $skip = ' ';

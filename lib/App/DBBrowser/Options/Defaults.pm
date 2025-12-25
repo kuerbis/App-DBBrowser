@@ -46,11 +46,10 @@ sub defaults {
             operators             => [ " = ", " != ", " < ", " > ", "REGEXP_i", "NOT REGEXP_i", "IS NULL", "IS NOT NULL", "IN", "NOT IN" ],
 
             qualified_table_name  => 0,
-            quote_tables          => 0, # ###
-            quote_columns         => 0, # ###
+            quote_tables          => 0,
+            quote_columns         => 0,
 
-            limit_fetch_col_names => 1, ##
-            edit_sql_menu_sq      => 0,
+            edit_sql_menu_sq      => 0, ##
             pg_autocast           => 1,
 
             db2_encoding          => 'utf8',
@@ -120,7 +119,7 @@ sub defaults {
             file_encoding            => 'UTF-8',
             history_dirs             => 4,
             parse_mode_input_file    => 0,
-            enable_input_filter      => 1, # ###
+            enable_input_filter      => 1,
             empty_to_null_plain      => 1,
             empty_to_null_file       => 1,
             data_source_create_table => 2,
@@ -129,16 +128,13 @@ sub defaults {
             file_filter              => '',
         },
         create => {
-            default_ai_column_name   => 'Id',
-            option_ai_column_enabled => 0,
-            data_type_guessing       => 1,
-
-            encode_for_data_type_guessing  => 0, # ###
-            decimal_precision_includes_dot => 0, # ###
-
-            table_constraint_rows    => 0,
-            table_option_rows        => 0,
-            view_name_prefix         => '',
+            default_ai_column_name         => 'Id',
+            option_ai_column_enabled       => 0,
+            data_type_guessing             => 1,
+            encode_for_data_type_guessing  => 0,
+            table_constraint_rows          => 0,
+            table_option_rows              => 0,
+            view_name_prefix               => '',
         },
         split => {
             record_sep    => '\n',
@@ -208,7 +204,6 @@ sub defaults {
         },
     };
     if ( $driver eq 'SQLite' ) {
-        #$defaults->{connect_data} = {};
         $defaults->{connect_attr}{sqlite_see_if_its_a_number} = 1;
         $defaults->{connect_attr}{sqlite_string_mode}         = 5;
         $defaults->{connect_attr}{sqlite_busy_timeout}        = 30000;
@@ -235,22 +230,17 @@ sub defaults {
         $defaults->{connect_attr}{AskIfSID}    = 0;
     }
     elsif ( $driver eq 'DB2' ) {
-        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
     }
     elsif ( $driver eq 'Informix' ) {
-        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
         $defaults->{connect_attr}{ix_EnableUTF8} = 1;
     }
     elsif ( $driver eq 'ODBC' ) {
-        #delete @{$defaults->{connect_data}}{qw(host_required port_required host port use_dbi_host use_dbi_port)};
         $defaults->{connect_attr}{odbc_utf8_on}                   = 0;
         $defaults->{connect_attr}{odbc_ignore_named_placeholders} = 0;
        #$defaults->{connect_attr}{odbc_array_operations}          = 0;
         $defaults->{connect_attr}{odbc_batch_size}                = 10;
-        #$defaults->{connect_attr}{odbc_to_rdbms}                  = 0; # ###
     }
     elsif ( $driver eq 'DuckDB' ) {
-        #$defaults->{connect_data} = {};
     }
     return $defaults;
 }

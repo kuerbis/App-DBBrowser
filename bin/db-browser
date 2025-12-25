@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.016;
-our $VERSION = '2.437_05';
+our $VERSION = '2.438';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,7 +46,27 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.437_05
+Version 2.438
+
+
+
+=head1 BACKWARD INCOMPATIBLE CHANGES
+
+=over
+
+=item
+
+Table names and column names are now unquoted by default (see L</Identifiers>).
+
+=item
+
+Saved subqueries are saved now at plugin level instead at driver level.
+
+=item
+
+How plugin and database configuration data is saved has changed.
+
+=back
 
 =head1 SYNOPSIS
 
@@ -1089,6 +1109,14 @@ Data Type Guessing
 
 When this option is enabled and a table is created, C<SQL::Type::Guess> is used to guess the data types. These data types
 are then used as defaults when the user is prompted for data types.
+
+=item
+
+Encode data for type guessing
+
+If enabled, the data passed to C<SQL::Type::Guess> is encoded.
+
+The setting of this option can affect the size of C<max> in C<varchar(max)> if strings contain multibyte characters.
 
 =back
 

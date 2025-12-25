@@ -5,11 +5,13 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.437_05';
+our $VERSION = '2.438';
 
 use Encode       qw( decode );
 #use bytes;      # required
 use Scalar::Util qw( looks_like_number );
+
+use DBI::Const::GetInfoType;
 
 
 sub new {
@@ -161,7 +163,7 @@ sub get_schemas {
                 $regex_sys = qr/^(?:SYS|SQLJ$|NULLID$)/i;
             }
             elsif ( $dbms eq 'Informix' ) {
-                $regex_sys = qr/^informix\z/i;
+                $regex_sys = qr/^informix\s*\z/i;
             }
             elsif ( $dbms eq 'MSSQL' ) {
                 $regex_sys = qr/^(?:sys|information_schema)\z/i;
@@ -174,10 +176,6 @@ sub get_schemas {
                 else {
                     push @$user_schemas, $schema;
                 }
-            }
-            if ( $driver eq 'DuckDB' ) {
-                $user_schemas = [ map { decode( 'UTF-8', $_ ) } @$user_schemas ];
-                $sys_schemas  = [ map { decode( 'UTF-8', $_ ) } @$sys_schemas  ];
             }
         }
     }
@@ -248,17 +246,20 @@ sub tables_info {
     my $dbms = $sf->{Plugin}{i}{dbms};
     my $db_odbc;
     if ( $driver eq 'ODBC' && $dbms eq 'MariaDB' ) {
-    #if ( $driver eq 'ODBC' ) {
-        # odbc: $db is data source name and not the database name
-        $db_odbc = $dbh->get_info( 16 ); ##
+        # `table_info` returns everything.
+        $db_odbc = $dbh->get_info( $GetInfoType{SQL_DATABASE_NAME} );
+        # ODBC: $db is the data source name and not the database name
     }
     my ( @user_table_keys, @sys_table_keys );
     my $tables_info = {};
 
     for my $info_table ( @$info_tables ) {
-        if ( $driver =~ /^(?:Informix|Sybase)\z/ && defined $schema && $schema ne $info_table->{$table_schem} ) {
-            # `table_info` returns everything.
-            next;
+        if ( $driver =~ /^(?:Informix|Sybase)\z/ ) {
+            if ( defined $schema && $schema ne $info_table->{$table_schem} ) {
+                # `table_info` returns everything.
+                next;
+            }
+            $info_table->{$table_type} =~ s/\s+\z// if $driver eq 'Informix';
         }
         if ( length $db_odbc && $db_odbc ne $info_table->{$table_cat} ) {
             next;
@@ -273,9 +274,6 @@ sub tables_info {
         }
         if ( $dbms eq 'Oracle' && $info_table->{$table_type} eq 'SEQUENCE' ) {
             next;
-        }
-        if ( $driver eq 'DuckDB' ) {
-            $info_table->{$_} = decode( 'UTF-8', $info_table->{$_} ) for $table_schem, $table_name;
         }
         my $table_key;
         # The table name in $table_key is used in the tables-menu but not in SQL code.
@@ -333,7 +331,7 @@ App::DBBrowser::DB - Database plugin documentation.
 
 =head1 VERSION
 
-Version 2.437_05
+Version 2.438
 
 =head1 DESCRIPTION
 

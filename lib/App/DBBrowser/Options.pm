@@ -160,7 +160,7 @@ sub __config_db {
                 }
                 delete $conf->{$db};
                 if ( ! %$conf ) {
-                    if ( -f $file_fs && ! eval { unlink $file_fs or die "unlink '$file_fs': $!" } ) { ##
+                    if ( -f $file_fs && ! eval { unlink $file_fs or die "unlink '$file_fs': $!" } ) {
                         $ax->print_error_message( $@ );
                     }
                 }
@@ -207,15 +207,15 @@ sub set_options {
     my $op_rw = App::DBBrowser::Options::ReadWrite->new( $sf->{i}, $sf->{o} );
     $sf->{o} = $op_rw->read_config_file();
     my $tc = Term::Choose->new( $sf->{i}{tc_default} );
-    my $choose_plugins = '- Global settings'; # ###
-    my $config_plugins = '- Options';
-    my $app_info       = '- App info';
-    my $help           = '- Help';
+    my $global_settings = '- Global settings';
+    my $config_plugins  = '- Options';
+    my $app_info        = '- App info';
+    my $help            = '- Help';
     my $main_old_idx = 0;
 
     OPTION: while( 1 ) {
         my @pre  = ( undef, $sf->{i}{_continue} );
-        my $menu = [ @pre, $choose_plugins, $config_plugins, $app_info, $help ];
+        my $menu = [ @pre, $global_settings, $config_plugins, $app_info, $help ];
         # Choose
         my $main_idx = $tc->choose(
             $menu,
@@ -234,7 +234,7 @@ sub set_options {
         if ( $menu->[$main_idx] eq $sf->{i}{_continue} ) {
             return;
         }
-        elsif ( $menu->[$main_idx] eq $choose_plugins ) {
+        elsif ( $menu->[$main_idx] eq $global_settings ) {
             $sf->__config_global();
         }
         elsif ( $menu->[$main_idx] eq $config_plugins ) {
@@ -280,12 +280,9 @@ sub config_groups {
         unshift @pre, $hidden;
     }
     else {
-        #$info = 'Configure:';
-        #$prompt = $info;
         $prompt = 'Your choice:';
     }
     my $grp_old_idx = $cursor_first_pos;
-    #my $changed = 0; # ###
 
     GROUP: while( 1 ) {
         my ( $group, $group_prompt );
@@ -301,9 +298,7 @@ sub config_groups {
                 { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $grp_old_idx, undef => '  <=' }
             );
             if ( ! defined $grp_idx || ! defined $menu->[$grp_idx] ) {
-                #if ( $changed ) {
-                    $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                #}
+                $op_rw->write_config_file( $lo, $driver, $plugin, $db );
                 return;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
@@ -343,9 +338,7 @@ sub config_groups {
                 );
                 if ( ! $sub_group_idx ) {
                     if ( @$groups == 1 ) {
-                        #if ( $changed ) {
-                            $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                        #}
+                         $op_rw->write_config_file( $lo, $driver, $plugin, $db );
                         return;
                     }
                     next GROUP;
@@ -361,55 +354,41 @@ sub config_groups {
                 $sub_group = $sub_groups->[$sub_group_idx-@pre]{name};
             }
             if ( $group eq 'group_connect' ) {
-                #$changed +=
                 $op_mn->group_connect( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_extensions' ) {
-                #$changed +=
                 $op_mn->group_extensions( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_sql_settings' ) {
-                #$changed +=
                 $op_mn->group_sql_settings( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_create_table' ) {
-                #$changed +=
-                $op_mn->group_create_table( $info, $lo, $section, $sub_group, $driver );
+                $op_mn->group_create_table( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_output' ) {
-                #$changed +=
                 $op_mn->group_output( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_import' ) {
-                #$changed +=
                 $op_mn->group_import( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_export' ) {
-                #$changed +=
                 $op_mn->group_export( $info, $lo, $section, $sub_group );
             }
             elsif ( $group eq 'group_misc' ) {
-                #$changed +=
                 $op_mn->group_misc( $info, $lo, $section, $sub_group, $driver );
             }
             elsif ( $group eq 'group_global' ) {
-                #$changed +=
                 $op_mn->group_global( $info, $lo, $section, $sub_group );
             }
-
-            elsif ( $group eq 'group_select_plugins' ) { # ###
-                #$changed +=
+            elsif ( $group eq 'group_select_plugins' ) {
                 $op_mn->group_select_plugins( $info, $lo, $section, $sub_group );
             }
-
             else {
                 die "Unknown group $group";
             }
             if ( @$sub_groups == 1 ) {
                 if ( @$groups == 1 ) {
-                    #if ( $changed ) {
-                        $op_rw->write_config_file( $lo, $driver, $plugin, $db );
-                    #}
+                    $op_rw->write_config_file( $lo, $driver, $plugin, $db );
                     return;
                 }
                 else {

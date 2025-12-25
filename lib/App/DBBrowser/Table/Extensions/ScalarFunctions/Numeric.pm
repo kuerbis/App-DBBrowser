@@ -83,7 +83,7 @@ sub function_mod {
     ];
     my ( $divider ) = $ga->get_arguments( $sql, $clause, $func, $args_data, $r_data );
     return if ! defined $divider;
-    return "($col % $divider)" if $dbms eq 'MSSQL'; # ###
+    return "($col % $divider)" if $dbms eq 'MSSQL';
     return "MOD($col,$divider)";
 }
 

@@ -1,6 +1,5 @@
 package # hide from PAUSE
 App::DBBrowser::Table;
-#$SIG{__WARN__} = sub { die @_ };
 use warnings;
 use strict;
 use 5.016;
@@ -174,7 +173,7 @@ sub browse_the_table {
             print 'Computing:' . "\r" if $sf->{o}{table}{progress_bar};
             my $all_arrayref;
             if ( ! eval {
-                $all_arrayref = $sf->__selected_statement_result( $sql );
+                $all_arrayref = $sf->select_statement_results( $sql );
                 1 }
             ) {
                 $ax->print_error_message( $@ );
@@ -193,7 +192,7 @@ sub browse_the_table {
 }
 
 
-sub __selected_statement_result {
+sub select_statement_results {
     my ( $sf, $sql ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, $sf->{d} );
     my $statement = $ax->get_stmt( $sql, 'Select', 'prepare' );
@@ -213,14 +212,10 @@ sub __selected_statement_result {
         if ( ! ref $encoding ) {
             die qq(encoding "$sf->{o}{G}{db2_encoding}" not found);
         }
-        #for my $row ( @$all_arrayref ) { ##
-        #    $_ = $encoding->decode( $_ ) for @$row;
-        #}
         my $is_text = [ map { /^(?:1|12|2005|-15)\z/ ? 1 : 0 } @$col_types ];
 
-        for my $row ( @$all_arrayref ) { # untested
+        for my $row ( @$all_arrayref ) {
             for my $i ( 0 .. $#$row ) {
-                #if ( $col_types->[$i] == 1 || $col_types->[$i] == 12 ) {
                 if ( $is_text->[$i] ) {
                     $row->[$i] = $encoding->decode( $row->[$i] )
                 }
@@ -253,7 +248,7 @@ sub __export {
         return;
     }
     print 'Working ...' . "\r" if $sf->{o}{table}{progress_bar};
-    my $all_arrayref = $sf->__selected_statement_result( $sql );
+    my $all_arrayref = $sf->select_statement_results( $sql );
     my $open_mode;
     if ( length $sf->{o}{export}{file_encoding} ) {
         $open_mode = '>:encoding(' . $sf->{o}{export}{file_encoding} . ')';
