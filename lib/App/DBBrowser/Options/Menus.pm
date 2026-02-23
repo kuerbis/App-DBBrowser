@@ -94,17 +94,18 @@ sub sub_groups {
             { name => '_default_ai_column_name', text => "- Default auto increment column name", section => 'create' }, ##
         ],
         group_output => [
-            { name => '_binary_filter',    text => "- Binary filter",           section => 'table' },
-            { name => '_squash_spaces',    text => "- Squash spaces",           section => 'table' },
-            { name => '_set_string',       text => "- Undef string",            section => 'table' },
-            { name => '_color',            text => "- Color",                   section => 'table' },
-            { name => 'trunc_fract_first', text => "- Trunc fract first",       section => 'table' },
-            { name => '_base_indent',      text => "- Indentation SQL",         section => 'G'     },
-            { name => '_pad_row_edges',    text => "- Pad row edges",           section => 'table' },
-            { name => 'tab_width',         text => "- Tab width",               section => 'table' },
-            { name => '_expand_rows',      text => "- Expand table rows",       section => 'table' },
-            { name => 'max_width_exp',     text => "- Max width expanded rows", section => 'table' },
-            { name => 'min_col_width',     text => "- Trunc col threshold",     section => 'table' },
+            { name => '_binary_filter',         text => "- Binary filter",              section => 'table' },
+            { name => '_squash_spaces',         text => "- Squash spaces",              section => 'table' },
+            { name => '_set_string',            text => "- Undef string",               section => 'table' },
+            { name => '_color',                 text => "- Color",                      section => 'table' },
+            { name => 'trunc_fract_first',      text => "- Trunc fract first",          section => 'table' },
+            { name => '_base_indent',           text => "- Indentation SQL",            section => 'G'     },
+            { name => '_pad_row_edges',         text => "- Pad row edges",              section => 'table' },
+            { name => 'tab_width',              text => "- Tab width",                  section => 'table' },
+            { name => '_expand_rows',           text => "- Expand table rows",          section => 'table' },
+            { name => '_expanded_line_spacing', text => "- Expanded rows line spacing", section => 'table' },
+            { name => 'expanded_max_width',     text => "- Expanded rows max width",    section => 'table' },
+            { name => 'col_trim_threshold',     text => "- Column trim threshold",      section => 'table' },
         ],
         group_import => [
             { name => '_parse_file',        text => "- Parse tool",        section => 'insert' },
@@ -146,9 +147,11 @@ sub sub_groups {
 }
 
 
+my ( $no, $yes ) = ( 'NO', 'YES' );
+
+
 sub group_connect {
     my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     my $sub_menu_required_fields = [
         [ 'host_required', "- Host required",     [ $no, $yes ] ],
         [ 'port_required', "- Port required",     [ $no, $yes ] ],
@@ -279,7 +282,6 @@ sub group_connect {
 
 sub group_extensions {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_e_table' ) {
         my $prompt = 'Extend tables menu:';
         my $sub_menu = [
@@ -339,7 +341,6 @@ sub group_extensions {
 
 sub group_sql_settings {
     my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_meta' ) {
         my $prompt = 'System data ';
         my $sub_menu = [
@@ -412,7 +413,6 @@ sub group_sql_settings {
 
 sub group_create_table {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_enable_ct_opt' ) {
         my $prompt = 'Activate options';
         my $sub_menu = [
@@ -446,7 +446,6 @@ sub group_create_table {
 
 sub group_output {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_binary_filter' ) {
         my $prompt = 'How to print arbitrary binray data';
         my $sub_menu = [
@@ -504,18 +503,25 @@ sub group_output {
     elsif ( $sub_group eq '_expand_rows' ) {
         my $prompt = 'Your choice: ';
         my $sub_menu = [
-            [ 'table_expand', "- Expand table rows",   [ $no, $yes ] ],
+            [ 'table_expand', "- Expand table rows", [ $no, $yes ] ],
         ];
         $sf->__settings_menu_wrap( $info, $lo, $section, $sub_menu, $prompt );
     }
-    elsif ( $sub_group eq 'max_width_exp' ) {
+    elsif ( $sub_group eq '_expanded_line_spacing' ) {
+        my $prompt = 'Your choice: ';
+        my $sub_menu = [
+            [ 'expanded_line_spacing', "- Blank line between columns when a row is expanded.", [ $no, $yes ] ],
+        ];
+        $sf->__settings_menu_wrap( $info, $lo, $section, $sub_menu, $prompt );
+    }
+    elsif ( $sub_group eq 'expanded_max_width' ) {
         my $digits = 3;
         my $prompt = 'Maximum width of expanded table rows';
         $sf->__choose_a_number_wrap( $info, $lo, $section, $sub_group, $prompt, $digits, 0 );
     }
-    elsif ( $sub_group eq 'min_col_width' ) {
+    elsif ( $sub_group eq 'col_trim_threshold' ) {
         my $digits = 3;
-        my $prompt = 'Set the minimum column width ';
+        my $prompt = 'Column trim threshold ';
         $sf->__choose_a_number_wrap( $info, $lo, $section, $sub_group, $prompt, $digits, 0 );
     }
     elsif ( $sub_group eq '_db2_encoding' ) {
@@ -534,7 +540,6 @@ sub group_output {
 
 sub group_import {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_data_source_type' ) {
         my $prompt = 'Data source options';
         my $sub_menu = [
@@ -637,7 +642,6 @@ sub group_import {
 
 sub group_export {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq 'export_dir' ) {
         my $prompt = 'Select the destination folder for data exported as CSV files.';
         $sf->__choose_a_directory_wrap( $info, $lo, $section, $sub_group, $prompt );
@@ -689,7 +693,6 @@ sub group_export {
 
 sub group_misc {
     my ( $sf, $info, $lo, $section, $sub_group, $driver ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_search' ) {
         my $prompt = 'Your choice: ';
         my $sub_menu = [
@@ -721,7 +724,6 @@ sub group_misc {
 
 sub group_global {
     my ( $sf, $info, $lo, $section, $sub_group ) = @_;
-    my ( $no, $yes ) = ( 'NO', 'YES' );
     if ( $sub_group eq '_menu_memory' ) {
         my $prompt = 'Your choice: ';
         my $sub_menu = [

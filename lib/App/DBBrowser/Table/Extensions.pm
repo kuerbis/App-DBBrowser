@@ -213,7 +213,6 @@ sub __choose_extension {
             $extension = $extensions->[0];
         }
         else {
-
             my $empty;
             if ( $caller eq 'column' && $clause eq 'where' ) {
                 $empty = 'skip'; ##
@@ -237,7 +236,6 @@ sub __choose_extension {
                 $old_idx = $idx;
             }
             $extension = $extensions->[$idx-@pre];
-
         }
         my $cols = $sf->__avail_cols_in_extenstions( $sql, $clause, $extension );
         if ( $extension eq $e_const ) {

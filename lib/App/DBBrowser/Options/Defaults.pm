@@ -95,25 +95,27 @@ sub defaults {
             u_parentheses => 0,
         },
         table => {
+            choose_columns    => 0, # not an option, always 0
             codepage_mapping  => 0, # not an option, always 0
             hide_cursor       => 0, # not an option, always 0
             max_rows          => 0, # not an option, always 0
             page              => 2, # not an option, always 2
 
-            binary_filter     => 0,
-            binary_string     => 'BNRY',
-            color             => 0,
-            max_width_exp     => 0,
-            min_col_width     => 30,
-#            mouse             => 0,
-            pad_row_edges     => 0,
-            progress_bar      => 60_000,
-            search            => 1,
-            squash_spaces     => 0,
-            tab_width         => 2,
-            table_expand      => 1, # expand_table_rows ##
-            trunc_fract_first => 1,
-            undef             => '',
+            binary_filter         => 0,
+            binary_string         => 'BNRY',
+            color                 => 0,
+            col_trim_threshold    => 30,
+            expanded_line_spacing => 1,
+            expanded_max_width    => 0,
+#            mouse                => 0,
+            pad_row_edges         => 0,
+            progress_bar          => 60_000,
+            search                => 1,
+            squash_spaces         => 0,
+            tab_width             => 2,
+            table_expand          => 1, # expand_table_rows ##
+            trunc_fract_first     => 1,
+            undef                 => '',
         },
         insert => {
             file_encoding            => 'UTF-8',

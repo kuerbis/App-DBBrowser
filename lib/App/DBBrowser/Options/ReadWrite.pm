@@ -67,6 +67,19 @@ sub read_config_file {
         if ( ! %{$lo//{}} ) {
             $lo = $op_df->defaults( $driver );
         }
+
+        ####### 19.02.2026 ############
+        if ( exists $lo->{table}{max_width_exp} || exists $lo->{table}{min_col_width} || ! exists $lo->{table}{expanded_line_spacing}) {
+            $lo->{table}{expanded_line_spacing} = 1 if ! exists $lo->{table}{expanded_line_spacing};
+
+            $lo->{table}{expanded_max_width} = delete $lo->{table}{max_width_exp} if exists $lo->{table}{max_width_exp};
+            $lo->{table}{col_trim_threshold} = delete $lo->{table}{min_col_width} if exists $lo->{table}{min_col_width};
+
+            my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
+            $sf->write_config_file( $lo, $driver, $plugin ) if -f $file_fs;
+        }
+        ###############################
+
     }
     else {
         $lo = $ax->read_json( $sf->{i}{f_global_settings} ) // {};
@@ -77,7 +90,7 @@ sub read_config_file {
         $sf->{i}{tcu_default}{mouse} = $lo->{table}{mouse};
     }
 
-    delete $lo->{connect_attr}{odbc_to_rdbms}; # remove this
+
 
     if ( defined wantarray ) {
         return $lo;

@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use 5.016;
-our $VERSION = '2.438';
+our $VERSION = '2.439';
 
 use Term::Choose::Screen qw( hide_cursor show_cursor clear_to_end_of_screen );
 
@@ -46,9 +46,7 @@ C<db-browser> - Browse SQL databases and their tables interactively.
 
 =head1 VERSION
 
-Version 2.438
-
-
+Version 2.439
 
 =head1 BACKWARD INCOMPATIBLE CHANGES
 
@@ -1211,15 +1209,19 @@ Don't expand table rows.
 
 =back
 
-=head3 Max width expanded rows
+=head3 Expanded rows line spacing
 
-Set a maximum width of the expanded table row output. I<Max width expanded> set to C<0> means no maximum width. See
+Insert a blank line between columns when a row is expanded. See option L</Expand Table>.
+
+=head3 Expanded rows max width
+
+Set a maximum width of the expanded table row output. I<Expanded rows max width> set to C<0> means no maximum width. See
 option L</Expand Table>.
 
-=head3 Truncate Column Threshold
+=head3 Column Trim Threshold
 
-Columns with a width below or equal to I<Trunc col threshold> are only trimmed if it is still necessary to reduce the
-row width, even after all columns wider than I<Trunc col threshold> have been trimmed to I<Trunc col threshold>.
+Columns with a width below or equal to I<Column trim threshold> are only trimmed if it is still necessary to reduce the
+row width, even after all columns wider than I<Column trim threshold> have been trimmed to I<Column trim threshold>.
 
 =head3 DB2 Encoding
 
@@ -1576,7 +1578,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2012-2025 Matthäus Kiem.
+Copyright 2012-2026 Matthäus Kiem.
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE
 IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.

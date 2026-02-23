@@ -1,6 +1,12 @@
 Revision history for App-DBBrowser
 
 
+2.439   2026-02-23
+    - Raised required minimum version for Term::Choose and Term::TablePrint.
+    - New output option expanded line spacing.
+    - Update year copyright.
+
+
 2.438   2025-12-25
     - Backwards incompatible changes:
         Table names and column names are not quoted by default.

@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use 5.016;
 
-our $VERSION = '2.438';
+our $VERSION = '2.439';
 
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile catdir );
@@ -550,7 +550,7 @@ App::DBBrowser - Browse SQLite/MySQL/PostgreSQL databases and their tables inter
 
 =head1 VERSION
 
-Version 2.438
+Version 2.439
 
 =head1 DESCRIPTION
 
@@ -562,7 +562,7 @@ Matthäus Kiem <cuer2s@gmail.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2025 Matthäus Kiem.
+Copyright (C) 2012-2026 Matthäus Kiem.
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE
 IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
