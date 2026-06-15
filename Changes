@@ -1,6 +1,10 @@
 Revision history for App-DBBrowser
 
 
+2.443   2026-00-00
+    - ODBC (mysql,MariaDB): bugfix in get_schemas.
+    - Refactoring tables_info.
+
 2.442   2026-05-22
     - Term::TablePrint minimum version 0.182.
 
