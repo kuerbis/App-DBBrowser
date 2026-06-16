@@ -23,16 +23,11 @@ sub new {
 
 
 sub groups {
-    my ( $sf, $plugin, $db, $select_plugins ) = @_;
+    my ( $sf, $plugin, $select_plugins ) = @_;
     my $groups;
     if ( $select_plugins ) {
         $groups = [
             { name => 'group_select_plugins', text => "- Plugins" },
-        ];
-    }
-    elsif ( $db ) {
-        $groups = [
-            { name => 'group_connect', text => "- Connect data" }, ##
         ];
     }
     elsif ( $plugin ) {

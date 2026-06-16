@@ -274,7 +274,6 @@ sub run {
                 user_dbs => $user_dbs,
                 sys_dbs => $sys_dbs,
             };
-            $op_rw->read_config_file( $driver, $plugin, $db );
 
             # DB-HANDLE
 

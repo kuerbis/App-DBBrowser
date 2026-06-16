@@ -725,9 +725,6 @@ The I<Options> menu is accessed with C<db-browser -h>.
 
 =head2 Connect data
 
-By selecting the prompt line of the plugin settings menu (Configure plugin-name), you can set the connect data at
-database level.
-
 =over
 
 =item Fields

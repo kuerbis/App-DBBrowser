@@ -19,18 +19,9 @@ sub new {
 
 
 sub write_config_file {
-    my ( $sf, $lo, $driver, $plugin, $db ) = @_;
+    my ( $sf, $lo, $driver, $plugin ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
-    if ( $db ) {
-        my $file_fs = sprintf( $sf->{i}{db_config_file_fmt}, $plugin );
-        my $conf = {};
-        if ( -s $file_fs ) {
-            $conf = $ax->read_json( $file_fs );
-        }
-        $conf->{$db} = $lo;
-        $ax->write_json( $file_fs, $conf );
-    }
-    elsif ( $plugin ) {
+    if ( $plugin ) {
         my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
         $ax->write_json( $file_fs, $lo  );
     }
@@ -41,27 +32,11 @@ sub write_config_file {
 
 
 sub read_config_file {
-    my ( $sf, $driver, $plugin, $db ) = @_;
+    my ( $sf, $driver, $plugin ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     my $op_df = App::DBBrowser::Options::Defaults->new( $sf->{i}, {} );
     my $lo = {};
-    if ( $db ) {
-        my $file_fs = sprintf( $sf->{i}{db_config_file_fmt}, $plugin );
-        my $conf = $ax->read_json( $file_fs ) // {};
-        if ( ! %{$conf->{$db}//{}} ) {
-            my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
-            $conf = $ax->read_json( $file_fs ) // {};
-            if ( ! %$conf ) {
-                $conf = $op_df->defaults( $driver );
-            }
-            $lo->{connect_data} = $conf->{connect_data};
-            $lo->{connect_attr} = $conf->{connect_attr};
-        }
-        else {
-            $lo = $conf->{$db};
-        }
-    }
-    elsif ( $plugin ) {
+    if ( $plugin ) {
         my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
         $lo = $ax->read_json( $file_fs ) // {};
         if ( ! %{$lo//{}} ) {
@@ -89,16 +64,14 @@ sub read_config_file {
         $sf->{i}{tc_default}{mouse} = $lo->{table}{mouse};
         $sf->{i}{tcu_default}{mouse} = $lo->{table}{mouse};
     }
-
-
-
     if ( defined wantarray ) {
         return $lo;
     }
-
-    for my $section ( keys %$lo ) {
-        for my $opt ( keys %{$lo->{$section}} ) {
-            $sf->{o}{$section}{$opt} = $lo->{$section}{$opt};
+    else {
+        for my $section ( keys %$lo ) {
+            for my $opt ( keys %{$lo->{$section}} ) {
+                $sf->{o}{$section}{$opt} = $lo->{$section}{$opt};
+            }
         }
     }
 }
