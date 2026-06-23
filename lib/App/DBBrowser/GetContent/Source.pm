@@ -95,7 +95,6 @@ sub from_col_by_col {
                     { %{$sf->{i}{lyt_h}}, info => $info, prompt => '', default => $default }
                 );
                 $ax->print_sql_info( $info );
-
                 if ( ! defined $choice ) {
                     if ( $stmt_type eq 'Create_Table' && @$aoa == 1 ) {
                         next COL_BY_COL;
