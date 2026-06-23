@@ -19,7 +19,7 @@ sub new {
 
 
 sub write_config_file {
-    my ( $sf, $lo, $driver, $plugin ) = @_;
+    my ( $sf, $lo, $plugin ) = @_;
     my $ax = App::DBBrowser::Auxil->new( $sf->{i}, $sf->{o}, {} );
     if ( $plugin ) {
         my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
@@ -51,7 +51,15 @@ sub read_config_file {
             $lo->{table}{col_trim_threshold} = delete $lo->{table}{min_col_width} if exists $lo->{table}{min_col_width};
 
             my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
-            $sf->write_config_file( $lo, $driver, $plugin ) if -f $file_fs;
+            $sf->write_config_file( $lo, $plugin ) if -f $file_fs;
+        }
+        ###############################
+
+        ####### 23.06.2026 ############
+        if ( ! defined $lo->{insert}{max_cols_plain} ) {
+            my $file_fs = sprintf( $sf->{i}{plugin_config_file_fmt}, $plugin );
+            $lo->{insert}{max_cols_plain} = 25;
+            $sf->write_config_file( $lo, $plugin ) if -f $file_fs;
         }
         ###############################
 

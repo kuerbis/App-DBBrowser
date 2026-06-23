@@ -183,7 +183,7 @@ sub config_groups {
                 { %{$sf->{i}{lyt_v}}, prompt => $prompt, index => 1, default => $grp_old_idx, undef => '  <=' }
             );
             if ( ! defined $grp_idx || ! defined $menu->[$grp_idx] ) {
-                $op_rw->write_config_file( $lo, $driver, $plugin );
+                $op_rw->write_config_file( $lo, $plugin );
                 return;
             }
             if ( $sf->{o}{G}{menu_memory} ) {
@@ -219,7 +219,7 @@ sub config_groups {
                 );
                 if ( ! $sub_group_idx ) {
                     if ( @$groups == 1 ) {
-                         $op_rw->write_config_file( $lo, $driver, $plugin );
+                         $op_rw->write_config_file( $lo, $plugin );
                         return;
                     }
                     next GROUP;
@@ -269,7 +269,7 @@ sub config_groups {
             }
             if ( @$sub_groups == 1 ) {
                 if ( @$groups == 1 ) {
-                    $op_rw->write_config_file( $lo, $driver, $plugin );
+                    $op_rw->write_config_file( $lo, $plugin );
                     return;
                 }
                 else {
