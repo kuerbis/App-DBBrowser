@@ -411,6 +411,7 @@ sub column_names_and_types {
             }
         }
         elsif ( $driver eq 'DB2' && length $sf->{o}{G}{db2_encoding} ) {
+            $sth->execute();
             my $encoding = Encode::find_encoding( $sf->{o}{G}{db2_encoding} );
             if ( ! ref $encoding ) {
                 die "Unknown encoding: $sf->{o}{G}{db2_encoding}";
