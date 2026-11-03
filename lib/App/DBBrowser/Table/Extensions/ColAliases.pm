@@ -44,7 +44,6 @@ sub column_aliases {
         $table_no_alias =~ s/\s\Q$sql->{table_alias}\E\z//;
     }
     my $bu_d_table_aliases = [ @{$sf->{d}{table_aliases}{$table_no_alias}//[]} ];
-    my $rearranged = 0;
     my @bu;
     my $old_idx = 0;
 
@@ -87,7 +86,7 @@ sub column_aliases {
             $old_idx = $idx;
         }
         if ( $menu->[$idx] eq $confirm ) {
-            if ( ! @$bu_selected_cols && ! keys %{$sql->{alias}} && ! $rearranged ) {
+            if ( ! @$bu_selected_cols && ! keys %{$sql->{alias}} ) {
                 $sql->{selected_cols} = [];
             }
             return { %{$sql->{alias}} };
